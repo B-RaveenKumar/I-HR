@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Management Mobile Test - Final Fix</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .test-container { 
+            padding: 50px 20px; 
+            max-width: 800px; 
+            margin: 0 auto;
+        }
+        
+        .status-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 30px;
+            margin: 20px 0;
+            text-align: center;
+        }
+        
+        .status-header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .test-button {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            border: none;
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            margin: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+        
+        .test-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,123,255,0.4);
+            color: white;
+        }
+        
+        .fix-list {
+            text-align: left;
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+        
+        .fix-list li {
+            margin: 10px 0;
+            padding: 8px;
+            background: #e9ecef;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+        }
+        
+        .console-info {
+            background: #ffffff;
+            color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.9rem;
+            margin: 15px 0;
+        }
+        
+        .device-info {
+            background: #17a2b8;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 20px;
+            display: inline-block;
+            margin: 10px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <div class="status-card">
+            <div class="status-header">
+                <h1><i class="bi bi-check-circle"></i> Staff Management Mobile Fix Applied!</h1>
+                <p class="mb-0">Comprehensive solution implemented for mobile sidebar toggle</p>
+            </div>
+            
+            <div class="device-info" id="deviceInfo">
+                Loading device info...
+            </div>
+            
+            <h3>🔧 Applied Fixes</h3>
+            <ul class="fix-list">
+                <li><strong>✅ Emergency CSS Injection:</strong> Added !important styles to override conflicts</li>
+                <li><strong>✅ Event Listener Reset:</strong> Cloned toggle button to remove conflicting listeners</li>
+                <li><strong>✅ Enhanced Console Logging:</strong> Detailed debugging information</li>
+                <li><strong>✅ Robust Element Detection:</strong> Verified sidebar and toggle exist</li>
+                <li><strong>✅ Responsive Breakpoints:</strong> Proper mobile/desktop handling</li>
+                <li><strong>✅ Accessibility Improvements:</strong> ARIA attributes and focus management</li>
+            </ul>
+            
+            <div class="console-info">
+                <strong>📊 Console Debug Messages to Look For:</strong><br>
+                • "Staff Management: Initializing mobile sidebar..."<br>
+                • "🔄 STAFF MANAGEMENT - Toggle button clicked!"<br>
+                • "✅ Sidebar shown" / "✅ Sidebar hidden"<br>
+                • "Emergency mobile CSS added"
+            </div>
+            
+            <div class="mt-4">
+                <a href="/staff_management" class="test-button">
+                    <i class="bi bi-people"></i> Test Staff Management Page
+                </a>
+                <br>
+                <a href="/debug_staff_management.html" class="test-button" style="background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);">
+                    <i class="bi bi-bug"></i> Open Debug Version
+                </a>
+            </div>
+            
+            <div class="mt-4">
+                <h4>📱 Mobile Testing Steps:</h4>
+                <ol style="text-align: left; max-width: 500px; margin: 0 auto;">
+                    <li>Open Staff Management page</li>
+                    <li>Resize browser to mobile width (≤768px)</li>
+                    <li>Look for hamburger menu (☰) in top-left</li>
+                    <li>Click the menu button</li>
+                    <li>Sidebar should slide in from left</li>
+                    <li>Click outside to close</li>
+                </ol>
+            </div>
+            
+            <div class="alert alert-success mt-4" role="alert">
+                <h5><i class="bi bi-lightbulb"></i> Key Improvements</h5>
+                <p class="mb-0">
+                    This fix includes emergency CSS injection with !important declarations to override any conflicting styles,
+                    event listener cleanup to prevent multiple handlers, and comprehensive debugging to track exactly what's happening.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            function updateDeviceInfo() {
+                const width = window.innerWidth;
+                const height = window.innerHeight;
+                const isMobile = width <= 768;
+                
+                const deviceInfo = document.getElementById('deviceInfo');
+                deviceInfo.innerHTML = `
+                    <i class="bi bi-${isMobile ? 'phone' : 'laptop'}"></i>
+                    ${width} × ${height}px - ${isMobile ? 'Mobile' : 'Desktop'} Mode
+                `;
+                
+                console.log(`Device: ${width}x${height}px (${isMobile ? 'Mobile' : 'Desktop'})`);
+            }
+            
+            updateDeviceInfo();
+            window.addEventListener('resize', updateDeviceInfo);
+            
+            console.log('🧪 Staff Management Test Page loaded');
+            console.log('📱 Resize browser to test mobile functionality');
+        });
+    </script>
+</body>
+</html>

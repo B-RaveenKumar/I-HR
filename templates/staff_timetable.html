@@ -1,0 +1,1086 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Timetable - VishnoRex</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/timetable_management.css') }}">
+    <style>
+        /* Fix sidebar positioning for staff dashboard */
+        .container-fluid {
+            padding: 0;
+            margin: 0;
+        }
+        
+        .row {
+            margin: 0;
+            height: fit-content !important;
+            min-height: unset !important;
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        
+        /* Sidebar positioning */
+        .enhanced-sidebar {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: 250px;
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
+            display: block !important;
+        }
+        
+        /* Main content positioning */
+        .salary-main-content {
+            margin-left: 250px !important;
+            width: calc(100% - 250px) !important;
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+        
+        /* Remove Bootstrap default spacing */
+        .col-md-2, .col-md-10 {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        
+        /* Mobile responsive fixes */
+        @media (max-width: 767.98px) {
+            .enhanced-sidebar {
+                position: fixed !important;
+                top: 0;
+                left: -100%;
+                width: 280px;
+                height: 100vh;
+                overflow: hidden !important;
+                transition: left 0.3s ease;
+                z-index: 1050;
+                display: none !important;
+            }
+            
+            .enhanced-sidebar.show {
+                left: 0;
+                display: block !important;
+            }
+            
+            .salary-main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1rem 0.5rem;
+                padding-top: 4rem;
+            }
+            
+            .sidebar-toggle {
+                display: block !important;
+            }
+        }
+        
+        /* Sidebar toggle */
+        .sidebar-toggle {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1100;
+            background: var(--primary-color, #007bff);
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            font-size: 1.25rem;
+            display: none;
+        }
+        
+        @media (min-width: 768px) {
+            .sidebar-toggle {
+                display: none !important;
+            }
+        }
+        
+        /* Timetable Grid */
+        .week-grid {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 1rem;
+            padding: 0;
+        }
+        
+        .day-column {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .day-header {
+            font-weight: 600;
+            color: #007bff;
+            margin-bottom: 1rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 2px solid #e9ecef;
+            text-align: center;
+            font-size: 0.95rem;
+        }
+        
+        .period-slot {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+        
+        .period-slot:hover {
+            border-color: #007bff;
+            box-shadow: 0 2px 6px rgba(0,123,255,0.1);
+        }
+        
+        .period-slot.assigned {
+            background: #e7f1ff;
+            border-color: #007bff;
+            color: #004085;
+        }
+        
+        .period-slot.allocated {
+            background: #e7fde7;
+            border-color: #28a745;
+            color: #004d00;
+        }
+        
+        .period-slot.locked {
+            background: #ffe7e7;
+            border-color: #dc3545;
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+        
+        .period-slot.empty {
+            background: #f0f0f0;
+            color: white;
+            border-style: dashed;
+        }
+        
+        @media (max-width: 992px) {
+            .week-grid {
+                grid-template-columns: repeat(4, 1fr);
+            }
+        }
+        
+        @media (max-width: 576px) {
+            .week-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle -->
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar -->
+            <nav class="col-md-2 enhanced-sidebar" id="enhanced-sidebar">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        {% if institution.branding_enabled and institution.logo_path %}
+                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        {% else %}
+                            <div class="logo-icon">
+                                <i class="bi bi-building-gear"></i>
+                            </div>
+                        {% endif %}
+                        <div class="brand-text">
+                            {% if institution.branding_enabled and institution.name %}
+                                <h6 class="brand-title">{{ institution.name }}</h6>
+                                <small class="brand-subtitle">Staff Panel</small>
+                            {% else %}
+                                <h6 class="brand-title">VishnoRex</h6>
+                                <small class="brand-subtitle">Staff Panel</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ session.get('full_name', 'Staff Member') }}</div>
+                            <div class="user-role">Staff</div>
+                        </div>
+                    </div>
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Main Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_dashboard') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-house-door"></i>
+                                    </div>
+                                    <span class="nav-text">Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_profile_page') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                    <span class="nav-text">My Profile</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link active" href="{{ url_for('staff_timetable') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-calendar2-week"></i>
+                                    </div>
+                                    <span class="nav-text">My Timetable</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <!-- Sidebar Footer -->
+                    <div class="sidebar-footer">
+                    <div class="footer-stats">
+                        <div class="stat-item">
+                            <i class="bi bi-calendar-day"></i>
+                            <span id="currentDate">-</span>
+                        </div>
+                    </div>
+                    <button type="button" class="logout-btn" onclick="logout()" title="Logout" aria-label="Logout from staff panel">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+                </div>
+            </nav>
+            <!-- Main content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
+                <!-- CSRF Token for AJAX requests -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <!-- Enhanced Header -->
+                <div class="salary-header">
+                    <div class="header-content">
+                        <div class="header-title">
+                            <div class="title-icon">
+                                <i class="bi bi-calendar2-week"></i>
+                            </div>
+                            <div class="title-text">
+                                <h1 class="main-title">My Timetable</h1>
+                                <p class="subtitle">View your schedule and manage period allocations</p>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-outline-primary" id="refreshDataBtn" title="Refresh timetable">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                            <button type="button" class="btn btn-success" id="exportDataBtn" title="Export timetable">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Weekly Timetable Card -->
+                <div class="salary-filters-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-calendar-week"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Weekly Schedule</h5>
+                            <p class="card-subtitle">View your assigned periods and self-allocated slots</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="week-grid" id="timetableGrid">
+                            <!-- Generated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Swap Requests Card -->
+                <div class="salary-filters-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-arrow-left-right"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Swap Requests</h5>
+                            <p class="card-subtitle">Pending requests from other staff members</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="swapRequestsList">
+                            <p class="text-muted text-center p-4">No pending swap requests</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Allocations Card -->
+                <div class="salary-results-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-check-circle"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">My Self-Allocations</h5>
+                            <p class="card-subtitle">Periods you have self-allocated</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table salary-results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Day</th>
+                                        <th>Period</th>
+                                        <th>Time</th>
+                                        <th>Status</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="allocationsTableBody">
+                                    <tr style="background: #f8f9fa;">
+                                        <td colspan="5" style="padding: 2rem; text-align: center; color: white;">
+                                            <i class="bi bi-inbox"></i> No allocations yet
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- My Assigned Periods Card (from Admin) -->
+                <div class="salary-results-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-person-check"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">My Assigned Periods</h5>
+                            <p class="card-subtitle">Periods assigned to you by administration</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table salary-results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Day</th>
+                                        <th>Period</th>
+                                        <th>Time</th>
+                                        <th>Status</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="myAssignedPeriodsTableBody">
+                                    <tr style="background: #f8f9fa;">
+                                        <td colspan="5" style="padding: 2rem; text-align: center; color: white;">
+                                            <i class="bi bi-inbox"></i> No periods assigned yet
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+    
+    <!-- Swap Request Modal -->
+    <div class="modal fade" id="swapModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Request Swap</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Select Staff Member</label>
+                        <select id="swapStaffSelect" class="form-select">
+                            <option>-- Choose a colleague --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Period to Swap</label>
+                        <input type="text" id="swapPeriod" class="form-control" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Message (Optional)</label>
+                        <textarea id="swapMessage" class="form-control" rows="2" placeholder="Add a note..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitSwapRequest()">Submit Request</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Allocate Modal -->
+    <div class="modal fade" id="allocateModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Self-Allocate Period</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle"></i> You are allocating yourself to this period.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Day & Period</label>
+                        <input type="text" id="allocatePeriod" class="form-control" readonly>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="submitAllocation()">Allocate</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/staff_timetable.js') }}"></script>
+    
+    <script>
+        const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        
+        // Initialize current date
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        
+        // Sidebar toggle for mobile
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            const sidebar = document.getElementById('enhanced-sidebar');
+            sidebar.classList.toggle('show');
+        });
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTimetable();
+            loadSwapRequests();
+            loadAllocations();
+            loadMyAssignedPeriods();
+        });
+        
+        // Refresh button
+        document.getElementById('refreshDataBtn')?.addEventListener('click', function() {
+            loadTimetable();
+            loadSwapRequests();
+            loadAllocations();
+            loadMyAssignedPeriods();
+        });
+        
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/logout';
+            }
+        }
+        
+        // Load timetable
+        function loadTimetable() {
+            fetch('/api/timetable/assignments/0')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    renderWeeklyGrid(data.data);
+                }
+            });
+        }
+        
+        // Render weekly grid
+        function renderWeeklyGrid(assignments) {
+            let html = '';
+            for (let day = 0; day < 7; day++) {
+                html += `<div class="day-column">
+                    <div class="day-header">${DAYS[day]}</div>
+                    <div id="day-${day}"></div>
+                </div>`;
+            }
+            document.getElementById('timetableGrid').innerHTML = html;
+            
+            // Populate with periods
+            for (let day = 0; day < 7; day++) {
+                const dayAssignments = assignments.filter(a => a.day === day) || [];
+                let slotsHtml = '';
+                slotsHtml += '<div class="period-slot empty" onclick="showAllocateModal('+day+')"><i class="bi bi-plus"></i> Add Period</div>';
+                document.getElementById(`day-${day}`).innerHTML = slotsHtml;
+            }
+        }
+        
+        // Load swap requests
+        function loadSwapRequests() {
+            fetch('/api/timetable/swaps/requests')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.data.length > 0) {
+                    let html = '';
+                    data.data.forEach(request => {
+                        html += `
+                            <div class="card mb-3">
+                                <div class="card-body">
+                                    <h6 class="card-title">${request.from_staff}</h6>
+                                    <p class="card-text small text-muted">Period: ${request.period}</p>
+                                    <div class="btn-group">
+                                        <button class="btn btn-sm btn-success" onclick="acceptSwapRequest(${request.id})">Accept</button>
+                                        <button class="btn btn-sm btn-danger" onclick="rejectSwapRequest(${request.id})">Reject</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    document.getElementById('swapRequestsList').innerHTML = html;
+                }
+            });
+        }
+        
+        // Load allocations
+        function loadAllocations() {
+            fetch('/api/timetable/allocations')
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const tbody = document.getElementById('allocationsTableBody');
+                    tbody.innerHTML = '';
+                    
+                    if (data.data.length === 0) {
+                        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="5" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No allocations</td></tr>';
+                    } else {
+                        data.data.forEach(alloc => {
+                            tbody.innerHTML += `
+                                <tr>
+                                    <td>${DAYS[alloc.day_of_week]}</td>
+                                    <td>${alloc.period_number}</td>
+                                    <td>${alloc.start_time ? alloc.start_time.slice(0, 5) : '--:--'}</td>
+                                    <td><span class="badge bg-success">Allocated</span></td>
+                                    <td class="text-center">
+                                        <button class="btn btn-sm btn-danger" onclick="deleteAllocation(${alloc.id})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+                    }
+                }
+            });
+        }
+        
+        // Show allocate modal
+        function showAllocateModal(day) {
+            document.getElementById('allocatePeriod').value = DAYS[day];
+            new bootstrap.Modal(document.getElementById('allocateModal')).show();
+        }
+        
+        // Submit allocation
+        function submitAllocation() {
+            fetch('/api/timetable/allocations', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({
+                    day_of_week: 0,
+                    period_number: 1
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    bootstrap.Modal.getInstance(document.getElementById('allocateModal')).hide();
+                    loadAllocations();
+                    loadTimetable();
+                }
+            });
+        }
+        
+        // Delete allocation
+        function deleteAllocation(id) {
+            if (confirm('Delete this allocation?')) {
+                fetch(`/api/timetable/allocations/${id}`, {
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        loadAllocations();
+                        loadTimetable();
+                    }
+                });
+            }
+        }
+        
+        // Swap functions
+        function submitSwapRequest() {
+            alert('Swap request submitted!');
+            bootstrap.Modal.getInstance(document.getElementById('swapModal')).hide();
+        }
+        
+        function acceptSwapRequest(id) {
+            fetch(`/api/timetable/swaps/respond`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({
+                    alteration_id: id,
+                    response: 'accepted'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadSwapRequests();
+                }
+            });
+        }
+        
+        function rejectSwapRequest(id) {
+            fetch(`/api/timetable/swaps/respond`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+                },
+                body: JSON.stringify({
+                    alteration_id: id,
+                    response: 'rejected'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadSwapRequests();
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+            font-weight: 500;
+        }
+        
+        .slot-badge {
+            display: inline-block;
+            padding: 0.25rem 0.5rem;
+            background: #007bff;
+            color: white;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            margin-top: 0.25rem;
+        }
+        
+        /* Requests Section */
+        .requests-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            padding: 1.5rem;
+        }
+        
+        .request-card {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            padding: 1rem;
+            transition: all 0.2s;
+        }
+        
+        .request-card:hover {
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+        
+        .request-status {
+            display: inline-block;
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+        
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-accepted { background: #d4edda; color: #155724; }
+        .status-rejected { background: #f8d7da; color: #721c24; }
+        
+        /* Button Styles */
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+        }
+        
+        .action-buttons button {
+            flex: 1;
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-swap {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-swap:hover {
+            background: #0056b3;
+        }
+        
+        .btn-allocate {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-allocate:hover {
+            background: #1e7e34;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #a02622;
+        }
+        
+        .btn-disabled {
+            background: white;
+            color: white;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        @media (max-width: 1200px) {
+            .week-grid {
+                grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .week-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body style="background: #f5f5f5;">
+    <div class="container-fluid">
+        <main class="staff-main">
+            <!-- Header -->
+            <div style="margin-bottom: 2rem;">
+                <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 1rem;">
+                        <div style="width: 50px; height: 50px; background: #e7f1ff; border-radius: 12px; display: flex; align-items: center; justify-content: center; color: #007bff; font-size: 1.75rem;">
+                            <i class="bi bi-calendar-week"></i>
+                        </div>
+                        <div>
+                            <h1 style="margin: 0; font-size: 1.75rem; font-weight: 700;">My Timetable</h1>
+                            <p style="margin: 0.25rem 0 0 0; color: white; font-size: 0.95rem;">View assignments, request swaps, and self-allocate</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.75rem;">
+                        <button class="btn btn-outline-primary" onclick="refreshTimetable()">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                        <button class="btn btn-primary" onclick="viewMyRequests()">
+                            <i class="bi bi-chat-dots"></i> My Requests
+                        </button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Weekly Timetable Grid -->
+            <div class="timetable-card">
+                <div class="card-header">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <i class="bi bi-calendar-week" style="font-size: 1.25rem; color: #007bff;"></i>
+                        <div>
+                            <h5 style="margin: 0; font-weight: 600;">Weekly Schedule</h5>
+                            <small style="color: white;">Your assigned periods and available slots</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="week-grid" id="weeklyGrid">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Swap Requests Section -->
+            <div class="timetable-card">
+                <div class="card-header">
+                    <div style="display: flex; align-items: center; justify-content: space-between;">
+                        <div style="display: flex; align-items: center; gap: 0.75rem;">
+                            <i class="bi bi-arrow-left-right" style="font-size: 1.25rem; color: #007bff;"></i>
+                            <div>
+                                <h5 style="margin: 0; font-weight: 600;">Swap Requests</h5>
+                                <small style="color: white;">Incoming swap requests from colleagues</small>
+                            </div>
+                        </div>
+                        <span class="badge bg-primary" id="requestCount">0</span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="requests-container" id="requestsContainer">
+                        <div style="grid-column: 1 / -1; padding: 2rem; text-align: center; color: white;">
+                            <i class="bi bi-inbox"></i> No pending requests
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Self-Allocated Slots -->
+            <div class="timetable-card">
+                <div class="card-header">
+                    <div style="display: flex; align-items: center; gap: 0.75rem;">
+                        <i class="bi bi-bookmark-check" style="font-size: 1.25rem; color: #28a745;"></i>
+                        <div>
+                            <h5 style="margin: 0; font-weight: 600;">My Self-Allocated Slots</h5>
+                            <small style="color: white;">Empty slots you've filled</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="allocationsContainer" style="overflow-x: auto;">
+                        <table class="table table-hover" style="margin-bottom: 0;">
+                            <thead style="background: #f8f9fa;">
+                                <tr>
+                                    <th style="padding: 1rem; font-weight: 600;">Day</th>
+                                    <th style="padding: 1rem; font-weight: 600;">Period</th>
+                                    <th style="padding: 1rem; font-weight: 600;">Time</th>
+                                    <th style="padding: 1rem; font-weight: 600;">Class/Subject</th>
+                                    <th style="padding: 1rem; font-weight: 600;">Status</th>
+                                    <th style="padding: 1rem; font-weight: 600;" class="text-center">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="allocationsTable">
+                                <tr style="background: #f8f9fa;">
+                                    <td colspan="6" style="padding: 2rem; text-align: center; color: white;">
+                                        <i class="bi bi-inbox"></i> No self-allocations yet
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <!-- Swap Request Modal -->
+    <div class="modal fade" id="swapModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="border: none; border-radius: 12px;">
+                <div class="modal-header" style="border-bottom: 1px solid #e9ecef; padding: 1.5rem;">
+                    <h5 class="modal-title" style="font-weight: 600;">Request Alteration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Select Staff to Swap With</label>
+                        <select id="targetStaffSelect" class="form-select">
+                            <option>-- Choose staff member --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Your Period</label>
+                        <input type="text" id="yourPeriod" class="form-control" readonly style="background: #f8f9fa;">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Reason for Request</label>
+                        <textarea id="swapReason" class="form-control" rows="3" placeholder="Explain why you need this swap..."></textarea>
+                    </div>
+                    <div class="alert alert-info" style="margin-bottom: 0;">
+                        <i class="bi bi-info-circle"></i> The target staff will receive your request and can accept or reject it.
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 1rem;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="submitSwapRequest()">Send Request</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Self-Allocate Modal -->
+    <div class="modal fade" id="allocateModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content" style="border: none; border-radius: 12px;">
+                <div class="modal-header" style="border-bottom: 1px solid #e9ecef; padding: 1.5rem; background: #e7f1ff;">
+                    <h5 class="modal-title" style="font-weight: 600;">
+                        <i class="bi bi-bookmark-check"></i> Self-Allocate to Empty Slot
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body" style="padding: 1.5rem;">
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Period Details</label>
+                        <div style="background: #f8f9fa; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+                            <div style="margin-bottom: 0.5rem;">
+                                <strong id="allocationDay">Monday</strong> | <span id="allocationTime">8:00 AM - 8:45 AM</span>
+                            </div>
+                            <div style="font-size: 0.9rem; color: white;">Period <span id="allocationPeriod">1</span></div>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" style="font-weight: 600;">Class/Subject Name</label>
+                        <input type="text" id="classSubject" class="form-control" placeholder="e.g., Mathematics 10A, English Class">
+                    </div>
+                    <div class="alert alert-success" style="margin-bottom: 0;">
+                        <i class="bi bi-check-circle"></i> Once saved, this allocation will be <strong>locked</strong> and cannot be edited by you.
+                    </div>
+                </div>
+                <div class="modal-footer" style="border-top: 1px solid #e9ecef; padding: 1rem;">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" onclick="submitAllocation()">
+                        <i class="bi bi-bookmark-check"></i> Allocate Slot
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/staff_timetable.js') }}"></script>
+    
+    <script>
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTimetable();
+            loadSwapRequests();
+            loadAllocations();
+        });
+        
+        function refreshTimetable() {
+            loadTimetable();
+            loadSwapRequests();
+            loadAllocations();
+        }
+        
+        function viewMyRequests() {
+            alert('Viewing your requests...');
+        }
+        
+        function loadTimetable() {
+            // Will be implemented in js file
+            console.log('Loading timetable...');
+        }
+        
+        function loadSwapRequests() {
+            // Will be implemented in js file
+            console.log('Loading swap requests...');
+        }
+        
+        function loadAllocations() {
+            // Will be implemented in js file
+            console.log('Loading allocations...');
+        }
+        
+        function submitSwapRequest() {
+            alert('Swap request submitted!');
+            bootstrap.Modal.getInstance(document.getElementById('swapModal')).hide();
+        }
+        
+        function submitAllocation() {
+            alert('Slot allocated!');
+            bootstrap.Modal.getInstance(document.getElementById('allocateModal')).hide();
+        }
+        
+        // ========== LOAD ASSIGNED PERIODS FROM ADMIN ==========
+        
+        // Load periods assigned by admin
+        function loadMyAssignedPeriods() {
+            fetch(`/api/timetable/assignments/all?school_id=${schoolId}`)
+            .then(response => response.json())
+            .then(data => {
+                const tbody = document.getElementById('myAssignedPeriodsTableBody');
+                tbody.innerHTML = '';
+                
+                if (!data.success || !data.data) {
+                    tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="5" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No periods assigned yet</td></tr>';
+                    return;
+                }
+                
+                // Filter assignments for current staff member
+                const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                const currentStaffId = sessionStorage.getItem('staff_id') || new URLSearchParams(window.location.search).get('staff_id');
+                
+                const myAssignments = data.data.filter(a => a.staff_id == currentStaffId);
+                
+                if (myAssignments.length === 0) {
+                    tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="5" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No periods assigned yet</td></tr>';
+                } else {
+                    myAssignments.forEach(assign => {
+                        const startTime = assign.start_time ? assign.start_time.slice(0, 5) : '--:--';
+                        const endTime = assign.end_time ? assign.end_time.slice(0, 5) : '--:--';
+                        tbody.innerHTML += `
+                            <tr>
+                                <td>${DAYS[assign.day_of_week] || 'Unknown'}</td>
+                                <td>${assign.period_number || '-'}</td>
+                                <td>${startTime} - ${endTime}</td>
+                                <td><span class="badge ${assign.is_locked ? 'bg-danger' : 'bg-success'}">${assign.is_locked ? 'Locked' : 'Active'}</span></td>
+                                <td class="text-center">
+                                    <i class="bi bi-info-circle" title="This period was assigned by administration"></i>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            })
+            .catch(err => console.error('Error loading assigned periods:', err));
+        }
+    </script>
+</body>
+</html>

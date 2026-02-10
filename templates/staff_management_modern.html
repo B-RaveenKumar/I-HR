@@ -1,0 +1,793 @@
+{% extends "base_modern.html" %}
+
+{% block title %}Staff Management - VishnoRex{% endblock %}
+{% block page_title %}Staff Management{% endblock %}
+{% block page_subtitle %}Manage your team members, track attendance, and handle staff operations{% endblock %}
+
+{% block extra_css %}
+<style>
+/* Staff Management specific styles */
+.staff-search-container {
+    background: var(--white);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-200);
+    margin-bottom: var(--space-6);
+}
+
+.staff-filters {
+    display: grid;
+    grid-template-columns: 2fr 1fr 1fr auto;
+    gap: var(--space-4);
+    align-items: end;
+}
+
+.staff-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: var(--space-6);
+    margin-bottom: var(--space-8);
+}
+
+.staff-card {
+    background: var(--white);
+    border-radius: var(--radius-2xl);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-200);
+    overflow: hidden;
+    transition: all var(--transition-base);
+    position: relative;
+}
+
+.staff-card:hover {
+    box-shadow: var(--shadow-xl);
+    transform: translateY(-4px);
+}
+
+.staff-card-header {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: var(--white);
+    padding: var(--space-6);
+    text-align: center;
+    position: relative;
+}
+
+.staff-avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: var(--radius-full);
+    background: rgba(255, 255, 255, 0.2);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-2xl);
+    font-weight: 700;
+    margin: 0 auto var(--space-3);
+    border: 4px solid rgba(255, 255, 255, 0.3);
+}
+
+.staff-name {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    margin: 0 0 var(--space-1);
+}
+
+.staff-role {
+    font-size: var(--font-size-sm);
+    opacity: 0.9;
+    margin: 0;
+}
+
+.staff-card-body {
+    padding: var(--space-6);
+}
+
+.staff-info {
+    display: grid;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.staff-info-item {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--font-size-sm);
+}
+
+.staff-info-icon {
+    width: 20px;
+    color: var(--gray-500);
+    display: flex;
+    justify-content: center;
+}
+
+.staff-actions {
+    display: flex;
+    gap: var(--space-2);
+    flex-wrap: wrap;
+}
+
+.staff-status {
+    position: absolute;
+    top: var(--space-4);
+    right: var(--space-4);
+    padding: var(--space-1) var(--space-2);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--white);
+}
+
+.staff-status.active {
+    background: rgba(34, 197, 94, 0.9);
+}
+
+.staff-status.inactive {
+    background: rgba(239, 68, 68, 0.9);
+}
+
+.bulk-actions {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-200);
+    margin-bottom: var(--space-6);
+    display: none;
+}
+
+.bulk-actions.show {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    animation: slideInUp 0.3s ease-out;
+}
+
+@media (max-width: 768px) {
+    .staff-filters {
+        grid-template-columns: 1fr;
+        gap: var(--space-3);
+    }
+    
+    .staff-grid {
+        grid-template-columns: 1fr;
+        gap: var(--space-4);
+    }
+    
+    .staff-actions {
+        justify-content: center;
+    }
+    
+    .bulk-actions {
+        flex-direction: column;
+        align-items: stretch;
+        gap: var(--space-3);
+    }
+}
+</style>
+{% endblock %}
+
+{% block header_actions %}
+<button type="button" class="btn-modern btn-success-modern" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+    <i class="bi bi-person-plus"></i>
+    <span>Add Staff</span>
+</button>
+<button type="button" class="btn-modern btn-secondary-modern" onclick="exportStaffData()">
+    <i class="bi bi-download"></i>
+    <span>Export</span>
+</button>
+{% endblock %}
+
+{% block content %}
+<!-- Staff Search and Filters -->
+<div class="staff-search-container">
+    <form method="GET" class="staff-filters">
+        <div class="form-group-modern">
+            <label for="search" class="form-label-modern">
+                <i class="bi bi-search"></i>
+                Search Staff
+            </label>
+            <input type="text" 
+                   id="search" 
+                   name="search" 
+                   class="form-control-modern" 
+                   placeholder="Search by name, email, or employee ID..." 
+                   value="{{ request.args.get('search', '') }}">
+        </div>
+        
+        <div class="form-group-modern">
+            <label for="department" class="form-label-modern">Department</label>
+            <select id="department" name="department" class="form-control-modern">
+                <option value="">All Departments</option>
+                {% for dept in departments %}
+                <option value="{{ dept.id }}" {% if request.args.get('department') == dept.id|string %}selected{% endif %}>
+                    {{ dept.name }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group-modern">
+            <label for="status" class="form-label-modern">Status</label>
+            <select id="status" name="status" class="form-control-modern">
+                <option value="">All Status</option>
+                <option value="active" {% if request.args.get('status') == 'active' %}selected{% endif %}>Active</option>
+                <option value="inactive" {% if request.args.get('status') == 'inactive' %}selected{% endif %}>Inactive</option>
+            </select>
+        </div>
+        
+        <button type="submit" class="btn-modern btn-primary-modern">
+            <i class="bi bi-funnel"></i>
+            Filter
+        </button>
+    </form>
+</div>
+
+<!-- Bulk Actions (Hidden by default) -->
+<div class="bulk-actions" id="bulkActions">
+    <div class="flex-grow-1">
+        <span class="font-semibold text-gray-700">
+            <span id="selectedCount">0</span> staff members selected
+        </span>
+    </div>
+    <button type="button" class="btn-modern btn-secondary-modern btn-sm-modern" onclick="exportSelected()">
+        <i class="bi bi-download"></i>
+        Export Selected
+    </button>
+    <button type="button" class="btn-modern btn-danger-modern btn-sm-modern" onclick="bulkDelete()">
+        <i class="bi bi-trash"></i>
+        Delete Selected
+    </button>
+    <button type="button" class="btn-modern btn-secondary-modern btn-sm-modern" onclick="clearSelection()">
+        <i class="bi bi-x"></i>
+        Clear Selection
+    </button>
+</div>
+
+<!-- Staff Grid -->
+<div class="staff-grid">
+    {% for staff in staff_list %}
+    <div class="staff-card" data-staff-id="{{ staff.id }}">
+        <div class="staff-card-header">
+            <div class="staff-status {{ 'active' if staff.is_active else 'inactive' }}">
+                {{ 'Active' if staff.is_active else 'Inactive' }}
+            </div>
+            <div class="staff-avatar">
+                {{ staff.full_name[0] if staff.full_name else 'U' }}
+            </div>
+            <h3 class="staff-name">{{ staff.full_name or 'Unknown' }}</h3>
+            <p class="staff-role">{{ staff.position or 'Staff Member' }}</p>
+        </div>
+        
+        <div class="staff-card-body">
+            <div class="staff-info">
+                <div class="staff-info-item">
+                    <i class="staff-info-icon bi bi-envelope"></i>
+                    <span>{{ staff.email or 'No email' }}</span>
+                </div>
+                <div class="staff-info-item">
+                    <i class="staff-info-icon bi bi-telephone"></i>
+                    <span>{{ staff.phone or 'No phone' }}</span>
+                </div>
+                <div class="staff-info-item">
+                    <i class="staff-info-icon bi bi-building"></i>
+                    <span>{{ staff.department_name or 'No department' }}</span>
+                </div>
+                <div class="staff-info-item">
+                    <i class="staff-info-icon bi bi-calendar-plus"></i>
+                    <span>Joined {{ staff.hire_date.strftime('%b %Y') if staff.hire_date else 'N/A' }}</span>
+                </div>
+            </div>
+            
+            <div class="staff-actions">
+                <input type="checkbox" 
+                       class="staff-checkbox d-none" 
+                       value="{{ staff.id }}" 
+                       onchange="updateBulkActions()">
+                <button type="button" class="btn-modern btn-primary-modern btn-sm-modern flex-1" 
+                        onclick="viewStaff({{ staff.id }})">
+                    <i class="bi bi-eye"></i>
+                    <span>View</span>
+                </button>
+                <button type="button" class="btn-modern btn-secondary-modern btn-sm-modern flex-1" 
+                        onclick="editStaff({{ staff.id }})">
+                    <i class="bi bi-pencil"></i>
+                    <span>Edit</span>
+                </button>
+                <button type="button" class="btn-modern btn-secondary-modern btn-icon-sm-modern" 
+                        onclick="toggleStaffSelect({{ staff.id }})"
+                        title="Select staff">
+                    <i class="bi bi-check-square"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-span-full">
+        <div class="modern-card text-center py-8">
+            <div class="card-body-modern">
+                <i class="bi bi-people text-gray-400" style="font-size: 4rem;"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mt-4 mb-2">No Staff Found</h3>
+                <p class="text-gray-500 mb-4">No staff members match your current filters.</p>
+                <button type="button" class="btn-modern btn-primary-modern" data-bs-toggle="modal" data-bs-target="#addStaffModal">
+                    <i class="bi bi-person-plus"></i>
+                    <span>Add First Staff Member</span>
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if pagination and pagination.pages > 1 %}
+<div class="d-flex justify-center mt-8">
+    <nav aria-label="Staff pagination">
+        <ul class="pagination">
+            {% if pagination.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('staff_management', page=pagination.prev_num, **request.args) }}">
+                    <i class="bi bi-chevron-left"></i>
+                    Previous
+                </a>
+            </li>
+            {% endif %}
+            
+            {% for page_num in pagination.iter_pages() %}
+                {% if page_num %}
+                    {% if page_num != pagination.page %}
+                    <li class="page-item">
+                        <a class="page-link" href="{{ url_for('staff_management', page=page_num, **request.args) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item active">
+                        <span class="page-link">{{ page_num }}</span>
+                    </li>
+                    {% endif %}
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">…</span>
+                </li>
+                {% endif %}
+            {% endfor %}
+            
+            {% if pagination.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('staff_management', page=pagination.next_num, **request.args) }}">
+                    Next
+                    <i class="bi bi-chevron-right"></i>
+                </a>
+            </li>
+            {% endif %}
+        </ul>
+    </nav>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block modals %}
+<!-- Add Staff Modal -->
+<div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addStaffModalLabel">
+                    <i class="bi bi-person-plus me-2"></i>
+                    Add New Staff Member
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="addStaffForm" method="POST" action="{{ url_for('add_staff') }}">
+                {{ csrf_token() }}
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-modern">
+                                <label for="fullName" class="form-label-modern">Full Name *</label>
+                                <input type="text" id="fullName" name="full_name" class="form-control-modern" required>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-modern">
+                                <label for="email" class="form-label-modern">Email Address *</label>
+                                <input type="email" id="email" name="email" class="form-control-modern" required>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-modern">
+                                <label for="phone" class="form-label-modern">Phone Number</label>
+                                <input type="tel" id="phone" name="phone" class="form-control-modern">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-modern">
+                                <label for="position" class="form-label-modern">Position</label>
+                                <input type="text" id="position" name="position" class="form-control-modern">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group-modern">
+                                <label for="departmentSelect" class="form-label-modern">Department</label>
+                                <select id="departmentSelect" name="department_id" class="form-control-modern">
+                                    <option value="">Select Department</option>
+                                    {% for dept in departments %}
+                                    <option value="{{ dept.id }}">{{ dept.name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group-modern">
+                                <label for="hireDate" class="form-label-modern">Hire Date</label>
+                                <input type="date" id="hireDate" name="hire_date" class="form-control-modern">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-group-modern">
+                        <label for="address" class="form-label-modern">Address</label>
+                        <textarea id="address" name="address" class="form-control-modern" rows="3"></textarea>
+                    </div>
+                    <div class="form-group-modern">
+                        <div class="form-check">
+                            <input type="checkbox" id="isActive" name="is_active" class="form-check-input" checked>
+                            <label for="isActive" class="form-check-label">Active Staff Member</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn-modern btn-secondary-modern" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn-modern btn-primary-modern">
+                        <i class="bi bi-person-plus"></i>
+                        Add Staff Member
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Staff Modal -->
+<div class="modal fade" id="editStaffModal" tabindex="-1" aria-labelledby="editStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editStaffModalLabel">
+                    <i class="bi bi-pencil me-2"></i>
+                    Edit Staff Member
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="editStaffContent">
+                    <div class="text-center py-4">
+                        <div class="loading-spinner mx-auto"></div>
+                        <p class="mt-3 text-gray-500">Loading staff information...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- View Staff Modal -->
+<div class="modal fade" id="viewStaffModal" tabindex="-1" aria-labelledby="viewStaffModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="viewStaffModalLabel">
+                    <i class="bi bi-person me-2"></i>
+                    Staff Details
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div id="viewStaffContent">
+                    <div class="text-center py-4">
+                        <div class="loading-spinner mx-auto"></div>
+                        <p class="mt-3 text-gray-500">Loading staff details...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Global variables
+let selectedStaff = new Set();
+
+// Staff management functions
+function viewStaff(staffId) {
+    const modal = new bootstrap.Modal(document.getElementById('viewStaffModal'));
+    modal.show();
+    
+    // Load staff details via AJAX
+    fetch(`/staff/${staffId}`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        document.getElementById('viewStaffContent').innerHTML = renderStaffDetails(data);
+    })
+    .catch(error => {
+        console.error('Error loading staff details:', error);
+        document.getElementById('viewStaffContent').innerHTML = `
+            <div class="text-center py-4">
+                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                <p class="mt-3 text-gray-700">Failed to load staff details</p>
+            </div>
+        `;
+    });
+}
+
+function editStaff(staffId) {
+    const modal = new bootstrap.Modal(document.getElementById('editStaffModal'));
+    modal.show();
+    
+    // Load staff edit form via AJAX
+    fetch(`/staff/${staffId}/edit`, {
+        headers: {
+            'X-Requested-With': 'XMLHttpRequest'
+        }
+    })
+    .then(response => response.text())
+    .then(html => {
+        document.getElementById('editStaffContent').innerHTML = html;
+    })
+    .catch(error => {
+        console.error('Error loading edit form:', error);
+        document.getElementById('editStaffContent').innerHTML = `
+            <div class="text-center py-4">
+                <i class="bi bi-exclamation-triangle text-warning" style="font-size: 3rem;"></i>
+                <p class="mt-3 text-gray-700">Failed to load edit form</p>
+            </div>
+        `;
+    });
+}
+
+function toggleStaffSelect(staffId) {
+    const checkbox = document.querySelector(`[data-staff-id="${staffId}"] .staff-checkbox`);
+    const card = document.querySelector(`[data-staff-id="${staffId}"]`);
+    
+    if (selectedStaff.has(staffId)) {
+        selectedStaff.delete(staffId);
+        checkbox.checked = false;
+        card.classList.remove('selected');
+    } else {
+        selectedStaff.add(staffId);
+        checkbox.checked = true;
+        card.classList.add('selected');
+    }
+    
+    updateBulkActions();
+}
+
+function updateBulkActions() {
+    const bulkActions = document.getElementById('bulkActions');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    selectedCount.textContent = selectedStaff.size;
+    
+    if (selectedStaff.size > 0) {
+        bulkActions.classList.add('show');
+    } else {
+        bulkActions.classList.remove('show');
+    }
+}
+
+function clearSelection() {
+    selectedStaff.clear();
+    document.querySelectorAll('.staff-checkbox').forEach(checkbox => {
+        checkbox.checked = false;
+    });
+    document.querySelectorAll('.staff-card').forEach(card => {
+        card.classList.remove('selected');
+    });
+    updateBulkActions();
+}
+
+function exportSelected() {
+    if (selectedStaff.size === 0) {
+        alert('Please select staff members to export');
+        return;
+    }
+    
+    const staffIds = Array.from(selectedStaff);
+    window.showLoading();
+    
+    fetch('/staff/export', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.VishnoRex.csrfToken
+        },
+        body: JSON.stringify({ staff_ids: staffIds })
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `staff_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        window.hideLoading();
+    })
+    .catch(error => {
+        console.error('Export failed:', error);
+        window.hideLoading();
+        alert('Export failed. Please try again.');
+    });
+}
+
+function bulkDelete() {
+    if (selectedStaff.size === 0) {
+        alert('Please select staff members to delete');
+        return;
+    }
+    
+    if (!confirm(`Are you sure you want to delete ${selectedStaff.size} staff member(s)? This action cannot be undone.`)) {
+        return;
+    }
+    
+    const staffIds = Array.from(selectedStaff);
+    window.showLoading();
+    
+    fetch('/staff/bulk-delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': window.VishnoRex.csrfToken
+        },
+        body: JSON.stringify({ staff_ids: staffIds })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert(data.message || 'Delete failed');
+        }
+        window.hideLoading();
+    })
+    .catch(error => {
+        console.error('Delete failed:', error);
+        window.hideLoading();
+        alert('Delete failed. Please try again.');
+    });
+}
+
+function exportStaffData() {
+    window.showLoading();
+    
+    const params = new URLSearchParams(window.location.search);
+    
+    fetch(`/staff/export?${params}`, {
+        headers: {
+            'X-CSRFToken': window.VishnoRex.csrfToken
+        }
+    })
+    .then(response => response.blob())
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `staff_export_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+        window.hideLoading();
+    })
+    .catch(error => {
+        console.error('Export failed:', error);
+        window.hideLoading();
+        alert('Export failed. Please try again.');
+    });
+}
+
+function renderStaffDetails(staff) {
+    return `
+        <div class="staff-details">
+            <div class="text-center mb-4">
+                <div class="staff-avatar mx-auto mb-3" style="width: 100px; height: 100px; font-size: 2rem;">
+                    ${staff.full_name ? staff.full_name[0] : 'U'}
+                </div>
+                <h3 class="text-xl font-semibold">${staff.full_name || 'Unknown'}</h3>
+                <p class="text-gray-600">${staff.position || 'Staff Member'}</p>
+                <span class="badge ${staff.is_active ? 'bg-success' : 'bg-danger'}">
+                    ${staff.is_active ? 'Active' : 'Inactive'}
+                </span>
+            </div>
+            
+            <div class="row">
+                <div class="col-md-6">
+                    <h5>Contact Information</h5>
+                    <div class="staff-info">
+                        <div class="staff-info-item">
+                            <i class="staff-info-icon bi bi-envelope"></i>
+                            <span>${staff.email || 'No email'}</span>
+                        </div>
+                        <div class="staff-info-item">
+                            <i class="staff-info-icon bi bi-telephone"></i>
+                            <span>${staff.phone || 'No phone'}</span>
+                        </div>
+                        <div class="staff-info-item">
+                            <i class="staff-info-icon bi bi-geo-alt"></i>
+                            <span>${staff.address || 'No address'}</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <h5>Employment Details</h5>
+                    <div class="staff-info">
+                        <div class="staff-info-item">
+                            <i class="staff-info-icon bi bi-building"></i>
+                            <span>${staff.department_name || 'No department'}</span>
+                        </div>
+                        <div class="staff-info-item">
+                            <i class="staff-info-icon bi bi-calendar-plus"></i>
+                            <span>Joined ${staff.hire_date || 'N/A'}</span>
+                        </div>
+                        <div class="staff-info-item">
+                            <i class="staff-info-icon bi bi-person-badge"></i>
+                            <span>ID: ${staff.id}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+}
+
+// Form submission handling
+document.addEventListener('DOMContentLoaded', function() {
+    const addStaffForm = document.getElementById('addStaffForm');
+    if (addStaffForm) {
+        addStaffForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            window.showLoading();
+            
+            fetch(this.action, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-CSRFToken': window.VishnoRex.csrfToken
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    location.reload();
+                } else {
+                    alert(data.message || 'Failed to add staff member');
+                }
+                window.hideLoading();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                window.hideLoading();
+                alert('Failed to add staff member. Please try again.');
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

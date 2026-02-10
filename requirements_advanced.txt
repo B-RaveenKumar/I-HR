@@ -1,0 +1,209 @@
+# VishnoRex Attendance Management System - Advanced Requirements
+# Core Flask and Web Framework
+Flask==2.3.3
+Flask-WTF==1.1.1
+Werkzeug==2.3.7
+Jinja2==3.1.2
+MarkupSafe==2.1.3
+itsdangerous==2.1.2
+click==8.1.7
+
+# Database and ORM
+sqlite3  # Built-in with Python
+
+# Excel and Data Processing
+openpyxl==3.1.2
+pandas==2.0.3
+xlsxwriter==3.1.2
+numpy==1.24.3
+
+# Image Processing
+Pillow==10.0.0
+
+# Biometric Device Integration
+pyzk==0.9.1
+
+# Task Scheduling
+schedule==1.2.0
+APScheduler==3.10.4
+
+# System Monitoring and Performance
+psutil==5.9.5
+
+# HTTP Requests and API Integration
+requests==2.31.0
+urllib3==2.0.4
+
+# Email and Notifications
+smtplib  # Built-in with Python
+email-validator==2.0.0
+
+# Date and Time Handling
+python-dateutil==2.8.2
+
+# File and Path Utilities
+pathlib  # Built-in with Python
+os  # Built-in with Python
+shutil  # Built-in with Python
+
+# JSON and Data Serialization
+json  # Built-in with Python
+
+# Cryptography and Security
+cryptography==41.0.3
+bcrypt==4.0.1
+
+# Environment Variables
+python-dotenv==1.0.0
+
+# Testing Framework
+unittest  # Built-in with Python
+pytest==7.4.0
+pytest-cov==4.1.0
+pytest-flask==1.2.0
+
+# Development and Debugging
+flask-debugtoolbar==0.13.1
+
+# Logging
+logging  # Built-in with Python
+
+# Threading and Concurrency
+threading  # Built-in with Python
+concurrent.futures  # Built-in with Python
+
+# Regular Expressions
+re  # Built-in with Python
+
+# Mathematical Operations
+math  # Built-in with Python
+statistics  # Built-in with Python
+
+# Random Number Generation
+random  # Built-in with Python
+secrets  # Built-in with Python
+
+# Base64 Encoding
+base64  # Built-in with Python
+
+# ZIP File Handling
+zipfile  # Built-in with Python
+
+# Temporary Files
+tempfile  # Built-in with Python
+
+# System Information
+platform  # Built-in with Python
+sys  # Built-in with Python
+
+# Calendar Operations
+calendar  # Built-in with Python
+
+# CSV File Handling
+csv  # Built-in with Python
+
+# Configuration Parser
+configparser  # Built-in with Python
+
+# Hash Functions
+hashlib  # Built-in with Python
+
+# UUID Generation
+uuid  # Built-in with Python
+
+# Time Operations
+time  # Built-in with Python
+datetime  # Built-in with Python
+timedelta  # Built-in with Python
+
+# Type Hints
+typing  # Built-in with Python
+
+# Optional Dependencies for Enhanced Features
+# Uncomment if needed:
+
+# For advanced charting (if Chart.js server-side rendering needed)
+# plotly==5.15.0
+# matplotlib==3.7.2
+# seaborn==0.12.2
+
+# For PDF generation
+# reportlab==4.0.4
+# weasyprint==59.0
+
+# For advanced database features
+# SQLAlchemy==2.0.19
+# Flask-SQLAlchemy==3.0.5
+
+# For caching
+# Flask-Caching==2.0.2
+# redis==4.6.0
+
+# For session management
+# Flask-Session==0.5.0
+
+# For API documentation
+# Flask-RESTX==1.1.0
+# flasgger==0.9.7.1
+
+# For advanced authentication
+# Flask-Login==0.6.2
+# Flask-Principal==0.4.0
+
+# For rate limiting
+# Flask-Limiter==3.4.0
+
+# For CORS support
+# Flask-CORS==4.0.0
+
+# For WebSocket support
+# Flask-SocketIO==5.3.5
+# python-socketio==5.8.0
+
+# For advanced logging
+# structlog==23.1.0
+
+# For monitoring and metrics
+# prometheus-client==0.17.1
+
+# For message queuing
+# celery==5.3.1
+# redis==4.6.0
+
+# For advanced validation
+# marshmallow==3.20.1
+# Flask-Marshmallow==0.15.0
+
+# For internationalization
+# Flask-Babel==3.1.0
+
+# For advanced forms
+# WTForms==3.0.1
+
+# For file storage
+# Flask-Uploads==0.2.1
+
+# For advanced security
+# Flask-Talisman==1.1.0
+
+# Production Server (choose one)
+# gunicorn==21.2.0  # For Unix/Linux
+# waitress==2.1.2   # For Windows
+
+# Development Dependencies
+# flask-shell-ipython==1.4.0
+# ipython==8.14.0
+
+# Documentation Generation
+# sphinx==7.1.2
+# sphinx-rtd-theme==1.3.0
+
+# Code Quality
+# flake8==6.0.0
+# black==23.7.0
+# isort==5.12.0
+# mypy==1.5.1
+
+# Security Scanning
+# bandit==1.7.5
+# safety==2.3.5

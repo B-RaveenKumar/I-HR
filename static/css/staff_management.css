@@ -1,0 +1,93 @@
+/* Staff Management Dashboard - Enhanced Styles */
+
+/* Additional staff-specific styles */
+.attendance-time-display {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    text-align: center;
+    min-height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.attendance-time-display .time-value {
+    font-size: 1.1rem;
+    font-weight: 600;
+    margin: 0;
+}
+
+.attendance-status-display {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    text-align: center;
+    min-height: 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Staff table enhancements */
+.user-avatar {
+    font-size: 1.5rem;
+    color: white;
+}
+
+/* Enhanced action buttons for staff management */
+.action-buttons .btn {
+    margin-right: 0.25rem;
+    border-radius: 0.375rem;
+    transition: all 0.2s ease;
+}
+
+.action-buttons .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+/* Staff form enhancements */
+.form-control:focus,
+.form-select:focus {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Enhanced modal styling for staff management */
+.modal-xl .modal-body {
+    padding: 2rem;
+}
+
+.rules-section {
+    margin-bottom: 2rem;
+}
+
+.section-title {
+    font-weight: 600;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 2px solid #f8f9fa;
+}
+
+/* Staff-specific responsive design */
+@media (max-width: 768px) {
+    .filters-grid {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .attendance-time-display,
+    .attendance-status-display {
+        min-height: 2.5rem;
+        padding: 0.5rem;
+    }
+
+    .user-avatar {
+        font-size: 1.2rem;
+    }
+}
+
+

@@ -1,0 +1,664 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Salary Management - VishnoRex</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <style>
+        /* Fix sidebar positioning for salary management */
+        .container-fluid {
+            padding: 0;
+            margin: 0;
+        }
+        
+        .row {
+            margin: 0;
+            height: fit-content !important;
+            min-height: unset !important;
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        
+        /* Sidebar positioning */
+        .enhanced-sidebar {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: 250px; /* Fixed width */
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
+            display: block !important; /* Override inline style */
+        }
+        
+        /* Main content positioning */
+        .salary-main-content {
+            margin-left: 250px !important; /* Match sidebar width exactly */
+            width: calc(100% - 250px) !important; /* Fill remaining space */
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+        
+        /* Remove Bootstrap default spacing that causes issues */
+        .col-md-2, .col-md-10 {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        
+        /* Mobile responsive fixes */
+        @media (max-width: 767.98px) {
+            .enhanced-sidebar {
+                position: fixed !important;
+                top: 0;
+                left: -100%;
+                width: 280px;
+                height: 100vh;
+                overflow: hidden !important;
+                transition: left 0.3s ease;
+                z-index: 1050;
+                display: none !important; /* Hidden by default on mobile */
+            }
+            
+            .enhanced-sidebar.show {
+                left: 0;
+                display: block !important;
+            }
+            
+            .salary-main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1rem 0.5rem;
+                padding-top: 4rem; /* Account for mobile toggle button */
+            }
+            
+            .sidebar-toggle {
+                display: block !important;
+            }
+        }
+        
+        /* Ensure sidebar toggle is properly styled */
+        .sidebar-toggle {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1100;
+            background: var(--primary-color, #007bff);
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            font-size: 1.25rem;
+            display: none;
+        }
+        
+        @media (min-width: 768px) {
+            .sidebar-toggle {
+                display: none !important;
+            }
+        }
+        
+        /* Salary Rules Auto-Save Indicators */
+        .saving-indicator {
+            font-size: 0.75rem;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .saved-indicator {
+            font-size: 0.75rem;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle -->
+    <button type="button" class="sidebar-toggle d-md-none" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar -->
+            <nav class="col-md-2 enhanced-sidebar" id="enhanced-sidebar">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        {% if institution.branding_enabled and institution.logo_path %}
+                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        {% else %}
+                            <div class="logo-icon">
+                                <i class="bi bi-building-gear"></i>
+                            </div>
+                        {% endif %}
+                        <div class="brand-text">
+                            {% if institution.branding_enabled and institution.name %}
+                                <h6 class="brand-title">{{ institution.name }}</h6>
+                                <small class="brand-subtitle">Admin Panel</small>
+                            {% else %}
+                                <h6 class="brand-title">VishnoRex</h6>
+                                <small class="brand-subtitle">Admin Panel</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ session.get('full_name', 'Admin User') }}</div>
+                            <div class="user-role">Administrator</div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Main Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/dashboard">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-house-door"></i>
+                                    </div>
+                                    <span class="nav-text">Dashboard</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_management') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <span class="nav-text">Staff Management</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('work_time_assignment') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-clock-history"></i>
+                                    </div>
+                                    <span class="nav-text">Work Time Assignment</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link active" href="{{ url_for('salary_management') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-currency-dollar"></i>
+                                    </div>
+                                    <span class="nav-text">Salary Management</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/reports">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-graph-up"></i>
+                                    </div>
+                                    <span class="nav-text">Reports & Analytics</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Quick Actions Section 
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-lightning"></i>
+                            <span>Quick Actions</span>
+                        </div>
+                        <div class="quick-actions">
+                            <button type="button" class="quick-action-btn" title="Export Data">
+                                <i class="bi bi-download"></i>
+                                <span>Export</span>
+                            </button>
+                            <button type="button" class="quick-action-btn" title="Settings">
+                                <i class="bi bi-gear"></i>
+                                <span>Settings</span>
+                            </button>
+                            <button type="button" class="quick-action-btn" title="Help">
+                                <i class="bi bi-question-circle"></i>
+                                <span>Help</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>-->
+
+                <!-- Sidebar Footer -->
+                <div class="sidebar-footer">
+                    <div class="footer-stats">
+                        <div class="stat-item">
+                            <i class="bi bi-people"></i>
+                            <span id="totalStaffCount">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="bi bi-calendar-day"></i>
+                            <span id="currentDate">-</span>
+                        </div>
+                    </div>
+                    <button type="button" class="logout-btn" onclick="logout()" title="Logout">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
+                <!-- CSRF Token for AJAX requests -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <!-- Enhanced Header -->
+                <div class="salary-header">
+                    <div class="header-content">
+                        <div class="header-title">
+                            <div class="title-icon">
+                                <i class="bi bi-currency-dollar"></i>
+                            </div>
+                            <div class="title-text">
+                                <h1 class="main-title">Salary Management</h1>
+                                <p class="subtitle">Calculate and manage staff salaries with comprehensive attendance tracking</p>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-outline-primary" id="refreshDataBtn" title="Refresh data">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Salary Calculation Filters -->
+                <div class="salary-filters-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-funnel"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Salary Calculation Filters</h5>
+                            <p class="card-subtitle">Select criteria for salary calculations</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <form id="salaryCalculationForm">
+                            <div class="filters-grid">
+                                <div class="filter-group">
+                                    <label for="calculationYear" class="form-label">
+                                        <i class="bi bi-calendar-event"></i> Year
+                                    </label>
+                                    <select class="form-select enhanced-select" id="calculationYear" title="Select year for calculation">
+                                        {% for year in range(2023, current_year + 1) %}
+                                        <option value="{{ year }}" {% if year == current_year %}selected{% endif %}>{{ year }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="calculationMonth" class="form-label">
+                                        <i class="bi bi-calendar-month"></i> Month
+                                    </label>
+                                    <select class="form-select enhanced-select" id="calculationMonth" title="Select month for calculation">
+                                        <option value="1">January</option>
+                                        <option value="2">February</option>
+                                        <option value="3">March</option>
+                                        <option value="4">April</option>
+                                        <option value="5">May</option>
+                                        <option value="6">June</option>
+                                        <option value="7">July</option>
+                                        <option value="8">August</option>
+                                        <option value="9">September</option>
+                                        <option value="10">October</option>
+                                        <option value="11">November</option>
+                                        <option value="12">December</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label for="departmentFilter" class="form-label">
+                                        <i class="bi bi-building"></i> Department
+                                    </label>
+                                    <select class="form-select enhanced-select" id="departmentFilter" title="Filter by department">
+                                        <option value="">All Departments</option>
+                                        <option value="Teaching">Teaching</option>
+                                        <option value="Administration">Administration</option>
+                                        <option value="Support">Support</option>
+                                        <option value="Management">Management</option>
+                                        <option value="IT">IT</option>
+                                        <option value="Finance">Finance</option>
+                                        <option value="HR">HR</option>
+                                        <option value="Security">Security</option>
+                                        <option value="Maintenance">Maintenance</option>
+                                        <option value="Library">Library</option>
+                                    </select>
+                                </div>
+                                <div class="filter-group">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-primary btn-calculate" id="calculateBulkSalaryBtn" title="Calculate salary for all staff">
+                                        <i class="bi bi-calculator"></i>
+                                        <span>Calculate Salaries</span>
+                                    </button>
+                                </div>
+                                <div class="filter-group">
+                                    <label class="form-label">&nbsp;</label>
+                                    <button type="button" class="btn btn-warning btn-calculate" id="calculateEnhancedSalaryBtn" title="Calculate enhanced salaries based on actual hours worked">
+                                        <i class="bi bi-clock-history"></i>
+                                        <span>Enhanced Salaries</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Enhanced Salary Rules Configuration -->
+                <div class="salary-rules-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-gear"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Salary Rules Configuration</h5>
+                            <p class="card-subtitle">Configure bonus and penalty rates for salary calculations</p>
+                        </div>
+                        <div class="header-toggle">
+                            <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#salaryRulesCollapse" title="Toggle salary rules section">
+                                <i class="bi bi-chevron-down"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="collapse show" id="salaryRulesCollapse">
+                        <div class="card-body">
+                            <form id="salaryRulesForm">
+                                <div class="rules-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-award text-success"></i> Bonus & Incentives
+                                    </h6>
+                                    <div class="rules-grid">
+                                        <div class="rule-item bonus-rule">
+                                            <label for="earlyArrivalBonus" class="form-label">
+                                                <i class="bi bi-clock-history"></i> Early Arrival Bonus
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">₹</span>
+                                                <input type="number" class="form-control" id="earlyArrivalBonus" step="0.01" value="50.00" title="Bonus amount per hour for early arrival">
+                                                <span class="input-group-text">/hour</span>
+                                            </div>
+                                            <small class="form-text">Reward for arriving before shift start time</small>
+                                        </div>
+                                        <div class="rule-item bonus-rule">
+                                            <label for="overtimeMultiplier" class="form-label">
+                                                <i class="bi bi-clock"></i> Overtime Multiplier
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="overtimeMultiplier" step="0.1" value="1.5" title="Multiplier for overtime pay calculation">
+                                                <span class="input-group-text">x</span>
+                                            </div>
+                                            <small class="form-text">Multiplier for overtime hours pay</small>
+                                        </div>
+                                        <div class="rule-item bonus-rule">
+                                            <label for="bonusRatePercentage" class="form-label">
+                                                <i class="bi bi-trophy"></i> Extra Hours Bonus Rate
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="bonusRatePercentage" step="0.1" value="10.0" title="Bonus percentage for extra hours worked">
+                                                <span class="input-group-text">%</span>
+                                            </div>
+                                            <small class="form-text">Bonus percentage for working extra hours beyond standard</small>
+                                        </div>
+                                        <div class="rule-item bonus-rule">
+                                            <label for="minimumHoursForBonus" class="form-label">
+                                                <i class="bi bi-hourglass-split"></i> Minimum Hours for Bonus
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="minimumHoursForBonus" step="0.5" value="5.0" title="Minimum extra hours to qualify for bonus">
+                                                <span class="input-group-text">hrs</span>
+                                            </div>
+                                            <small class="form-text">Minimum extra hours required to qualify for bonus</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="rules-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-exclamation-triangle text-warning"></i> Penalties & Deductions
+                                    </h6>
+                                    <div class="rules-grid">
+                                        <div class="rule-item penalty-rule">
+                                            <label for="earlyDeparturePenalty" class="form-label">
+                                                <i class="bi bi-door-open"></i> Early Departure Penalty
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">₹</span>
+                                                <input type="number" class="form-control" id="earlyDeparturePenalty" step="0.01" value="100.00" title="Penalty amount per hour for early departure">
+                                                <span class="input-group-text">/hour</span>
+                                            </div>
+                                            <small class="form-text">Penalty for leaving before shift end time</small>
+                                        </div>
+                                        <div class="rule-item penalty-rule">
+                                            <label for="lateArrivalPenalty" class="form-label">
+                                                <i class="bi bi-clock-fill"></i> Late Arrival Penalty
+                                            </label>
+                                            <div class="input-group">
+                                                <span class="input-group-text">₹</span>
+                                                <input type="number" class="form-control" id="lateArrivalPenalty" step="0.01" value="75.00" title="Penalty amount per hour for late arrival">
+                                                <span class="input-group-text">/hour</span>
+                                            </div>
+                                            <small class="form-text">Penalty for arriving after grace period</small>
+                                        </div>
+                                        <div class="rule-item penalty-rule">
+                                            <label for="absentDeductionRate" class="form-label">
+                                                <i class="bi bi-person-x"></i> Absent Day Deduction
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="absentDeductionRate" step="0.1" value="1.0" title="Rate for absent day salary deduction">
+                                                <span class="input-group-text">rate</span>
+                                            </div>
+                                            <small class="form-text">Deduction rate for absent days</small>
+                                        </div>
+                                        <div class="rule-item bonus-rule">
+                                            <label for="onDutyRate" class="form-label">
+                                                <i class="bi bi-briefcase"></i> On Duty Pay Rate
+                                            </label>
+                                            <div class="input-group">
+                                                <input type="number" class="form-control" id="onDutyRate" step="0.1" value="1.0" title="Pay rate for on duty days">
+                                                <span class="input-group-text">rate</span>
+                                            </div>
+                                            <small class="form-text">Pay rate for field work and special duties</small>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="rules-actions">
+                                    <button type="button" class="btn btn-success btn-update-rules" id="updateSalaryRulesBtn" title="Update salary calculation rules">
+                                        <i class="bi bi-check-circle"></i>
+                                        <span>Update Salary Rules</span>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="resetRulesBtn" title="Reset to default values">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                        <span>Reset to Defaults</span>
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Salary Calculation Results -->
+                <div class="salary-results-card" id="salaryResultsCard">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-table"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Salary Calculation Results</h5>
+                            <p class="card-subtitle" id="resultsSubtitle">Select calculation parameters and click "Calculate Salaries" to view results</p>
+                        </div>
+                        <div class="header-actions">
+                            <div class="results-stats" id="resultsStats">
+                                <!-- Stats will be populated here -->
+                            </div>
+                            <button type="button" class="btn btn-outline-primary btn-sm d-none" id="exportResultsBtn" title="Export results to Excel">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="results-container">
+                            <div id="salaryResultsContainer">
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="bi bi-calculator"></i>
+                                    </div>
+                                    <h6 class="empty-title">Ready to Calculate Salaries</h6>
+                                    <p class="empty-text">Select calculation parameters above and click "Calculate Salaries" to view detailed salary breakdown for your staff</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Enhanced Salary Results Section -->
+                <div class="salary-results-card mt-4" id="enhancedSalaryResultsContainer">
+                    <!-- Results will be populated by JavaScript -->
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Individual Salary Detail Modal -->
+    <div class="modal fade" id="salaryDetailModal" tabindex="-1" aria-labelledby="salaryDetailModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="salaryDetailModalLabel">
+                        <i class="bi bi-person-badge"></i> Detailed Salary Breakdown
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="salaryDetailContent">
+                    <!-- Detailed salary breakdown will be loaded here -->
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="downloadSalarySlipBtn" title="Download salary slip">
+                        <i class="bi bi-download" aria-hidden="true"></i> Download Salary Slip
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay d-none" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Calculating salaries...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/salary_management.js') }}"></script>
+    
+    <script>
+        // Mobile sidebar toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('enhanced-sidebar');
+            
+            // Show sidebar on desktop by default
+            function updateSidebarVisibility() {
+                if (window.innerWidth > 768) {
+                    sidebar.style.display = 'block';
+                    sidebar.classList.remove('show');
+                } else {
+                    sidebar.style.display = 'block'; // Make sure it's not hidden by inline style
+                }
+            }
+            
+            // Initial setup
+            updateSidebarVisibility();
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Salary Management - Toggle button clicked');
+                    
+                    sidebar.classList.toggle('show');
+                    
+                    // Update aria-expanded for accessibility
+                    const expanded = sidebar.classList.contains('show');
+                    sidebarToggle.setAttribute('aria-expanded', expanded);
+                });
+                
+                // Close sidebar when clicking outside on mobile
+                document.addEventListener('click', function(event) {
+                    if (window.innerWidth <= 768) { // Only on mobile
+                        if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
+                            sidebar.classList.remove('show');
+                            sidebarToggle.setAttribute('aria-expanded', 'false');
+                        }
+                    }
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', updateSidebarVisibility);
+            }
+        });
+    </script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

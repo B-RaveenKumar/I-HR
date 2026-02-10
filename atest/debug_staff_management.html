@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Management Mobile Debug Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <style>
+        /* Debug overlay styles */
+        .debug-panel {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: #ffffff;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1060;
+            max-width: 300px;
+            font-size: 0.85rem;
+            font-family: monospace;
+        }
+        
+        .debug-info {
+            margin: 5px 0;
+            padding: 5px;
+            border-radius: 4px;
+        }
+        
+        .debug-success { background: #155724; }
+        .debug-warning { background: #856404; }
+        .debug-error { background: #721c24; }
+        
+        .test-content {
+            padding: 120px 20px 20px;
+            text-align: center;
+        }
+        
+        /* Force sidebar visibility for testing */
+        .force-visible-test {
+            background: #1a1a2e !important;
+            border: 2px solid red !important;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle -->
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <!-- Debug Panel -->
+    <div class="debug-panel" id="debugPanel">
+        <strong>🐛 Debug Info</strong><br>
+        <div id="debugInfo">Loading...</div>
+    </div>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar -->
+            <nav class="col-md-2 enhanced-sidebar" id="enhanced-sidebar" style="display: none;">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        <div class="logo-icon">
+                            <i class="bi bi-building-gear"></i>
+                        </div>
+                        <div class="brand-text">
+                            <h6 class="brand-title">VishnoRex</h6>
+                            <small class="brand-subtitle">Staff Management Debug</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">Debug User</div>
+                            <div class="user-role">Administrator</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Debug Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" onclick="debugLog('Dashboard clicked')">
+                                    <div class="nav-icon"><i class="bi bi-house-door"></i></div>
+                                    <span class="nav-text">Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#" onclick="debugLog('Staff Management clicked')">
+                                    <div class="nav-icon"><i class="bi bi-people"></i></div>
+                                    <span class="nav-text">Staff Management</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" onclick="debugLog('Reports clicked')">
+                                    <div class="nav-icon"><i class="bi bi-file-earmark-text"></i></div>
+                                    <span class="nav-text">Reports</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Sidebar Footer -->
+                    <div class="sidebar-footer">
+                        <button type="button" class="logout-btn" onclick="debugLog('Logout clicked')" title="Logout">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Debug Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-10 salary-main-content">
+                <div class="test-content">
+                    <h1>🐛 Staff Management Mobile Debug</h1>
+                    <p class="lead">Debugging mobile sidebar toggle issues</p>
+                    
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5>Manual Tests</h5>
+                                    <button class="btn btn-primary btn-sm" onclick="toggleSidebarManual()">Force Toggle</button><br><br>
+                                    <button class="btn btn-warning btn-sm" onclick="forceSidebarVisible()">Force Visible</button><br><br>
+                                    <button class="btn btn-danger btn-sm" onclick="resetSidebar()">Reset</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5>CSS Tests</h5>
+                                    <button class="btn btn-info btn-sm" onclick="checkCSS()">Check CSS</button><br><br>
+                                    <button class="btn btn-secondary btn-sm" onclick="checkElements()">Check Elements</button><br><br>
+                                    <button class="btn btn-success btn-sm" onclick="fixStyles()">Fix Styles</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5>Event Tests</h5>
+                                    <button class="btn btn-outline-primary btn-sm" onclick="testEvents()">Test Events</button><br><br>
+                                    <button class="btn btn-outline-warning btn-sm" onclick="clearConsole()">Clear Console</button><br><br>
+                                    <button class="btn btn-outline-success btn-sm" onclick="showDebugInfo()">Show Debug</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let debugLog = function(message) {
+            console.log(`[DEBUG] ${message}`);
+            updateDebugPanel(`${message} - ${new Date().toLocaleTimeString()}`);
+        };
+        
+        let debugMessages = [];
+        
+        function updateDebugPanel(message) {
+            debugMessages.unshift(message);
+            if (debugMessages.length > 10) debugMessages.pop();
+            
+            const debugInfo = document.getElementById('debugInfo');
+            debugInfo.innerHTML = debugMessages.map(msg => `<div class="debug-info">${msg}</div>`).join('');
+        }
+        
+        // Enhanced mobile sidebar toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('enhanced-sidebar');
+            
+            debugLog('DOM loaded, initializing sidebar...');
+            debugLog(`Toggle found: ${!!sidebarToggle}`);
+            debugLog(`Sidebar found: ${!!sidebar}`);
+            
+            // Show sidebar on desktop by default
+            function updateSidebarVisibility() {
+                const width = window.innerWidth;
+                debugLog(`Window width: ${width}px`);
+                
+                if (width > 768) {
+                    sidebar.style.display = 'block';
+                    sidebar.classList.remove('show');
+                    debugLog('Desktop mode - sidebar visible');
+                } else {
+                    sidebar.style.display = 'block';
+                    debugLog('Mobile mode - sidebar hidden until toggled');
+                }
+                
+                // Update debug panel
+                updateSidebarDebugInfo();
+            }
+            
+            function updateSidebarDebugInfo() {
+                const computedStyle = window.getComputedStyle(sidebar);
+                const toggleStyle = window.getComputedStyle(sidebarToggle);
+                
+                debugLog(`Sidebar display: ${computedStyle.display}`);
+                debugLog(`Sidebar transform: ${computedStyle.transform}`);
+                debugLog(`Toggle display: ${toggleStyle.display}`);
+                debugLog(`Has show class: ${sidebar.classList.contains('show')}`);
+            }
+            
+            // Initial setup
+            updateSidebarVisibility();
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    
+                    debugLog('TOGGLE BUTTON CLICKED!');
+                    
+                    sidebar.classList.toggle('show');
+                    
+                    // Update aria-expanded for accessibility
+                    const expanded = sidebar.classList.contains('show');
+                    sidebarToggle.setAttribute('aria-expanded', expanded);
+                    
+                    debugLog(`Sidebar toggled - show class: ${expanded}`);
+                    updateSidebarDebugInfo();
+                });
+                
+                // Close sidebar when clicking outside on mobile
+                document.addEventListener('click', function(event) {
+                    if (window.innerWidth <= 768) {
+                        if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
+                            if (sidebar.classList.contains('show')) {
+                                sidebar.classList.remove('show');
+                                sidebarToggle.setAttribute('aria-expanded', 'false');
+                                debugLog('Sidebar closed by outside click');
+                            }
+                        }
+                    }
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', function() {
+                    debugLog('Window resized');
+                    updateSidebarVisibility();
+                });
+                
+                debugLog('Event listeners attached successfully');
+            } else {
+                debugLog('ERROR: Toggle button or sidebar not found!');
+            }
+        });
+        
+        // Manual testing functions
+        function toggleSidebarManual() {
+            const sidebar = document.getElementById('enhanced-sidebar');
+            sidebar.classList.toggle('show');
+            debugLog(`Manual toggle - show class: ${sidebar.classList.contains('show')}`);
+        }
+        
+        function forceSidebarVisible() {
+            const sidebar = document.getElementById('enhanced-sidebar');
+            sidebar.style.transform = 'translateX(0) !important';
+            sidebar.style.display = 'block !important';
+            sidebar.style.position = 'fixed !important';
+            sidebar.style.zIndex = '9999 !important';
+            sidebar.classList.add('force-visible-test');
+            debugLog('Forced sidebar visible with inline styles');
+        }
+        
+        function resetSidebar() {
+            const sidebar = document.getElementById('enhanced-sidebar');
+            sidebar.style.transform = '';
+            sidebar.classList.remove('show', 'force-visible-test');
+            debugLog('Sidebar reset to default state');
+        }
+        
+        function checkCSS() {
+            const sidebar = document.getElementById('enhanced-sidebar');
+            const computedStyle = window.getComputedStyle(sidebar);
+            
+            console.log('=== CSS CHECK ===');
+            console.log('Display:', computedStyle.display);
+            console.log('Transform:', computedStyle.transform);
+            console.log('Position:', computedStyle.position);
+            console.log('Z-Index:', computedStyle.zIndex);
+            console.log('Width:', computedStyle.width);
+            console.log('Height:', computedStyle.height);
+            console.log('Background:', computedStyle.backgroundColor);
+            
+            debugLog('CSS check completed - see console');
+        }
+        
+        function checkElements() {
+            const sidebar = document.getElementById('enhanced-sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            
+            console.log('=== ELEMENT CHECK ===');
+            console.log('Sidebar element:', sidebar);
+            console.log('Toggle element:', toggle);
+            console.log('Sidebar classes:', sidebar.className);
+            console.log('Toggle classes:', toggle.className);
+            
+            debugLog('Element check completed - see console');
+        }
+        
+        function fixStyles() {
+            const sidebar = document.getElementById('enhanced-sidebar');
+            
+            // Add explicit styles to override any conflicts
+            const style = document.createElement('style');
+            style.textContent = `
+                @media (max-width: 768px) {
+                    .enhanced-sidebar {
+                        display: block !important;
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        width: 280px !important;
+                        height: 100vh !important;
+                        background: #1a1a2e !important;
+                        z-index: 1050 !important;
+                        transform: translateX(-100%) !important;
+                        transition: transform 0.3s ease !important;
+                        overflow-y: auto !important;
+                    }
+                    
+                    .enhanced-sidebar.show {
+                        transform: translateX(0) !important;
+                    }
+                    
+                    .sidebar-toggle {
+                        display: block !important;
+                        position: fixed !important;
+                        top: 1rem !important;
+                        left: 1rem !important;
+                        z-index: 1051 !important;
+                        background: #007bff !important;
+                        color: white !important;
+                        border: none !important;
+                        border-radius: 8px !important;
+                        padding: 0.75rem !important;
+                        cursor: pointer !important;
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+            
+            debugLog('Emergency CSS styles applied!');
+        }
+        
+        function testEvents() {
+            const toggle = document.getElementById('sidebarToggle');
+            debugLog('Simulating click event...');
+            toggle.click();
+        }
+        
+        function clearConsole() {
+            console.clear();
+            debugMessages = [];
+            updateDebugPanel('Console cleared');
+        }
+        
+        function showDebugInfo() {
+            checkCSS();
+            checkElements();
+        }
+        
+        // Initial debug
+        debugLog('Debug page loaded successfully');
+    </script>
+</body>
+</html>

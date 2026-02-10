@@ -1,0 +1,188 @@
+<!-- Staff Profile View -->
+<div class="card mb-4" id="staffProfileCard">
+    <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">Staff Profile</h5>
+        <div>
+            <button class="btn btn-sm btn-primary me-2" id="editStaffBtn" data-staff-id="{{ staff.id }}">
+                <i class="bi bi-pencil-square"></i> Edit
+            </button>
+            <button class="btn btn-sm btn-danger" id="deleteStaffBtn" data-staff-id="{{ staff.id }}">
+                <i class="bi bi-trash"></i> Delete
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-4 text-center">
+                <img src="https://via.placeholder.com/150" class="img-thumbnail mb-3" alt="Staff Photo" id="staffPhoto" style="max-height: 200px;">
+                <div class="d-grid gap-2">
+                    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#biometricModal" data-staff-id="{{ staff.id }}">
+                        <i class="bi bi-fingerprint"></i> Enroll Biometrics
+                    </button>
+                    <button class="btn btn-outline-secondary" id="resetPasswordBtn" data-staff-id="{{ staff.id }}">
+                        <i class="bi bi-key"></i> Reset Password
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-8">
+                <h4 id="staffName">{{ staff.full_name }}</h4>
+                <p class="text-muted">{{ staff.destination or staff.position or 'Not specified' }} • {{ staff.department or 'Not specified' }}</p>
+
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <p><strong>Staff ID:</strong> <span id="staffId" class="text-muted">{{ staff.staff_id }}</span></p>
+                        <p><strong>First Name:</strong> <span id="staffFirstName" class="text-muted">{{ staff.first_name or '-' }}</span></p>
+                        <p><strong>Last Name:</strong> <span id="staffLastName" class="text-muted">{{ staff.last_name or '-' }}</span></p>
+                        <p><strong>Date of Birth:</strong> <span id="staffDOB" class="text-muted">{{ staff.date_of_birth or '-' }}</span></p>
+                        <p><strong>Date of Joining:</strong> <span id="staffDOJ" class="text-muted">{{ staff.date_of_joining or '-' }}</span></p>
+                        <p><strong>Department:</strong> <span id="staffDept" class="text-muted">{{ staff.department or '-' }}</span></p>
+                    </div>
+                    <div class="col-md-6">
+                        <p><strong>Destination:</strong> <span id="staffDestination" class="text-muted">{{ staff.destination or '-' }}</span></p>
+                        <p><strong>Gender:</strong> <span id="staffGender" class="text-muted">{{ staff.gender or '-' }}</span></p>
+                        <p><strong>Phone:</strong> <span id="staffPhone" class="text-muted">{{ staff.phone or '-' }}</span></p>
+                        <p><strong>Email:</strong> <span id="staffEmail" class="text-muted">{{ staff.email or '-' }}</span></p>
+                        <p><strong>Shift Type:</strong>
+                            <span class="badge bg-info" id="staffShiftType">{{ staff.shift_type or 'General' }}</span>
+                        </p>
+                        <p><strong>Status:</strong> <span class="badge bg-success" id="staffStatus">Active</span></p>
+                    </div>
+                </div>
+                <hr>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Attendance Summary (Last 30 Days)</h5>
+                        <div class="row">
+                            <div class="col-6 mb-3">
+                                <div class="card bg-success bg-opacity-10">
+                                    <div class="card-body text-center py-2">
+                                        <h4 class="mb-0" id="presentCount">{{ attendance_summary.present_count or 0 }}</h4>
+                                        <small>Present</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6 mb-3">
+                                <div class="card bg-danger bg-opacity-10">
+                                    <div class="card-body text-center py-2">
+                                        <h4 class="mb-0" id="absentCount">{{ attendance_summary.absent_count or 0 }}</h4>
+                                        <small>Absent</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-warning bg-opacity-10">
+                                    <div class="card-body text-center py-2">
+                                        <h4 class="mb-0" id="lateCount">{{ attendance_summary.late_count or 0 }}</h4>
+                                        <small>Late</small>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-info bg-opacity-10">
+                                    <div class="card-body text-center py-2">
+                                        <h4 class="mb-0" id="leaveCount">{{ attendance_summary.leave_count or 0 }}</h4>
+                                        <small>Leave</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>Recent Biometric Verifications</h5>
+                        <div class="list-group" id="recentActivity">
+                            {% if recent_verifications %}
+                                {% for verification in recent_verifications %}
+                                <div class="list-group-item">
+                                    <div class="d-flex justify-content-between">
+                                        <div>
+                                            {% if verification.verification_type == 'check-in' %}
+                                                <span class="badge bg-success me-2">
+                                                    <i class="bi bi-box-arrow-in-right"></i> Check In
+                                                </span>
+                                            {% elif verification.verification_type == 'check-out' %}
+                                                <span class="badge bg-info me-2">
+                                                    <i class="bi bi-box-arrow-left"></i> Check Out
+                                                </span>
+                                            {% else %}
+                                                <strong>{{ verification.verification_type.title() }}</strong>
+                                            {% endif %}
+                                            <small class="text-muted d-block">{{ verification.biometric_method }}</small>
+                                        </div>
+                                        <div class="text-end">
+                                            {% if verification.verification_status == 'success' %}
+                                                <span class="badge bg-success">Success</span>
+                                            {% else %}
+                                                <span class="badge bg-danger">Failed</span>
+                                            {% endif %}
+                                            <small class="text-muted d-block">{{ verification.verification_time | datetimeformat }}</small>
+                                        </div>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                            {% else %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between">
+                                    <small class="text-muted">No recent verifications</small>
+                                    <small class="text-muted">-</small>
+                                </div>
+                            </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <hr>
+        <h5><i class="bi bi-calendar-week"></i> Weekly Attendance Calendar</h5>
+        <div id="adminStaffWeeklyCalendar"></div>
+    </div>
+</div>
+
+<!-- Edit Staff Modal -->
+<div class="modal fade" id="editStaffModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title">Edit Staff Member</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editStaffForm" enctype="multipart/form-data">
+                    <input type="hidden" id="editStaffId">
+                    <div class="mb-3">
+                        <label for="editFullName" class="form-label">Full Name</label>
+                        <input type="text" class="form-control" id="editFullName" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="editEmail" class="form-label">Email</label>
+                        <input type="email" class="form-control" id="editEmail">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPhone" class="form-label">Phone</label>
+                        <input type="tel" class="form-control" id="editPhone">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editDepartment" class="form-label">Department</label>
+                        <input type="text" class="form-control" id="editDepartment">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPosition" class="form-label">Position</label>
+                        <input type="text" class="form-control" id="editPosition">
+                    </div>
+                    <div class="mb-3">
+                        <label for="editPhoto" class="form-label">Update Photo</label>
+                        <input type="file" class="form-control" id="editPhoto" accept="image/*">
+                    </div>
+                    <div class="mb-3 form-check">
+                        <input type="checkbox" class="form-check-input" id="editStatus">
+                        <label class="form-check-label" for="editStatus">Active</label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-primary" id="saveEditStaff">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>

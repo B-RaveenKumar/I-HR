@@ -1,0 +1,204 @@
+# 🚀 QUICK REFERENCE - TIMETABLE SYSTEM
+
+## ⚡ 30-Second Setup
+
+```bash
+# 1. Start Flask (if not already running)
+python app.py
+
+# 2. Open browser
+http://localhost:5500
+
+# 3. Login with:
+# Username: admin1
+# Password: test123
+
+# 4. Click Sidebar → Timetable Management
+# Done! You're using the timetable system.
+```
+
+---
+
+## 🔑 All Login Credentials
+
+### ADMINS (Password: `test123`)
+```
+admin1  → Central High School
+admin2  → St. Mary's Academy
+admin3  → Lincoln University Prep
+admin4  → Valley Middle School
+admin5  → Harbor Technical Institute
+```
+
+### STAFF (Password: `test123`)
+```
+Format: {school_id}-{dept_id:02d}-{staff_num:02d}
+
+Examples:
+2-01-01 = Central HS, English, Staff 1
+2-02-02 = Central HS, Math, Staff 2
+3-03-03 = St. Mary's, Science, Staff 3
+4-04-01 = Lincoln Prep, History, Staff 1
+5-05-02 = Valley Middle, PE, Staff 2
+6-06-03 = Harbor Tech, Arts, Staff 3
+6-07-01 = Harbor Tech, Technology, Staff 1
+6-08-02 = Harbor Tech, Library, Staff 2
+```
+
+---
+
+## 📚 Available Schools
+
+| ID | Name |
+|:--:|------|
+| 2 | Central High School |
+| 3 | St. Mary's Academy |
+| 4 | Lincoln University Prep |
+| 5 | Valley Middle School |
+| 6 | Harbor Technical Institute |
+
+---
+
+## 🎯 Quick Navigation
+
+### As Admin
+1. **Timetable Management** (Sidebar)
+   - View periods (8 configured)
+   - Set permissions
+   - View assignments
+   - Override assignments
+
+### As Staff
+1. **My Timetable** (Sidebar)
+   - View schedule
+   - Request changes
+   - Accept/reject
+   - Add classes
+
+---
+
+## ⏰ Time Periods (All Schools)
+
+| Period | Time |
+|--------|------|
+| 1 | 09:00-09:45 |
+| 2 | 09:45-10:30 |
+| 3 | 10:30-11:15 |
+| 4 | 11:15-12:00 |
+| Lunch | 12:00-12:45 |
+| 5 | 12:45-13:30 |
+| 6 | 13:30-14:15 |
+| 7 | 14:15-15:00 |
+
+---
+
+## 📊 Departments (8 per School)
+
+English • Mathematics • Science • History • 
+Physical Education • Arts • Technology • Library
+
+---
+
+## 📁 Files Created/Modified
+
+**Database Setup**:
+- `populate_db.py` - Created sample data
+- `show_database.py` - Display data
+- `verify_timetable.py` - Check system
+- `DATABASE_CREDENTIALS.md` - This reference
+
+**System Files**:
+- `app.py` - 15 timetable routes
+- `database.py` - Fixed database path
+- `timetable_manager.py` - Business logic
+
+**Templates**:
+- `admin_timetable_dashboard.html` - Admin UI
+- `staff_timetable.html` - Staff UI
+- `company_timetable_settings.html` - Company UI
+
+---
+
+## 💾 Database Stats
+
+```
+Location: instance/vishnorex.db
+Size: ~250 KB
+Schools: 5
+Staff: 120
+Assignments: 720
+Periods: 48
+```
+
+---
+
+## 🧪 Test Cases
+
+### Test 1: Admin Views Dashboard
+1. Login: `admin1` / `test123`
+2. Go to: Timetable Management
+3. See: 8 periods, departments, assignments
+
+### Test 2: Staff Views Timetable
+1. Login: `2-01-01` / `test123`
+2. Go to: My Timetable
+3. See: Personal schedule
+
+### Test 3: Request Alteration
+1. As staff on timetable
+2. Click assigned period
+3. Request change from peer
+4. Admin can accept/reject
+
+### Test 4: Multi-School
+1. Login as `admin1` (Central HS)
+2. Logout and `admin2` (St. Mary's)
+3. Verify different data
+
+---
+
+## ⚠️ Important Notes
+
+- **Password is plain text**: Use `test123` for all test accounts
+- **Staff IDs**: Format is `{school}-{dept:2d}-{staff:2d}`
+- **Departments**: 8 departments, 3 staff each, per school
+- **Isolation**: Each school sees only its own data
+- **Permissions**: All departments enabled by default
+
+---
+
+## 🔗 System URLs
+
+```
+Admin Dashboard:     http://localhost:5500/admin/timetable
+Staff Timetable:     http://localhost:5500/staff/timetable
+Company Settings:    http://localhost:5500/company/timetable_settings/2
+```
+
+---
+
+## 💡 Pro Tips
+
+1. **Check Database**: Run `python show_database.py`
+2. **Verify Routes**: Run `python verify_timetable.py`
+3. **Clear Cache**: Use Ctrl+Shift+Delete in browser
+4. **Different School**: Use admin2-admin5 to test multi-school
+5. **Try All Departments**: Staff from different departments can request changes
+
+---
+
+## ✅ System Status
+
+✅ Database populated with 5 schools
+✅ 120 staff members added
+✅ All 8 departments configured
+✅ 720 assignments created
+✅ Timetable enabled for all schools
+✅ 15 routes registered and working
+✅ Navigation links added to sidebars
+✅ Ready to use!
+
+---
+
+**Ready to go? Start with**: `python app.py`
+

@@ -1,0 +1,328 @@
+<!-- User Conflict Resolution Modal -->
+<div class="modal fade" id="userConflictModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    User ID Already Exists
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    <strong>Conflict Detected:</strong> The User ID <span id="conflictUserId" class="fw-bold"></span> already exists on the biometric device.
+                </div>
+                
+                <div id="existingUserInfo" class="card mb-3" style="display: none;">
+                    <div class="card-header">
+                        <h6 class="mb-0">Existing User Information</h6>
+                    </div>
+                    <div class="card-body">
+                        <p><strong>User ID:</strong> <span id="existingUserId"></span></p>
+                        <p><strong>Name:</strong> <span id="existingUserName"></span></p>
+                        <p><strong>Privilege:</strong> <span id="existingUserPrivilege"></span></p>
+                    </div>
+                </div>
+
+                <h6>Choose how to resolve this conflict:</h6>
+                
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="card h-100 resolution-option" data-action="overwrite">
+                            <div class="card-body text-center">
+                                <i class="bi bi-arrow-repeat text-danger" style="font-size: 2rem;"></i>
+                                <h6 class="card-title mt-2">Overwrite Existing User</h6>
+                                <p class="card-text small">Replace the existing biometric data with new enrollment</p>
+                                <button type="button" class="btn btn-outline-danger btn-sm">Select</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card h-100 resolution-option" data-action="use_different_id">
+                            <div class="card-body text-center">
+                                <i class="bi bi-pencil-square text-primary" style="font-size: 2rem;"></i>
+                                <h6 class="card-title mt-2">Use Different ID</h6>
+                                <p class="card-text small">Choose a different User ID for the new staff member</p>
+                                <button type="button" class="btn btn-outline-primary btn-sm">Select</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-4">
+                        <div class="card h-100 resolution-option" data-action="create_from_existing">
+                            <div class="card-body text-center">
+                                <i class="bi bi-person-plus text-success" style="font-size: 2rem;"></i>
+                                <h6 class="card-title mt-2">Create from Existing</h6>
+                                <p class="card-text small">Create staff account for the existing biometric user</p>
+                                <button type="button" class="btn btn-outline-success btn-sm">Select</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Forms -->
+                <div id="overwriteForm" class="action-form mt-4" style="display: none;">
+                    <div class="alert alert-danger">
+                        <strong>Warning:</strong> This will permanently delete the existing biometric data and replace it with new enrollment.
+                    </div>
+                    <form id="overwriteUserForm">
+                        <input type="hidden" id="overwriteUserId" name="user_id">
+                        <input type="hidden" id="overwriteDeviceIp" name="device_ip" value="192.168.1.201">
+                        <input type="hidden" name="action" value="overwrite">
+                        
+                        <div class="mb-3">
+                            <label for="overwriteName" class="form-label">Name</label>
+                            <input type="text" class="form-control" id="overwriteName" name="name" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="overwritePrivilege" class="form-label">Privilege Level</label>
+                            <select class="form-select" id="overwritePrivilege" name="privilege">
+                                <option value="0">User</option>
+                                <option value="14">Admin</option>
+                            </select>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="resetConflictModal()">Back</button>
+                            <button type="submit" class="btn btn-danger">Overwrite User</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="differentIdForm" class="action-form mt-4" style="display: none;">
+                    <div class="alert alert-info">
+                        Please enter a different User ID that doesn't exist on the biometric device.
+                    </div>
+                    <form id="differentIdUserForm">
+                        <div class="mb-3">
+                            <label for="newUserId" class="form-label">New User ID</label>
+                            <input type="text" class="form-control" id="newUserId" name="new_user_id" required>
+                            <div class="form-text">This will be used as the Staff ID in the system</div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="resetConflictModal()">Back</button>
+                            <button type="submit" class="btn btn-primary">Use This ID</button>
+                        </div>
+                    </form>
+                </div>
+
+                <div id="createFromExistingForm" class="action-form mt-4" style="display: none;">
+                    <div class="alert alert-success">
+                        Create a staff account for the existing biometric user. The biometric data will remain unchanged.
+                    </div>
+                    <form id="createFromExistingUserForm">
+                        <input type="hidden" id="existingUserIdInput" name="existing_user_id">
+                        <input type="hidden" name="action" value="create_from_existing">
+                        
+                        <div class="mb-3">
+                            <label for="existingUserFullName" class="form-label">Full Name</label>
+                            <input type="text" class="form-control" id="existingUserFullName" name="full_name" required>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="existingUserPassword" class="form-label">Password</label>
+                            <input type="password" class="form-control" id="existingUserPassword" name="password" value="default123">
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="existingUserEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="existingUserEmail" name="email">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="existingUserPhone" class="form-label">Phone</label>
+                                    <input type="text" class="form-control" id="existingUserPhone" name="phone">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="existingUserDepartment" class="form-label">Department</label>
+                                    <input type="text" class="form-control" id="existingUserDepartment" name="department">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="existingUserPosition" class="form-label">Position</label>
+                                    <input type="text" class="form-control" id="existingUserPosition" name="position">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-secondary" onclick="resetConflictModal()">Back</button>
+                            <button type="submit" class="btn btn-success">Create Staff Account</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.resolution-option {
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.resolution-option:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.resolution-option.selected {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+
+.action-form {
+    border-top: 1px solid #dee2e6;
+    padding-top: 1rem;
+}
+</style>
+
+<script>
+function showUserConflictModal(conflictData) {
+    // Set conflict information
+    document.getElementById('conflictUserId').textContent = conflictData.user_id || 'Unknown';
+    
+    if (conflictData.existing_user) {
+        document.getElementById('existingUserInfo').style.display = 'block';
+        document.getElementById('existingUserId').textContent = conflictData.existing_user.user_id || 'Unknown';
+        document.getElementById('existingUserName').textContent = conflictData.existing_user.name || 'Unknown';
+        document.getElementById('existingUserPrivilege').textContent = conflictData.existing_user.privilege || '0';
+        
+        // Pre-fill forms
+        document.getElementById('overwriteUserId').value = conflictData.user_id;
+        document.getElementById('overwriteName').value = conflictData.name || '';
+        document.getElementById('existingUserIdInput').value = conflictData.existing_user.user_id;
+        document.getElementById('existingUserFullName').value = conflictData.existing_user.name || '';
+    }
+    
+    // Show modal
+    new bootstrap.Modal(document.getElementById('userConflictModal')).show();
+}
+
+function resetConflictModal() {
+    // Hide all action forms
+    document.querySelectorAll('.action-form').forEach(form => {
+        form.style.display = 'none';
+    });
+    
+    // Remove selected state from options
+    document.querySelectorAll('.resolution-option').forEach(option => {
+        option.classList.remove('selected');
+    });
+}
+
+// Handle resolution option selection
+document.querySelectorAll('.resolution-option').forEach(option => {
+    option.addEventListener('click', function() {
+        const action = this.dataset.action;
+        
+        // Remove selected state from all options
+        document.querySelectorAll('.resolution-option').forEach(opt => {
+            opt.classList.remove('selected');
+        });
+        
+        // Add selected state to clicked option
+        this.classList.add('selected');
+        
+        // Hide all action forms
+        document.querySelectorAll('.action-form').forEach(form => {
+            form.style.display = 'none';
+        });
+        
+        // Show appropriate form
+        if (action === 'overwrite') {
+            document.getElementById('overwriteForm').style.display = 'block';
+        } else if (action === 'use_different_id') {
+            document.getElementById('differentIdForm').style.display = 'block';
+        } else if (action === 'create_from_existing') {
+            document.getElementById('createFromExistingForm').style.display = 'block';
+        }
+    });
+});
+
+// Handle form submissions
+document.getElementById('overwriteUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    handleConflictResolution(new FormData(this));
+});
+
+document.getElementById('differentIdUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    // Close modal and update the original form with new user ID
+    const newUserId = document.getElementById('newUserId').value;
+    if (window.updateUserIdCallback) {
+        window.updateUserIdCallback(newUserId);
+    }
+    bootstrap.Modal.getInstance(document.getElementById('userConflictModal')).hide();
+});
+
+document.getElementById('createFromExistingUserForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    handleConflictResolution(new FormData(this));
+});
+
+function handleConflictResolution(formData) {
+    fetch('/resolve_user_conflict', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('success', data.message);
+            bootstrap.Modal.getInstance(document.getElementById('userConflictModal')).hide();
+            
+            // Refresh the page or update the UI as needed
+            if (data.action === 'created_from_existing') {
+                // Refresh staff list or redirect
+                location.reload();
+            } else if (data.action === 'overwritten') {
+                // Continue with biometric enrollment
+                if (window.continueEnrollmentCallback) {
+                    window.continueEnrollmentCallback();
+                }
+            }
+        } else {
+            showAlert('danger', data.message || 'Failed to resolve conflict');
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        showAlert('danger', 'An error occurred while resolving the conflict');
+    });
+}
+
+function showAlert(type, message) {
+    const alertDiv = document.createElement('div');
+    alertDiv.className = `alert alert-${type} alert-dismissible fade show`;
+    alertDiv.innerHTML = `
+        ${message}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    `;
+    
+    // Insert at the top of the modal body or page
+    const container = document.querySelector('.modal-body') || document.body;
+    container.insertBefore(alertDiv, container.firstChild);
+    
+    // Auto-dismiss after 5 seconds
+    setTimeout(() => {
+        if (alertDiv.parentNode) {
+            alertDiv.remove();
+        }
+    }, 5000);
+}
+</script>

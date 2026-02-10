@@ -1,0 +1,643 @@
+/* General Styles - Enhanced */
+body {
+    background: #221e66;
+    font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    min-height: 100vh;
+    margin: 0;
+    padding: 0;
+}
+
+.card {
+    border-radius: 12px;
+    overflow: hidden;
+    border: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.95);
+}
+
+/* Enhanced container styling */
+.container-fluid {
+    padding: 0;
+    margin: 0;
+    max-width: 100%;
+}
+/* Header Styles */
+header {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    margin-bottom: 20px;
+}
+
+/* Logo Styles */
+.logo-container {
+    display: flex;
+    align-items: center;
+}
+
+.logo-text {
+    line-height: 1.2;
+}
+
+/* Utility Classes for Inline Styles */
+.logo-height {
+    height: 50px;
+}
+
+.search-width {
+    width: 200px;
+}
+
+.hidden {
+    display: none;
+}
+
+.fingerprint-placeholder {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto;
+    background-color: #eee;
+    border-radius: 50%;
+}
+
+.progress-bar-initial {
+    width: 0%;
+}
+
+/* Staff Creation Progress */
+.progress-thin {
+    height: 3px;
+}
+
+.progress-step-50 {
+    width: 50%;
+}
+
+/* Enrollment Progress */
+.enrollment-progress-bar {
+    width: 0%;
+}
+
+/* Report Button Styles */
+#exportCompanyReportBtn {
+    transition: all 0.3s ease;
+}
+
+#exportCompanyReportBtn:hover {
+    background-color: #0d6efd;
+    color: #ffffff;
+}
+
+/* Date Picker Styles */
+.report-date-picker {
+    max-width: 300px;
+    margin: 0 auto;
+}
+.card-header {
+    padding: 1rem 1.5rem;
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* Login Page Styles */
+#loginForm {
+    max-width: 400px;
+    margin: 0 auto;
+}
+
+/* Dashboard Styles */
+.attendance-status {
+    font-size: 1.2rem;
+    font-weight: bold;
+}
+
+.badge {
+    font-weight: 500;
+    padding: 0.5em 0.75em;
+}
+
+/* Custom Button Styles */
+.btn-primary {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+.btn-primary:hover {
+    background-color: #0b5ed7;
+    border-color: #0a58ca;
+}
+
+.btn-success {
+    background-color: #198754;
+    border-color: #198754;
+}
+
+.btn-success:hover {
+    background-color: #157347;
+    border-color: #146c43;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+}
+
+.btn-danger:hover {
+    background-color: #bb2d3b;
+    border-color: #b02a37;
+}
+
+/* Table Styles */
+.table th {
+    font-weight: 600;
+    color: #495057;
+    background-color: #f8f9fa;
+}
+
+/* Modal Styles */
+.modal-header {
+    padding: 1rem 1.5rem;
+}
+
+/* Calendar Styles */
+.fc-event {
+    border-radius: 4px !important;
+    font-size: 0.85rem !important;
+    font-weight: 500 !important;
+    padding: 2px 4px !important;
+    margin: 1px !important;
+}
+
+.fc-event-title {
+    font-weight: 600 !important;
+}
+
+/* Custom calendar event colors */
+.fc-event.attendance-present {
+    background-color: #198754 !important;
+    border-color: #198754 !important;
+    color: white !important;
+}
+
+.fc-event.attendance-absent {
+    background-color: #dc3545 !important;
+    border-color: #dc3545 !important;
+    color: white !important;
+}
+
+.fc-event.attendance-late {
+    background-color: #ffc107 !important;
+    border-color: #ffc107 !important;
+    color: #000 !important;
+}
+
+.fc-event.attendance-leave {
+    background-color: #0dcaf0 !important;
+    border-color: #0dcaf0 !important;
+    color: #000 !important;
+}
+
+.fc-event.holiday {
+    background-color: white !important;
+    border-color: white !important;
+    color: white !important;
+}
+
+/* Calendar day cell styling */
+.fc-daygrid-day {
+    position: relative;
+}
+
+.fc-daygrid-day.fc-day-today {
+    background-color: rgba(13, 110, 253, 0.1) !important;
+}
+
+.fc-daygrid-day.weekend {
+    background-color: #f8f9fa !important;
+}
+
+/* Calendar header styling */
+.fc-toolbar {
+    margin-bottom: 1rem !important;
+}
+
+.fc-toolbar-title {
+    font-size: 1.5rem !important;
+    font-weight: 600 !important;
+    color: #495057 !important;
+}
+
+.fc-button {
+    background-color: #0d6efd !important;
+    border-color: #0d6efd !important;
+    font-weight: 500 !important;
+}
+
+.fc-button:hover {
+    background-color: #0b5ed7 !important;
+    border-color: #0a58ca !important;
+}
+
+.fc-button:focus {
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25) !important;
+}
+
+/* Attendance summary cards */
+.attendance-summary-card {
+    transition: transform 0.2s ease-in-out;
+    cursor: pointer;
+}
+
+.attendance-summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Profile photo styling */
+.profile-photo {
+    object-fit: cover;
+    border: 3px solid #fff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Biometric verification status indicators */
+.verification-success {
+    color: #198754;
+    font-weight: 600;
+}
+
+.verification-failed {
+    color: #dc3545;
+    font-weight: 600;
+}
+
+/* Enhanced table styling for attendance */
+.attendance-table th {
+    background-color: #f8f9fa;
+    border-top: none;
+    font-weight: 600;
+    color: #495057;
+}
+
+.attendance-table td {
+    vertical-align: middle;
+}
+
+.attendance-table .badge {
+    font-size: 0.75rem;
+    padding: 0.35em 0.65em;
+}
+
+/* Loading spinner for calendar */
+.calendar-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+}
+
+.spinner-border-sm {
+    width: 1rem;
+    height: 1rem;
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .card-body {
+        padding: 1rem;
+    }
+
+    .table-responsive {
+        overflow-x: auto;
+    }
+
+    .fc-toolbar {
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .fc-toolbar-chunk {
+        display: flex;
+        justify-content: center;
+    }
+
+    .fc-event {
+        font-size: 0.75rem !important;
+        padding: 1px 2px !important;
+    }
+}
+
+/* Work Time Assignment Styles */
+.current-timings-section, .time-config-section {
+    background: rgba(248, 249, 250, 0.8);
+    border-radius: 15px;
+    padding: 24px;
+    height: 100%;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+}
+
+.current-timings-section:hover, .time-config-section:hover {
+    background: rgba(248, 249, 250, 0.9);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+}
+
+.section-title {
+    font-weight: 600;
+    color: #2c3e50;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    letter-spacing: 0.3px;
+}
+
+.timing-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.timing-card {
+    background: #221e66;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border-left: 4px solid transparent;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.timing-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #221e66;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.timing-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.timing-card:hover::before {
+    opacity: 1;
+}
+
+.check-in-card {
+    border-left-color: #28a745;
+}
+
+.check-out-card {
+    border-left-color: #17a2b8;
+}
+
+.timing-icon {
+    font-size: 26px;
+    width: 48px;
+    height: 48px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 123, 255, 0.1);
+    border-radius: 50%;
+    transition: all 0.3s ease;
+}
+
+.check-in-card .timing-icon {
+    background: #221e66;
+}
+
+.check-out-card .timing-icon {
+    background: #221e66;
+}
+
+.timing-card:hover .timing-icon {
+    transform: scale(1.1) rotate(5deg);
+}
+
+.timing-info {
+    flex: 1;
+}
+
+.timing-label {
+    font-size: 13px;
+    color: white;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    margin-bottom: 6px;
+}
+
+.timing-value {
+    font-size: 20px;
+    font-weight: 700;
+    color: #2c3e50;
+    font-family: 'Inter', sans-serif;
+}
+
+.time-config-form {
+    background: #221e66;
+    border-radius: 12px;
+    padding: 24px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    border: 1px solid rgba(0, 123, 255, 0.1);
+}
+
+.time-picker {
+    border-radius: 10px;
+    border: 2px solid #e9ecef;
+    padding: 14px 18px;
+    font-size: 16px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background: #ffffff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.time-picker:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 0.25rem rgba(0, 123, 255, 0.15);
+    outline: 0;
+    transform: translateY(-1px);
+}
+
+.form-label {
+    font-weight: 600;
+    color: #495057;
+    margin-bottom: 10px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+}
+
+.form-text {
+    color: white;
+    font-size: 12px;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-style: italic;
+}
+
+.form-actions {
+    display: flex;
+    gap: 14px;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+
+.btn-save-timing {
+    background: #221e66;
+    border: none;
+    padding: 14px 24px;
+    font-weight: 600;
+    border-radius: 10px;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.2);
+    letter-spacing: 0.3px;
+}
+
+.btn-save-timing:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0, 123, 255, 0.3);
+    background: #221e66;
+}
+
+.btn-save-timing:active {
+    transform: translateY(0);
+}
+
+.btn-reset-timing {
+    border-radius: 10px;
+    padding: 14px 24px;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    border: 2px solid white;
+    color: white;
+    background: #ffffff;
+    letter-spacing: 0.3px;
+}
+
+.btn-reset-timing:hover {
+    background-color: #f8f9fa;
+    border-color: #5a6268;
+    color: #5a6268;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.validation-message .alert {
+    margin: 0;
+    padding: 14px 18px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 500;
+    border: none;
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.2);
+}
+
+#timingSuccessMessage, #timingErrorMessage {
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-weight: 500;
+    border: none;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+#timingSuccessMessage {
+    background: #221e66;
+    color: #155724;
+    border-left: 4px solid #28a745;
+}
+
+#timingErrorMessage {
+    background: #221e66;
+    color: #721c24;
+    border-left: 4px solid #dc3545;
+}
+
+/* Animation for showing/hiding messages */
+#timingSuccessMessage, #timingErrorMessage, .validation-message {
+    animation: slideInFromTop 0.3s ease-out;
+}
+
+@keyframes slideInFromTop {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .current-timings-section, .time-config-section {
+        margin-bottom: 20px;
+        padding: 20px;
+    }
+    
+    .form-actions {
+        flex-direction: column;
+    }
+    
+    .btn-save-timing, .btn-reset-timing {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .timing-cards {
+        gap: 15px;
+    }
+    
+    .timing-card {
+        padding: 16px;
+    }
+    
+    .timing-icon {
+        width: 42px;
+        height: 42px;
+        font-size: 22px;
+    }
+    
+    .timing-value {
+        font-size: 18px;
+    }
+    
+    .section-title {
+        font-size: 15px;
+        margin-bottom: 20px;
+    }
+}
+
+@media (max-width: 576px) {
+    .timing-card {
+        flex-direction: column;
+        text-align: center;
+        gap: 12px;
+    }
+    
+    .timing-info {
+        text-align: center;
+    }
+}
+
+

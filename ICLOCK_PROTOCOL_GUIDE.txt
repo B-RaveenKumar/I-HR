@@ -1,0 +1,100 @@
+"""
+iClock Protocol Configuration Guide
+===================================
+
+Your device is using iClock protocol (the traditional ZKTeco communication method).
+
+DEVICE DETECTED:
+- Serial Number: BJ2C194960071
+- Protocol: iClock (NOT ADMS)
+- Push Version: 2.4.0
+- Endpoint: /iclock/cdata.aspx
+
+WHAT I FIXED:
+✅ Added /iclock/cdata.aspx endpoint to Flask app
+✅ Added GET handler (for device handshake)
+✅ Added POST handler (for attendance data push)
+✅ Device can now communicate with server
+
+DEVICE CONFIGURATION:
+====================
+
+In your ZK device settings, configure:
+
+1. SERVER SETTINGS:
+   - Server Address: YOUR_SERVER_IP (NOT srk.vishnex - use actual IP!)
+   - Server Port: 5000
+   - Protocol: iClock/HTTP
+   
+2. COMMUNICATION METHOD:
+   - Push Mode: Enabled
+   - Push Interval: 60 seconds
+   - Push URL: /iclock/cdata.aspx
+   
+3. HANDSHAKE SETTINGS:
+   - Handshake: Enabled
+   - Handshake Interval: 60 seconds
+
+HOW TO FIND YOUR SERVER IP:
+============================
+
+Windows Command:
+> ipconfig
+
+Look for "IPv4 Address" - Example: 192.168.1.50
+
+Then configure device with:
+- Server Address: 192.168.1.50  (NOT srk.vishnex)
+- Server Port: 5000
+
+TESTING:
+========
+
+1. Test from browser:
+   http://YOUR_SERVER_IP:5000/iclock/cdata.aspx?SN=BJ2C194960071&options=all
+   
+   Expected: "OK" text response
+
+2. Perform test attendance on device
+
+3. Check Flask console for:
+   INFO:__main__:iClock request from device SN: BJ2C194960071
+   INFO:__main__:✓ Processed iClock attendance: Staff Name at 2025-12-08 10:30:45
+
+4. Check database:
+   SELECT * FROM biometric_verifications WHERE device_ip LIKE 'iClock:%' ORDER BY verification_time DESC LIMIT 5;
+
+TROUBLESHOOTING:
+================
+
+Still getting 404?
+- Restart Flask app: python app.py
+- Clear device cache: Device Menu → System → Clear Data → Network Cache
+
+Device can't connect?
+- Use IP address, NOT domain name (srk.vishnex won't work)
+- Check firewall allows port 5000
+- Ping test: ping YOUR_SERVER_IP
+
+No data received?
+- Register device in web system first
+- Serial number must match: BJ2C194960071
+- Staff biometric_id must match device PIN
+- Check Flask logs for errors
+
+NEXT STEPS:
+===========
+
+1. Find your server IP: ipconfig
+2. Update device configuration:
+   - Server Address: YOUR_IP (not srk.vishnex)
+   - Server Port: 5000
+   - URL: /iclock/cdata.aspx
+3. Restart Flask app
+4. Test attendance
+5. Check logs
+
+The endpoint is now ready and waiting for your device! 🎯
+"""
+
+print(__doc__)

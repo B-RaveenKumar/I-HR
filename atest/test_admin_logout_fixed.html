@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel Logout Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <style>
+        .test-content { padding: 20px; margin-top: 80px; }
+        .test-card { background: white; padding: 20px; margin: 20px 0; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }
+        .status-success { color: #16a34a; font-weight: 600; }
+        .status-warning { color: #ca8a04; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle (Test) -->
+    <button type="button" class="sidebar-toggle d-md-none" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar (Test) -->
+            <nav class="col-md-2 d-none d-md-block enhanced-sidebar" id="enhanced-sidebar">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        <div class="logo-icon">
+                            <i class="bi bi-building-gear"></i>
+                        </div>
+                        <div class="brand-text">
+                            <h6 class="brand-title">VishnoRex</h6>
+                            <small class="brand-subtitle">Admin Panel</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">Test Admin</div>
+                            <div class="user-role">Administrator</div>
+                        </div>
+                    </div>
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Main Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-house-door"></i>
+                                    </div>
+                                    <span class="nav-text">Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <span class="nav-text">Staff Management</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-currency-dollar"></i>
+                                    </div>
+                                    <span class="nav-text">Salary Management</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-fingerprint"></i>
+                                    </div>
+                                    <span class="nav-text">Biometric Device</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <!-- Sidebar Footer -->
+                    <div class="sidebar-footer">
+                        <div class="footer-stats">
+                            <div class="stat-item">
+                                <i class="bi bi-people"></i>
+                                <span>25</span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="bi bi-calendar-day"></i>
+                                <span>Today</span>
+                            </div>
+                        </div>
+                        <button type="button" class="logout-btn" onclick="testLogout()" title="Logout" aria-label="Logout from admin panel">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+            
+            <!-- Main content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
+                <div class="test-content">
+                    <h1>🧪 Admin Panel Logout Test</h1>
+                    
+                    <div class="test-card">
+                        <h3>✅ Logout Button Fixes Applied</h3>
+                        <ul>
+                            <li class="status-success">✓ Added logout() JavaScript function</li>
+                            <li class="status-success">✓ Added confirmation dialog</li>
+                            <li class="status-success">✓ Added mobile sidebar toggle functionality</li>
+                            <li class="status-success">✓ Added accessibility attributes (aria-label, aria-expanded)</li>
+                            <li class="status-success">✓ Enhanced mobile responsiveness</li>
+                            <li class="status-success">✓ Verified logout route exists in app.py</li>
+                            <li class="status-success">✓ CSS styling is properly applied</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="test-card">
+                        <h3>🎯 Key Features Implemented</h3>
+                        <ul>
+                            <li><strong>Confirmation Dialog:</strong> "Are you sure you want to logout?"</li>
+                            <li><strong>Proper Routing:</strong> Uses Flask's url_for('logout') function</li>
+                            <li><strong>Mobile Toggle:</strong> Sidebar opens/closes on mobile devices</li>
+                            <li><strong>Accessibility:</strong> Screen reader friendly with ARIA attributes</li>
+                            <li><strong>Visual Feedback:</strong> Red styling with hover effects</li>
+                            <li><strong>Click Outside:</strong> Mobile sidebar closes when clicking outside</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="test-card">
+                        <h3>🧪 Test Instructions</h3>
+                        <ol>
+                            <li><strong>Desktop Test:</strong> Look at sidebar on the left - click the red logout button</li>
+                            <li><strong>Mobile Test:</strong> Resize browser to mobile size (≤768px) and test hamburger menu</li>
+                            <li><strong>Confirmation Test:</strong> Click logout to see confirmation dialog</li>
+                            <li><strong>Accessibility Test:</strong> Use Tab key to navigate to logout button</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="test-card">
+                        <h3>📱 Mobile Sidebar Test</h3>
+                        <p>On mobile devices (screen width ≤ 768px):</p>
+                        <ul>
+                            <li>Hamburger menu button appears in top-left corner</li>
+                            <li>Clicking hamburger menu slides in the sidebar</li>
+                            <li>Logout button is accessible in mobile sidebar</li>
+                            <li>Clicking outside sidebar closes it</li>
+                        </ul>
+                        <button class="btn btn-primary" onclick="testMobileToggle()">Test Mobile Toggle</button>
+                    </div>
+                    
+                    <div class="test-card">
+                        <h3>🔧 Technical Implementation</h3>
+                        <p><strong>JavaScript Functions Added:</strong></p>
+                        <pre><code>// Mobile sidebar toggle
+document.addEventListener('DOMContentLoaded', function() {
+    const sidebarToggle = document.getElementById('sidebarToggle');
+    const sidebar = document.querySelector('.enhanced-sidebar');
+    // ... toggle functionality
+});
+
+// Logout function with confirmation
+function logout() {
+    if (confirm('Are you sure you want to logout?')) {
+        window.location.href = "{{ url_for('logout') }}";
+    }
+}</code></pre>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Mobile sidebar toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.querySelector('.enhanced-sidebar');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('show');
+                    
+                    // Update aria-expanded for accessibility
+                    const expanded = sidebar.classList.contains('show');
+                    sidebarToggle.setAttribute('aria-expanded', expanded);
+                });
+                
+                // Close sidebar when clicking outside on mobile
+                document.addEventListener('click', function(event) {
+                    if (window.innerWidth < 768) { // Only on mobile
+                        if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
+                            sidebar.classList.remove('show');
+                            sidebarToggle.setAttribute('aria-expanded', 'false');
+                        }
+                    }
+                });
+            }
+        });
+        
+        // Test logout function
+        function testLogout() {
+            if (confirm('Are you sure you want to logout? (This is a test - no actual logout will occur)')) {
+                alert('✅ Logout function working! In production, this would redirect to logout route.');
+                console.log('Logout test successful');
+            } else {
+                alert('ℹ️ Logout cancelled by user');
+                console.log('Logout cancelled');
+            }
+        }
+        
+        // Test mobile toggle
+        function testMobileToggle() {
+            const sidebar = document.querySelector('.enhanced-sidebar');
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            
+            sidebar.classList.toggle('show');
+            const expanded = sidebar.classList.contains('show');
+            sidebarToggle.setAttribute('aria-expanded', expanded);
+            
+            alert(expanded ? 'Sidebar opened!' : 'Sidebar closed!');
+        }
+    </script>
+</body>
+</html>

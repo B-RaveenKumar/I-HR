@@ -1,0 +1,12 @@
+# Vishnorex Biometric Agent - Configuration
+# This file is auto-generated. Use the GUI to modify settings.
+
+{
+    "server_url": "http://localhost:5000",
+    "api_key": "",
+    "devices": [],
+    "poll_interval": 60,
+    "heartbeat_interval": 60,
+    "agent_name": "Agent-1",
+    "last_sync": {}
+}

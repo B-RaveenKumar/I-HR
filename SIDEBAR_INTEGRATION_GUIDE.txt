@@ -1,0 +1,364 @@
+================================================================================
+SIDEBAR INTEGRATION GUIDE - 25 MINUTE QUICK START
+================================================================================
+
+OBJECTIVE: Add timetable links to admin and staff dashboards
+
+================================================================================
+STEP 1: LOCATE SIDEBAR/BASE TEMPLATE
+================================================================================
+
+Find the main template file (usually one of these):
+  - templates/base.html
+  - templates/layout.html
+  - templates/sidebar.html
+  - templates/navbar.html
+
+Look for where dashboard menu items are defined. You'll see something like:
+  <nav class="navbar">
+    <ul class="nav-list">
+      <li><a href="/admin_dashboard">Dashboard</a></li>
+      <li><a href="/staff_management">Staff Management</a></li>
+      ...
+
+================================================================================
+STEP 2: ADD ADMIN LINK
+================================================================================
+
+Location: In the admin menu section of sidebar/base template
+
+Find the admin navigation section and add:
+
+  <!-- Timetable Management -->
+  {% if session.get('user_type') == 'admin' %}
+  <li class="nav-item">
+    <a href="/timetable_management" class="nav-link">
+      <i class="bi bi-calendar-event"></i> 
+      <span>Timetable Management</span>
+    </a>
+  </li>
+  {% endif %}
+
+Alternative (if no icon framework):
+  {% if session.get('user_type') == 'admin' %}
+  <li>
+    <a href="/timetable_management">📅 Timetable Management</a>
+  </li>
+  {% endif %}
+
+Location in HTML hierarchy:
+  Should be after "Dashboard" link but before "Settings" or "Reports"
+  Suggested order:
+    1. Dashboard
+    2. Staff Management
+    3. Attendance
+    4. Timetable Management  ← ADD HERE
+    5. Reports
+    6. Settings
+
+================================================================================
+STEP 3: ADD STAFF LINK
+================================================================================
+
+Location: In the staff menu section of sidebar/base template
+
+Find the staff navigation section and add:
+
+  <!-- My Timetable -->
+  {% if session.get('user_type') == 'staff' %}
+  <li class="nav-item">
+    <a href="/staff_timetable" class="nav-link">
+      <i class="bi bi-calendar2-week"></i>
+      <span>My Timetable</span>
+    </a>
+  </li>
+  {% endif %}
+
+Alternative (if no icon framework):
+  {% if session.get('user_type') == 'staff' %}
+  <li>
+    <a href="/staff_timetable">📅 My Timetable</a>
+  </li>
+  {% endif %}
+
+Location in HTML hierarchy:
+  Should be in staff dashboard menu
+  Suggested order:
+    1. Dashboard
+    2. My Attendance
+    3. My Timetable  ← ADD HERE
+    4. Apply Leave
+    5. View Salary
+
+================================================================================
+STEP 4: VERIFY LINKS WORK
+================================================================================
+
+Testing Checklist:
+  
+  1. Login as School Admin
+  2. Check if "Timetable Management" link appears in sidebar/menu
+  3. Click link → Should go to /timetable_management
+  4. Page should load with 3 tabs: Periods, Departments, Assignments
+  
+  5. Logout and login as Staff
+  6. Check if "My Timetable" link appears in sidebar/menu
+  7. Click link → Should go to /staff_timetable
+  8. Page should show weekly timetable grid (7 days)
+
+Expected Results:
+  ✅ Links appear in correct menu for correct user type
+  ✅ Pages load without errors
+  ✅ UI renders properly with existing design
+  ✅ Responsive design works on mobile
+
+================================================================================
+STEP 5: STYLING & CUSTOMIZATION (OPTIONAL)
+================================================================================
+
+If links need custom styling, use existing class names:
+
+Active Link Styling:
+  Add class to active link:
+    <a href="/timetable_management" class="nav-link active">
+
+Matching Existing Style:
+  Use same classes as other menu items:
+    <li class="nav-item">
+      <a href="/timetable_management" class="nav-link">
+
+Icon Options:
+  Bootstrap Icons: <i class="bi bi-calendar-event"></i>
+  Font Awesome: <i class="fas fa-calendar"></i>
+  Emoji: 📅 (no icon library needed)
+  Text: "Timetable Management" (no icon)
+
+Colors:
+  Use existing color scheme:
+    Primary: #007bff (blue)
+    Success: #28a745 (green)
+    Text: inherit from existing menu
+
+================================================================================
+STEP 6: TEST COMPLETE WORKFLOW
+================================================================================
+
+Admin Workflow Test (10 minutes):
+
+  1. Login as School Admin
+  2. Navigate to Timetable Management
+  3. Go to Periods tab
+  4. Click "Add New Period"
+  5. Enter:
+     Period Number: 1
+     Period Name: Lecture-1
+     Start Time: 09:00
+     End Time: 10:00
+  6. Click Save
+  7. Verify period appears in list
+  8. Go to Department Permissions tab
+  9. Toggle allow_alterations for a department
+  10. Verify toggle changes and saves
+
+Staff Workflow Test (10 minutes):
+
+  1. Logout from admin account
+  2. Login as Staff member
+  3. Navigate to My Timetable
+  4. View weekly grid (should show admin's periods)
+  5. Look for swap request button
+  6. Look for self-allocate button
+  7. (Optional) Test self-allocate on empty slot
+  8. Verify allocation appears in table
+
+================================================================================
+EXPECTED PAGE APPEARANCES
+================================================================================
+
+Admin Timetable Management Page:
+  - Three tabs at top: "Periods | Department Permissions | Assignments & Overrides"
+  - Periods tab shows table with period numbers, names, times
+  - Add/Edit/Delete buttons for each period
+  - "Add New Period" button
+  - Professional Bootstrap styling with card layout
+
+Staff Timetable Page:
+  - Title: "My Timetable"
+  - Weekly grid showing 7 days (Monday-Sunday)
+  - Period slots color-coded (blue=assigned, green=allocated, gray=empty)
+  - "Swap Requests" section with pending requests
+  - "My Allocations" table showing self-allocated slots
+  - Accept/Reject buttons for swaps
+  - Self-allocate and edit/delete buttons for allocations
+  - Responsive design (stacks on mobile)
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+Problem: Link doesn't appear in menu
+  Check: Is the conditional render correct?
+  Fix: Verify session.get('user_type') matches login type
+  Command: {% if session.get('user_type') == 'admin' %}
+
+Problem: Link appears but page not found (404)
+  Check: Is Flask app running?
+  Fix: Make sure Flask is running on port 5500
+  Command: python app.py
+  Verify: Look for "Timetable Management API endpoints registered"
+
+Problem: Page loads but shows blank/error
+  Check: Check browser console (F12)
+  Fix: Verify API endpoints are responding
+  Test: curl http://127.0.0.1:5500/api/timetable/settings
+  Note: Will return 401 - that's correct (authentication required)
+
+Problem: Styling doesn't match
+  Check: Are you using same CSS classes?
+  Fix: Use existing nav-link, nav-item classes
+  Example: <a href="/..." class="nav-link">
+
+Problem: Database tables don't exist
+  Check: Are all 6 timetable tables created?
+  Status: They should be - database.py creates them
+  Verify: SELECT * FROM timetable_periods;
+  If empty: That's OK - no periods created yet
+
+================================================================================
+BEFORE & AFTER EXAMPLES
+================================================================================
+
+BEFORE (Without timetable links):
+  Admin Dashboard Menu:
+    • Dashboard
+    • Staff Management
+    • Attendance Reports
+    • Settings
+    • Salary Management
+
+AFTER (With timetable links):
+  Admin Dashboard Menu:
+    • Dashboard
+    • Staff Management
+    • Timetable Management     ← NEW
+    • Attendance Reports
+    • Settings
+    • Salary Management
+
+  Staff Dashboard Menu:
+    • Dashboard
+    • My Attendance
+    • My Timetable             ← NEW
+    • Apply Leave
+    • View Salary
+
+================================================================================
+CODE SNIPPET TEMPLATES
+================================================================================
+
+If using Bootstrap navbar:
+
+```html
+<!-- In admin section of sidebar -->
+<li class="nav-item">
+  <a href="/timetable_management" class="nav-link">
+    <i class="bi bi-calendar-event"></i>
+    <span>Timetable Management</span>
+  </a>
+</li>
+```
+
+If using simple list:
+
+```html
+<!-- In admin menu -->
+{% if session.get('user_type') == 'admin' %}
+<li><a href="/timetable_management">Timetable Management</a></li>
+{% endif %}
+```
+
+If using icon library:
+
+```html
+<!-- Option 1: Bootstrap Icons -->
+<i class="bi bi-calendar-event"></i>
+
+<!-- Option 2: Font Awesome -->
+<i class="fas fa-calendar"></i>
+
+<!-- Option 3: Google Material -->
+<i class="material-icons">calendar_month</i>
+
+<!-- Option 4: Emoji (no library needed) -->
+📅
+```
+
+================================================================================
+VERIFICATION COMMANDS
+================================================================================
+
+Test API connectivity:
+  curl http://127.0.0.1:5500/api/timetable/settings
+  Expected: 401 Unauthorized (authentication required)
+  Meaning: ✅ API is working correctly
+
+Check Flask is running:
+  netstat -ano | findstr :5500
+  Should show: LISTENING on port 5500
+  Or visit: http://127.0.0.1:5500 in browser
+
+Verify templates exist:
+  ls -la templates/*timetable*.html
+  Should show:
+    timetable_management.html
+    staff_timetable.html
+
+Verify CSS exists:
+  ls -la static/css/timetable*.css
+  Should show:
+    timetable_management.css
+
+Verify JavaScript exists:
+  ls -la static/js/*timetable*.js
+  Should show:
+    timetable_management.js
+    staff_timetable.js
+
+================================================================================
+QUICK CHECKLIST
+================================================================================
+
+☐ Found sidebar/base template
+☐ Added admin link (Timetable Management)
+☐ Added staff link (My Timetable)
+☐ Used correct conditional rendering (user_type check)
+☐ Tested admin link → page loads
+☐ Tested staff link → page loads
+☐ Verified styling matches existing menu
+☐ Tested admin workflow (create period)
+☐ Tested staff workflow (view timetable)
+☐ All links working without errors
+
+Total Time: ~25 minutes
+
+================================================================================
+NEXT STEPS AFTER INTEGRATION
+================================================================================
+
+1. Test all features thoroughly
+2. Gather user feedback
+3. Monitor logs for errors
+4. Optimize performance if needed
+5. Plan Phase 2 enhancements:
+   - Bulk import
+   - Conflict detection
+   - Email notifications
+   - Calendar export
+
+================================================================================
+
+Ready to integrate? Add the links and test!
+
+Questions? See TIMETABLE_URLS_REFERENCE.txt for API endpoints.
+
+================================================================================

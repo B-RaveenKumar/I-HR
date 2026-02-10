@@ -1,0 +1,35 @@
+# Agent Directory - Do Not Commit Config Files!
+
+# Configuration (contains API keys)
+config.json
+
+# Logs
+*.log
+biometric_agent.log
+service_output.log
+service_error.log
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# PyInstaller
+build/
+dist/
+*.spec
+
+# Virtual environment
+venv/
+env/
+
+# NSSM (download separately)
+# nssm.exe is optional - users download from nssm.cc
+
+# Icon (if custom)
+# icon.ico
+
+# Backup files
+*.bak
+*.tmp

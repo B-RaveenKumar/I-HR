@@ -1,0 +1,1111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - VishnoRex</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+    <style>
+        /* Fix sidebar positioning for admin dashboard */
+        .container-fluid {
+            padding: 0;
+            margin: 0;
+        }
+        
+        .row {
+            margin: 0;
+            height: fit-content !important;
+            min-height: unset !important;
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        
+        /* Sidebar positioning */
+        .enhanced-sidebar {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: 250px; /* Fixed width instead of percentage */
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
+            display: block !important; /* Override inline style */
+        }
+        
+        /* Main content positioning */
+        .salary-main-content {
+            margin-left: 250px !important; /* Match sidebar width exactly */
+            width: calc(100% - 250px) !important; /* Fill remaining space */
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+        
+        /* Remove Bootstrap default spacing that causes issues */
+        .col-md-2, .col-md-10 {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        
+        /* Mobile responsive fixes */
+        @media (max-width: 767.98px) {
+            .enhanced-sidebar {
+                position: fixed !important;
+                top: 0;
+                left: -100%;
+                width: 280px;
+                height: 100vh;
+                overflow: hidden !important;
+                transition: left 0.3s ease;
+                z-index: 1050;
+                display: none !important; /* Hidden by default on mobile */
+            }
+            
+            .enhanced-sidebar.show {
+                left: 0;
+                display: block !important;
+            }
+            
+            .salary-main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1rem 0.5rem;
+                padding-top: 4rem; /* Account for mobile toggle button */
+            }
+            
+            .sidebar-toggle {
+                display: block !important;
+            }
+        }
+        
+        /* Ensure sidebar toggle is properly styled */
+        .sidebar-toggle {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1100;
+            background: var(--primary-color, #007bff);
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            font-size: 1.25rem;
+            display: none;
+        }
+        
+        @media (min-width: 768px) {
+            .sidebar-toggle {
+                display: none !important;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle -->
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar -->
+            <nav class="col-md-2 enhanced-sidebar" id="enhanced-sidebar">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        {% if institution.branding_enabled and institution.logo_path %}
+                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        {% else %}
+                            <div class="logo-icon">
+                                <i class="bi bi-building-gear"></i>
+                            </div>
+                        {% endif %}
+                        <div class="brand-text">
+                            {% if institution.branding_enabled and institution.name %}
+                                <h6 class="brand-title">{{ institution.name }}</h6>
+                                <small class="brand-subtitle">Admin Panel</small>
+                            {% else %}
+                                <h6 class="brand-title">VishnoRex</h6>
+                                <small class="brand-subtitle">Admin Panel</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ session.get('full_name', 'Admin User') }}</div>
+                            <div class="user-role">Administrator</div>
+                        </div>
+                    </div>
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Main Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-house-door"></i>
+                                    </div>
+                                    <span class="nav-text">Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_management') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <span class="nav-text">Staff Management</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('work_time_assignment') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-clock-history"></i>
+                                    </div>
+                                    <span class="nav-text">Work Time Assignment</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('salary_management') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-currency-dollar"></i>
+                                    </div>
+                                    <span class="nav-text">Salary Management</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin_timetable') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-calendar-event"></i>
+                                    </div>
+                                    <span class="nav-text">Timetable Management</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/staff-period-assignment">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-person-check"></i>
+                                    </div>
+                                    <span class="nav-text">Staff Period Assignment</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/reports">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-graph-up"></i>
+                                    </div>
+                                    <span class="nav-text">Reports & Analytics</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/biometric_devices">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-fingerprint"></i>
+                                    </div>
+                                    <span class="nav-text">Biometric Devices</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    <!-- Sidebar Footer -->
+                    <div class="sidebar-footer">
+                    <div class="footer-stats">
+                        <div class="stat-item">
+                            <i class="bi bi-people"></i>
+                            <span id="totalStaffCount">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="bi bi-calendar-day"></i>
+                            <span id="currentDate">-</span>
+                        </div>
+                    </div>
+                    <button type="button" class="logout-btn" onclick="logout()" title="Logout" aria-label="Logout from admin panel">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+                </div>
+            </nav>
+            <!-- Main content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
+                <!-- CSRF Token for AJAX requests -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <!-- Enhanced Header -->
+                <div class="salary-header">
+                    <div class="header-content">
+                        <div class="header-title">
+                            <div class="title-icon">
+                                <i class="bi bi-speedometer2"></i>
+                            </div>
+                            <div class="title-text">
+                                <h1 class="main-title">Admin Dashboard </h1>
+                                <p class="subtitle">Monitor attendance, manage staff, and track performance in real-time</p>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <!-- <button type="button" class="btn btn-outline-primary" id="refreshDataBtn" title="Refresh data">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button> -->
+                            <button type="button" class="btn btn-success" id="exportDashboardBtn" title="Export dashboard data">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Today's Attendance Card -->
+                <div class="salary-filters-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Today's Attendance</h5>
+                            <p class="card-subtitle">{{ today.strftime('%d %b %Y') }} - Live updates every 10 seconds</p>
+                        </div>
+                        <div class="header-actions">
+                            <div class="results-stats">
+                                <div class="stat-item">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <span class="stat-value" data-stat="present">{{ attendance_summary.present }}</span>
+                                    <span>Present</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-x-circle text-danger"></i>
+                                    <span class="stat-value" data-stat="absent">{{ attendance_summary.absent }}</span>
+                                    <span>Absent</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-clock text-warning"></i>
+                                    <span class="stat-value" data-stat="late">{{ attendance_summary.late }}</span>
+                                    <span>Late</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-calendar-x text-info"></i>
+                                    <span class="stat-value" data-stat="on-leave">{{ attendance_summary.on_leave }}</span>
+                                    <span>On Leave</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-briefcase text-primary"></i>
+                                    <span class="stat-value">{{ attendance_summary.on_duty }}</span>
+                                    <span>On Duty</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-shield-check text-secondary"></i>
+                                    <span class="stat-value">{{ attendance_summary.on_permission }}</span>
+                                    <span>On Permission</span>
+                                </div>
+                                <div class="stat-item">
+                                    <i class="bi bi-calendar-event text-dark"></i>
+                                    <span class="stat-value">{{ attendance_summary.holiday }}</span>
+                                    <span>Holiday</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="filters-grid mb-4">
+                            <div class="filter-group">
+                                <label for="staffSearch" class="form-label">
+                                    <i class="bi bi-search"></i> Search Staff
+                                </label>
+                                <input type="text" class="form-control enhanced-select" id="staffSearch" placeholder="Search by name, ID, department..." title="Search staff members">
+                            </div>
+                        </div>
+
+                        <div class="table-responsive">
+                            <table class="table salary-results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Staff ID</th>
+                                        <th>Name</th>
+                                        <th>Department</th>
+                                        <th>Check-in</th>
+                                        <th>Check-out</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="attendanceTableBody">
+                                    {% for attendance in today_attendance %}
+                                    <tr data-staff-id="{{ attendance.staff_id }}">
+                                        <td><strong>{{ attendance.staff_number }}</strong></td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="user-avatar me-2">
+                                                    <i class="bi bi-person-circle"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold">
+                                                        <a href="#" class="staff-profile-link text-decoration-none" data-staff-id="{{ attendance.staff_id }}" data-bs-toggle="modal" data-bs-target="#staffProfileModal">
+                                                            {{ attendance.full_name }}
+                                                        </a>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-primary">{{ attendance.department }}</span>
+                                        </td>
+                                        <td class="time-in">
+                                            <span class="{% if attendance.time_in %}text-success{% else %}text-muted{% endif %}">
+                                                <i class="bi bi-clock"></i> {{ attendance.time_in or '--:--:--' }}
+                                            </span>
+                                        </td>
+                                        <td class="time-out">
+                                            <span class="{% if attendance.time_out %}text-info{% else %}text-muted{% endif %}">
+                                                <i class="bi bi-clock-history"></i> {{ attendance.time_out or '--:--:--' }}
+                                            </span>
+                                        </td>
+                                        <td class="status">
+                                            {% if attendance.status == 'Holiday' %}
+                                                <span class="badge bg-dark text-white"><i class="bi bi-calendar-event"></i> Holiday</span>
+                                            {% elif attendance.status == 'present' %}
+                                                <span class="earnings-badge">Present</span>
+                                            {% elif attendance.status == 'late' %}
+                                                <span class="deductions-badge">Late</span>
+                                            {% elif attendance.status == 'absent' %}
+                                                <span class="badge bg-danger">Absent</span>
+                                            {% elif attendance.status == 'leave' or attendance.status == 'On Leave' %}
+                                                <span class="net-salary-badge">On Leave</span>
+                                            {% elif attendance.status == 'On Duty' %}
+                                                <span class="badge bg-info">On Duty</span>
+                                            {% elif attendance.status == 'On Permission' %}
+                                                <span class="badge bg-warning">On Permission</span>
+                                            {% else %}
+                                                <span class="badge bg-secondary">Not Marked</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" class="btn btn-sm btn-view-details staff-profile-btn" data-staff-id="{{ attendance.staff_id }}" data-bs-toggle="modal" data-bs-target="#staffProfileModal" title="View staff profile">
+                                                    <i class="bi bi-eye"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pending Leave Applications -->
+                <div class="salary-results-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-calendar-x"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Pending Leave Applications</h5>
+                            <p class="card-subtitle">Review and approve staff leave requests</p>
+                        </div>
+                        <div class="header-actions">
+                            <div class="results-stats">
+                                <div class="stat-item">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    <span class="stat-value">{{ pending_leaves|length }}</span>
+                                    <span>Pending</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if pending_leaves %}
+                        <div class="table-responsive">
+                            <table class="table salary-results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Staff Name</th>
+                                        <th>Leave Type</th>
+                                        <th>Duration</th>
+                                        <th>Reason</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for leave in pending_leaves %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="user-avatar me-2">
+                                                    <i class="bi bi-person-circle"></i>
+                                                </div>
+                                                <div class="fw-bold">{{ leave.full_name }}</div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ leave.leave_type }}</span>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <small class="d-block"><i class="bi bi-calendar-event"></i> {{ leave.start_date }}</small>
+                                                <small class="d-block"><i class="bi bi-calendar-event"></i> {{ leave.end_date }}</small>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span title="{{ leave.reason }}">{{ leave.reason[:50] }}{% if leave.reason|length > 50 %}...{% endif %}</span>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" class="btn btn-sm btn-success approve-btn" data-leave-id="{{ leave.id }}" title="Approve leave">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-danger reject-btn" data-leave-id="{{ leave.id }}" title="Reject leave">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="bi bi-calendar-check"></i>
+                            </div>
+                            <h6 class="empty-title">No Pending Leave Applications</h6>
+                            <p class="empty-text">All leave applications have been processed. New requests will appear here for approval.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Pending On Duty Applications -->
+                <div class="salary-results-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-briefcase"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Pending On Duty Applications</h5>
+                            <p class="card-subtitle">Review and approve on duty requests</p>
+                        </div>
+                        <div class="header-actions">
+                            <div class="results-stats">
+                                <div class="stat-item">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    <span class="stat-value">{{ pending_on_duty|length }}</span>
+                                    <span>Pending</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if pending_on_duty %}
+                        <div class="table-responsive">
+                            <table class="table salary-results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Staff Name</th>
+                                        <th>Duty Type</th>
+                                        <th>Duration</th>
+                                        <th>Location</th>
+                                        <th>Purpose</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for duty in pending_on_duty %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="user-avatar me-2">
+                                                    <i class="bi bi-person-circle"></i>
+                                                </div>
+                                                <div class="fw-bold">{{ duty.full_name }}</div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-success">{{ duty.duty_type }}</span>
+                                        </td>
+                                        <td>
+                                            <div>
+                                                <small class="d-block"><i class="bi bi-calendar-event"></i> {{ duty.start_date }}</small>
+                                                <small class="d-block"><i class="bi bi-calendar-event"></i> {{ duty.end_date }}</small>
+                                            </div>
+                                        </td>
+                                        <td>{{ duty.location or '-' }}</td>
+                                        <td>
+                                            <span title="{{ duty.purpose }}">{{ duty.purpose[:30] }}{% if duty.purpose|length > 30 %}...{% endif %}</span>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" class="btn btn-sm btn-success approve-duty-btn" data-duty-id="{{ duty.id }}" title="Approve on duty">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-danger reject-duty-btn" data-duty-id="{{ duty.id }}" title="Reject on duty">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="bi bi-briefcase"></i>
+                            </div>
+                            <h6 class="empty-title">No Pending On Duty Applications</h6>
+                            <p class="empty-text">All on duty applications have been processed. New requests will appear here for approval.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- Pending Permission Applications -->
+                <div class="salary-results-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-clock"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Pending Permission Applications</h5>
+                            <p class="card-subtitle">Review and approve permission requests</p>
+                        </div>
+                        <div class="header-actions">
+                            <div class="results-stats">
+                                <div class="stat-item">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    <span class="stat-value">{{ pending_permissions|length }}</span>
+                                    <span>Pending</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if pending_permissions %}
+                        <div class="table-responsive">
+                            <table class="table salary-results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Staff Name</th>
+                                        <th>Type</th>
+                                        <th>Date</th>
+                                        <th>Time</th>
+                                        <th>Duration</th>
+                                        <th>Reason</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for permission in pending_permissions %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="user-avatar me-2">
+                                                    <i class="bi bi-person-circle"></i>
+                                                </div>
+                                                <div class="fw-bold">{{ permission.full_name }}</div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-warning">{{ permission.permission_type }}</span>
+                                        </td>
+                                        <td>{{ permission.permission_date }}</td>
+                                        <td>{{ permission.start_time }} - {{ permission.end_time }}</td>
+                                        <td>
+                                            <span class="earnings-badge">{{ "%.1f"|format(permission.duration_hours) }} hrs</span>
+                                        </td>
+                                        <td>
+                                            <span title="{{ permission.reason }}">{{ permission.reason[:30] }}{% if permission.reason|length > 30 %}...{% endif %}</span>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" class="btn btn-sm btn-success approve-permission-btn" data-permission-id="{{ permission.id }}" title="Approve permission">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-danger reject-permission-btn" data-permission-id="{{ permission.id }}" title="Reject permission">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="bi bi-clock"></i>
+                            </div>
+                            <h6 class="empty-title">No Pending Permission Applications</h6>
+                            <p class="empty-text">All permission applications have been processed. New requests will appear here for approval.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+            </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Quick Actions Sidebar
+    <div class="quick-actions-sidebar">
+        <div class="quick-actions-header">
+            <h6><i class="bi bi-lightning"></i> Quick Actions</h6>
+        </div>
+        <div class="quick-actions-list">
+            <a href="{{ url_for('staff_management') }}" class="quick-action-item">
+                <div class="action-icon">
+                    <i class="bi bi-people"></i>
+                </div>
+                <div class="action-content">
+                    <div class="action-title">Manage Staff</div>
+                    <div class="action-subtitle">Add, edit, or remove staff</div>
+                </div>
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            <a href="{{ url_for('department_shifts') }}" class="quick-action-item">
+                <div class="action-icon">
+                    <i class="bi bi-clock"></i>
+                </div>
+                <div class="action-content">
+                    <div class="action-title">Department Shifts</div>
+                    <div class="action-subtitle">Configure shift schedules</div>
+                </div>
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            <a href="{{ url_for('salary_management') }}" class="quick-action-item">
+                <div class="action-icon">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="action-content">
+                    <div class="action-title">Salary Management</div>
+                    <div class="action-subtitle">Calculate and manage salaries</div>
+                </div>
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            <button type="button" class="quick-action-item" id="exportStaffBtn">
+                <div class="action-icon">
+                    <i class="bi bi-download"></i>
+                </div>
+                <div class="action-content">
+                    <div class="action-title">Export Data</div>
+                    <div class="action-subtitle">Download staff reports</div>
+                </div>
+                <i class="bi bi-chevron-right"></i>
+            </button>
+        </div>
+    </div> -->
+
+    <!-- Comprehensive Staff Profile Modal -->
+    <div class="modal fade" id="staffProfileModal" tabindex="-1" aria-labelledby="staffProfileModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="staffProfileModalLabel">
+                        <i class="bi bi-person-badge"></i> Staff Profile
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="staffProfileModalContent">
+                    <!-- Content will be loaded dynamically -->
+                    <div class="text-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2">Loading staff profile...</p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" id="editStaffProfileBtn">
+                        <i class="bi bi-pencil-square"></i> Edit Profile
+                    </button>
+                    <button type="button" class="btn btn-danger" id="deleteStaffProfileBtn">
+                        <i class="bi bi-trash"></i> Delete Staff
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Biometric Enrollment Modal -->
+    <div class="modal fade" id="biometricModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Biometric Enrollment</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div id="enrollmentProgress">
+                        <p>Please scan your fingerprint and face for verification (5 times each)</p>
+                        <div class="progress mb-3">
+                            <div class="progress-bar progress-bar-initial" role="progressbar" id="progressBar"></div>
+                        </div>
+                        <div class="mb-3">
+                            <video id="videoElement" width="320" height="240" autoplay></video>
+                            <canvas id="canvasElement" width="320" height="240" class="hidden"></canvas>
+                        </div>
+                        <div id="fingerprintScanner">
+                            <p>Place your finger on the scanner</p>
+                            <div id="fingerprintPlaceholder" class="fingerprint-placeholder"></div>
+                        </div>
+                        <div id="enrollmentStatus" class="mt-3"></div>
+                    </div>
+                    <div id="enrollmentComplete" class="hidden">
+                        <div class="alert alert-success">
+                            <i class="bi bi-check-circle-fill"></i> Biometric enrollment completed successfully!
+                        </div>
+                        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Biometric Device Management Modal -->
+    <div class="modal fade" id="biometricDeviceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">ZK Biometric Device Management</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Device Configuration</h6>
+                            <div class="mb-3">
+                                <label for="deviceIP" class="form-label">Device IP Address</label>
+                                <input type="text" class="form-control" id="deviceIP" value="192.168.1.201">
+                            </div>
+                            <div class="mb-3">
+                                <label for="devicePort" class="form-label">Port</label>
+                                <input type="number" class="form-control" id="devicePort" value="4370">
+                            </div>
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-info" id="testConnectionBtn">
+                                    <i class="bi bi-wifi"></i> Test Connection
+                                </button>
+                                <button type="button" class="btn btn-success" id="syncAttendanceBtn">
+                                    <i class="bi bi-arrow-clockwise"></i> Sync Attendance
+                                </button>
+
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Device Status</h6>
+                            <div id="deviceStatus" class="alert alert-secondary">
+                                <i class="bi bi-info-circle"></i> Click "Test Connection" to check device status
+                            </div>
+                            <div id="syncResults" class="hidden">
+                                <h6>Last Sync Results</h6>
+                                <ul class="list-group list-group-flush">
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>Total Records:</span>
+                                        <span id="totalRecords">-</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>SQLite Synced:</span>
+                                        <span id="sqliteSynced">-</span>
+                                    </li>
+                                    <li class="list-group-item d-flex justify-content-between">
+                                        <span>MySQL Synced:</span>
+                                        <span id="mysqlSynced">-</span>
+                                    </li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="row">
+                        <div class="col-12">
+                            <h6>Device Users</h6>
+                            <div class="d-flex gap-2 mb-3">
+                                <button type="button" class="btn btn-outline-primary btn-sm" id="loadUsersBtn">
+                                    <i class="bi bi-people"></i> Load Users from Device
+                                </button>
+                                <button type="button" class="btn btn-outline-danger btn-sm" id="clearUsersBtn">
+                                    <i class="bi bi-trash"></i> Clear All Users
+                                </button>
+                            </div>
+                            <div id="deviceUsers" class="mt-3 hidden">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span class="text-muted" id="userCount">0 users</span>
+                                    <input type="text" class="form-control form-control-sm search-width"
+                                           id="userSearch" placeholder="Search users...">
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-sm table-hover">
+                                        <thead>
+                                            <tr>
+                                                <th>User ID</th>
+                                                <th>Name</th>
+                                                <th>Privilege</th>
+                                                <th>Group</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="usersTableBody">
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Staff Modal -->
+    {% include 'edit_staff_modal.html' %}
+
+    <!-- User Conflict Resolution Modal -->
+    {% include 'user_conflict_modal.html' %}
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay d-none" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner-border text-primary mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Processing dashboard data...</p>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="{{ url_for('static', filename='js/weekly_calendar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/admin_dashboard.js') }}"></script>
+    
+    <script>
+        // Mobile sidebar toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('enhanced-sidebar');
+            
+            // Show sidebar on desktop by default
+            function updateSidebarVisibility() {
+                if (window.innerWidth > 768) {
+                    sidebar.style.display = 'block';
+                    sidebar.classList.remove('show');
+                } else {
+                    sidebar.style.display = 'block'; // Make sure it's not hidden by inline style
+                }
+            }
+            
+            // Initial setup
+            updateSidebarVisibility();
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Toggle button clicked');
+                    
+                    sidebar.classList.toggle('show');
+                    
+                    // Update aria-expanded for accessibility
+                    const expanded = sidebar.classList.contains('show');
+                    sidebarToggle.setAttribute('aria-expanded', expanded);
+                    
+                    console.log('Sidebar has show class:', expanded);
+                });
+                
+                // Close sidebar when clicking outside on mobile
+                document.addEventListener('click', function(event) {
+                    if (window.innerWidth <= 768) { // Only on mobile
+                        if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
+                            sidebar.classList.remove('show');
+                            sidebarToggle.setAttribute('aria-expanded', 'false');
+                        }
+                    }
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', updateSidebarVisibility);
+            }
+
+            // Update current date in sidebar footer
+            const currentDateElement = document.getElementById('currentDate');
+            if (currentDateElement) {
+                const today = new Date();
+                const dateStr = today.toLocaleDateString('en-GB', { 
+                    day: '2-digit', 
+                    month: 'short', 
+                    year: 'numeric' 
+                });
+                currentDateElement.textContent = dateStr;
+            }
+
+            // Update total staff count in sidebar footer
+            const totalStaffCountElement = document.getElementById('totalStaffCount');
+            if (totalStaffCountElement) {
+                // Get staff count from API
+                fetch('/get_staff_count')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.count !== undefined) {
+                            totalStaffCountElement.textContent = data.count;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching staff count:', error);
+                    });
+            }
+
+            // Check for pending password reset requests
+            const resetRequestBadge = document.getElementById('resetRequestCount');
+            if (resetRequestBadge) {
+                fetch('/api/password_reset_count')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.count > 0) {
+                            resetRequestBadge.textContent = data.count;
+                            resetRequestBadge.classList.remove('d-none');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching password reset count:', error);
+                    });
+            }
+        });
+        
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = "{{ url_for('logout') }}";
+            }
+        }
+
+        // Auto-refresh dashboard data every 30 seconds
+        function refreshDashboardData() {
+            // Refresh staff count
+            fetch('/get_staff_count')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.count !== undefined) {
+                        const totalStaffCountElement = document.getElementById('totalStaffCount');
+                        if (totalStaffCountElement) {
+                            totalStaffCountElement.textContent = data.count;
+                        }
+                    }
+                })
+                .catch(error => console.error('Error refreshing staff count:', error));
+
+            // Refresh password reset count
+            fetch('/api/password_reset_count')
+                .then(response => response.json())
+                .then(data => {
+                    const resetRequestBadge = document.getElementById('resetRequestCount');
+                    if (resetRequestBadge) {
+                        if (data.success && data.count > 0) {
+                            resetRequestBadge.textContent = data.count;
+                            resetRequestBadge.classList.remove('d-none');
+                        } else {
+                            resetRequestBadge.classList.add('d-none');
+                        }
+                    }
+                })
+                .catch(error => console.error('Error refreshing password reset count:', error));
+
+            // Refresh attendance statistics
+            fetch('/api/dashboard/attendance_stats')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update present count
+                        const presentElement = document.querySelector('[data-stat="present"]');
+                        if (presentElement && data.present !== undefined) {
+                            presentElement.textContent = data.present;
+                        }
+                        
+                        // Update absent count
+                        const absentElement = document.querySelector('[data-stat="absent"]');
+                        if (absentElement && data.absent !== undefined) {
+                            absentElement.textContent = data.absent;
+                        }
+                        
+                        // Update late count
+                        const lateElement = document.querySelector('[data-stat="late"]');
+                        if (lateElement && data.late !== undefined) {
+                            lateElement.textContent = data.late;
+                        }
+                        
+                        // Update on-leave count
+                        const onLeaveElement = document.querySelector('[data-stat="on-leave"]');
+                        if (onLeaveElement && data.on_leave !== undefined) {
+                            onLeaveElement.textContent = data.on_leave;
+                        }
+
+                        console.log('Dashboard data refreshed:', new Date().toLocaleTimeString());
+                    }
+                })
+                .catch(error => console.error('Error refreshing attendance stats:', error));
+        }
+
+        // Start auto-refresh interval (30 seconds)
+        // Run once immediately on page load
+        refreshDashboardData();
+        
+        // Then refresh every 30 seconds
+        setInterval(refreshDashboardData, 30000);
+        console.log('✓ Auto-refresh enabled: Dashboard will update every 30 seconds');
+    </script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZK Biometric Cloud Dashboard</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f5f5f5;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .header p {
+            opacity: 0.9;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        
+        .status-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease;
+        }
+        
+        .status-card:hover {
+            transform: translateY(-2px);
+        }
+        
+        .status-card h3 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .status-online { background-color: #4CAF50; }
+        .status-offline { background-color: #f44336; }
+        .status-warning { background-color: #ff9800; }
+        
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .metric:last-child {
+            border-bottom: none;
+        }
+        
+        .metric-label {
+            color: #666;
+        }
+        
+        .metric-value {
+            font-weight: bold;
+            color: #333;
+        }
+        
+        .devices-table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .table-header {
+            background: #667eea;
+            color: white;
+            padding: 1rem;
+            font-weight: bold;
+        }
+        
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: 600;
+            color: #555;
+        }
+        
+        tr:hover {
+            background-color: #f8f9fa;
+        }
+        
+        .btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: background-color 0.2s ease;
+        }
+        
+        .btn:hover {
+            background: #5a67d8;
+        }
+        
+        .btn-small {
+            padding: 0.3rem 0.8rem;
+            font-size: 0.8rem;
+        }
+        
+        .btn-success { background: #4CAF50; }
+        .btn-success:hover { background: #45a049; }
+        
+        .btn-warning { background: #ff9800; }
+        .btn-warning:hover { background: #e68900; }
+        
+        .btn-danger { background: #f44336; }
+        .btn-danger:hover { background: #da190b; }
+        
+        .actions {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .log-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .log-header {
+            background: #667eea;
+            color: white;
+            padding: 1rem;
+            font-weight: bold;
+        }
+        
+        .log-content {
+            max-height: 300px;
+            overflow-y: auto;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            background: #f8f9fa;
+        }
+        
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.3rem;
+            border-radius: 3px;
+        }
+        
+        .log-info { background: #e3f2fd; }
+        .log-warning { background: #fff3e0; }
+        .log-error { background: #ffebee; }
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 1rem;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            font-size: 1.2rem;
+            transition: all 0.2s ease;
+        }
+        
+        .refresh-btn:hover {
+            background: #5a67d8;
+            transform: scale(1.1);
+        }
+        
+        @media (max-width: 768px) {
+            .container {
+                padding: 0 0.5rem;
+            }
+            
+            .status-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 1.5rem;
+            }
+            
+            table {
+                font-size: 0.9rem;
+            }
+            
+            th, td {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <div class="header">
+        <h1>🌐 ZK Biometric Cloud Dashboard</h1>
+        <p>Real-time monitoring and management of your biometric devices</p>
+    </div>
+
+    <div class="container">
+        <!-- Status Overview -->
+        <div class="status-grid">
+            <div class="status-card">
+                <h3>
+                    <span class="status-indicator" id="cloud-status"></span>
+                    Cloud Connector
+                </h3>
+                <div class="metric">
+                    <span class="metric-label">Status</span>
+                    <span class="metric-value" id="connector-status">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">WebSocket</span>
+                    <span class="metric-value" id="websocket-status">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Last Heartbeat</span>
+                    <span class="metric-value" id="last-heartbeat">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Queue Size</span>
+                    <span class="metric-value" id="queue-size">Loading...</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>
+                    <span class="status-indicator status-online"></span>
+                    Device Summary
+                </h3>
+                <div class="metric">
+                    <span class="metric-label">Total Devices</span>
+                    <span class="metric-value" id="total-devices">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Online</span>
+                    <span class="metric-value" id="online-devices">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Offline</span>
+                    <span class="metric-value" id="offline-devices">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Cloud Enabled</span>
+                    <span class="metric-value" id="cloud-devices">Loading...</span>
+                </div>
+            </div>
+
+            <div class="status-card">
+                <h3>
+                    <span class="status-indicator status-online"></span>
+                    Sync Statistics
+                </h3>
+                <div class="metric">
+                    <span class="metric-label">Auto Sync</span>
+                    <span class="metric-value" id="auto-sync">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Sync Interval</span>
+                    <span class="metric-value" id="sync-interval">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Last Sync</span>
+                    <span class="metric-value" id="last-sync">Loading...</span>
+                </div>
+                <div class="metric">
+                    <span class="metric-label">Records Today</span>
+                    <span class="metric-value" id="records-today">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Device Management -->
+        <div class="devices-table">
+            <div class="table-header">
+                📱 Device Management
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Device ID</th>
+                        <th>Name</th>
+                        <th>IP Address</th>
+                        <th>Status</th>
+                        <th>Users</th>
+                        <th>Last Sync</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="devices-table-body">
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem;">
+                            Loading devices...
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Control Actions -->
+        <div class="status-card">
+            <h3>🔧 System Controls</h3>
+            <div class="actions">
+                <button class="btn btn-success" onclick="syncAllDevices()">Sync All Devices</button>
+                <button class="btn btn-warning" onclick="restartConnector()">Restart Connector</button>
+                <button class="btn" onclick="testConnectivity()">Test Connectivity</button>
+                <button class="btn" onclick="exportLogs()">Export Logs</button>
+            </div>
+        </div>
+
+        <!-- Activity Log -->
+        <div class="log-container">
+            <div class="log-header">
+                📋 Activity Log
+            </div>
+            <div class="log-content" id="activity-log">
+                <div class="log-entry log-info">System initialized</div>
+                <div class="log-entry log-info">Loading cloud dashboard...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Refresh Button -->
+    <button class="refresh-btn" onclick="refreshDashboard()" title="Refresh Dashboard">
+        🔄
+    </button>
+
+    <script>
+        // Dashboard JavaScript
+        let refreshInterval;
+        
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshDashboard();
+            startAutoRefresh();
+        });
+        
+        function startAutoRefresh() {
+            refreshInterval = setInterval(refreshDashboard, 30000); // Refresh every 30 seconds
+        }
+        
+        function stopAutoRefresh() {
+            if (refreshInterval) {
+                clearInterval(refreshInterval);
+            }
+        }
+        
+        async function refreshDashboard() {
+            try {
+                addLogEntry('Refreshing dashboard...', 'info');
+                
+                // Fetch cloud status
+                const response = await fetch('/cloud_status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateCloudStatus(data);
+                    updateDeviceTable(data.devices || []);
+                    addLogEntry('Dashboard refreshed successfully', 'info');
+                } else {
+                    addLogEntry(`Error: ${data.error}`, 'error');
+                }
+            } catch (error) {
+                addLogEntry(`Failed to refresh dashboard: ${error.message}`, 'error');
+            }
+        }
+        
+        function updateCloudStatus(data) {
+            // Update cloud connector status
+            const cloudStatus = document.getElementById('cloud-status');
+            const connectorStatus = document.getElementById('connector-status');
+            
+            if (data.cloud_enabled && data.connector_running) {
+                cloudStatus.className = 'status-indicator status-online';
+                connectorStatus.textContent = 'Running';
+            } else {
+                cloudStatus.className = 'status-indicator status-offline';
+                connectorStatus.textContent = 'Stopped';
+            }
+            
+            // Update other metrics
+            document.getElementById('websocket-status').textContent = 
+                data.websocket_connected ? 'Connected' : 'Disconnected';
+            document.getElementById('last-heartbeat').textContent = 
+                data.last_heartbeat ? new Date(data.last_heartbeat).toLocaleTimeString() : 'Never';
+            document.getElementById('queue-size').textContent = data.message_queue_size || 0;
+            
+            // Update device summary
+            const devices = data.devices || [];
+            document.getElementById('total-devices').textContent = devices.length;
+            document.getElementById('online-devices').textContent = 
+                devices.filter(d => d.status === 'connected').length;
+            document.getElementById('offline-devices').textContent = 
+                devices.filter(d => d.status !== 'connected').length;
+            document.getElementById('cloud-devices').textContent = 
+                devices.filter(d => d.cloud_enabled).length;
+            
+            // Update sync info
+            document.getElementById('auto-sync').textContent = data.config_valid ? 'Enabled' : 'Disabled';
+            document.getElementById('sync-interval').textContent = '30s'; // Default
+            document.getElementById('last-sync').textContent = 'Just now';
+            document.getElementById('records-today').textContent = '0'; // Placeholder
+        }
+        
+        function updateDeviceTable(devices) {
+            const tbody = document.getElementById('devices-table-body');
+            
+            if (devices.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="7" style="text-align: center; padding: 2rem;">
+                            No devices configured
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = devices.map(device => `
+                <tr>
+                    <td>${device.device_id}</td>
+                    <td>${device.device_name}</td>
+                    <td>${device.local_ip}</td>
+                    <td>
+                        <span class="status-indicator ${getStatusClass(device.status)}"></span>
+                        ${device.status}
+                    </td>
+                    <td>${device.user_count || 0}</td>
+                    <td>${device.last_sync ? new Date(device.last_sync).toLocaleString() : 'Never'}</td>
+                    <td>
+                        <button class="btn btn-small" onclick="syncDevice('${device.device_id}')">Sync</button>
+                        <button class="btn btn-small btn-warning" onclick="testDevice('${device.device_id}')">Test</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+        
+        function getStatusClass(status) {
+            switch (status) {
+                case 'connected': return 'status-online';
+                case 'disconnected': return 'status-offline';
+                default: return 'status-warning';
+            }
+        }
+        
+        function addLogEntry(message, type = 'info') {
+            const logContainer = document.getElementById('activity-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = `log-entry log-${type}`;
+            entry.textContent = `[${timestamp}] ${message}`;
+            
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            
+            // Keep only last 50 entries
+            while (logContainer.children.length > 50) {
+                logContainer.removeChild(logContainer.firstChild);
+            }
+        }
+        
+        // Control functions
+        async function syncAllDevices() {
+            addLogEntry('Triggering sync for all devices...', 'info');
+            // Implementation would call API endpoint
+        }
+        
+        async function syncDevice(deviceId) {
+            addLogEntry(`Syncing device ${deviceId}...`, 'info');
+            // Implementation would call API endpoint
+        }
+        
+        async function testDevice(deviceId) {
+            addLogEntry(`Testing device ${deviceId}...`, 'info');
+            // Implementation would call API endpoint
+        }
+        
+        async function restartConnector() {
+            addLogEntry('Restarting cloud connector...', 'warning');
+            // Implementation would call API endpoint
+        }
+        
+        async function testConnectivity() {
+            addLogEntry('Testing cloud connectivity...', 'info');
+            // Implementation would call API endpoint
+        }
+        
+        async function exportLogs() {
+            addLogEntry('Exporting system logs...', 'info');
+            // Implementation would download logs
+        }
+    </script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

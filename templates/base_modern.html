@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}VishnoRex - Modern Staff Management{% endblock %}</title>
+    
+    <!-- SEO Meta Tags -->
+    <meta name="description" content="{% block description %}Modern and efficient staff management system with attendance tracking, salary management, and analytics.{% endblock %}">
+    <meta name="keywords" content="staff management, attendance system, salary management, biometric attendance">
+    <meta name="author" content="VishnoRex">
+    
+    <!-- Open Graph Tags -->
+    <meta property="og:title" content="{% block og_title %}VishnoRex - Staff Management System{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}Modern and efficient staff management system{% endblock %}">
+    <meta property="og:type" content="website">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/apple-touch-icon.png') }}">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Core CSS Framework -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/responsive-framework.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/modern-components.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard-system.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/utilities.css') }}">
+    
+    <!-- Page Specific CSS -->
+    {% block extra_css %}{% endblock %}
+    
+    <!-- CSRF Token for AJAX -->
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body class="{% block body_class %}{% endblock %}">
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="sr-only focus-visible">Skip to main content</a>
+    
+    {% block body_content %}
+    <!-- Mobile Navigation Toggle -->
+    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation menu" aria-expanded="false">
+        <div class="nav-toggle-icon" aria-hidden="true"></div>
+    </button>
+    
+    <!-- Sidebar Overlay for Mobile -->
+    <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
+    
+    <!-- Modern Sidebar -->
+    <nav class="modern-sidebar" id="modernSidebar" role="navigation" aria-label="Main navigation">
+        <!-- Sidebar Brand -->
+        <div class="sidebar-brand">
+            <div class="brand-logo" aria-hidden="true">
+                <i class="bi bi-building-gear"></i>
+            </div>
+            <div class="brand-text">
+                <h1 class="brand-title">VishnoRex</h1>
+                <p class="brand-subtitle">{% block sidebar_subtitle %}Staff Management{% endblock %}</p>
+            </div>
+        </div>
+        
+        <!-- Navigation Menu -->
+        <div class="sidebar-nav">
+            {% block sidebar_nav %}
+            <div class="nav-section">
+                <div class="nav-section-title">
+                    <i class="bi bi-grid-3x3-gap" aria-hidden="true"></i>
+                    <span>Main Menu</span>
+                </div>
+                <ul class="nav-menu" role="menu">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'admin_dashboard' %}active{% endif %}" 
+                           href="{{ url_for('admin_dashboard') }}" 
+                           role="menuitem"
+                           aria-current="{% if request.endpoint == 'admin_dashboard' %}page{% endif %}">
+                            <i class="nav-icon bi bi-house-door" aria-hidden="true"></i>
+                            <span class="nav-text">Dashboard</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'staff_management' %}active{% endif %}" 
+                           href="{{ url_for('staff_management') }}" 
+                           role="menuitem"
+                           aria-current="{% if request.endpoint == 'staff_management' %}page{% endif %}">
+                            <i class="nav-icon bi bi-people" aria-hidden="true"></i>
+                            <span class="nav-text">Staff Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'salary_management' %}active{% endif %}" 
+                           href="{{ url_for('salary_management') }}" 
+                           role="menuitem"
+                           aria-current="{% if request.endpoint == 'salary_management' %}page{% endif %}">
+                            <i class="nav-icon bi bi-currency-dollar" aria-hidden="true"></i>
+                            <span class="nav-text">Salary Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'admin_timetable' %}active{% endif %}" 
+                           href="{{ url_for('admin_timetable') }}" 
+                           role="menuitem"
+                           aria-current="{% if request.endpoint == 'admin_timetable' %}page{% endif %}">
+                            <i class="nav-icon bi bi-calendar-event" aria-hidden="true"></i>
+                            <span class="nav-text">Timetable Management</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" 
+                           href="#" 
+                           role="menuitem"
+                           data-bs-toggle="modal" 
+                           data-bs-target="#biometricDeviceModal">
+                            <i class="nav-icon bi bi-fingerprint" aria-hidden="true"></i>
+                            <span class="nav-text">Biometric Device</span>
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link logout-nav-link" 
+                           href="#" 
+                           role="menuitem"
+                           onclick="logout(); return false;"
+                           title="Logout from system"
+                           aria-label="Logout from system">
+                            <i class="nav-icon bi bi-box-arrow-right" aria-hidden="true"></i>
+                            <span class="nav-text">Logout</span>
+                        </a>
+                    </li>
+                </ul>
+            </div>
+            {% endblock %}
+        </div>
+        
+        <!-- User Profile in Sidebar -->
+        <div class="sidebar-user">
+            <div class="user-avatar" aria-hidden="true">
+                {{ session.get('full_name', 'U')[0].upper() }}
+            </div>
+            <div class="user-info">
+                <p class="user-name">{{ session.get('full_name', 'Admin User') }}</p>
+                <p class="user-role">{% block user_role %}Administrator{% endblock %}</p>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content Area -->
+    <main class="main-content" id="main-content" role="main">
+        <!-- Content Header -->
+        <header class="content-header">
+            <div class="header-content">
+                <div class="header-title">
+                    <h1 class="page-title">{% block page_title %}Dashboard{% endblock %}</h1>
+                    <p class="page-subtitle">{% block page_subtitle %}Manage your staff and attendance efficiently{% endblock %}</p>
+                </div>
+                <div class="header-actions">
+                    {% block header_actions %}
+                    <button type="button" class="btn-modern btn-secondary-modern btn-icon-modern" 
+                            id="refreshDataBtn" 
+                            title="Refresh data"
+                            aria-label="Refresh dashboard data">
+                        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i>
+                    </button>
+                    <button type="button" class="btn-modern btn-primary-modern" 
+                            id="exportDataBtn"
+                            title="Export data">
+                        <i class="bi bi-download" aria-hidden="true"></i>
+                        <span>Export</span>
+                    </button>
+                    {% endblock %}
+                </div>
+            </div>
+        </header>
+        
+        <!-- Main Content Container -->
+        <div class="dashboard-container">
+            <!-- Flash Messages -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages mb-6" role="alert" aria-live="polite">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show" role="alert">
+                                <i class="bi bi-{% if category == 'success' %}check-circle{% elif category == 'error' or category == 'danger' %}exclamation-triangle{% elif category == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %}" aria-hidden="true"></i>
+                                {{ message }}
+                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
+            
+            <!-- Page Content -->
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+    {% endblock %}
+    
+    <!-- Loading Overlay -->
+    <div class="loading-overlay d-none" id="loadingOverlay" aria-hidden="true">
+        <div class="loading-spinner" role="status" aria-label="Loading"></div>
+    </div>
+    
+    <!-- Common Modals -->
+    {% block modals %}{% endblock %}
+    
+    <!-- Core JavaScript -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- Core Application JavaScript -->
+    <script>
+        // Global app configuration
+        window.VishnoRex = {
+            csrfToken: document.querySelector('meta[name="csrf-token"]').getAttribute('content'),
+            baseUrl: '{{ request.url_root }}',
+            currentUser: {
+                name: '{{ session.get("full_name", "") }}',
+                role: '{% block js_user_role %}admin{% endblock %}'
+            }
+        };
+        
+        // Mobile navigation toggle
+        document.addEventListener('DOMContentLoaded', function() {
+            const navToggle = document.getElementById('navToggle');
+            const sidebar = document.getElementById('modernSidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            
+            if (navToggle && sidebar && overlay) {
+                navToggle.addEventListener('click', function() {
+                    const isOpen = sidebar.classList.contains('open');
+                    
+                    if (isOpen) {
+                        sidebar.classList.remove('open');
+                        overlay.classList.remove('active');
+                        navToggle.classList.remove('active');
+                        navToggle.setAttribute('aria-expanded', 'false');
+                        overlay.setAttribute('aria-hidden', 'true');
+                    } else {
+                        sidebar.classList.add('open');
+                        overlay.classList.add('active');
+                        navToggle.classList.add('active');
+                        navToggle.setAttribute('aria-expanded', 'true');
+                        overlay.setAttribute('aria-hidden', 'false');
+                    }
+                });
+                
+                // Close sidebar when clicking overlay
+                overlay.addEventListener('click', function() {
+                    sidebar.classList.remove('open');
+                    overlay.classList.remove('active');
+                    navToggle.classList.remove('active');
+                    navToggle.setAttribute('aria-expanded', 'false');
+                    overlay.setAttribute('aria-hidden', 'true');
+                });
+                
+                // Close sidebar when pressing Escape key
+                document.addEventListener('keydown', function(e) {
+                    if (e.key === 'Escape' && sidebar.classList.contains('open')) {
+                        sidebar.classList.remove('open');
+                        overlay.classList.remove('active');
+                        navToggle.classList.remove('active');
+                        navToggle.setAttribute('aria-expanded', 'false');
+                        overlay.setAttribute('aria-hidden', 'true');
+                    }
+                });
+            }
+            
+            // Auto-hide flash messages after 5 seconds
+            const flashMessages = document.querySelectorAll('.flash-messages .alert');
+            flashMessages.forEach(function(message) {
+                setTimeout(function() {
+                    const bsAlert = new bootstrap.Alert(message);
+                    bsAlert.close();
+                }, 5000);
+            });
+            
+            // Loading overlay utilities
+            window.showLoading = function() {
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay) {
+                    overlay.classList.remove('d-none');
+                    overlay.setAttribute('aria-hidden', 'false');
+                }
+            };
+            
+            window.hideLoading = function() {
+                const overlay = document.getElementById('loadingOverlay');
+                if (overlay) {
+                    overlay.classList.add('d-none');
+                    overlay.setAttribute('aria-hidden', 'true');
+                }
+            };
+            
+            // Global logout function
+            window.logout = function() {
+                if (confirm('Are you sure you want to logout?')) {
+                    window.location.href = "{{ url_for('logout') }}";
+                }
+            };
+        });
+    </script>
+    
+    <!-- Page Specific JavaScript -->
+    {% block extra_js %}{% endblock %}
+    
+    <!-- Service Worker for PWA (optional) -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', function() {
+                navigator.serviceWorker.register('/sw.js').then(function(registration) {
+                    console.log('ServiceWorker registration successful');
+                }, function(err) {
+                    console.log('ServiceWorker registration failed');
+                });
+            });
+        }
+    </script>
+</body>
+</html>

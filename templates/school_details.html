@@ -1,0 +1,1056 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>School Details - VishnoRex</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <style>
+        /* Fix sidebar positioning for school details */
+        .container-fluid {
+            padding: 0;
+            margin: 0;
+        }
+        
+        .row {
+            margin: 0;
+            height: fit-content !important;
+            min-height: unset !important;
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        
+        /* Sidebar positioning */
+        .enhanced-sidebar {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: 250px; /* Fixed width */
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
+            display: block !important; /* Override inline style */
+        }
+        
+        /* Main content positioning */
+        .salary-main-content {
+            margin-left: 250px !important; /* Match sidebar width exactly */
+            width: calc(100% - 250px) !important; /* Fill remaining space */
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+        
+        /* Remove Bootstrap default spacing that causes issues */
+        .col-md-2, .col-md-10 {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        
+        /* Ensure content doesn't break layout */
+        .salary-filters-card {
+            margin-bottom: 2rem;
+        }
+        
+        /* Ensure tables and content fit properly within fixed layout */
+        .table-responsive {
+            overflow-x: auto;
+            border-radius: 0.375rem;
+        }
+        
+        .salary-table {
+            min-width: 600px; /* Ensure minimum table width */
+        }
+        
+        /* Prevent horizontal scrolling issues */
+        .card-body {
+            overflow-x: auto;
+        }
+        
+        /* Ensure proper spacing for sections */
+        .salary-header {
+            margin-bottom: 2rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        /* Fix info items spacing */
+        .info-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #f8f9fa;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 0.25rem;
+        }
+        
+        .info-value {
+            color: #212529;
+            word-wrap: break-word;
+        }
+        
+        /* Mobile responsive fixes */
+        @media (max-width: 767.98px) {
+            .enhanced-sidebar {
+                position: fixed !important;
+                top: 0;
+                left: -100%;
+                width: 280px;
+                height: 100vh;
+                overflow: hidden !important;
+                transition: left 0.3s ease;
+                z-index: 1050;
+                display: none !important; /* Hidden by default on mobile */
+            }
+            
+            .enhanced-sidebar.show {
+                left: 0;
+                display: block !important;
+            }
+            
+            .salary-main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1rem 0.5rem;
+                padding-top: 4rem; /* Account for mobile toggle button */
+            }
+            
+            .sidebar-toggle {
+                display: block !important;
+            }
+        }
+        
+        /* Ensure sidebar toggle is properly styled */
+        .sidebar-toggle {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1100;
+            background: var(--primary-color, #007bff);
+            color: white;
+            border: none;
+            border-radius: 0.375rem;
+            padding: 0.5rem;
+            font-size: 1.25rem;
+            display: none;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .sidebar-toggle:hover {
+            background: var(--primary-dark, #0056b3);
+            transform: scale(1.05);
+        }
+        
+        /* Smooth scrolling for better UX */
+        html {
+            scroll-behavior: smooth;
+        }
+        
+        /* Focus styles for better accessibility */
+        .nav-link:focus {
+            outline: 2px solid var(--primary-color, #007bff);
+            outline-offset: 2px;
+        }
+        
+        /* Ensure proper z-index stacking */
+        .modal {
+            z-index: 1060;
+        }
+        
+        .modal-backdrop {
+            z-index: 1055;
+        }
+        
+        /* Enhanced card hover effects */
+        .salary-filters-card {
+            transition: box-shadow 0.2s ease;
+        }
+        
+        .salary-filters-card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        /* Enhanced School Information Section Layout Fixes */
+        
+        /* Fix header actions responsive behavior */
+        .header-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+        }
+        
+        .header-content {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .header-title {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .title-icon {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,123,255,0.3);
+        }
+        
+        .title-text h1 {
+            margin: 0;
+            font-size: 1.75rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .title-text p {
+            margin: 0;
+            font-size: 0.95rem;
+            color: white;
+        }
+        
+        /* Improve School Information card layout */
+        .salary-filters-card {
+            border: none;
+            border-radius: 1rem;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.08);
+            overflow: hidden;
+            margin-bottom: 2rem;
+        }
+        
+        .salary-filters-card .card-header {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border: none;
+            padding: 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .card-header .header-icon {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.3);
+        }
+        
+        .card-header .header-content {
+            flex: 1;
+            min-width: 200px;
+        }
+        
+        .card-header .card-title {
+            margin: 0;
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        
+        .card-header .card-subtitle {
+            margin: 0;
+            font-size: 0.9rem;
+            color: white;
+        }
+        
+        /* Enhanced info items layout */
+        .info-item {
+            padding: 1rem 0;
+            border-bottom: 1px solid #f1f3f4;
+            transition: all 0.2s ease;
+        }
+        
+        .info-item:last-child {
+            border-bottom: none;
+        }
+        
+        .info-item:hover {
+            background-color: #f8f9fa;
+            padding-left: 0.5rem;
+            padding-right: 0.5rem;
+            border-radius: 0.5rem;
+        }
+        
+        .info-label {
+            font-weight: 600;
+            color: #495057;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+        }
+        
+        .info-value {
+            color: #212529;
+            word-wrap: break-word;
+            font-size: 1rem;
+            line-height: 1.4;
+        }
+        
+        /* Better card body spacing */
+        .card-body {
+            padding: 2rem;
+            overflow: visible;
+        }
+        
+        /* Responsive improvements for mobile screens */
+        @media (max-width: 575.98px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 1rem;
+            }
+            
+            .header-actions {
+                width: 100%;
+                justify-content: center;
+                gap: 0.5rem;
+            }
+            
+            .header-actions .btn {
+                flex: 1;
+                min-width: 120px;
+                font-size: 0.875rem;
+            }
+            
+            .title-text h1 {
+                font-size: 1.5rem;
+            }
+            
+            .title-text p {
+                font-size: 0.875rem;
+            }
+            
+            .card-body {
+                padding: 1.5rem;
+            }
+            
+            .info-item {
+                padding: 0.75rem 0;
+            }
+            
+            .info-label {
+                font-size: 0.95rem;
+            }
+            
+            .info-value {
+                font-size: 0.95rem;
+            }
+        }
+        
+        /* Medium screen responsive improvements */
+        @media (max-width: 991.98px) {
+            .header-actions {
+                flex-wrap: wrap;
+                justify-content: flex-start;
+            }
+            
+            .header-actions .btn {
+                margin-bottom: 0.5rem;
+            }
+            
+            .title-text h1 {
+                font-size: 1.6rem;
+            }
+            
+            .salary-main-content {
+                padding: 1.5rem 0.75rem;
+            }
+        }
+        
+        /* Additional spacing fixes for better visual hierarchy */
+        .school-info-section {
+            margin-top: 1rem;
+        }
+        
+        /* Ensure proper spacing between sections */
+        #school-info + .salary-filters-card {
+            margin-top: 0.5rem;
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle -->
+    <button type="button" class="sidebar-toggle d-md-none" id="sidebarToggle" 
+            title="Toggle sidebar menu" 
+            aria-label="Toggle navigation sidebar"
+            aria-expanded="false"
+            aria-controls="sidebar-navigation">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar -->
+            <nav class="col-md-2 d-none d-md-block enhanced-sidebar" id="sidebar-navigation" role="navigation" aria-label="School details navigation">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        <div class="logo-icon">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div class="brand-text">
+                            <h6 class="brand-title">{{ school.name }}</h6>
+                            <small class="brand-subtitle">School Details</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ session.get('full_name', 'Company Admin') }}</div>
+                            <div class="user-role">Company Administrator</div>
+                        </div>
+                    </div>
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>School Overview</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#school-info" onclick="scrollToSection('school-info')">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-info-circle"></i>
+                                    </div>
+                                    <span class="nav-text">School Information</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#admins-section" onclick="scrollToSection('admins-section')">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-person-badge"></i>
+                                    </div>
+                                    <span class="nav-text">Administrators</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#staff-section" onclick="scrollToSection('staff-section')">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <span class="nav-text">Staff Members</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#attendance-section" onclick="scrollToSection('attendance-section')">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-calendar-check"></i>
+                                    </div>
+                                    <span class="nav-text">Today's Attendance</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Quick Actions Section -->
+                    <!-- <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-lightning"></i>
+                            <span>Quick Actions</span>
+                        </div>
+                        <div class="quick-actions">
+                            <button type="button" class="quick-action-btn" data-bs-toggle="modal" data-bs-target="#addAdminModal" title="Add Admin">
+                                <i class="bi bi-person-plus"></i>
+                                <span>Add Admin</span>
+                            </button>
+                            <button type="button" class="quick-action-btn" onclick="exportSchoolData()" title="Export Data">
+                                <i class="bi bi-download"></i>
+                                <span>Export</span>
+                            </button>
+                            <button type="button" class="quick-action-btn" onclick="refreshData()" title="Refresh">
+                                <i class="bi bi-arrow-clockwise"></i>
+                                <span>Refresh</span>
+                            </button>
+                        </div>
+                    </div>
+                </div> -->
+                
+                <!-- Sidebar Footer -->
+                <div class="sidebar-footer">
+                    <div class="footer-stats">
+                        <div class="stat-item">
+                            <i class="bi bi-person-badge"></i>
+                            <span id="totalAdminsCount">{{ admins|length if admins else 0 }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="bi bi-people"></i>
+                            <span id="totalStaffCount">{{ staff|length if staff else 0 }}</span>
+                        </div>
+                    </div>
+                    <a href="{{ url_for('company_dashboard') }}" class="logout-btn" title="Back to Schools">
+                        <i class="bi bi-arrow-left"></i>
+                        <span>Back to Schools</span>
+                    </a>
+                </div>
+            </nav>
+            <!-- Main content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
+                <!-- Enhanced Header -->
+                <div class="salary-header">
+                    <div class="header-content">
+                        <div class="header-title">
+                            <div class="title-icon">
+                                <i class="bi bi-building"></i>
+                            </div>
+                            <div class="title-text">
+                                <h1 class="main-title">{{ school.name }}</h1>
+                                <p class="subtitle">School Details and Management Dashboard</p>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-outline-primary" onclick="refreshData()" title="Refresh data">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="exportSchoolData()" title="Export school data">
+                                <i class="bi bi-download"></i> Export Data
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- School Information Card -->
+                <div class="salary-filters-card school-info-section" id="school-info">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-info-circle"></i>
+                        </div>
+                        <div class="header-content">
+                            <div class="header-title">
+                                <h5 class="card-title">School Information</h5>
+                                <p class="card-subtitle">Basic details and contact information</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-4">
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="bi bi-building me-2 text-primary"></i>
+                                        <strong>School Name</strong>
+                                    </div>
+                                    <div class="info-value">{{ school.name }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="bi bi-geo-alt me-2 text-primary"></i>
+                                        <strong>Address</strong>
+                                    </div>
+                                    <div class="info-value">{{ school.address or 'Not specified' }}</div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="bi bi-envelope me-2 text-primary"></i>
+                                        <strong>Contact Email</strong>
+                                    </div>
+                                    <div class="info-value">{{ school.contact_email or 'Not provided' }}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">
+                                        <i class="bi bi-telephone me-2 text-primary"></i>
+                                        <strong>Contact Phone</strong>
+                                    </div>
+                                    <div class="info-value">{{ school.contact_phone or 'Not provided' }}</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Administrators Section -->
+                <div class="salary-filters-card" id="admins-section">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-person-badge"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Administrators</h5>
+                            <p class="card-subtitle">Manage school administrators and access rights</p>
+                        </div>
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addAdminModal">
+                                <i class="bi bi-plus-lg"></i> Add Admin
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table salary-table">
+                                <thead>
+                                    <tr>
+                                        <th><i class="bi bi-person me-2"></i>Username</th>
+                                        <th><i class="bi bi-person-circle me-2"></i>Full Name</th>
+                                        <th><i class="bi bi-envelope me-2"></i>Email</th>
+                                        <th><i class="bi bi-gear me-2"></i>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for admin in admins %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="user-avatar me-2">
+                                                    <i class="bi bi-person-badge"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold">{{ admin.username }}</div>
+                                                    <small class="text-muted">Administrator</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>{{ admin.full_name }}</td>
+                                        <td>
+                                            {% if admin.email %}
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi bi-envelope text-primary me-1"></i>
+                                                    {{ admin.email }}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">Not provided</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-danger delete-admin" data-admin-id="{{ admin.id }}" title="Delete Admin">
+                                                <i class="bi bi-trash"></i>
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="4" class="text-center py-4">
+                                            <div class="empty-state">
+                                                <i class="bi bi-person-badge text-muted" style="font-size: 3rem;"></i>
+                                                <h5 class="text-muted mt-3">No Administrators Found</h5>
+                                                <p class="text-muted">Add the first administrator for this school.</p>
+                                                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAdminModal">
+                                                    <i class="bi bi-plus-lg"></i> Add First Admin
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Admin Modal -->
+                <div class="modal fade" id="addAdminModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title">Add New Admin</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="adminForm">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                    <div class="mb-3">
+                                        <label for="newAdminUsername" class="form-label">Username</label>
+                                        <input type="text" class="form-control" id="newAdminUsername" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="newAdminPassword" class="form-label">Password</label>
+                                        <input type="password" class="form-control" id="newAdminPassword" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="newAdminFullName" class="form-label">Full Name</label>
+                                        <input type="text" class="form-control" id="newAdminFullName" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="newAdminEmail" class="form-label">Email</label>
+                                        <input type="email" class="form-control" id="newAdminEmail">
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" id="saveAdmin">Save</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Staff Members Section -->
+                <div class="salary-filters-card" id="staff-section">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Staff Members ({{ staff|length }})</h5>
+                            <p class="card-subtitle">View all staff members registered in this school</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table salary-table">
+                                <thead>
+                                    <tr>
+                                        <th><i class="bi bi-card-text me-2"></i>Staff ID</th>
+                                        <th><i class="bi bi-person me-2"></i>Full Name</th>
+                                        <th><i class="bi bi-building me-2"></i>Department</th>
+                                        <th><i class="bi bi-briefcase me-2"></i>Position</th>
+                                        <th><i class="bi bi-envelope me-2"></i>Email</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for member in staff %}
+                                    <tr>
+                                        <td>
+                                            <span class="badge bg-primary">{{ member.staff_id }}</span>
+                                        </td>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="user-avatar me-2">
+                                                    <i class="bi bi-person-circle"></i>
+                                                </div>
+                                                <div>
+                                                    <div class="fw-bold">{{ member.full_name }}</div>
+                                                    <small class="text-muted">Staff Member</small>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td>
+                                            <span class="badge bg-info">{{ member.department }}</span>
+                                        </td>
+                                        <td>{{ member.position }}</td>
+                                        <td>
+                                            {% if member.email %}
+                                                <div class="d-flex align-items-center">
+                                                    <i class="bi bi-envelope text-primary me-1"></i>
+                                                    {{ member.email }}
+                                                </div>
+                                            {% else %}
+                                                <span class="text-muted">Not provided</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% else %}
+                                    <tr>
+                                        <td colspan="5" class="text-center py-4">
+                                            <div class="empty-state">
+                                                <i class="bi bi-people text-muted" style="font-size: 3rem;"></i>
+                                                <h5 class="text-muted mt-3">No Staff Members Found</h5>
+                                                <p class="text-muted">Staff members will appear here once they are registered in the system.</p>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Today's Attendance Section -->
+                <div class="salary-filters-card" id="attendance-section">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-calendar-check"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Today's Attendance</h5>
+                            <p class="card-subtitle">{{ today.strftime('%A, %B %d, %Y') if today else 'Current Date' }}</p>
+                        </div>
+                        <div class="header-actions">
+                            <div class="attendance-badges">
+                                <span class="badge bg-success me-2">
+                                    <i class="bi bi-check-circle me-1"></i>
+                                    {{ attendance_summary.present if attendance_summary else 0 }} Present
+                                </span>
+                                <span class="badge bg-danger me-2">
+                                    <i class="bi bi-x-circle me-1"></i>
+                                    {{ attendance_summary.absent if attendance_summary else 0 }} Absent
+                                </span>
+                                <span class="badge bg-warning me-2">
+                                    <i class="bi bi-clock me-1"></i>
+                                    {{ attendance_summary.late if attendance_summary else 0 }} Late
+                                </span>
+                                <span class="badge bg-info">
+                                    <i class="bi bi-calendar-x me-1"></i>
+                                    {{ attendance_summary.on_leave if attendance_summary else 0 }} On Leave
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="attendance-overview">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="stat-card bg-success">
+                                        <div class="stat-icon">
+                                            <i class="bi bi-check-circle"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ attendance_summary.present if attendance_summary else 0 }}</div>
+                                            <div class="stat-label">Present</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card bg-danger">
+                                        <div class="stat-icon">
+                                            <i class="bi bi-x-circle"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ attendance_summary.absent if attendance_summary else 0 }}</div>
+                                            <div class="stat-label">Absent</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card bg-warning">
+                                        <div class="stat-icon">
+                                            <i class="bi bi-clock"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ attendance_summary.late if attendance_summary else 0 }}</div>
+                                            <div class="stat-label">Late</div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="stat-card bg-info">
+                                        <div class="stat-icon">
+                                            <i class="bi bi-calendar-x"></i>
+                                        </div>
+                                        <div class="stat-content">
+                                            <div class="stat-value">{{ attendance_summary.on_leave if attendance_summary else 0 }}</div>
+                                            <div class="stat-label">On Leave</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Scroll to section function
+        function scrollToSection(sectionId) {
+            const element = document.getElementById(sectionId);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth' });
+                
+                // Update active nav link
+                document.querySelectorAll('.nav-link').forEach(link => {
+                    link.classList.remove('active');
+                });
+                document.querySelector(`[href="#${sectionId}"]`).classList.add('active');
+            }
+        }
+        
+        // Refresh data function
+        function refreshData() {
+            location.reload();
+        }
+        
+        // Export school data function
+        function exportSchoolData() {
+            // TODO: Implement export functionality
+            alert('Export functionality coming soon!');
+        }
+
+        // Add admin
+        document.getElementById('saveAdmin')?.addEventListener('click', function() {
+            const username = document.getElementById('newAdminUsername').value;
+            const password = document.getElementById('newAdminPassword').value;
+            const fullName = document.getElementById('newAdminFullName').value;
+            const email = document.getElementById('newAdminEmail').value;
+            const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+            if (!username || !password || !fullName) {
+                alert('Username, Password, and Full Name are required');
+                return;
+            }
+
+            fetch('/add_admin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: `csrf_token=${encodeURIComponent(csrfToken)}&school_id={{ school.id }}&username=${encodeURIComponent(username)}&password=${encodeURIComponent(password)}&full_name=${encodeURIComponent(fullName)}&email=${encodeURIComponent(email)}`
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Administrator added successfully');
+                    // Clear form
+                    document.getElementById('adminForm').reset();
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('addAdminModal'));
+                    if (modal) modal.hide();
+                    // Reload page to show new admin
+                    location.reload();
+                } else {
+                    alert(data.error || 'Failed to add administrator');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while adding administrator');
+            });
+        });
+
+        // Delete admin
+        document.querySelectorAll('.delete-admin').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const adminId = this.getAttribute('data-admin-id');
+                const adminName = this.closest('tr').querySelector('td:nth-child(2)').textContent;
+                const csrfToken = document.querySelector('input[name="csrf_token"]').value;
+
+                if (confirm(`Are you sure you want to delete administrator ${adminName}?`)) {
+                    fetch('/delete_admin', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/x-www-form-urlencoded',
+                        },
+                        body: `csrf_token=${encodeURIComponent(csrfToken)}&admin_id=${adminId}`
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Administrator deleted successfully');
+                            location.reload();
+                        } else {
+                            alert(data.error || 'Failed to delete administrator');
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while deleting administrator');
+                    });
+                }
+            });
+        });
+        
+        // Mobile sidebar toggle with improved UX
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            const sidebar = document.querySelector('.enhanced-sidebar');
+            sidebar.classList.toggle('show');
+            
+            // Update aria attributes for accessibility
+            const isExpanded = sidebar.classList.contains('show');
+            this.setAttribute('aria-expanded', isExpanded);
+        });
+        
+        // Close sidebar when clicking outside on mobile
+        document.addEventListener('click', function(e) {
+            const sidebar = document.querySelector('.enhanced-sidebar');
+            const toggle = document.getElementById('sidebarToggle');
+            
+            if (window.innerWidth < 768 && sidebar.classList.contains('show')) {
+                if (!sidebar.contains(e.target) && !toggle.contains(e.target)) {
+                    sidebar.classList.remove('show');
+                    toggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+        });
+        
+        // Handle window resize for responsive behavior
+        window.addEventListener('resize', function() {
+            const sidebar = document.querySelector('.enhanced-sidebar');
+            if (window.innerWidth >= 768) {
+                sidebar.classList.remove('show');
+                document.getElementById('sidebarToggle')?.setAttribute('aria-expanded', 'false');
+            }
+        });
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Any initialization code can go here
+        });
+    </script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

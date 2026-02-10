@@ -1,0 +1,15 @@
+# Vishnorex Biometric Agent - Requirements
+# Python packages for the Local Agent desktop software
+
+# GUI Framework
+PyQt5>=5.15.0
+
+# HTTP requests
+requests>=2.31.0
+
+# ZK Device integration (already in parent project)
+# pyzk is already available via ../zk_biometric.py
+
+# Optional: Service installation on Windows
+# pywin32>=306  # For Windows service functionality
+# Note: NSSM (Non-Sucking Service Manager) is recommended instead

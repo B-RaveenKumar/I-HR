@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - VishnoRex</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle -->
+    <button type="button" class="sidebar-toggle d-md-none" id="sidebarToggle" title="Toggle sidebar menu">
+        <i class="bi bi-list"></i>
+    </button>
+    
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar -->
+            <nav class="col-md-2 d-none d-md-block enhanced-sidebar">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        {% if institution.branding_enabled and institution.logo_path %}
+                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        {% else %}
+                            <div class="logo-icon">
+                                <i class="bi bi-building-gear"></i>
+                            </div>
+                        {% endif %}
+                        <div class="brand-text">
+                            {% if institution.branding_enabled and institution.name %}
+                                <h6 class="brand-title">{{ institution.name }}</h6>
+                                <small class="brand-subtitle">Admin Panel</small>
+                            {% else %}
+                                <h6 class="brand-title">VishnoRex</h6>
+                                <small class="brand-subtitle">Admin Panel</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ session.get('full_name', 'Admin User') }}</div>
+                            <div class="user-role">Administrator</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Main Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/dashboard">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-house-door"></i>
+                                    </div>
+                                    <span class="nav-text">Dashboard</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('salary_management') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-currency-dollar"></i>
+                                    </div>
+                                    <span class="nav-text">Salary Management</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_management') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <span class="nav-text">Staff Management</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/reports">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-graph-up"></i>
+                                    </div>
+                                    <span class="nav-text">Reports & Analytics</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Quick Actions Section -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-lightning"></i>
+                            <span>Quick Actions</span>
+                        </div>
+                        <div class="quick-actions">
+                            <button type="button" class="quick-action-btn" title="Export Data">
+                                <i class="bi bi-download"></i>
+                                <span>Export</span>
+                            </button>
+                            <button type="button" class="quick-action-btn active" title="Settings">
+                                <i class="bi bi-gear"></i>
+                                <span>Settings</span>
+                            </button>
+                            <button type="button" class="quick-action-btn" title="Help">
+                                <i class="bi bi-question-circle"></i>
+                                <span>Help</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Sidebar Footer -->
+                <div class="sidebar-footer">
+                    <div class="footer-stats">
+                        <div class="stat-item">
+                            <i class="bi bi-people"></i>
+                            <span id="totalStaffCount">-</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="bi bi-calendar-day"></i>
+                            <span id="currentDate">-</span>
+                        </div>
+                    </div>
+                    <button type="button" class="logout-btn" onclick="logout()" title="Logout">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
+                <!-- Enhanced Header -->
+                <div class="salary-header">
+                    <div class="header-content">
+                        <div class="header-title">
+                            <div class="title-icon">
+                                <i class="bi bi-gear"></i>
+                            </div>
+                            <div class="title-text">
+                                <h1 class="main-title">System Settings</h1>
+                                <p class="subtitle">Configure system preferences and options</p>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-outline-primary" title="Refresh settings">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                            <button type="button" class="btn btn-success" title="Save all settings">
+                                <i class="bi bi-check-circle"></i> Save All
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Coming Soon Content -->
+                <div class="salary-filters-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-info-circle"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">System Settings</h5>
+                            <p class="card-subtitle">Advanced configuration and system preferences</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="coming-soon-content">
+                            <div class="coming-soon-icon">
+                                <i class="bi bi-gear"></i>
+                            </div>
+                            <h3 class="coming-soon-title">Advanced Settings Coming Soon!</h3>
+                            <p class="coming-soon-description">
+                                We're building a comprehensive settings panel with advanced configuration options:
+                            </p>
+                            <div class="feature-list">
+                                <div class="feature-item">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <span>System preferences</span>
+                                </div>
+                                <div class="feature-item">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <span>User management</span>
+                                </div>
+                                <div class="feature-item">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <span>Security settings</span>
+                                </div>
+                                <div class="feature-item">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <span>Notification preferences</span>
+                                </div>
+                                <div class="feature-item">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <span>Backup & restore</span>
+                                </div>
+                                <div class="feature-item">
+                                    <i class="bi bi-check-circle text-success"></i>
+                                    <span>Integration settings</span>
+                                </div>
+                            </div>
+                            <div class="coming-soon-actions">
+                                <button type="button" class="btn btn-primary" onclick="showNotification('We will notify you when this feature is ready!', 'info')">
+                                    <i class="bi bi-bell"></i> Notify Me
+                                </button>
+                                <a href="{{ url_for('salary_management') }}" class="btn btn-outline-secondary">
+                                    <i class="bi bi-arrow-left"></i> Back to Salary Management
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/salary_management.js') }}"></script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

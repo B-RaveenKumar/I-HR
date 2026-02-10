@@ -1,0 +1,2988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Profile - VishnoRex</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+    <style>
+        
+        /* 🎯 SURGICAL GAP REMOVAL - Fix sidebar positioning for staff profile */
+        .container-fluid {
+            padding: 0 !important;
+            margin: 0 !important;
+            max-width: none !important; /* Prevent Bootstrap container width limits */
+        }
+        
+        .row {
+            margin: 0;
+            height: fit-content !important;
+            min-height: unset !important;
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        
+        /* 🎯 SURGICAL GAP REMOVAL - Sidebar positioning */
+        .enhanced-sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 250px !important; /* Fixed width */
+            height: 100vh !important;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
+            display: block !important; /* Override inline style */
+            margin: 0 !important; /* Eliminate any default margins */
+            padding: 0 !important; /* Eliminate any default padding that could cause gaps */
+            border: none !important; /* Eliminate any borders that might create visual gaps */
+        }
+        
+        /* Main content positioning */
+        .salary-main-content {
+            margin-left: 260px !important; /* Sidebar width (250px) + small gap (10px) */
+            width: calc(100% - 260px) !important; /* Fill remaining space minus gap */
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+        
+        /* 🎯 SURGICAL GAP REMOVAL - Remove Bootstrap default spacing that causes issues */
+        .col-md-2, .col-md-10 {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        
+        /* 🎯 Add small professional spacing between columns */
+        .row {
+            --bs-gutter-x: 0 !important;
+        }
+        
+        /* 🎯 COLUMN SPACING FIX - Add small gap between left and right columns */
+        .salary-main-content .col-md-4 {
+            padding-right: 0.75rem !important; /* Small space on right of left column */
+        }
+        
+        .salary-main-content .col-md-8 {
+            padding-left: 0.75rem !important; /* Small space on left of right column */
+            padding-right: 0.75rem !important; /* Small space on right edge of right column */
+        }
+        
+        /* Total gap between columns = 0.75rem + 0.75rem = 1.5rem (24px) */
+        /* Right column has padding on both sides for proper spacing */
+        
+        /* 🎯 Add small professional gap between sidebar and main content */
+        .salary-main-content.ms-sm-auto {
+            margin-left: 260px !important; /* Sidebar width (250px) + small gap (10px) */
+        }
+        
+        /* 🎯 Override any Bootstrap padding that might create space */
+        .salary-main-content.px-md-4 {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+        
+        /* 🎯 APPLICATION SECTIONS LAYOUT FIX - Remove overlap and improve alignment */
+        
+        /* Fix card headers to prevent overlap */
+        .salary-results-card .card-header {
+            display: flex !important;
+            flex-wrap: wrap !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            padding: 1.25rem !important;
+            gap: 1rem !important;
+        }
+        
+        /* Ensure header content doesn't overlap with actions */
+        .salary-results-card .header-content {
+            flex: 1 !important;
+            min-width: 0 !important; /* Allow text to truncate if needed */
+        }
+        
+        .salary-results-card .header-actions {
+            flex-shrink: 0 !important; /* Prevent buttons from shrinking */
+        }
+        
+        /* Fix table responsiveness for applications */
+        .salary-results-table {
+            width: 100% !important;
+            min-width: 100% !important;
+            table-layout: auto !important;
+        }
+        
+        .salary-results-table th,
+        .salary-results-table td {
+            padding: 0.75rem !important;
+            white-space: nowrap !important;
+            vertical-align: middle !important;
+        }
+        
+        /* Fix application form modals auto-alignment */
+        .modal-dialog {
+            margin: 1.75rem auto !important;
+            max-width: 90% !important;
+        }
+        
+        .modal-content {
+            border-radius: 0.75rem !important;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2) !important;
+        }
+        
+        .modal-body .row {
+            margin: 0 !important;
+            gap: 1rem !important;
+        }
+        
+        .modal-body .col-md-6,
+        .modal-body .col-12 {
+            padding: 0 !important;
+            margin-bottom: 1rem !important;
+        }
+        
+        /* 🎯 Mobile responsive fixes - Remove left spacing completely */
+        @media (max-width: 767.98px) {
+            .enhanced-sidebar {
+                position: fixed !important;
+                top: 0;
+                left: -100%;
+                width: 280px;
+                height: 100vh;
+                overflow: hidden !important;
+                transition: left 0.3s ease;
+                z-index: 1050;
+                display: none !important; /* Hidden by default on mobile */
+            }
+            
+            .enhanced-sidebar.show {
+                left: 0;
+                display: block !important;
+            }
+            
+            /* 🎯 Fix empty left space on mobile */
+            .salary-main-content,
+            .salary-main-content.ms-sm-auto {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1rem 0.5rem;
+                padding-top: 4rem; /* Account for mobile toggle button */
+            }
+            
+            /* Remove column spacing on mobile (columns stack vertically) */
+            .salary-main-content .col-md-4,
+            .salary-main-content .col-md-8 {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            
+            /* 🎯 MOBILE APPLICATION SECTIONS FIX */
+            .salary-results-card .card-header {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 0.75rem !important;
+                padding: 1rem !important;
+            }
+            
+            .salary-results-card .header-actions {
+                width: 100% !important;
+                text-align: center !important;
+            }
+            
+            .salary-results-card .header-actions .btn {
+                width: 100% !important;
+                max-width: 200px !important;
+            }
+            
+            /* Fix table scroll on mobile */
+            .table-responsive {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch !important;
+                border-radius: 0.5rem !important;
+            }
+            
+            .salary-results-table th,
+            .salary-results-table td {
+                min-width: 80px !important;
+                font-size: 0.85rem !important;
+                padding: 0.5rem !important;
+            }
+            
+            /* Fix modal alignment on mobile */
+            .modal-dialog {
+                margin: 0.5rem !important;
+                max-width: calc(100% - 1rem) !important;
+            }
+            
+            .modal-body .row {
+                flex-direction: column !important;
+            }
+            
+            .modal-body .col-md-6 {
+                width: 100% !important;
+            }
+            
+            .sidebar-toggle {
+                display: block !important;
+            }
+        }
+        
+        /* 🎯 TABLET FIX - Remove empty left space on tablets */
+        @media (max-width: 1024px) and (min-width: 768px) {
+            /* Remove left margin on tablets to eliminate empty space */
+            .salary-main-content,
+            .salary-main-content.ms-sm-auto {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1.5rem 1rem !important;
+            }
+            
+            /* Remove column spacing on tablets (columns stack vertically) */
+            .salary-main-content .col-md-4,
+            .salary-main-content .col-md-8 {
+                padding-left: 0 !important;
+                padding-right: 0 !important;
+            }
+            
+            /* 🎯 TABLET APPLICATION SECTIONS FIX */
+            .salary-results-card .card-header {
+                flex-wrap: wrap !important;
+                gap: 0.75rem !important;
+                padding: 1.125rem !important;
+            }
+            
+            .salary-results-card .header-actions .btn {
+                min-width: 120px !important;
+            }
+            
+            /* Optimize table for tablet */
+            .salary-results-table th,
+            .salary-results-table td {
+                font-size: 0.9rem !important;
+                padding: 0.625rem !important;
+            }
+            
+            /* Fix modal for tablet */
+            .modal-dialog {
+                margin: 1rem auto !important;
+                max-width: 95% !important;
+            }
+            
+            /* Hide sidebar on tablets or make it collapsible */
+            .enhanced-sidebar {
+                position: fixed !important;
+                top: 0;
+                left: -100% !important; /* Hidden off-screen */
+                width: 280px;
+                height: 100vh;
+                overflow-y: auto !important;
+                transition: left 0.3s ease;
+                z-index: 1050;
+                display: none !important;
+            }
+            
+            .enhanced-sidebar.show {
+                left: 0 !important;
+                display: block !important;
+            }
+            
+            /* Show sidebar toggle on tablets */
+            .sidebar-toggle {
+                display: block !important;
+                position: fixed !important;
+                top: 1rem !important;
+                left: 1rem !important;
+                z-index: 1100 !important;
+            }
+            
+            /* 🎯 Make ALL profile content visible on tablets/laptops */
+            .salary-main-content .col-md-4,
+            .salary-main-content .col-md-8 {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+                margin-bottom: 1.5rem !important;
+            }
+            
+            /* Stack content vertically on medium screens */
+            .salary-main-content > .row {
+                display: flex !important;
+                flex-direction: column !important;
+            }
+        }
+        
+        /* 🎯 COMPREHENSIVE MOBILE CONTENT VISIBILITY FIX */
+        @media (max-width: 767.98px) {
+            /* Force ALL columns to be visible and full width */
+            .salary-main-content .col-md-4,
+            .salary-main-content .col-md-8,
+            .salary-main-content .col-md-6,
+            .salary-main-content .col-12 {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+                margin-bottom: 1rem !important;
+                padding: 0 !important;
+            }
+            
+            /* Ensure all rows stack vertically */
+            .salary-main-content .row,
+            .daily-attendance-card .row {
+                display: flex !important;
+                flex-direction: column !important;
+                margin: 0 !important;
+                gap: 0 !important;
+            }
+            
+            /* Make all cards responsive and visible */
+            .salary-results-card {
+                width: 100% !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+                margin-bottom: 1.5rem !important;
+            }
+            
+            /* Adjust card content for mobile readability */
+            .salary-results-card .card-body {
+                padding: 1rem !important;
+            }
+            
+            .salary-results-card .card-header {
+                padding: 1rem !important;
+                flex-wrap: wrap !important;
+            }
+            
+            /* Make tables horizontally scrollable */
+            .table-responsive {
+                overflow-x: auto !important;
+                -webkit-overflow-scrolling: touch;
+            }
+            
+            /* Adjust header for mobile */
+            .salary-header .header-content {
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 1rem !important;
+            }
+            
+            .salary-header .header-actions {
+                width: 100% !important;
+                justify-content: center !important;
+                flex-wrap: wrap !important;
+                gap: 0.5rem !important;
+            }
+            
+            /* Make attendance cards mobile-friendly */
+            .attendance-time-entry {
+                margin-bottom: 0.75rem !important;
+            }
+            
+            /* Ensure all nested columns are visible */
+            .daily-attendance-card .col-md-6 {
+                width: 100% !important;
+                flex: 0 0 100% !important;
+                margin-bottom: 0.5rem !important;
+            }
+            
+            /* Make charts and calendars responsive */
+            #weeklyAttendanceCalendar,
+            #attendanceSummaryChart {
+                width: 100% !important;
+                height: auto !important;
+                max-width: 100% !important;
+            }
+        }
+        
+        /* 🎯 UNIVERSAL SIDEBAR TOGGLE STYLING */
+        .sidebar-toggle {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1100;
+            background: #221e66;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease, opacity 0.2s ease-in-out;
+            cursor: pointer;
+            opacity: 1;
+        }
+        
+        .sidebar-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            background: #221e66;
+        }
+        
+        .sidebar-toggle:active {
+            transform: translateY(0);
+        }
+        
+        /* Show toggle button on mobile AND tablet/laptop views */
+        @media (max-width: 1024px) {
+            .sidebar-toggle {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+        
+        /* Hide toggle only on large desktop screens where sidebar is always visible */
+        @media (min-width: 1025px) {
+            .sidebar-toggle {
+                display: none !important;
+                opacity: 0;
+            }
+        }
+        
+        /* 🎯 Extra small devices optimization */
+        @media (max-width: 575.98px) {
+            .salary-main-content {
+                padding: 0.5rem 0.25rem !important;
+            }
+            
+            .salary-main-content .salary-header {
+                padding: 1.5rem 1rem !important;
+            }
+            
+            .salary-results-card {
+                margin-bottom: 1rem !important;
+            }
+            
+            .salary-results-card .card-body,
+            .salary-results-card .card-header {
+                padding: 0.75rem !important;
+            }
+            
+            .salary-header .header-actions .btn {
+                width: 100% !important;
+                margin-bottom: 0.5rem !important;
+            }
+            
+            /* Optimize filters grid for very small screens */
+            .filters-grid .filter-group {
+                width: 100% !important;
+                margin-bottom: 1rem !important;
+            }
+            
+            .attendance-stat-card {
+                padding: 1rem !important;
+                text-align: center !important;
+            }
+        }
+        /* 🎯 MY PROFILE PRELOADER - Full page overlay with animation */
+        .my-profile-preloader {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(8px);
+            z-index: 9999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+            transition: opacity 0.8s ease-out, visibility 0.8s ease-out;
+        }
+
+        .my-profile-preloader.hidden {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+
+        .preloader-container {
+            text-align: center;
+            position: relative;
+        }
+
+        .preloader-image {
+            width: 200px;
+            height: 200px;
+            background-image: url('/static/images/My_profile_ preloader.png');
+            background-size: contain;
+            background-repeat: no-repeat;
+            background-position: center;
+            margin: 0 auto 20px;
+            position: relative;
+        }
+
+        /* CSS Sprite Animation - assuming it's a sprite sheet */
+        .preloader-image.sprite-animation {
+            background-size: 1000% 1000%; /* Assuming 10x10 grid */
+            animation: spriteAnimation 3s steps(100) infinite;
+        }
+
+        @keyframes spriteAnimation {
+            0% { background-position: 0% 0%; }
+            10% { background-position: -100% 0%; }
+            20% { background-position: -200% 0%; }
+            30% { background-position: -300% 0%; }
+            40% { background-position: -400% 0%; }
+            50% { background-position: -500% 0%; }
+            60% { background-position: -600% 0%; }
+            70% { background-position: -700% 0%; }
+            80% { background-position: -800% 0%; }
+            90% { background-position: -900% 0%; }
+            100% { background-position: 0% -100%; }
+        }
+
+        /* Fallback Animation - if not a sprite sheet */
+        .preloader-image.fallback-animation {
+            animation: spinPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes spinPulse {
+            0% { 
+                transform: scale(1) rotate(0deg);
+                opacity: 1;
+            }
+            25% { 
+                transform: scale(1.1) rotate(90deg);
+                opacity: 0.8;
+            }
+            50% { 
+                transform: scale(1.2) rotate(180deg);
+                opacity: 0.6;
+            }
+            75% { 
+                transform: scale(1.1) rotate(270deg);
+                opacity: 0.8;
+            }
+            100% { 
+                transform: scale(1) rotate(360deg);
+                opacity: 1;
+            }
+        }
+
+        .preloader-text {
+            color: #495057;
+            font-size: 1.1rem;
+            font-weight: 500;
+            margin-top: 15px;
+            opacity: 0.8;
+        }
+
+        .preloader-progress {
+            margin-top: 20px;
+            width: 300px;
+            max-width: 90vw;
+        }
+
+        .preloader-progress .progress {
+            height: 4px;
+            background-color: rgba(0, 0, 0, 0.1);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .preloader-progress .progress-bar {
+            background: #221e66;
+            border-radius: 2px;
+            transition: width 0.3s ease;
+        }
+
+        /* Pay Slip Preview Styling */
+        .pay-slip-preview {
+            font-family: 'Inter', sans-serif;
+            background: white;
+            border-radius: 0.5rem;
+            padding: 2rem;
+        }
+
+        .pay-slip-preview .card {
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .pay-slip-preview .card-header {
+            border-radius: 0.5rem 0.5rem 0 0 !important;
+        }
+
+        .pay-slip-preview .card-body p {
+            margin-bottom: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .pay-slip-preview .d-flex {
+            margin-bottom: 0.25rem;
+        }
+
+        .pay-slip-preview .d-flex:last-child {
+            margin-bottom: 0;
+        }
+
+        .pay-slip-preview hr {
+            margin: 0.5rem 0;
+            border-color: rgba(0,0,0,0.1);
+        }
+
+        @media (max-width: 767.98px) {
+            .pay-slip-preview {
+                padding: 1rem;
+                font-size: 0.9rem;
+            }
+        }
+
+        /* PAY SLIP MODAL RESPONSIVE DESIGN                 */
+        /* Mobile Optimization for Pay Slip Modal          */
+        @media (max-width: 767.98px) {
+            #paySlipModal .modal-dialog {
+                margin: 0.5rem;
+                max-width: calc(100% - 1rem);
+                width: calc(100% - 1rem);
+            }
+
+            #paySlipModal .modal-content {
+                border-radius: 0.75rem;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+                overflow: hidden;
+            }
+
+            #paySlipModal .modal-header {
+                padding: 1rem 1.25rem;
+                border-bottom: 1px solid rgba(255,255,255,0.2);
+            }
+
+            #paySlipModal .modal-title {
+                font-size: 1.1rem;
+                font-weight: 600;
+                display: flex;
+                align-items: center;
+            }
+
+            #paySlipModal .modal-body {
+                padding: 1.5rem 1.25rem;
+                max-height: 70vh;
+                overflow-y: auto;
+                -webkit-overflow-scrolling: touch;
+                scrollbar-width: thin;
+                scrollbar-color: #cbd5e0 #f7fafc;
+            }
+
+            #paySlipModal #paySlipForm {
+                margin-bottom: 1.5rem;
+            }
+
+            #paySlipModal .alert {
+                padding: 0.875rem 1rem;
+                border-radius: 0.5rem;
+                border: none;
+                font-size: 0.9rem;
+            }
+
+            #paySlipModal .alert strong {
+                font-size: 0.95rem;
+                margin-bottom: 0.25rem;
+                display: block;
+            }
+
+            #paySlipModal .row {
+                margin: 0;
+                gap: 0;
+            }
+
+            /* Stack form fields vertically on mobile with proper spacing */
+            #paySlipModal .row .col-md-6 {
+                padding: 0;
+                margin-bottom: 1rem;
+            }
+
+            #paySlipModal .col-md-6 {
+                width: 100%;
+                max-width: 100%;
+                flex: 0 0 100%;
+            }
+
+            /* Improve form field appearance on mobile */
+            #paySlipModal .col-md-6:nth-child(1),
+            #paySlipModal .col-md-6:nth-child(2) {
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            /* Better label and input styling */
+            #paySlipModal .form-label {
+                font-size: 0.95rem;
+                font-weight: 600;
+                color: #374151;
+                margin-bottom: 0.5rem;
+                display: flex;
+                align-items: center;
+            }
+
+            #paySlipModal .mb-3 {
+                margin-bottom: 1.25rem !important;
+            }
+
+            /* Enhanced form select appearance */
+            #paySlipModal .form-select {
+                padding: 0.75rem 1rem;
+                font-size: 0.95rem;
+                border: 2px solid #e5e7eb;
+                border-radius: 0.5rem;
+                background-color: #f9fafb;
+                transition: all 0.3s ease;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                appearance: none;
+                background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='%23374151' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='m7.247 4.86-4.796 5.481c-.566.647-.106 1.659.753 1.659h9.592a1 1 0 0 0 .753-1.659l-4.796-5.48a1 1 0 0 0-1.506 0z'/%3e%3c/svg%3e");
+                background-repeat: no-repeat;
+                background-position: right 0.75rem center;
+                background-size: 16px 12px;
+            }
+
+            #paySlipModal .form-select:focus {
+                border-color: #3b82f6;
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                background-color: white;
+            }
+
+            /* Responsive preview section */
+            #paySlipModal #paySlipPreview {
+                margin-top: 1.5rem;
+                padding: 1rem;
+                border-radius: 0.5rem;
+            }
+
+            #paySlipModal #paySlipPreview .row {
+                margin: 0;
+            }
+
+            #paySlipModal #paySlipPreview .col-md-8,
+            #paySlipModal #paySlipPreview .col-md-4 {
+                padding: 0;
+                margin-bottom: 0.5rem;
+            }
+
+            #paySlipModal #paySlipPreview .col-md-4:last-child {
+                margin-bottom: 0;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <!-- 🎯 MY PROFILE PRELOADER - Full page overlay -->
+    <div class="my-profile-preloader" id="myProfilePreloader">
+        <div class="preloader-container">
+            <div class="preloader-image" id="preloaderImage"></div>
+            <div class="preloader-text" id="preloaderText">Loading your profile...</div>
+            <div class="preloader-progress">
+                <div class="progress">
+                    <div class="progress-bar" id="preloaderProgressBar" role="progressbar" style="width: 0%"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 🎯 UNIVERSAL SIDEBAR TOGGLE - Works on Mobile, Tablet & Laptop -->
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar -->
+            <nav class="col-md-2 enhanced-sidebar">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        {% if institution.branding_enabled and institution.logo_path %}
+                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        {% else %}
+                            <div class="logo-icon">
+                                <i class="bi bi-person-workspace"></i>
+                            </div>
+                        {% endif %}
+                        <div class="brand-text">
+                            {% if institution.branding_enabled and institution.name %}
+                                <h6 class="brand-title">{{ institution.name }}</h6>
+                                <small class="brand-subtitle">Staff Panel</small>
+                            {% else %}
+                                <h6 class="brand-title">VishnoRex</h6>
+                                <small class="brand-subtitle">Staff Panel</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ session.get('full_name', 'Staff User') }}</div>
+                            <div class="user-role">Staff Member</div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Main Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_dashboard') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-house-door"></i>
+                                    </div>
+                                    <span class="nav-text">Dashboard</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-person"></i>
+                                    </div>
+                                    <span class="nav-text">My Profile</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" id="paySlipLink">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-receipt"></i>
+                                    </div>
+                                    <span class="nav-text">Pay Slip</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <!-- Applications Section -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-file-earmark-text"></i>
+                            <span>Applications</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#applyLeaveModal">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-calendar-plus"></i>
+                                    </div>
+                                    <span class="nav-text">Apply Leave</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#applyOnDutyModal">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-briefcase"></i>
+                                    </div>
+                                    <span class="nav-text">Apply On Duty</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#applyPermissionModal">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-clock"></i>
+                                    </div>
+                                    <span class="nav-text">Apply Permission</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Sidebar Footer -->
+                <div class="sidebar-footer">
+                    <div class="footer-stats">
+                        <div class="stat-item">
+                            <i class="bi bi-calendar-day"></i>
+                            <span id="currentDate">-</span>
+                        </div>
+                    </div>
+                    <button type="button" class="logout-btn" onclick="logout()" title="Logout">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Main content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
+                <!-- CSRF Token for AJAX requests -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <!-- Enhanced Header -->
+                <div class="salary-header">
+                    <div class="header-content">
+                        <div class="header-title">
+                            <div class="title-icon">
+                                <i class="bi bi-person-badge"></i>
+                            </div>
+                            <div class="title-text">
+                                <h1 class="main-title">My Profile</h1>
+                                <p class="subtitle">View and manage your personal information and settings</p>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal" title="Edit profile">
+                                <i class="bi bi-pencil"></i> Edit Profile
+                            </button>
+                            <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#changePasswordModal" title="Change password">
+                                <i class="bi bi-key"></i> Change Password
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <!-- Profile Information Card -->
+                    <div class="col-md-4">
+                        <div class="salary-results-card">
+                            <div class="card-header">
+                                <div class="header-icon">
+                                    <i class="bi bi-person-badge"></i>
+                                </div>
+                                <div class="header-content">
+                                    <h5 class="card-title">Profile Information</h5>
+                                    <p class="card-subtitle">Your personal details and information</p>
+                                </div>
+                            </div>
+                            <div class="card-body text-center">
+                                <div class="mb-4">
+                                    {% if staff.photo_url %}
+                                        <img src="{{ url_for('static', filename=staff.photo_url) }}" 
+                                             alt="Profile Photo" class="profile-avatar-img rounded-circle" width="120" height="120">
+                                    {% else %}
+                                        <div class="profile-avatar-placeholder rounded-circle d-inline-flex align-items-center justify-content-center mb-3" 
+                                             style="width: 120px; height: 120px; background: #221e66;">
+                                            <i class="bi bi-person-fill text-white" style="font-size: 3rem;"></i>
+                                        </div>
+                                    {% endif %}
+                                </div>
+                                <h4 class="mb-2">{{ staff.full_name }}</h4>
+                                <p class="text-muted mb-1">{{ staff.destination or staff.position or 'Not specified' }}</p>
+                                <p class="text-muted mb-3">
+                                    <span class="badge bg-primary">{{ staff.department or 'Not specified' }}</span>
+                                </p>
+                                
+                                <div class="rules-section text-start">
+                                    <div class="rule-item mb-2">
+                                        <strong>Staff ID:</strong> <span class="text-muted">{{ staff.staff_id }}</span>
+                                    </div>
+                                    <div class="rule-item mb-2">
+                                        <strong>Email:</strong> <span class="text-muted">{{ staff.email or 'Not provided' }}</span>
+                                    </div>
+                                    <div class="rule-item mb-2">
+                                        <strong>Phone:</strong> <span class="text-muted">{{ staff.phone or 'Not provided' }}</span>
+                                    </div>
+                                    <div class="rule-item mb-2">
+                                        <strong>Gender:</strong> <span class="text-muted">{{ staff.gender or 'Not provided' }}</span>
+                                    </div>
+                                    <div class="rule-item mb-2">
+                                        <strong>Date of Birth:</strong> <span class="text-muted">{{ staff.date_of_birth or 'Not provided' }}</span>
+                                    </div>
+                                    <div class="rule-item mb-2">
+                                        <strong>Date of Joining:</strong> <span class="text-muted">{{ staff.date_of_joining or 'Not provided' }}</span>
+                                    </div>
+                                    <div class="rule-item mb-3">
+                                        <strong>Shift Type:</strong>
+                                        <span class="badge bg-info">{{ staff.shift_type or 'General' }}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Attendance Statistics -->
+                        <div class="salary-results-card mt-4">
+                            <div class="card-header bg-light">
+                                <div class="header-icon">
+                                    <i class="bi bi-graph-up"></i>
+                                </div>
+                                <div class="header-content">
+                                    <h5 class="card-title">Attendance Statistics (Current Month)</h5>
+                                    <p class="card-subtitle">Comprehensive attendance overview for {{ current_month }} - Total working days (Mon-Sat): {{ attendance_summary.working_days or 0 }}</p>
+                                </div>
+                                <button id="refreshAttendanceSummary" class="btn btn-sm btn-outline-primary ms-auto" title="Refresh attendance data">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                <!-- Force all 7 cards to display in a simple grid -->
+                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; width: 100%;">
+                                    <!-- Card 1: Working Days -->
+                                    <div class="card bg-info text-white" style="min-height: 120px;">
+                                        <div class="card-body text-center p-3">
+                                            <h4 class="mb-1">{{ attendance_summary.working_days or 0 }}</h4>
+                                            <p class="mb-0 small">Working Days</p>
+                                            <small class="text-light">This Month</small>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card 2: Present Days -->
+                                    <div class="card bg-success text-white" style="min-height: 120px;">
+                                        <div class="card-body text-center p-3">
+                                            <h4 class="mb-1">{{ attendance_summary.present_days or 0 }}</h4>
+                                            <p class="mb-0 small">Present</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card 3: Late Days -->
+                                    <div class="card bg-warning text-white" style="min-height: 120px;">
+                                        <div class="card-body text-center p-3">
+                                            <h4 class="mb-1">{{ attendance_summary.late_days or 0 }}</h4>
+                                            <p class="mb-0 small">Late</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card 4: Absent Days -->
+                                    <div class="card bg-danger text-white" style="min-height: 120px;">
+                                        <div class="card-body text-center p-3">
+                                            <h4 class="mb-1">{{ attendance_summary.absent_days or 0 }}</h4>
+                                            <p class="mb-0 small">Absent</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card 5: Leave Days -->
+                                    <div class="card bg-secondary text-white" style="min-height: 120px;">
+                                        <div class="card-body text-center p-3">
+                                            <h4 class="mb-1">{{ attendance_summary.leave_days or 0 }}</h4>
+                                            <p class="mb-0 small">On Leave</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card 6: On Duty Days -->
+                                    <div class="card bg-primary text-white" style="min-height: 120px;">
+                                        <div class="card-body text-center p-3">
+                                            <h4 class="mb-1">{{ attendance_summary.on_duty_days or 0 }}</h4>
+                                            <p class="mb-0 small">On Duty</p>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Card 7: Holiday Days -->
+                                    <div class="card bg-dark text-white" style="min-height: 120px;">
+                                        <div class="card-body text-center p-3">
+                                            <h4 class="mb-1">{{ attendance_summary.holiday_days or 0 }}</h4>
+                                            <p class="mb-0 small">Holiday</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="mt-3">
+                                    <canvas id="attendanceSummaryChart" width="100%" height="200"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right Column - Attendance Details -->
+                    <div class="col-md-8">
+                        <!-- Leave Quota Balance Section -->
+                        <div class="salary-results-card">
+                            <div class="card-header">
+                                <div class="header-icon">
+                                    <i class="bi bi-calendar-check"></i>
+                                </div>
+                                <div class="header-content">
+                                    <h5 class="card-title">My Quota Balance (for {{ quota_year }})</h5>
+                                    <p class="card-subtitle">Your leave entitlements and remaining balances</p>
+                                </div>
+                                <button id="refreshQuotaBalance" class="btn btn-sm btn-outline-primary ms-auto" title="Refresh quota data">
+                                    <i class="bi bi-arrow-clockwise"></i>
+                                </button>
+                            </div>
+                            <div class="card-body">
+                                {% if quota_summary %}
+                                <div class="quota-grid">
+                                    <!-- Leave Quotas -->
+                                    {% for leave_type, quota in quota_summary.leave_quotas.items() %}
+                                    <div class="quota-item leave-quota">
+                                        <div class="quota-icon">
+                                            <i class="bi bi-calendar-x text-info"></i>
+                                        </div>
+                                        <div class="quota-content">
+                                            <div class="quota-type">{{ leave_type.replace('_', ' ').title() }}</div>
+                                            <div class="quota-balance">
+                                                <span class="remaining">{{ quota.remaining_days }}</span> remaining
+                                                <span class="total">(out of {{ quota.allocated_days }} total)</span>
+                                            </div>
+                                            <div class="quota-progress-bar">
+                                                {% set usage_percent = (quota.used_days / quota.allocated_days * 100) if quota.allocated_days > 0 else 0 %}
+                                                <div class="progress" style="height: 4px;">
+                                                    <div class="progress-bar bg-info" role="progressbar" 
+                                                         style="width: {{ usage_percent }}%" 
+                                                         aria-valuenow="{{ usage_percent }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+
+                                    <!-- On Duty Quota -->
+                                    {% if quota_summary.od_quota.allocated_days > 0 %}
+                                    <div class="quota-item od-quota">
+                                        <div class="quota-icon">
+                                            <i class="bi bi-briefcase text-primary"></i>
+                                        </div>
+                                        <div class="quota-content">
+                                            <div class="quota-type">On Duty (OD)</div>
+                                            <div class="quota-balance">
+                                                <span class="remaining">{{ quota_summary.od_quota.remaining_days }}</span> remaining
+                                                <span class="total">(out of {{ quota_summary.od_quota.allocated_days }} total)</span>
+                                            </div>
+                                            <div class="quota-progress-bar">
+                                                {% set od_usage_percent = (quota_summary.od_quota.used_days / quota_summary.od_quota.allocated_days * 100) if quota_summary.od_quota.allocated_days > 0 else 0 %}
+                                                <div class="progress" style="height: 4px;">
+                                                    <div class="progress-bar bg-primary" role="progressbar" 
+                                                         style="width: {{ od_usage_percent }}%" 
+                                                         aria-valuenow="{{ od_usage_percent }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <!-- Permission Quota -->
+                                    {% if quota_summary.permission_quota.allocated_hours > 0 %}
+                                    <div class="quota-item permission-quota">
+                                        <div class="quota-icon">
+                                            <i class="bi bi-clock text-warning"></i>
+                                        </div>
+                                        <div class="quota-content">
+                                            <div class="quota-type">Permission</div>
+                                            <div class="quota-balance">
+                                                <span class="remaining">{{ "%.1f"|format(quota_summary.permission_quota.remaining_hours) }}</span> hours remaining
+                                                <span class="total">(out of {{ "%.1f"|format(quota_summary.permission_quota.allocated_hours) }} total)</span>
+                                            </div>
+                                            <div class="quota-progress-bar">
+                                                {% set perm_usage_percent = (quota_summary.permission_quota.used_hours / quota_summary.permission_quota.allocated_hours * 100) if quota_summary.permission_quota.allocated_hours > 0 else 0 %}
+                                                <div class="progress" style="height: 4px;">
+                                                    <div class="progress-bar bg-warning" role="progressbar" 
+                                                         style="width: {{ perm_usage_percent }}%" 
+                                                         aria-valuenow="{{ perm_usage_percent }}" 
+                                                         aria-valuemin="0" 
+                                                         aria-valuemax="100">
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                                {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="bi bi-calendar-check"></i>
+                                    </div>
+                                    <h6 class="empty-title">No Quota Information</h6>
+                                    <p class="empty-text">Your leave quotas haven't been set up yet. Please contact your administrator.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Weekly Attendance Calendar -->
+                        <div class="salary-results-card mt-4">
+                            <div class="card-header">
+                                <div class="header-icon">
+                                    <i class="bi bi-calendar-week"></i>
+                                </div>
+                                <div class="header-content">
+                                    <h5 class="card-title">Weekly Attendance Calendar</h5>
+                                    <p class="card-subtitle">Your attendance overview for the current week</p>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div id="weeklyAttendanceCalendar"></div>
+                            </div>
+                        </div>
+                        <!-- Daily Attendance Records -->
+                        <div class="salary-results-card mt-4">
+                            <div class="card-header">
+                                <div class="header-icon">
+                                    <i class="bi bi-calendar-check"></i>
+                                </div>
+                                <div class="header-content">
+                                    <h5 class="card-title">Daily Attendance Records</h5>
+                                    <p class="card-subtitle">Your attendance entries (one check-in and check-out per day)</p>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                {% if recent_verifications %}
+                                {% set daily_records = {} %}
+                                {% for verification in recent_verifications %}
+                                    {% set date_key = verification.verification_time[:10] %}
+                                    {% if date_key not in daily_records %}
+                                        {% set parsed_date = verification.verification_time[:10] %}
+                                        {% set _ = daily_records.update({date_key: {'date': parsed_date, 'check_in': None, 'check_out': None}}) %}
+                                    {% endif %}
+                                    {% if verification.verification_type == 'check-in' %}
+                                        {% set _ = daily_records[date_key].update({'check_in': verification}) %}
+                                    {% elif verification.verification_type == 'check-out' %}
+                                        {% set _ = daily_records[date_key].update({'check_out': verification}) %}
+                                    {% endif %}
+                                {% endfor %}
+                                
+                                <div class="daily-attendance-list">
+                                    {% for date_key, record in daily_records.items() %}
+                                    <div class="daily-attendance-card mb-3">
+                                        <div class="card border-0 shadow-sm">
+                                            <div class="card-body">
+                                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                                    <h6 class="mb-0 text-primary">
+                                                        <i class="bi bi-calendar-day me-2"></i>{{ record.date|simple_date }}
+                                                    </h6>
+                                                </div>
+                                                <div class="row">
+                                                    <div class="col-md-6">
+                                                        <div class="attendance-time-entry">
+                                                            {% if record.check_in %}
+                                                            <div class="d-flex align-items-center">
+                                                                <span class="badge bg-success me-3">
+                                                                    <i class="bi bi-box-arrow-in-right"></i> Check In
+                                                                </span>
+                                                                <div>
+                                                                    <div class="fw-bold">{{ record.check_in.verification_time|timeformat if record.check_in.verification_time else '--:--' }}</div>
+                                                                    <small class="text-muted">{{ record.check_in.biometric_method|title }}</small>
+                                                                </div>
+                                                            </div>
+                                                            {% else %}
+                                                            <div class="d-flex align-items-center text-muted">
+                                                                <span class="badge bg-secondary me-3">
+                                                                    <i class="bi bi-dash"></i> No Check In
+                                                                </span>
+                                                                <small>Not recorded</small>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <div class="attendance-time-entry">
+                                                            {% if record.check_out %}
+                                                            <div class="d-flex align-items-center">
+                                                                <span class="badge bg-info me-3">
+                                                                    <i class="bi bi-box-arrow-left"></i> Check Out
+                                                                </span>
+                                                                <div>
+                                                                    <div class="fw-bold">{{ record.check_out.verification_time|timeformat if record.check_out.verification_time else '--:--' }}</div>
+                                                                    <small class="text-muted">{{ record.check_out.biometric_method|title }}</small>
+                                                                </div>
+                                                            </div>
+                                                            {% else %}
+                                                            <div class="d-flex align-items-center text-muted">
+                                                                <span class="badge bg-secondary me-3">
+                                                                    <i class="bi bi-dash"></i> No Check Out
+                                                                </span>
+                                                                <small>Not recorded</small>
+                                                            </div>
+                                                            {% endif %}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                {% if record.check_in and record.check_out %}
+                                                <div class="mt-2 pt-2 border-top">
+                                                    <small class="text-success">
+                                                        <i class="bi bi-clock me-1"></i>
+                                                        Work session completed
+                                                    </small>
+                                                </div>
+                                                {% endif %}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="bi bi-calendar-check"></i>
+                                    </div>
+                                    <h6 class="empty-title">No Attendance Records</h6>
+                                    <p class="empty-text">Your daily attendance records will appear here once you start using biometric verification.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <!-- Leave Applications -->
+                        <div class="salary-results-card mt-4">
+                            <div class="card-header">
+                                <div class="header-icon">
+                                    <i class="bi bi-calendar-x"></i>
+                                </div>
+                                <div class="header-content">
+                                    <h5 class="card-title">Leave Applications</h5>
+                                    <p class="card-subtitle">Your leave request history and status</p>
+                                </div>
+                                <div class="header-actions">
+                                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyLeaveModal">
+                                        <i class="bi bi-plus"></i> Apply Leave
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                {% if leave_applications %}
+                                <div class="table-responsive">
+                                    <table class="table salary-results-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>From</th>
+                                                <th>To</th>
+                                                <th>Reason</th>
+                                                <th>Status</th>
+                                                <th>Applied</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for leave in leave_applications %}
+                                            <tr>
+                                                <td><span class="badge bg-info">{{ leave.leave_type }}</span></td>
+                                                <td>{{ leave.start_date|dateformat }}</td>
+                                                <td>{{ leave.end_date|dateformat }}</td>
+                                                <td>{{ leave.reason[:30] }}{% if leave.reason|length > 30 %}...{% endif %}</td>
+                                                <td>
+                                                    {% if leave.status == 'approved' %}
+                                                        <span class="earnings-badge">Approved</span>
+                                                    {% elif leave.status == 'rejected' %}
+                                                        <span class="badge bg-danger">Rejected</span>
+                                                    {% else %}
+                                                        <span class="deductions-badge">Pending</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ leave.applied_at|dateformat }}</td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="bi bi-calendar-x"></i>
+                                    </div>
+                                    <h6 class="empty-title">No Leave Applications</h6>
+                                    <p class="empty-text">You haven't applied for any leave yet. Click "Apply Leave" to submit your first request.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <!-- On Duty Applications -->
+                        <div class="salary-results-card mt-4">
+                            <div class="card-header">
+                                <div class="header-icon">
+                                    <i class="bi bi-briefcase"></i>
+                                </div>
+                                <div class="header-content">
+                                    <h5 class="card-title">On Duty Applications</h5>
+                                    <p class="card-subtitle">Your on-duty request history and status</p>
+                                </div>
+                                <div class="header-actions">
+                                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyOnDutyModal">
+                                        <i class="bi bi-plus"></i> Apply On Duty
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                {% if on_duty_applications %}
+                                <div class="table-responsive">
+                                    <table class="table salary-results-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>From</th>
+                                                <th>To</th>
+                                                <th>Location</th>
+                                                <th>Purpose</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for duty in on_duty_applications %}
+                                            <tr>
+                                                <td><span class="badge bg-success">{{ duty.duty_type }}</span></td>
+                                                <td>{{ duty.start_date|dateformat if duty.start_date else '-' }}</td>
+                                                <td>{{ duty.end_date|dateformat if duty.end_date else '-' }}</td>
+                                                <td>{{ duty.location or '-' }}</td>
+                                                <td>{{ duty.purpose[:30] }}{% if duty.purpose|length > 30 %}...{% endif %}</td>
+                                                <td>
+                                                    {% if duty.status == 'approved' %}
+                                                        <span class="earnings-badge">Approved</span>
+                                                    {% elif duty.status == 'rejected' %}
+                                                        <span class="badge bg-danger">Rejected</span>
+                                                    {% else %}
+                                                        <span class="deductions-badge">Pending</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="bi bi-briefcase"></i>
+                                    </div>
+                                    <h6 class="empty-title">No On Duty Applications</h6>
+                                    <p class="empty-text">You haven't applied for any on-duty yet. Click "Apply On Duty" to submit your first request.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Permission Applications -->
+                        <div class="salary-results-card mt-4">
+                            <div class="card-header">
+                                <div class="header-icon">
+                                    <i class="bi bi-clock-history"></i>
+                                </div>
+                                <div class="header-content">
+                                    <h5 class="card-title">Permission Applications</h5>
+                                    <p class="card-subtitle">Your permission request history and status</p>
+                                </div>
+                                <div class="header-actions">
+                                    <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyPermissionModal">
+                                        <i class="bi bi-plus"></i> Apply Permission
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                {% if permission_applications %}
+                                <div class="table-responsive">
+                                    <table class="table salary-results-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Type</th>
+                                                <th>Date</th>
+                                                <th>Time</th>
+                                                <th>Duration</th>
+                                                <th>Reason</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {% for permission in permission_applications %}
+                                            <tr>
+                                                <td><span class="badge bg-warning">{{ permission.permission_type }}</span></td>
+                                                <td>{{ permission.permission_date|dateformat if permission.permission_date else '-' }}</td>
+                                                <td>{{ permission.start_time|timeformat }} - {{ permission.end_time|timeformat }}</td>
+                                                <td>{{ "%.1f"|format(permission.duration_hours) }} hrs</td>
+                                                <td>{{ permission.reason[:30] }}{% if permission.reason|length > 30 %}...{% endif %}</td>
+                                                <td>
+                                                    {% if permission.status == 'approved' %}
+                                                        <span class="earnings-badge">Approved</span>
+                                                    {% elif permission.status == 'rejected' %}
+                                                        <span class="badge bg-danger">Rejected</span>
+                                                    {% else %}
+                                                        <span class="deductions-badge">Pending</span>
+                                                    {% endif %}
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        </tbody>
+                                    </table>
+                                </div>
+                                {% else %}
+                                <div class="empty-state">
+                                    <div class="empty-icon">
+                                        <i class="bi bi-clock-history"></i>
+                                    </div>
+                                    <h6 class="empty-title">No Permission Applications</h6>
+                                    <p class="empty-text">You haven't applied for any permission yet. Click "Apply Permission" to submit your first request.</p>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Edit Profile Modal -->
+    <div class="modal fade" id="editProfileModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Edit Profile</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editProfileForm" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                        <div class="rules-section">
+                            <h6 class="section-title">
+                                <i class="bi bi-person text-primary"></i> Personal Information
+                            </h6>
+                            <div class="rules-grid">
+                                <div class="rule-item">
+                                    <label for="profileFirstName" class="form-label">First Name</label>
+                                    <input type="text" class="form-control" id="profileFirstName" name="first_name" value="{{ staff.first_name or '' }}">
+                                </div>
+                                <div class="rule-item">
+                                    <label for="profileLastName" class="form-label">Last Name</label>
+                                    <input type="text" class="form-control" id="profileLastName" name="last_name" value="{{ staff.last_name or '' }}">
+                                </div>
+                                <div class="rule-item">
+                                    <label for="profileDateOfBirth" class="form-label">Date of Birth</label>
+                                    <input type="date" class="form-control" id="profileDateOfBirth" name="date_of_birth" value="{{ staff.date_of_birth or '' }}">
+                                </div>
+                                <div class="rule-item">
+                                    <label for="profileGender" class="form-label">Gender</label>
+                                    <select class="form-select" id="profileGender" name="gender">
+                                        <option value="">Select Gender</option>
+                                        <option value="Male" {{ 'selected' if staff.gender == 'Male' else '' }}>Male</option>
+                                        <option value="Female" {{ 'selected' if staff.gender == 'Female' else '' }}>Female</option>
+                                        <option value="Other" {{ 'selected' if staff.gender == 'Other' else '' }}>Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rules-section">
+                            <h6 class="section-title">
+                                <i class="bi bi-telephone text-warning"></i> Contact Information
+                            </h6>
+                            <div class="rules-grid">
+                                <div class="rule-item">
+                                    <label for="profileEmail" class="form-label">Email</label>
+                                    <input type="email" class="form-control" id="profileEmail" name="email" value="{{ staff.email or '' }}">
+                                </div>
+                                <div class="rule-item">
+                                    <label for="profilePhone" class="form-label">Phone</label>
+                                    <input type="tel" class="form-control" id="profilePhone" name="phone" value="{{ staff.phone or '' }}">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="rules-section">
+                            <h6 class="section-title">
+                                <i class="bi bi-image text-info"></i> Profile Photo
+                            </h6>
+                            <div class="rule-item">
+                                <label for="profilePhoto" class="form-label">Profile Photo</label>
+                                <input type="file" class="form-control" id="profilePhoto" name="photo" accept="image/*">
+                                <small class="form-text text-muted">Only PNG, JPG, JPEG, and GIF files are allowed.</small>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            <strong>Note:</strong> Some fields like Staff ID, Department, Destination, Date of Joining, and Shift Type can only be updated by administrators.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveProfileBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Change Password</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="changePasswordForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="currentPassword" class="form-label">Current Password</label>
+                            <input type="password" class="form-control" id="currentPassword" name="current_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="newPassword" class="form-label">New Password</label>
+                            <input type="password" class="form-control" id="newPassword" name="new_password" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="confirmPassword" class="form-label">Confirm New Password</label>
+                            <input type="password" class="form-control" id="confirmPassword" name="confirm_password" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="changePasswordBtn">Change Password</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Apply Leave Modal -->
+    <div class="modal fade" id="applyLeaveModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title">Apply for Leave</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="leaveForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="leaveType" class="form-label">Leave Type</label>
+                            <select class="form-select" id="leaveType" name="leave_type" required>
+                                <option value="" selected disabled>Select leave type</option>
+                                <option value="CL">Casual Leave (CL)</option>
+                                <option value="SL">Sick Leave (SL)</option>
+                                <option value="EL">Earned Leave (EL)</option>
+                                <option value="ML">Maternity Leave (ML)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="startDate" class="form-label">Start Date</label>
+                            <input type="date" class="form-control" id="startDate" name="start_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endDate" class="form-label">End Date</label>
+                            <input type="date" class="form-control" id="endDate" name="end_date" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="leaveReason" class="form-label">Reason</label>
+                            <textarea class="form-control" id="leaveReason" name="reason" rows="3" required></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="submitLeave">Submit</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Apply On Duty Modal -->
+    <div class="modal fade" id="applyOnDutyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">Apply for On Duty</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="onDutyForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="dutyType" class="form-label">Duty Type</label>
+                                    <select class="form-select" id="dutyType" name="duty_type" required>
+                                        <option value="" selected disabled>Select duty type</option>
+                                        <option value="Official Work">Official Work</option>
+                                        <option value="Training">Training</option>
+                                        <option value="Meeting">Meeting</option>
+                                        <option value="Conference">Conference</option>
+                                        <option value="Field Work">Field Work</option>
+                                        <option value="Other">Other</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="dutyLocation" class="form-label">Location</label>
+                                    <input type="text" class="form-control" id="dutyLocation" name="location" placeholder="Enter location">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="dutyStartDate" class="form-label">Start Date</label>
+                                    <input type="date" class="form-control" id="dutyStartDate" name="start_date" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="dutyEndDate" class="form-label">End Date</label>
+                                    <input type="date" class="form-control" id="dutyEndDate" name="end_date" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="dutyStartTime" class="form-label">Start Time (Optional)</label>
+                                    <input type="time" class="form-control" id="dutyStartTime" name="start_time">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="dutyEndTime" class="form-label">End Time (Optional)</label>
+                                    <input type="time" class="form-control" id="dutyEndTime" name="end_time">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dutyPurpose" class="form-label">Purpose</label>
+                            <textarea class="form-control" id="dutyPurpose" name="purpose" rows="2" required placeholder="Brief description of the duty purpose"></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="dutyReason" class="form-label">Additional Details (Optional)</label>
+                            <textarea class="form-control" id="dutyReason" name="reason" rows="2" placeholder="Any additional information"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-success" id="submitOnDuty">Submit Application</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Apply Permission Modal -->
+    <div class="modal fade" id="applyPermissionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-warning text-dark">
+                    <h5 class="modal-title">Apply for Permission</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="permissionForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="mb-3">
+                            <label for="permissionType" class="form-label">Permission Type</label>
+                            <select class="form-select" id="permissionType" name="permission_type" required>
+                                <option value="" selected disabled>Select permission type</option>
+                                <option value="Personal Work">Personal Work</option>
+                                <option value="Medical">Medical</option>
+                                <option value="Emergency">Emergency</option>
+                                <option value="Family Function">Family Function</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="permissionDate" class="form-label">Date</label>
+                            <input type="date" class="form-control" id="permissionDate" name="permission_date" required>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="permissionStartTime" class="form-label">Start Time</label>
+                                    <input type="time" class="form-control" id="permissionStartTime" name="start_time" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="permissionEndTime" class="form-label">End Time</label>
+                                    <input type="time" class="form-control" id="permissionEndTime" name="end_time" required>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="permissionReason" class="form-label">Reason</label>
+                            <textarea class="form-control" id="permissionReason" name="reason" rows="3" required placeholder="Please provide detailed reason for permission"></textarea>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning" id="submitPermission">Submit Application</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pay Slip Modal -->
+    <div class="modal fade" id="paySlipModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-receipt"></i> Download Pay Slip
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-4 d-flex align-items-start">
+                        <i class="bi bi-info-circle me-2 mt-1 flex-shrink-0"></i>
+                        <div>
+                            <strong class="d-block mb-1">Your Pay Slip Access</strong>
+                            <span class="small">Download your salary slip for any month. Please select the year and month below.</span>
+                        </div>
+                    </div>
+
+                    <form id="paySlipForm">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                        <div class="row g-3">
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                    <label for="paySlipYear" class="form-label fw-semibold">
+                                        <i class="bi bi-calendar-event me-1 text-primary"></i>Year
+                                    </label>
+                                    <select class="form-select form-select-lg" id="paySlipYear" name="year" required>
+                                        <option value="" selected disabled>Select year</option>
+                                        <!-- Years will be populated by JavaScript -->
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6 col-12">
+                                <div class="mb-3">
+                                    <label for="paySlipMonth" class="form-label fw-semibold">
+                                        <i class="bi bi-calendar-month me-1 text-primary"></i>Month
+                                    </label>
+                                    <select class="form-select form-select-lg" id="paySlipMonth" name="month" required>
+                                        <option value="" selected disabled>Select month</option>
+                                        <option value="1">January</option>
+                                        <option value="2">February</option>
+                                        <option value="3">March</option>
+                                        <option value="4">April</option>
+                                        <option value="5">May</option>
+                                        <option value="6">June</option>
+                                        <option value="7">July</option>
+                                        <option value="8">August</option>
+                                        <option value="9">September</option>
+                                        <option value="10">October</option>
+                                        <option value="11">November</option>
+                                        <option value="12">December</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Pay Slip Preview Information -->
+                        <div class="alert alert-light border border-success" id="paySlipPreview" style="display: none;">
+                            <div class="row g-2 align-items-start align-items-md-center">
+                                <div class="col-md-8 col-12">
+                                    <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center">
+                                        <strong class="me-2 mb-1 mb-sm-0 text-success">
+                                            <i class="bi bi-receipt me-1"></i>Pay Slip:
+                                        </strong> 
+                                        <span id="paySlipPeriod" class="badge bg-success fs-6">-</span>
+                                    </div>
+                                </div>
+                                <div class="col-md-4 col-12 text-start text-md-end">
+                                    <small class="text-muted d-flex align-items-center justify-content-start justify-content-md-end">
+                                        <i class="bi bi-person-badge me-1"></i>
+                                        Staff ID: <span id="paySlipStaffId" class="fw-bold ms-1">{{ staff.staff_id if staff else '-' }}</span>
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                    
+                    <div class="card mt-3 border-success shadow-sm">
+                        <div class="card-body p-3">
+                            <h6 class="card-title text-success d-flex align-items-center mb-3">
+                                <i class="bi bi-download me-2"></i>
+                                <span>Download Instructions</span>
+                            </h6>
+                            <div class="instructions-list">
+                                <div class="instruction-item d-flex align-items-start mb-2">
+                                    <i class="bi bi-check-circle text-success me-2 mt-1 flex-shrink-0"></i>
+                                    <span class="small">Select the year and month for your pay slip</span>
+                                </div>
+                                <div class="instruction-item d-flex align-items-start mb-2">
+                                    <i class="bi bi-check-circle text-success me-2 mt-1 flex-shrink-0"></i>
+                                    <span class="small">Click "Download Pay Slip" to generate PDF</span>
+                                </div>
+                                <div class="instruction-item d-flex align-items-start">
+                                    <i class="bi bi-check-circle text-success me-2 mt-1 flex-shrink-0"></i>
+                                    <span class="small">Your pay slip will be downloaded automatically</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-info d-flex align-items-center" id="previewPaySlip" disabled>
+                        <i class="bi bi-eye me-2"></i>
+                        <span class="d-none d-sm-inline">Preview Pay Slip</span>
+                        <span class="d-sm-none">Preview</span>
+                    </button>
+                    <button type="button" class="btn btn-success d-flex align-items-center" id="downloadPaySlip" disabled>
+                        <i class="bi bi-download me-2"></i>
+                        <span class="d-none d-sm-inline">Download Pay Slip</span>
+                        <span class="d-sm-none">Download</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary d-flex align-items-center" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-2"></i>
+                        Cancel
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pay Slip Preview Modal -->
+    <div class="modal fade" id="paySlipPreviewModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title">
+                        <i class="bi bi-eye"></i> Pay Slip Preview
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="paySlipPreviewContent">
+                        <!-- Preview content will be loaded here -->
+                    </div>
+                </div>
+                <div class="modal-footer d-flex justify-content-end gap-2">
+                    <button type="button" class="btn btn-success d-flex align-items-center" id="downloadFromPreview">
+                        <i class="bi bi-download me-2"></i>
+                        <span class="d-none d-sm-inline">Download This Pay Slip</span>
+                        <span class="d-sm-none">Download</span>
+                    </button>
+                    <button type="button" class="btn btn-secondary d-flex align-items-center" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-2"></i>
+                        Close
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // 🎯 MY PROFILE PRELOADER CONTROL - Advanced loading management
+        class MyProfilePreloader {
+            constructor() {
+                this.preloader = document.getElementById('myProfilePreloader');
+                this.preloaderImage = document.getElementById('preloaderImage');
+                this.preloaderText = document.getElementById('preloaderText');
+                this.progressBar = document.getElementById('preloaderProgressBar');
+                this.progress = 0;
+                this.loadingSteps = [
+                    { text: 'Loading your profile...', progress: 10 },
+                    { text: 'Fetching attendance data...', progress: 30 },
+                    { text: 'Calculating statistics...', progress: 50 },
+                    { text: 'Loading quota information...', progress: 70 },
+                    { text: 'Preparing attendance records...', progress: 85 },
+                    { text: 'Almost ready...', progress: 95 },
+                    { text: 'Complete!', progress: 100 }
+                ];
+                this.currentStep = 0;
+                this.isComplete = false;
+                
+                this.init();
+            }
+
+            init() {
+                // Detect if image is sprite sheet based on file size (heuristic)
+                // File size > 500KB suggests sprite sheet
+                this.detectSpriteSheet();
+                
+                // Start progress simulation
+                this.simulateProgress();
+                
+                // Monitor page load completion
+                this.monitorPageLoad();
+            }
+
+            detectSpriteSheet() {
+                const img = new Image();
+                img.onload = () => {
+                    // If image dimensions suggest sprite sheet (very wide or tall), use sprite animation
+                    if (img.width > img.height * 3 || img.height > img.width * 3) {
+                        this.preloaderImage.classList.add('sprite-animation');
+                    } else {
+                        this.preloaderImage.classList.add('fallback-animation');
+                    }
+                };
+                img.onerror = () => {
+                    // Fallback if image fails to load
+                    this.preloaderImage.classList.add('fallback-animation');
+                };
+                img.src = '/static/images/My_profile_ preloader.png';
+            }
+
+            simulateProgress() {
+                if (this.currentStep < this.loadingSteps.length && !this.isComplete) {
+                    const step = this.loadingSteps[this.currentStep];
+                    this.updateProgress(step.progress, step.text);
+                    this.currentStep++;
+                    
+                    // Next step in 300-800ms for realistic feel
+                    const delay = Math.random() * 500 + 300;
+                    setTimeout(() => this.simulateProgress(), delay);
+                }
+            }
+
+            updateProgress(progress, text) {
+                this.progress = progress;
+                this.progressBar.style.width = progress + '%';
+                this.preloaderText.textContent = text;
+            }
+
+            monitorPageLoad() {
+                // Check for page readiness indicators
+                const checkLoadComplete = () => {
+                    const indicators = [
+                        // Check if main content sections are loaded
+                        document.querySelector('.salary-results-card'),
+                        document.querySelector('#attendanceSummaryChart'),
+                        // Check if images are loaded
+                        ...Array.from(document.querySelectorAll('img')).filter(img => img.complete),
+                        // Check if external resources are loaded
+                        document.querySelector('canvas')
+                    ];
+
+                    const allScriptsLoaded = Array.from(document.scripts).every(script => 
+                        !script.src || script.readyState === 'complete' || script.readyState === 'loaded'
+                    );
+
+                    // Page is ready when key elements exist and external resources are loaded
+                    if (indicators.every(el => el) && allScriptsLoaded && document.readyState === 'complete') {
+                        this.completeLoading();
+                    } else {
+                        // Check again in 100ms
+                        setTimeout(checkLoadComplete, 100);
+                    }
+                };
+
+                // Start monitoring after initial delay
+                setTimeout(checkLoadComplete, 1000);
+                
+                // Fallback: Force complete after 8 seconds max
+                setTimeout(() => {
+                    if (!this.isComplete) {
+                        this.completeLoading();
+                    }
+                }, 8000);
+            }
+
+            completeLoading() {
+                if (this.isComplete) return;
+                
+                this.isComplete = true;
+                this.updateProgress(100, 'Complete!');
+                
+                // Smooth fade out after brief delay
+                setTimeout(() => {
+                    this.preloader.classList.add('hidden');
+                    
+                    // Remove from DOM after transition completes
+                    setTimeout(() => {
+                        if (this.preloader && this.preloader.parentNode) {
+                            this.preloader.remove();
+                        }
+                    }, 800);
+                }, 500);
+            }
+        }
+
+        // Initialize preloader immediately
+        const profilePreloader = new MyProfilePreloader();
+
+        // Current date display
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const dateStr = today.toLocaleDateString('en-US', { 
+                weekday: 'short', 
+                year: 'numeric', 
+                month: 'short', 
+                day: 'numeric' 
+            });
+            document.getElementById('currentDate').textContent = dateStr;
+
+            // 🚀 OPTIONAL ASYNC DATA LOADING - Load heavy data after page renders
+            // Uncomment this section if you want to load detailed data asynchronously
+            /*
+            setTimeout(() => {
+                loadAsyncProfileData();
+            }, 1000);
+            */
+        });
+
+        // Set current staff ID for JavaScript access
+        window.currentStaffId = '{{ staff.staff_id if staff else "" }}';
+        window.staffDbId = '{{ session.get("user_id", "") }}';
+        
+        // Pay Slip Modal Functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            // Pay slip modal elements
+            const paySlipLink = document.getElementById('paySlipLink');
+            const paySlipModal = new bootstrap.Modal(document.getElementById('paySlipModal'));
+            const paySlipPreviewModal = new bootstrap.Modal(document.getElementById('paySlipPreviewModal'));
+            const paySlipYear = document.getElementById('paySlipYear');
+            const paySlipMonth = document.getElementById('paySlipMonth');
+            const paySlipPreview = document.getElementById('paySlipPreview');
+            const paySlipPeriod = document.getElementById('paySlipPeriod');
+            const previewPaySlipBtn = document.getElementById('previewPaySlip');
+            const downloadPaySlipBtn = document.getElementById('downloadPaySlip');
+            const paySlipPreviewContent = document.getElementById('paySlipPreviewContent');
+            const downloadFromPreviewBtn = document.getElementById('downloadFromPreview');
+            
+            // Populate years (current year and past 5 years)
+            const currentYear = new Date().getFullYear();
+            for (let year = currentYear; year >= currentYear - 5; year--) {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                paySlipYear.appendChild(option);
+            }
+            
+            // Open pay slip modal
+            if (paySlipLink) {
+                paySlipLink.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    paySlipModal.show();
+                });
+            }
+            
+            // Update preview when year/month changes
+            function updatePaySlipPreview() {
+                const year = paySlipYear.value;
+                const month = paySlipMonth.value;
+                
+                if (year && month) {
+                    const monthNames = [
+                        'January', 'February', 'March', 'April', 'May', 'June',
+                        'July', 'August', 'September', 'October', 'November', 'December'
+                    ];
+                    const monthName = monthNames[parseInt(month) - 1];
+                    paySlipPeriod.textContent = `${monthName} ${year}`;
+                    paySlipPreview.style.display = 'block';
+                    previewPaySlipBtn.disabled = false;
+                    downloadPaySlipBtn.disabled = false;
+                } else {
+                    paySlipPreview.style.display = 'none';
+                    previewPaySlipBtn.disabled = true;
+                    downloadPaySlipBtn.disabled = true;
+                }
+            }
+            
+            paySlipYear.addEventListener('change', updatePaySlipPreview);
+            paySlipMonth.addEventListener('change', updatePaySlipPreview);
+            
+            // Preview pay slip
+            previewPaySlipBtn.addEventListener('click', function() {
+                const year = paySlipYear.value;
+                const month = paySlipMonth.value;
+                
+                if (!year || !month) {
+                    showAlert('Please select both year and month', 'warning');
+                    return;
+                }
+                
+                previewStaffPaySlip(year, month);
+            });
+            
+            // Download pay slip
+            downloadPaySlipBtn.addEventListener('click', function() {
+                const year = paySlipYear.value;
+                const month = paySlipMonth.value;
+                
+                if (!year || !month) {
+                    showAlert('Please select both year and month', 'warning');
+                    return;
+                }
+                
+                downloadStaffPaySlip(year, month);
+            });
+            
+            // Download from preview
+            downloadFromPreviewBtn.addEventListener('click', function() {
+                const year = paySlipYear.value;
+                const month = paySlipMonth.value;
+                
+                if (!year || !month) {
+                    showAlert('Please select both year and month', 'warning');
+                    return;
+                }
+                
+                downloadStaffPaySlip(year, month);
+                paySlipPreviewModal.hide();
+            });
+            
+            // Function to preview staff pay slip
+            function previewStaffPaySlip(year, month) {
+                showAlert('<i class="bi bi-eye me-2"></i>Loading pay slip preview...', 'info');
+                
+                const formData = new FormData();
+                formData.append('year', year);
+                formData.append('month', month);
+                formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+                
+                fetch('/staff/preview_pay_slip', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.json();
+                    } else {
+                        return response.json().then(err => Promise.reject(err));
+                    }
+                })
+                .then(data => {
+                    if (data.success) {
+                        displayPaySlipPreview(data.data, year, month);
+                        paySlipModal.hide();
+                        paySlipPreviewModal.show();
+                        showAlert('<i class="bi bi-check-circle me-2"></i>Pay slip preview loaded successfully', 'success');
+                    } else {
+                        showAlert(`<i class="bi bi-exclamation-triangle me-2"></i>${data.error}`, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error previewing pay slip:', error);
+                    const errorMessage = error.error || error.message || 'Error loading pay slip preview. Please try again.';
+                    showAlert(`<i class="bi bi-exclamation-triangle me-2"></i>${errorMessage}`, 'danger');
+                });
+            }
+            
+            // Function to display pay slip preview
+            function displayPaySlipPreview(salaryData, year, month) {
+                const monthNames = [
+                    'January', 'February', 'March', 'April', 'May', 'June',
+                    'July', 'August', 'September', 'October', 'November', 'December'
+                ];
+                const monthName = monthNames[parseInt(month) - 1];
+                
+                const staff = salaryData.staff_info;
+                const breakdown = salaryData.salary_details;
+                const earnings = breakdown.earnings;
+                const deductions = breakdown.deductions;
+                const attendance = breakdown.attendance_summary;
+                
+                const previewHTML = `
+                    <div class="pay-slip-preview">
+                        <!-- Header -->
+                        <div class="text-center mb-4">
+                            <h4 class="fw-bold text-primary">VishnoRex Staff Management System</h4>
+                            <h5 class="text-secondary">Pay Slip for ${monthName} ${year}</h5>
+                            <hr>
+                        </div>
+                        
+                        <!-- Staff Information -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card border-primary">
+                                    <div class="card-header bg-primary text-white">
+                                        <h6 class="mb-0"><i class="bi bi-person"></i> Employee Information</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Staff ID:</strong> ${staff.staff_id}</p>
+                                        <p><strong>Name:</strong> ${staff.full_name}</p>
+                                        <p><strong>Department:</strong> ${staff.department || 'N/A'}</p>
+                                        <p><strong>Position:</strong> ${staff.position || 'N/A'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-info">
+                                    <div class="card-header bg-info text-white">
+                                        <h6 class="mb-0"><i class="bi bi-calendar"></i> Pay Period</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>Month:</strong> ${monthName}</p>
+                                        <p><strong>Year:</strong> ${year}</p>
+                                        <p><strong>Working Days:</strong> ${breakdown.working_days || 'N/A'}</p>
+                                        <p><strong>Days Present:</strong> ${attendance.present_days || 'N/A'}</p>
+                                        <p><strong>Days Absent:</strong> ${attendance.absent_days || 0}</p>
+                                        <p><strong>Leave Days:</strong> ${attendance.leave_days || 0}</p>
+                                        ${attendance.on_duty_days > 0 ? `<p><strong>On Duty Days:</strong> ${attendance.on_duty_days}</p>` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Salary Details -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="card border-success">
+                                    <div class="card-header bg-success text-white">
+                                        <h6 class="mb-0"><i class="bi bi-plus-circle"></i> Earnings</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between">
+                                            <span>Basic Salary:</span>
+                                            <span class="fw-bold">₹${(earnings.basic_salary || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>HRA:</span>
+                                            <span class="fw-bold">₹${(earnings.hra || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Transport Allowance:</span>
+                                            <span class="fw-bold">₹${(earnings.transport_allowance || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Other Allowances:</span>
+                                            <span class="fw-bold">₹${(earnings.other_allowances || 0).toFixed(2)}</span>
+                                        </div>
+                                        ${earnings.early_arrival_bonus > 0 ? `
+                                        <div class="d-flex justify-content-between">
+                                            <span>Early Arrival Bonus:</span>
+                                            <span class="fw-bold text-success">₹${earnings.early_arrival_bonus.toFixed(2)}</span>
+                                        </div>` : ''}
+                                        ${earnings.overtime_pay > 0 ? `
+                                        <div class="d-flex justify-content-between">
+                                            <span>Overtime Pay:</span>
+                                            <span class="fw-bold text-success">₹${earnings.overtime_pay.toFixed(2)}</span>
+                                        </div>` : ''}
+                                        <hr>
+                                        <div class="d-flex justify-content-between fw-bold text-success">
+                                            <span>Total Earnings:</span>
+                                            <span>₹${(earnings.total_earnings || 0).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card border-danger">
+                                    <div class="card-header bg-danger text-white">
+                                        <h6 class="mb-0"><i class="bi bi-dash-circle"></i> Deductions</h6>
+                                    </div>
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between">
+                                            <span>PF Deduction:</span>
+                                            <span class="fw-bold">₹${(deductions.pf_deduction || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>ESI Deduction:</span>
+                                            <span class="fw-bold">₹${(deductions.esi_deduction || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Professional Tax:</span>
+                                            <span class="fw-bold">₹${(deductions.professional_tax || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Other Deductions:</span>
+                                            <span class="fw-bold">₹${(deductions.other_deductions || 0).toFixed(2)}</span>
+                                        </div>
+                                        ${deductions.absent_deduction > 0 ? `
+                                        <div class="d-flex justify-content-between">
+                                            <span>Absent Day Deduction:</span>
+                                            <span class="fw-bold text-warning">₹${deductions.absent_deduction.toFixed(2)}</span>
+                                        </div>` : ''}
+                                        ${deductions.late_arrival_penalty > 0 ? `
+                                        <div class="d-flex justify-content-between">
+                                            <span>Late Arrival Penalty:</span>
+                                            <span class="fw-bold text-warning">₹${deductions.late_arrival_penalty.toFixed(2)}</span>
+                                        </div>` : ''}
+                                        ${deductions.early_departure_penalty > 0 ? `
+                                        <div class="d-flex justify-content-between">
+                                            <span>Early Departure Penalty:</span>
+                                            <span class="fw-bold text-warning">₹${deductions.early_departure_penalty.toFixed(2)}</span>
+                                        </div>` : ''}
+                                        <hr>
+                                        <div class="d-flex justify-content-between fw-bold text-danger">
+                                            <span>Total Deductions:</span>
+                                            <span>₹${(deductions.total_deductions || 0).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Net Salary -->
+                        <div class="row">
+                            <div class="col-12">
+                                <div class="card border-primary bg-light">
+                                    <div class="card-body text-center">
+                                        <h4 class="text-primary mb-3">
+                                            <i class="bi bi-currency-rupee"></i> Net Salary
+                                        </h4>
+                                        <h2 class="display-4 fw-bold text-primary">
+                                            ₹${(breakdown.net_salary || 0).toFixed(2)}
+                                        </h2>
+                                        <p class="text-muted">
+                                            <small>Amount payable for ${monthName} ${year}</small>
+                                        </p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Footer -->
+                        <div class="text-center mt-4">
+                            <hr>
+                            <p class="text-muted">
+                                <small>This is a computer-generated pay slip. Generated on ${new Date().toLocaleDateString()}</small>
+                            </p>
+                        </div>
+                    </div>
+                `;
+                
+                paySlipPreviewContent.innerHTML = previewHTML;
+            }
+            
+            // Function to download staff pay slip
+            function downloadStaffPaySlip(year, month) {
+                showAlert('<i class="bi bi-download me-2"></i>Generating your pay slip...', 'info');
+                
+                const formData = new FormData();
+                formData.append('year', year);
+                formData.append('month', month);
+                formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+                
+                fetch('/staff/download_pay_slip', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => {
+                    if (response.ok) {
+                        return response.blob();
+                    } else {
+                        return response.json().then(err => Promise.reject(err));
+                    }
+                })
+                .then(blob => {
+                    // Create download link
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.style.display = 'none';
+                    a.href = url;
+                    a.download = `pay_slip_${window.currentStaffId}_${year}_${month.toString().padStart(2, '0')}.pdf`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                    
+                    showAlert('<i class="bi bi-check-circle me-2"></i>Pay slip downloaded successfully', 'success');
+                    paySlipModal.hide();
+                })
+                .catch(error => {
+                    console.error('Error downloading pay slip:', error);
+                    const errorMessage = error.error || error.message || 'Error downloading pay slip. Please try again.';
+                    showAlert(`<i class="bi bi-exclamation-triangle me-2"></i>${errorMessage}`, 'danger');
+                });
+            }
+            
+            // Alert function
+            function showAlert(message, type = 'info') {
+                // Create alert element
+                const alertDiv = document.createElement('div');
+                alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+                alertDiv.style.cssText = 'top: 1rem; right: 1rem; z-index: 9999; min-width: 300px;';
+                alertDiv.innerHTML = `
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                `;
+                
+                document.body.appendChild(alertDiv);
+                
+                // Auto remove after 5 seconds
+                setTimeout(() => {
+                    if (alertDiv.parentNode) {
+                        alertDiv.remove();
+                    }
+                }, 5000);
+            }
+        });
+
+        // 🚀 ASYNC DATA LOADING - For heavy profile data
+        function loadAsyncProfileData() {
+            fetch('/staff/profile/async_data')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Update detailed verifications if needed
+                        if (data.detailed_verifications) {
+                            updateDetailedVerifications(data.detailed_verifications);
+                        }
+                        
+                        // Update attendance records if needed
+                        if (data.attendance_records) {
+                            updateAttendanceRecords(data.attendance_records);
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.warn('Optional async data loading failed:', error);
+                });
+        }
+
+        function updateDetailedVerifications(verifications) {
+            // Update the verification display with more detailed data
+            // Implementation would depend on specific UI requirements
+            console.log('Detailed verifications loaded:', verifications.length);
+        }
+
+        function updateAttendanceRecords(records) {
+            // Update attendance records with detailed information
+            // Implementation would depend on specific UI requirements  
+            console.log('Attendance records loaded:', records.length);
+        }
+
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        // Helper function to get CSRF token
+        function getCSRFToken() {
+            const token = document.querySelector('input[name="csrf_token"]');
+            return token ? token.value : '';
+        }
+
+        // Apply on duty functionality
+        const submitOnDuty = document.getElementById('submitOnDuty');
+        submitOnDuty?.addEventListener('click', function () {
+            const form = document.getElementById('onDutyForm');
+            const formData = new FormData(form);
+
+            // Basic validation
+            const dutyType = formData.get('duty_type');
+            const startDate = formData.get('start_date');
+            const endDate = formData.get('end_date');
+            const purpose = formData.get('purpose');
+
+            if (!dutyType || !startDate || !endDate || !purpose) {
+                alert('Please fill all required fields');
+                return;
+            }
+
+            // Check if end date is after start date
+            if (new Date(endDate) < new Date(startDate)) {
+                alert('End date must be after or equal to start date');
+                return;
+            }
+
+            fetch('/apply_on_duty', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message || 'On-duty application submitted successfully');
+                        bootstrap.Modal.getInstance(document.getElementById('applyOnDutyModal')).hide();
+                        form.reset();
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Failed to submit on-duty application');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting on-duty application:', error);
+                    alert('Error submitting on-duty application');
+                });
+        });
+
+        // Apply permission functionality
+        const submitPermission = document.getElementById('submitPermission');
+        submitPermission?.addEventListener('click', function () {
+            const form = document.getElementById('permissionForm');
+            const formData = new FormData(form);
+
+            // Basic validation
+            const permissionType = formData.get('permission_type');
+            const permissionDate = formData.get('permission_date');
+            const startTime = formData.get('start_time');
+            const endTime = formData.get('end_time');
+            const reason = formData.get('reason');
+
+            if (!permissionType || !permissionDate || !startTime || !endTime || !reason) {
+                alert('Please fill all required fields');
+                return;
+            }
+
+            // Check if end time is after start time
+            if (startTime >= endTime) {
+                alert('End time must be after start time');
+                return;
+            }
+
+            fetch('/apply_permission', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message || 'Permission application submitted successfully');
+                        bootstrap.Modal.getInstance(document.getElementById('applyPermissionModal')).hide();
+                        form.reset();
+                        location.reload();
+                    } else {
+                        alert(data.error || 'Failed to submit permission application');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error submitting permission application:', error);
+                    alert('Error submitting permission application');
+                });
+        });
+
+        // Enhanced attendance stat card styles
+        const style = document.createElement('style');
+        style.textContent = `
+            /* Force all attendance cards to be visible */
+            .salary-results-card .card-body {
+                overflow: visible !important;
+                max-height: none !important;
+                height: auto !important;
+            }
+            .salary-results-card {
+                overflow: visible !important;
+                max-height: none !important;
+                height: auto !important;
+            }
+            .salary-results-card .card-header {
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+            }
+            .attendance-stat-card {
+                border: 1px solid rgba(0, 0, 0, 0.08);
+                border-radius: 1rem;
+                padding: 1.5rem;
+                display: flex;
+                align-items: center;
+                gap: 1rem;
+                transition: all 0.3s ease;
+                background: white;
+                box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+            }
+            .attendance-stat-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+            }
+            .attendance-stat-card .stat-icon {
+                font-size: 2rem;
+                flex-shrink: 0;
+            }
+            .attendance-stat-card .stat-content {
+                flex: 1;
+            }
+            .attendance-stat-card .stat-value {
+                font-size: 2rem;
+                font-weight: 700;
+                line-height: 1;
+                margin-bottom: 0.25rem;
+            }
+            .attendance-stat-card .stat-label {
+                color: white;
+                font-size: 0.9rem;
+                font-weight: 500;
+            }
+            .profile-avatar-img, .profile-avatar-placeholder {
+                box-shadow: 0 8px 32px rgba(102, 126, 234, 0.3);
+                transition: all 0.3s ease;
+            }
+            .profile-avatar-img:hover, .profile-avatar-placeholder:hover {
+                transform: scale(1.05);
+                box-shadow: 0 12px 40px rgba(102, 126, 234, 0.4);
+            }
+            .daily-attendance-card {
+                transition: all 0.3s ease;
+            }
+            .daily-attendance-card:hover {
+                transform: translateY(-2px);
+            }
+            .daily-attendance-card .card {
+                border-radius: 0.75rem;
+                overflow: hidden;
+            }
+            .attendance-time-entry {
+                padding: 0.75rem;
+                border-radius: 0.5rem;
+                background: rgba(248, 249, 250, 0.8);
+                transition: all 0.3s ease;
+            }
+            .attendance-time-entry:hover {
+                background: rgba(233, 236, 239, 0.8);
+                transform: translateY(-1px);
+            }
+            .daily-attendance-list {
+                max-height: 600px;
+                overflow-y: auto;
+                padding-right: 0.5rem;
+            }
+            .daily-attendance-list::-webkit-scrollbar {
+                width: 6px;
+            }
+            .daily-attendance-list::-webkit-scrollbar-track {
+                background: #f1f1f1;
+                border-radius: 3px;
+            }
+            .daily-attendance-list::-webkit-scrollbar-thumb {
+                background: #c1c1c1;
+                border-radius: 3px;
+            }
+            .daily-attendance-list::-webkit-scrollbar-thumb:hover {
+                background: #a8a8a8;
+            }
+            /* Holiday Calendar Styles */
+            .holiday-badges {
+                margin-bottom: 0.5rem;
+            }
+            .holiday-badges .badge {
+                display: inline-flex;
+                align-items: center;
+                font-size: 0.7rem;
+                font-weight: 500;
+                margin-right: 0.25rem;
+                margin-bottom: 0.25rem;
+                padding: 0.3rem 0.5rem;
+                border-radius: 0.375rem;
+                line-height: 1;
+                gap: 0.25rem;
+            }
+            .holiday-badges .bi {
+                font-size: 0.7rem;
+            }
+            .holiday-info {
+                margin-top: 0.5rem;
+                padding: 0.375rem 0.5rem;
+                background: rgba(255, 193, 7, 0.1);
+                border-radius: 0.375rem;
+                border-left: 3px solid #ffc107;
+            }
+            .holiday-info .holiday-details {
+                font-size: 0.75rem;
+                color: #856404;
+            }
+            .day-content {
+                font-size: 0.8rem;
+            }
+            .status-badge {
+                margin-bottom: 0.5rem;
+            }
+            .shift-info {
+                margin-bottom: 0.5rem;
+            }
+            .timing-section {
+                margin-bottom: 0.5rem;
+            }
+            .on-duty-info {
+                margin-bottom: 0.5rem;
+            }
+            
+            /* Quota Balance Styles */
+            .quota-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            .quota-item {
+                display: flex;
+                align-items: center;
+                padding: 1rem;
+                background: rgba(248, 249, 250, 0.8);
+                border-radius: 0.75rem;
+                border-left: 4px solid #dee2e6;
+                transition: all 0.3s ease;
+            }
+            
+            .quota-item:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+                background: rgba(255, 255, 255, 0.9);
+            }
+            
+            .quota-item.leave-quota {
+                border-left-color: #17a2b8;
+            }
+            
+            .quota-item.od-quota {
+                border-left-color: #007bff;
+            }
+            
+            .quota-item.permission-quota {
+                border-left-color: #ffc107;
+            }
+            
+            .quota-icon {
+                font-size: 1.5rem;
+                margin-right: 1rem;
+                flex-shrink: 0;
+            }
+            
+            .quota-content {
+                flex: 1;
+            }
+            
+            .quota-type {
+                font-weight: 600;
+                color: #495057;
+                margin-bottom: 0.25rem;
+            }
+            
+            .quota-balance {
+                font-size: 0.9rem;
+                color: white;
+                margin-bottom: 0.5rem;
+            }
+            
+            .quota-balance .remaining {
+                font-weight: 700;
+                color: #28a745;
+                font-size: 1.1em;
+            }
+            
+            .quota-balance .total {
+                color: white;
+            }
+            
+            .quota-progress-bar {
+                margin-top: 0.5rem;
+            }
+            
+            @media (min-width: 768px) {
+                .quota-grid {
+                    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    </script>
+    <script src="{{ url_for('static', filename='js/weekly_calendar.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/staff_profile_page.js') }}"></script>
+    
+    <!-- 🎯 UNIVERSAL SIDEBAR TOGGLE FUNCTIONALITY -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.querySelector('.enhanced-sidebar');
+            const mainContent = document.querySelector('.salary-main-content');
+            let sidebarVisible = false;
+            
+            // Toggle sidebar function with intelligent button hiding
+            function toggleSidebar() {
+                if (sidebarVisible) {
+                    // Hide sidebar
+                    sidebar.classList.remove('show');
+                    sidebar.style.left = '-100%';
+                    sidebarVisible = false;
+                    
+                    // Update toggle button icon and show it
+                    sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                    sidebarToggle.setAttribute('title', 'Show sidebar menu');
+                    
+                    // Intelligent button reappearing - show toggle button when sidebar closes
+                    setTimeout(() => {
+                        sidebarToggle.style.display = 'flex';
+                        sidebarToggle.style.opacity = '1';
+                    }, 100);
+                } else {
+                    // Show sidebar
+                    sidebar.classList.add('show');
+                    sidebar.style.left = '0';
+                    sidebarVisible = true;
+                    
+                    // Update toggle button icon
+                    sidebarToggle.innerHTML = '<i class="bi bi-x"></i>';
+                    sidebarToggle.setAttribute('title', 'Hide sidebar menu');
+                    
+                    // Intelligent button hiding - hide toggle button when sidebar opens for clean UI
+                    setTimeout(() => {
+                        sidebarToggle.style.opacity = '0';
+                        setTimeout(() => {
+                            sidebarToggle.style.display = 'none';
+                        }, 200);
+                    }, 500);
+                }
+            }
+            
+            // Add click event listener to toggle button
+            if (sidebarToggle) {
+                sidebarToggle.addEventListener('click', toggleSidebar);
+            }
+            
+            // Close sidebar when clicking outside on mobile/tablet
+            document.addEventListener('click', function(event) {
+                if (window.innerWidth <= 1024 && sidebarVisible) {
+                    const isClickInsideSidebar = sidebar.contains(event.target);
+                    const isClickOnToggle = sidebarToggle.contains(event.target);
+                    
+                    if (!isClickInsideSidebar && !isClickOnToggle) {
+                        // Close sidebar and intelligently show toggle button
+                        sidebar.classList.remove('show');
+                        sidebar.style.left = '-100%';
+                        sidebarVisible = false;
+                        
+                        // Update toggle button and make it reappear
+                        sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                        sidebarToggle.setAttribute('title', 'Show sidebar menu');
+                        
+                        // Intelligent button reappearing
+                        setTimeout(() => {
+                            sidebarToggle.style.display = 'flex';
+                            sidebarToggle.style.opacity = '1';
+                        }, 100);
+                    }
+                }
+            });
+            
+            // Handle window resize
+            window.addEventListener('resize', function() {
+                if (window.innerWidth > 1024) {
+                    // On desktop, reset sidebar to default state
+                    sidebar.classList.remove('show');
+                    sidebar.style.left = '';
+                    sidebarVisible = false;
+                    sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                    sidebarToggle.setAttribute('title', 'Toggle sidebar menu');
+                    
+                    // Reset toggle button visibility for desktop
+                    sidebarToggle.style.display = 'none';
+                    sidebarToggle.style.opacity = '0';
+                } else {
+                    // On mobile/tablet, ensure toggle button is visible when sidebar is closed
+                    if (!sidebarVisible) {
+                        sidebarToggle.style.display = 'flex';
+                        sidebarToggle.style.opacity = '1';
+                    }
+                }
+            });
+            
+            // Initialize sidebar state based on screen size
+            if (window.innerWidth <= 1024) {
+                sidebar.style.left = '-100%';
+                sidebarVisible = false;
+            }
+        });
+    </script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

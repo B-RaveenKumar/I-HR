@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Period Assignment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #4a90e2;
+            --success-color: #27ae60;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --light-gray: #ecf0f1;
+            --dark-gray: #34495e;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .container-main {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-header {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin-bottom: 30px;
+        }
+
+        .page-header h1 {
+            color: var(--dark-gray);
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+
+        .page-header .breadcrumb {
+            margin: 0;
+            background: transparent;
+            padding: 0;
+        }
+
+        .card {
+            border: none;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 15px 20px;
+            border: none;
+        }
+
+        .card-header h5 {
+            margin: 0;
+            font-weight: 600;
+            font-size: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 18px;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: var(--dark-gray);
+            margin-bottom: 8px;
+            font-size: 14px;
+        }
+
+        .form-control, .form-select {
+            border: 2px solid var(--light-gray);
+            border-radius: 8px;
+            padding: 10px 12px;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(74, 144, 226, 0.25);
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #667eea 100%);
+            border: none;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(74, 144, 226, 0.4);
+            background: linear-gradient(135deg, #3d7bc4 0%, #5a68d8 100%);
+        }
+
+        .btn-danger {
+            background: var(--danger-color);
+            border: none;
+        }
+
+        .btn-danger:hover {
+            background: #c0392b;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #95a5a6;
+            border: none;
+        }
+
+        .btn-secondary:hover {
+            background: #7f8c8d;
+        }
+
+        .alert {
+            border: none;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-left: 5px solid var(--success-color);
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border-left: 5px solid var(--danger-color);
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-left: 5px solid var(--warning-color);
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-left: 5px solid #17a2b8;
+        }
+
+        .table {
+            font-size: 14px;
+        }
+
+        .table thead th {
+            background: var(--light-gray);
+            color: var(--dark-gray);
+            font-weight: 600;
+            border-bottom: 2px solid #bdc3c7;
+            padding: 12px;
+        }
+
+        .table tbody td {
+            padding: 12px;
+            vertical-align: middle;
+        }
+
+        .table tbody tr:hover {
+            background: #f8f9fa;
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .badge-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .badge-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-success {
+            background: var(--success-color);
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #95a5a6;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .spinner-border {
+            color: var(--primary-color);
+        }
+
+        .days-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+        }
+
+        .day-option {
+            padding: 12px;
+            border: 2px solid var(--light-gray);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .day-option:hover {
+            border-color: var(--primary-color);
+            background: rgba(74, 144, 226, 0.05);
+        }
+
+        .day-option.selected {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+
+        .row-actions {
+            display: flex;
+            gap: 5px;
+        }
+
+        .row-actions .btn {
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        .stats-box {
+            background: var(--light-gray);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .stats-box .number {
+            font-size: 28px;
+            font-weight: 700;
+            color: var(--primary-color);
+        }
+
+        .stats-box .label {
+            font-size: 12px;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            margin-top: 5px;
+        }
+
+        @media (max-width: 768px) {
+            .container-main {
+                padding: 0 10px;
+            }
+
+            .page-header {
+                padding: 20px;
+            }
+
+            .card-body {
+                padding: 15px;
+            }
+
+            .days-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .table {
+                font-size: 12px;
+            }
+
+            .btn {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container-main">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="bi bi-calendar-event"></i> Staff Period Assignment</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" style="color: var(--primary-color);">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Period Assignment</li>
+                        </ol>
+                    </nav>
+                </div>
+                <button class="btn btn-primary" onclick="location.href='{{ url_for('timetable_management')}}'">
+                    <i class="bi bi-arrow-left"></i> Back to Timetable
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="row">
+            <!-- Assignment Form Column -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-plus-circle"></i> Assign Period to Staff</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="formMessage"></div>
+
+                        <form id="assignmentForm">
+                            <!-- Staff Selection -->
+                            <div class="form-group">
+                                <label class="form-label" for="staffSelect">
+                                    <i class="bi bi-person-badge"></i> Select Staff Member
+                                </label>
+                                <select class="form-select" id="staffSelect" required onchange="onStaffSelect()">
+                                    <option value="">-- Choose a staff member --</option>
+                                </select>
+                            </div>
+
+                            <!-- Day Selection -->
+                            <div class="form-group">
+                                <label class="form-label">
+                                    <i class="bi bi-calendar"></i> Select Day
+                                </label>
+                                <div class="days-grid">
+                                    <label class="day-option" onclick="selectDay(0)">
+                                        <input type="radio" name="dayOfWeek" value="0" style="display: none;">
+                                        <span>Sunday</span>
+                                    </label>
+                                    <label class="day-option" onclick="selectDay(1)">
+                                        <input type="radio" name="dayOfWeek" value="1" style="display: none;">
+                                        <span>Monday</span>
+                                    </label>
+                                    <label class="day-option" onclick="selectDay(2)">
+                                        <input type="radio" name="dayOfWeek" value="2" style="display: none;">
+                                        <span>Tuesday</span>
+                                    </label>
+                                    <label class="day-option" onclick="selectDay(3)">
+                                        <input type="radio" name="dayOfWeek" value="3" style="display: none;">
+                                        <span>Wednesday</span>
+                                    </label>
+                                    <label class="day-option" onclick="selectDay(4)">
+                                        <input type="radio" name="dayOfWeek" value="4" style="display: none;">
+                                        <span>Thursday</span>
+                                    </label>
+                                    <label class="day-option" onclick="selectDay(5)">
+                                        <input type="radio" name="dayOfWeek" value="5" style="display: none;">
+                                        <span>Friday</span>
+                                    </label>
+                                    <label class="day-option" onclick="selectDay(6)">
+                                        <input type="radio" name="dayOfWeek" value="6" style="display: none;">
+                                        <span>Saturday</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Period Selection -->
+                            <div class="form-group">
+                                <label class="form-label" for="periodSelect">
+                                    <i class="bi bi-hourglass-split"></i> Select Period
+                                </label>
+                                <select class="form-select" id="periodSelect" required>
+                                    <option value="">-- Choose a period --</option>
+                                </select>
+                            </div>
+
+                            <!-- Submit Button -->
+                            <button type="button" class="btn btn-primary w-100" onclick="assignPeriod()">
+                                <i class="bi bi-check-circle"></i> Assign Period
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Staff Schedule Column -->
+            <div class="col-lg-6">
+                <div class="card">
+                    <div class="card-header">
+                        <h5><i class="bi bi-calendar2-check"></i> Staff Assigned Periods</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="staffScheduleContainer">
+                            <div class="empty-state">
+                                <i class="bi bi-inbox"></i>
+                                <p>Select a staff member to view their assigned periods</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- All Staff Assignments Table -->
+        <div class="card">
+            <div class="card-header">
+                <h5><i class="bi bi-table"></i> All Staff Period Assignments</h5>
+            </div>
+            <div class="card-body">
+                <div id="allAssignmentsContainer">
+                    <div class="text-center py-5">
+                        <div class="spinner-border" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        let currentStaffId = null;
+        let periods = [];
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStaffList();
+            loadPeriods();
+            loadAllAssignments();
+        });
+
+        // Load staff list
+        async function loadStaffList() {
+            try {
+                const response = await fetch('/api/timetable/staff/list');
+                const result = await response.json();
+
+                if (result.success) {
+                    const staffSelect = document.getElementById('staffSelect');
+                    staffSelect.innerHTML = '<option value="">-- Choose a staff member --</option>';
+
+                    result.staff.forEach(staff => {
+                        const option = document.createElement('option');
+                        option.value = staff.id;
+                        option.textContent = `${staff.full_name} (${staff.staff_id})`;
+                        staffSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading staff list:', error);
+                showMessage('Error loading staff list', 'danger');
+            }
+        }
+
+        // Load periods
+        async function loadPeriods() {
+            try {
+                const response = await fetch('/api/timetable/periods');
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    periods = result.data;
+                    const periodSelect = document.getElementById('periodSelect');
+                    periodSelect.innerHTML = '<option value="">-- Choose a period --</option>';
+
+                    periods.forEach(period => {
+                        const option = document.createElement('option');
+                        option.value = period.period_number;
+                        option.textContent = `Period ${period.period_number}: ${period.start_time.slice(0, 5)} - ${period.end_time.slice(0, 5)}`;
+                        periodSelect.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading periods:', error);
+            }
+        }
+
+        // Handle staff selection
+        function onStaffSelect() {
+            const staffId = document.getElementById('staffSelect').value;
+            if (staffId) {
+                currentStaffId = staffId;
+                loadStaffSchedule(staffId);
+            }
+        }
+
+        // Select day
+        function selectDay(dayIndex) {
+            document.querySelectorAll('.day-option').forEach((el, index) => {
+                if (index === dayIndex) {
+                    el.classList.add('selected');
+                    el.querySelector('input[type="radio"]').checked = true;
+                } else {
+                    el.classList.remove('selected');
+                    el.querySelector('input[type="radio"]').checked = false;
+                }
+            });
+        }
+
+        // Load staff schedule
+        async function loadStaffSchedule(staffId) {
+            try {
+                const response = await fetch(`/api/timetable/staff-period/list/${staffId}`);
+                const result = await response.json();
+
+                if (result.success) {
+                    const container = document.getElementById('staffScheduleContainer');
+
+                    if (result.periods.length === 0) {
+                        container.innerHTML = `
+                            <div class="alert alert-info">
+                                <i class="bi bi-info-circle"></i>
+                                <strong>${result.staff_name}</strong> has no assigned periods yet
+                            </div>
+                        `;
+                    } else {
+                        let html = `
+                            <div class="alert alert-info">
+                                <strong>${result.staff_name}</strong> - <span class="badge badge-info">${result.total_periods} periods</span>
+                            </div>
+                            <table class="table table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Day</th>
+                                        <th>Period</th>
+                                        <th>Time</th>
+                                        <th>Action</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                        `;
+
+                        result.periods.forEach(period => {
+                            const timeDisplay = period.start_time && period.end_time 
+                                ? `${period.start_time.slice(0, 5)} - ${period.end_time.slice(0, 5)}`
+                                : 'N/A';
+                            
+                            html += `
+                                <tr>
+                                    <td><strong>${period.day_name}</strong></td>
+                                    <td>Period ${period.period_number}</td>
+                                    <td>${timeDisplay}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" onclick="removePeriod(${period.assignment_id})">
+                                            <i class="bi bi-trash"></i> Remove
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                </tbody>
+                            </table>
+                        `;
+
+                        container.innerHTML = html;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading staff schedule:', error);
+            }
+        }
+
+        // Assign period to staff
+        async function assignPeriod() {
+            const staffId = document.getElementById('staffSelect').value;
+            const dayOfWeek = document.querySelector('input[name="dayOfWeek"]:checked')?.value;
+            const periodNumber = document.getElementById('periodSelect').value;
+
+            if (!staffId || dayOfWeek === undefined || !periodNumber) {
+                showMessage('Please select staff, day, and period', 'warning');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/timetable/staff-period/assign', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        staff_id: parseInt(staffId),
+                        day_of_week: parseInt(dayOfWeek),
+                        period_number: parseInt(periodNumber)
+                    })
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(`✅ ${result.message}`, 'success');
+                    document.getElementById('assignmentForm').reset();
+                    document.querySelectorAll('.day-option').forEach(el => el.classList.remove('selected'));
+                    
+                    // Reload data
+                    loadStaffSchedule(staffId);
+                    loadAllAssignments();
+                } else {
+                    showMessage(`❌ ${result.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error assigning period:', error);
+                showMessage('Error assigning period', 'danger');
+            }
+        }
+
+        // Remove period assignment
+        async function removePeriod(assignmentId) {
+            if (!confirm('Are you sure you want to remove this period assignment?')) return;
+
+            try {
+                const response = await fetch(`/api/timetable/staff-period/remove/${assignmentId}`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    showMessage(`✅ ${result.message}`, 'success');
+                    if (currentStaffId) loadStaffSchedule(currentStaffId);
+                    loadAllAssignments();
+                } else {
+                    showMessage(`❌ ${result.error}`, 'danger');
+                }
+            } catch (error) {
+                console.error('Error removing period:', error);
+                showMessage('Error removing period', 'danger');
+            }
+        }
+
+        // Load all assignments
+        async function loadAllAssignments() {
+            try {
+                const response = await fetch('/api/timetable/assignments/all');
+                const result = await response.json();
+
+                if (result.success && result.data) {
+                    const container = document.getElementById('allAssignmentsContainer');
+
+                    if (result.data.length === 0) {
+                        container.innerHTML = `
+                            <div class="empty-state">
+                                <i class="bi bi-inbox"></i>
+                                <p>No period assignments yet</p>
+                            </div>
+                        `;
+                    } else {
+                        let html = `
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Staff Name</th>
+                                            <th>Day</th>
+                                            <th>Period</th>
+                                            <th>Time</th>
+                                            <th>Status</th>
+                                            <th>Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                        `;
+
+                        result.data.forEach(assignment => {
+                            const dayName = DAYS[assignment.day_of_week] || 'Unknown';
+                            const timeDisplay = assignment.start_time && assignment.end_time 
+                                ? `${assignment.start_time.slice(0, 5)} - ${assignment.end_time.slice(0, 5)}`
+                                : 'N/A';
+                            const badge = assignment.is_locked 
+                                ? '<span class="badge badge-warning">Locked</span>'
+                                : '<span class="badge badge-success">Active</span>';
+
+                            html += `
+                                <tr>
+                                    <td><strong>${assignment.full_name}</strong></td>
+                                    <td>${dayName}</td>
+                                    <td>Period ${assignment.period_number}</td>
+                                    <td>${timeDisplay}</td>
+                                    <td>${badge}</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-danger" onclick="removePeriod(${assignment.id})">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        });
+
+                        html += `
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+
+                        container.innerHTML = html;
+                    }
+                }
+            } catch (error) {
+                console.error('Error loading all assignments:', error);
+            }
+        }
+
+        // Show message
+        function showMessage(message, type = 'info') {
+            const messageDiv = document.getElementById('formMessage');
+            messageDiv.innerHTML = `
+                <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            setTimeout(() => {
+                messageDiv.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

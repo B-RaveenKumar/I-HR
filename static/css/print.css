@@ -1,0 +1,164 @@
+/* Print and Download Styles - Ensures logo and important content appear when saving as PDF or printing */
+
+@media print {
+    /* Ensure logo is visible */
+    header img,
+    .logo,
+    #schoolLogo,
+    img[alt*="Logo"],
+    img[alt*="logo"] {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        max-height: 60px !important;
+        width: auto !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Header visibility */
+    header {
+        display: block !important;
+        visibility: visible !important;
+        page-break-inside: avoid;
+        background-color: #f8f9fa !important;
+        border-bottom: 2px solid #dee2e6 !important;
+        padding: 10px !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Company branding */
+    .text-primary,
+    h4.text-primary {
+        color: #0d6efd !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Hide unnecessary elements for print */
+    .sidebar,
+    .enhanced-sidebar,
+    .sidebar-toggle,
+    .dropdown,
+    .btn:not(.print-show),
+    button:not(.print-show),
+    .nav-tabs,
+    .pagination,
+    .modal,
+    .toast,
+    .alert-dismissible .btn-close,
+    footer,
+    .no-print {
+        display: none !important;
+    }
+
+    /* Main content adjustments */
+    .salary-main-content,
+    .main-content,
+    .container,
+    .container-fluid {
+        margin: 0 !important;
+        padding: 15px !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    /* Page breaks */
+    .card,
+    .table,
+    .chart-container {
+        page-break-inside: avoid;
+    }
+
+    /* Table styling for print */
+    table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+        font-size: 11pt !important;
+    }
+
+    table th,
+    table td {
+        padding: 8px !important;
+        border: 1px solid #dee2e6 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    table thead {
+        background-color: #e9ecef !important;
+        font-weight: bold !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Card styling */
+    .card {
+        border: 1px solid #dee2e6 !important;
+        margin-bottom: 15px !important;
+        page-break-inside: avoid;
+    }
+
+    /* Preserve colors */
+    * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Background colors for specific elements */
+    .bg-primary,
+    .bg-success,
+    .bg-warning,
+    .bg-danger,
+    .bg-info {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Badge colors */
+    .badge {
+        border: 1px solid currentColor !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    /* Force visibility of important content */
+    .print-show {
+        display: block !important;
+        visibility: visible !important;
+    }
+
+    /* Links - show URL */
+    a[href]:after {
+        content: none !important; /* Disable URL printing for cleaner output */
+    }
+
+    /* Charts and images */
+    canvas,
+    img {
+        max-width: 100% !important;
+        page-break-inside: avoid;
+    }
+
+    /* Watermark */
+    .watermark,
+    img[alt*="watermark"] {
+        opacity: 0.3 !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+}
+
+/* Save as PDF / Download specific styles */
+@media screen and (min-width: 1px) {
+    /* Ensure logos load with absolute URLs for download scenarios */
+    header img[src^="/static"],
+    img.logo[src^="/static"],
+    #schoolLogo[src^="/static"] {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+}
+
+

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics Dashboard - VishnoRex</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/analytics_dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">VishnoRex - Analytics Dashboard</a>
+            <div class="navbar-nav me-auto">
+                <a class="nav-link" href="{{ url_for('admin_dashboard') }}">
+                    <i class="bi bi-house"></i> Dashboard
+                </a>
+                <a class="nav-link" href="{{ url_for('staff_management') }}">
+                    <i class="bi bi-people"></i> Staff Management
+                </a>
+                <a class="nav-link" href="{{ url_for('salary_management') }}">
+                    <i class="bi bi-currency-dollar"></i> Salary Management
+                </a>
+                <a class="nav-link" href="{{ url_for('reporting_dashboard') }}">
+                    <i class="bi bi-graph-up"></i> Reports
+                </a>
+            </div>
+            <div class="navbar-nav ms-auto">
+                <a class="nav-link" href="{{ url_for('logout') }}">
+                    <i class="bi bi-box-arrow-right"></i> Logout
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <!-- Header -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h2><i class="bi bi-graph-up-arrow"></i> Advanced Analytics Dashboard</h2>
+                <p class="text-muted">Comprehensive data visualization and performance insights</p>
+            </div>
+        </div>
+
+        <!-- Filters Panel -->
+        <div class="filters-panel">
+            <div class="row align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Start Date</label>
+                    <input type="date" class="form-control" id="startDate" value="{{ start_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">End Date</label>
+                    <input type="date" class="form-control" id="endDate" value="{{ end_date }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Department</label>
+                    <select class="form-select" id="departmentFilter">
+                        <option value="">All Departments</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-primary w-100" id="updateAnalyticsBtn" title="Update analytics data">
+                        <i class="bi bi-arrow-clockwise" aria-hidden="true"></i> Update Analytics
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- KPI Cards -->
+        <div class="row mb-4" id="kpiCards">
+            <div class="col-md-3">
+                <div class="card analytics-card kpi-card">
+                    <div class="kpi-value" id="attendanceRate">-</div>
+                    <div class="kpi-label">Attendance Rate</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card analytics-card kpi-card bg-success">
+                    <div class="kpi-value" id="punctualityRate">-</div>
+                    <div class="kpi-label">Punctuality Rate</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card analytics-card kpi-card bg-info">
+                    <div class="kpi-value" id="avgWorkHours">-</div>
+                    <div class="kpi-label">Avg Work Hours</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card analytics-card kpi-card bg-warning">
+                    <div class="kpi-value" id="totalOvertime">-</div>
+                    <div class="kpi-label">Total Overtime</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 1 -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card analytics-card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-pie-chart"></i> Attendance Distribution</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="attendancePieChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card analytics-card">
+                    <div class="card-header bg-success text-white">
+                        <h6 class="mb-0"><i class="bi bi-graph-up"></i> Daily Trends</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="dailyTrendsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Charts Row 2 -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card analytics-card">
+                    <div class="card-header bg-info text-white">
+                        <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Department Comparison</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="departmentChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card analytics-card">
+                    <div class="card-header bg-warning text-white">
+                        <h6 class="mb-0"><i class="bi bi-radar"></i> Weekly Pattern</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="weeklyPatternChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Heatmap -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card analytics-card">
+                    <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0"><i class="bi bi-calendar-heat"></i> Monthly Attendance Heatmap</h6>
+                        <div>
+                            <label for="heatmapMonth" class="visually-hidden">Select month</label>
+                            <select class="form-select form-select-sm d-inline-block heatmap-select" id="heatmapMonth" title="Select month for heatmap">
+                                <option value="1">January</option>
+                                <option value="2">February</option>
+                                <option value="3">March</option>
+                                <option value="4">April</option>
+                                <option value="5">May</option>
+                                <option value="6">June</option>
+                                <option value="7">July</option>
+                                <option value="8">August</option>
+                                <option value="9">September</option>
+                                <option value="10">October</option>
+                                <option value="11">November</option>
+                                <option value="12">December</option>
+                            </select>
+                            <label for="heatmapYear" class="visually-hidden">Select year</label>
+                            <select class="form-select form-select-sm ms-2 d-inline-block heatmap-select" id="heatmapYear" title="Select year for heatmap">
+                                <option value="2023">2023</option>
+                                <option value="2024">2024</option>
+                                <option value="2025">2025</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="attendanceHeatmap" class="heatmap-container">
+                            <!-- Heatmap will be generated here -->
+                        </div>
+                        <div class="mt-3">
+                            <small class="text-muted">
+                                <span class="badge bg-success me-2">90-100%</span>
+                                <span class="badge bg-warning me-2">70-89%</span>
+                                <span class="badge bg-danger me-2">Below 70%</span>
+                                <span class="badge bg-secondary">No Data</span>
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Performance Insights -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <div class="card analytics-card">
+                    <div class="card-header bg-dark text-white">
+                        <h6 class="mb-0"><i class="bi bi-lightning"></i> Overtime Analysis</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="overtimeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card analytics-card">
+                    <div class="card-header bg-primary text-white">
+                        <h6 class="mb-0"><i class="bi bi-trophy"></i> Top Performers</h6>
+                    </div>
+                    <div class="card-body">
+                        <div id="topPerformers">
+                            <!-- Top performers will be loaded here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Export Options -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card analytics-card">
+                    <div class="card-body text-center">
+                        <h6 class="mb-3"><i class="bi bi-download"></i> Export Analytics</h6>
+                        <div class="btn-group" role="group" aria-label="Export options">
+                            <button type="button" class="btn btn-outline-success" id="exportChartsBtn" title="Export charts to Excel">
+                                <i class="bi bi-file-earmark-excel" aria-hidden="true"></i> Export Charts
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="exportDataBtn" title="Export raw data">
+                                <i class="bi bi-database" aria-hidden="true"></i> Export Data
+                            </button>
+                            <button type="button" class="btn btn-outline-info" id="generateReportBtn" title="Generate PDF report">
+                                <i class="bi bi-file-earmark-pdf" aria-hidden="true"></i> Generate Report
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary" id="scheduleReportBtn" title="Schedule automated reports">
+                                <i class="bi bi-calendar-event" aria-hidden="true"></i> Schedule Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay loading-overlay-hidden" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="spinner-border mb-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p>Loading analytics data...</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/analytics_dashboard.js') }}"></script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

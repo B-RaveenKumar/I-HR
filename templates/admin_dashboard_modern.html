@@ -1,0 +1,533 @@
+{% extends "base_modern.html" %}
+
+{% block title %}Admin Dashboard - VishnoRex{% endblock %}
+{% block page_title %}Admin Dashboard{% endblock %}
+{% block page_subtitle %}Monitor attendance, manage staff, and track performance in real-time{% endblock %}
+{% block sidebar_subtitle %}Admin Panel{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+<style>
+/* Custom dashboard enhancements */
+.dashboard-stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--space-6);
+    margin-bottom: var(--space-8);
+}
+
+.attendance-chart-container {
+    min-height: 400px;
+}
+
+.quick-actions-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: var(--space-4);
+    margin-bottom: var(--space-8);
+}
+
+.recent-activity {
+    max-height: 500px;
+    overflow-y: auto;
+}
+
+.calendar-widget {
+    background: var(--white);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-6);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--gray-200);
+}
+
+@media (max-width: 768px) {
+    .dashboard-stats {
+        grid-template-columns: 1fr;
+        gap: var(--space-4);
+    }
+    
+    .quick-actions-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--space-3);
+    }
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Dashboard Statistics -->
+<div class="dashboard-stats">
+    <!-- Today's Attendance Stats -->
+    <div class="dashboard-card">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-calendar-check"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ attendance_summary.present or 0 }}</div>
+                <div class="stat-label">Present Today</div>
+                <div class="stat-change positive">
+                    <i class="bi bi-arrow-up"></i>
+                    +{{ attendance_summary.present_change or 0 }}% from yesterday
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-x-circle"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ attendance_summary.absent or 0 }}</div>
+                <div class="stat-label">Absent Today</div>
+                <div class="stat-change {% if attendance_summary.absent_change > 0 %}negative{% else %}positive{% endif %}">
+                    <i class="bi bi-arrow-{% if attendance_summary.absent_change > 0 %}up{% else %}down{% endif %}"></i>
+                    {{ attendance_summary.absent_change or 0 }}% from yesterday
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-clock"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ attendance_summary.late or 0 }}</div>
+                <div class="stat-label">Late Arrivals</div>
+                <div class="stat-change warning">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Requires attention
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="dashboard-card">
+        <div class="stat-card">
+            <div class="stat-icon">
+                <i class="bi bi-calendar-x"></i>
+            </div>
+            <div class="stat-content">
+                <div class="stat-value">{{ attendance_summary.on_leave or 0 }}</div>
+                <div class="stat-label">On Leave</div>
+                <div class="stat-change">
+                    <i class="bi bi-info-circle"></i>
+                    Approved leaves
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="modern-card mb-6">
+    <div class="card-header-modern">
+        <div class="card-title-icon">
+            <i class="bi bi-lightning"></i>
+        </div>
+        <div class="card-title-content">
+            <h3 class="card-title-modern">Quick Actions</h3>
+            <p class="card-subtitle-modern">Frequently used functions for efficient management</p>
+        </div>
+    </div>
+    <div class="card-body-modern">
+        <div class="quick-actions-grid">
+            <button class="btn-modern btn-primary-modern" onclick="openStaffModal()">
+                <i class="bi bi-person-plus"></i>
+                <span>Add Staff</span>
+            </button>
+            <button class="btn-modern btn-secondary-modern" onclick="exportAttendance()">
+                <i class="bi bi-download"></i>
+                <span>Export Data</span>
+            </button>
+            <button class="btn-modern btn-success-modern" onclick="markAttendance()">
+                <i class="bi bi-check-circle"></i>
+                <span>Mark Attendance</span>
+            </button>
+            <button class="btn-modern btn-secondary-modern" onclick="generateReports()">
+                <i class="bi bi-file-earmark-text"></i>
+                <span>Generate Report</span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Main Dashboard Grid -->
+<div class="dashboard-grid two-column">
+    <!-- Attendance Chart -->
+    <div class="dashboard-card wide">
+        <div class="chart-container attendance-chart-container">
+            <div class="chart-header">
+                <h3 class="chart-title">
+                    <i class="bi bi-graph-up"></i>
+                    Attendance Trends
+                </h3>
+                <div class="chart-filters">
+                    <button class="chart-filter-btn active" data-period="7">7 Days</button>
+                    <button class="chart-filter-btn" data-period="30">30 Days</button>
+                    <button class="chart-filter-btn" data-period="90">3 Months</button>
+                </div>
+            </div>
+            <div class="chart-canvas" id="attendanceChart">
+                <i class="bi bi-graph-up text-gray-400" style="font-size: 3rem;"></i>
+                <p>Attendance chart will be rendered here</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Recent Activity -->
+    <div class="dashboard-card">
+        <div class="card-header-modern">
+            <div class="card-title-icon">
+                <i class="bi bi-activity"></i>
+            </div>
+            <div class="card-title-content">
+                <h3 class="card-title-modern">Recent Activity</h3>
+                <p class="card-subtitle-modern">Latest staff actions and updates</p>
+            </div>
+        </div>
+        <div class="recent-activity">
+            <ul class="data-list">
+                {% for activity in recent_activities[:10] %}
+                <li class="data-list-item">
+                    <div class="data-list-avatar">
+                        {{ activity.staff_name[0] if activity.staff_name else 'U' }}
+                    </div>
+                    <div class="data-list-content">
+                        <div class="data-list-title">{{ activity.staff_name or 'Unknown Staff' }}</div>
+                        <div class="data-list-subtitle">{{ activity.action or 'Activity logged' }}</div>
+                    </div>
+                    <div class="data-list-meta">
+                        <div class="data-list-value">{{ activity.time.strftime('%H:%M') if activity.time else 'N/A' }}</div>
+                        <div class="data-list-status {{ activity.status_class or 'success' }}">
+                            <i class="bi bi-{{ activity.status_icon or 'check-circle' }}"></i>
+                            {{ activity.status or 'Completed' }}
+                        </div>
+                    </div>
+                </li>
+                {% else %}
+                <li class="data-list-item">
+                    <div class="data-list-avatar">
+                        <i class="bi bi-info-circle"></i>
+                    </div>
+                    <div class="data-list-content">
+                        <div class="data-list-title">No recent activity</div>
+                        <div class="data-list-subtitle">Staff activities will appear here</div>
+                    </div>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- Additional Dashboard Widgets -->
+<div class="dashboard-grid three-column">
+    <!-- Calendar Widget -->
+    <div class="dashboard-card">
+        <div class="card-header-modern">
+            <div class="card-title-icon">
+                <i class="bi bi-calendar3"></i>
+            </div>
+            <div class="card-title-content">
+                <h3 class="card-title-modern">Calendar</h3>
+                <p class="card-subtitle-modern">{{ today.strftime('%B %Y') }}</p>
+            </div>
+        </div>
+        <div class="card-body-modern">
+            <div class="calendar-widget" id="calendarWidget">
+                <div class="d-flex justify-center align-center" style="height: 200px;">
+                    <div class="text-center">
+                        <i class="bi bi-calendar3 text-gray-400" style="font-size: 3rem;"></i>
+                        <p class="text-gray-500 mt-2">Calendar widget</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Performance Metrics -->
+    <div class="dashboard-card">
+        <div class="card-header-modern">
+            <div class="card-title-icon">
+                <i class="bi bi-speedometer2"></i>
+            </div>
+            <div class="card-title-content">
+                <h3 class="card-title-modern">Performance</h3>
+                <p class="card-subtitle-modern">Overall system metrics</p>
+            </div>
+        </div>
+        <div class="card-body-modern">
+            <div class="d-flex flex-column gap-4">
+                <div>
+                    <div class="d-flex justify-between align-center mb-2">
+                        <span class="text-sm font-medium text-gray-600">Attendance Rate</span>
+                        <span class="text-sm font-semibold text-success">{{ performance.attendance_rate or '95' }}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-success" > performance.attendance_rate or '95'</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="d-flex justify-between align-center mb-2">
+                        <span class="text-sm font-medium text-gray-600">On-time Arrival</span>
+                        <span class="text-sm font-semibold text-primary">{{ performance.ontime_rate or '88' }}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-primary">{{ performance.ontime_rate or '88' }}%</div>
+                    </div>
+                </div>
+                <div>
+                    <div class="d-flex justify-between align-center mb-2">
+                        <span class="text-sm font-medium text-gray-600">Staff Satisfaction</span>
+                        <span class="text-sm font-semibold text-warning">{{ performance.satisfaction_rate or '92' }}%</span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar bg-warning" ></div>{{ performance.satisfaction_rate or '92' }}></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- System Status -->
+    <div class="dashboard-card">
+        <div class="card-header-modern">
+            <div class="card-title-icon">
+                <i class="bi bi-shield-check"></i>
+            </div>
+            <div class="card-title-content">
+                <h3 class="card-title-modern">System Status</h3>
+                <p class="card-subtitle-modern">All systems operational</p>
+            </div>
+        </div>
+        <div class="card-body-modern">
+            <ul class="data-list">
+                <li class="data-list-item">
+                    <div class="data-list-content">
+                        <div class="data-list-title">Database</div>
+                        <div class="data-list-subtitle">Connection stable</div>
+                    </div>
+                    <div class="data-list-status success">
+                        <i class="bi bi-check-circle"></i>
+                        Online
+                    </div>
+                </li>
+                <li class="data-list-item">
+                    <div class="data-list-content">
+                        <div class="data-list-title">Biometric Device</div>
+                        <div class="data-list-subtitle">{{ biometric_status.device_count or '0' }} devices connected</div>
+                    </div>
+                    <div class="data-list-status {{ biometric_status.status_class or 'success' }}">
+                        <i class="bi bi-{{ biometric_status.status_icon or 'check-circle' }}"></i>
+                        {{ biometric_status.status or 'Active' }}
+                    </div>
+                </li>
+                <li class="data-list-item">
+                    <div class="data-list-content">
+                        <div class="data-list-title">Backup System</div>
+                        <div class="data-list-subtitle">Last backup: {{ last_backup or 'Today' }}</div>
+                    </div>
+                    <div class="data-list-status success">
+                        <i class="bi bi-check-circle"></i>
+                        Updated
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<!-- CSRF Token for AJAX requests -->
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+{% endblock %}
+
+{% block modals %}
+<!-- Biometric Device Modal -->
+<div class="modal fade" id="biometricDeviceModal" tabindex="-1" aria-labelledby="biometricDeviceModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="biometricDeviceModalLabel">
+                    <i class="bi bi-fingerprint me-2"></i>
+                    Biometric Device Management
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Biometric device configuration and management features will be available here.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn-modern btn-secondary-modern" data-bs-dismiss="modal">Close</button>
+                <button type="button" class="btn-modern btn-primary-modern">Save Changes</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize attendance chart
+    initializeAttendanceChart();
+    
+    // Initialize calendar widget
+    initializeCalendarWidget();
+    
+    // Setup auto-refresh for live data
+    setupAutoRefresh();
+    
+    // Setup quick action handlers
+    setupQuickActions();
+});
+
+function initializeAttendanceChart() {
+    const ctx = document.getElementById('attendanceChart');
+    if (!ctx) return;
+    
+    // Clear the placeholder content
+    ctx.innerHTML = '<canvas id="attendanceChartCanvas"></canvas>';
+    
+    const canvas = document.getElementById('attendanceChartCanvas');
+    if (!canvas) return;
+    
+    new Chart(canvas, {
+        type: 'line',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Present',
+                data: [{{ attendance_chart.present or [65, 59, 80, 81, 56, 55, 40] | join(', ') }}],
+                borderColor: 'rgb(102, 126, 234)',
+                backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                tension: 0.4
+            }, {
+                label: 'Absent',
+                data: [{{ attendance_chart.absent or [28, 48, 40, 19, 86, 27, 90] | join(', ') }}],
+                borderColor: 'rgb(239, 68, 68)',
+                backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                },
+                title: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            }
+        }
+    });
+}
+
+function initializeCalendarWidget() {
+    const calendarEl = document.getElementById('calendarWidget');
+    if (!calendarEl) return;
+    
+    // Simple calendar implementation - you can replace with FullCalendar
+    const today = new Date();
+    const monthNames = ["January", "February", "March", "April", "May", "June",
+        "July", "August", "September", "October", "November", "December"];
+    
+    calendarEl.innerHTML = `
+        <div class="text-center">
+            <h4 class="text-lg font-semibold text-gray-800">${monthNames[today.getMonth()]} ${today.getFullYear()}</h4>
+            <p class="text-3xl font-bold text-primary mt-2">${today.getDate()}</p>
+            <p class="text-sm text-gray-600">${today.toLocaleDateString('en-US', { weekday: 'long' })}</p>
+        </div>
+    `;
+}
+
+function setupAutoRefresh() {
+    // Refresh data every 30 seconds
+    setInterval(function() {
+        fetch(window.location.href, {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest'
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.attendance_summary) {
+                updateAttendanceStats(data.attendance_summary);
+            }
+        })
+        .catch(error => console.log('Auto-refresh failed:', error));
+    }, 30000);
+}
+
+function updateAttendanceStats(data) {
+    // Update stat values
+    const stats = ['present', 'absent', 'late', 'on_leave'];
+    stats.forEach(stat => {
+        const element = document.querySelector(`[data-stat="${stat}"] .stat-value`);
+        if (element && data[stat] !== undefined) {
+            element.textContent = data[stat];
+        }
+    });
+}
+
+function setupQuickActions() {
+    // Quick action functions
+    window.openStaffModal = function() {
+        // Implement staff modal opening
+        alert('Staff management modal would open here');
+    };
+    
+    window.exportAttendance = function() {
+        window.showLoading();
+        // Use the new dashboard export functionality
+        window.location.href = '/admin/export_dashboard_data?type=all&format=excel';
+        setTimeout(() => {
+            window.hideLoading();
+        }, 2000);
+    };
+    
+    window.markAttendance = function() {
+        // Implement attendance marking
+        alert('Attendance marking interface would open here');
+    };
+    
+    window.generateReports = function() {
+        // Implement report generation
+        alert('Report generation interface would open here');
+    };
+}
+
+// Chart filter handlers
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('chart-filter-btn')) {
+        // Remove active class from all filter buttons
+        document.querySelectorAll('.chart-filter-btn').forEach(btn => btn.classList.remove('active'));
+        // Add active class to clicked button
+        e.target.classList.add('active');
+        
+        // Update chart based on selected period
+        const period = e.target.dataset.period;
+        updateChartData(period);
+    }
+});
+
+function updateChartData(period) {
+    // Implement chart data update based on period
+    console.log('Updating chart data for period:', period);
+}
+</script>
+{% endblock %}

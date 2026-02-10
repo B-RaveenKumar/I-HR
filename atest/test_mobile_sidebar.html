@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile Toggle Test</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .test-status {
+            position: fixed;
+            top: 70px;
+            right: 20px;
+            background: #17a2b8;
+            color: white;
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 1060;
+            max-width: 300px;
+            font-size: 0.9rem;
+        }
+        .main-content {
+            padding: 100px 20px 20px;
+            text-align: center;
+        }
+        .debug-info {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            text-align: left;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle -->
+    <button type="button" class="sidebar-toggle d-md-none" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar -->
+            <nav class="col-md-2 enhanced-sidebar" id="enhanced-sidebar" style="display: none;">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        <div class="logo-icon">
+                            <i class="bi bi-building-gear"></i>
+                        </div>
+                        <div class="brand-text">
+                            <h6 class="brand-title">VishnoRex</h6>
+                            <small class="brand-subtitle">Mobile Test</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">Test User</div>
+                            <div class="user-role">Administrator</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Main Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link active" href="#" onclick="testNavClick('Dashboard')">
+                                    <div class="nav-icon"><i class="bi bi-house-door"></i></div>
+                                    <span class="nav-text">Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" onclick="testNavClick('Staff Management')">
+                                    <div class="nav-icon"><i class="bi bi-people"></i></div>
+                                    <span class="nav-text">Staff Management</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#" onclick="testNavClick('Salary Management')">
+                                    <div class="nav-icon"><i class="bi bi-currency-dollar"></i></div>
+                                    <span class="nav-text">Salary Management</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                    
+                    <!-- Sidebar Footer -->
+                    <div class="sidebar-footer">
+                        <button type="button" class="logout-btn" onclick="testNavClick('Logout')" title="Logout">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- Main Content -->
+            <main class="col-md-10 salary-main-content">
+                <div class="main-content">
+                    <h1>📱 Mobile Sidebar Toggle Test</h1>
+                    <p class="lead">Testing the mobile menu functionality</p>
+                    
+                    <div class="debug-info">
+                        <strong>Debug Information:</strong><br>
+                        Screen Width: <span id="screenWidth"></span>px<br>
+                        Toggle Button Visible: <span id="toggleVisible"></span><br>
+                        Sidebar Display: <span id="sidebarDisplay"></span><br>
+                        Sidebar Show Class: <span id="sidebarShow"></span><br>
+                        Last Action: <span id="lastAction">Page loaded</span>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">🖥️ Desktop (>768px)</h5>
+                                    <ul class="list-unstyled">
+                                        <li>✅ Sidebar visible on left</li>
+                                        <li>✅ Toggle button hidden</li>
+                                        <li>✅ Full navigation access</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card">
+                                <div class="card-body">
+                                    <h5 class="card-title">📱 Mobile (≤768px)</h5>
+                                    <ul class="list-unstyled">
+                                        <li>✅ Hamburger menu visible</li>
+                                        <li>✅ Click to show sidebar</li>
+                                        <li>✅ Click outside to close</li>
+                                        <li>✅ Slide animation</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <button class="btn btn-primary" onclick="toggleDebugInfo()">Toggle Debug Info</button>
+                        <button class="btn btn-secondary" onclick="simulateMobile()">Simulate Mobile View</button>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Test Status Panel -->
+    <div class="test-status">
+        <strong>📱 Mobile Test Status</strong><br>
+        <span id="testStatus">Initializing...</span>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Mobile sidebar toggle functionality
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('enhanced-sidebar');
+            
+            // Debug function
+            function updateDebugInfo() {
+                document.getElementById('screenWidth').textContent = window.innerWidth;
+                document.getElementById('toggleVisible').textContent = window.getComputedStyle(sidebarToggle).display !== 'none' ? 'Yes' : 'No';
+                document.getElementById('sidebarDisplay').textContent = window.getComputedStyle(sidebar).display;
+                document.getElementById('sidebarShow').textContent = sidebar.classList.contains('show') ? 'Yes' : 'No';
+                
+                // Update test status
+                const testStatus = document.getElementById('testStatus');
+                if (window.innerWidth <= 768) {
+                    testStatus.innerHTML = 'Mobile view detected<br>Click hamburger menu to test';
+                } else {
+                    testStatus.innerHTML = 'Desktop view<br>Resize to test mobile';
+                }
+            }
+            
+            // Show sidebar on desktop by default
+            function updateSidebarVisibility() {
+                if (window.innerWidth > 768) {
+                    sidebar.style.display = 'block';
+                    sidebar.classList.remove('show');
+                } else {
+                    sidebar.style.display = 'block'; // Make sure it's not hidden by inline style
+                }
+                updateDebugInfo();
+            }
+            
+            // Initial setup
+            updateSidebarVisibility();
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    console.log('Toggle button clicked');
+                    document.getElementById('lastAction').textContent = 'Toggle button clicked';
+                    
+                    sidebar.classList.toggle('show');
+                    
+                    // Update aria-expanded for accessibility
+                    const expanded = sidebar.classList.contains('show');
+                    sidebarToggle.setAttribute('aria-expanded', expanded);
+                    
+                    console.log('Sidebar has show class:', expanded);
+                    updateDebugInfo();
+                });
+                
+                // Close sidebar when clicking outside on mobile
+                document.addEventListener('click', function(event) {
+                    if (window.innerWidth <= 768) { // Only on mobile
+                        if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
+                            sidebar.classList.remove('show');
+                            sidebarToggle.setAttribute('aria-expanded', 'false');
+                            document.getElementById('lastAction').textContent = 'Clicked outside - sidebar closed';
+                            updateDebugInfo();
+                        }
+                    }
+                });
+                
+                // Handle window resize
+                window.addEventListener('resize', function() {
+                    updateSidebarVisibility();
+                    document.getElementById('lastAction').textContent = 'Window resized';
+                });
+            }
+            
+            // Initial debug update
+            setTimeout(updateDebugInfo, 100);
+        });
+        
+        function testNavClick(item) {
+            document.getElementById('lastAction').textContent = `Clicked: ${item}`;
+            alert(`Navigation clicked: ${item}`);
+        }
+        
+        function toggleDebugInfo() {
+            const debugInfo = document.querySelector('.debug-info');
+            debugInfo.style.display = debugInfo.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function simulateMobile() {
+            document.body.style.width = '375px';
+            document.body.style.margin = '0 auto';
+            window.dispatchEvent(new Event('resize'));
+        }
+    </script>
+</body>
+</html>

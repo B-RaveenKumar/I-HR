@@ -1,0 +1,40 @@
+<header class="container-fluid bg-light py-2 border-bottom">
+    <div class="row align-items-center">
+        <div class="col-md-6">
+            <div class="d-flex align-items-center">
+                {% if session.school_id %}
+                    {% set school = get_school_by_id(session.school_id) %}
+                    {% set logo_url = url_for('static', filename=school.logo_url) if school.logo_url else url_for('static', filename='images/default_logo.png') %}
+                    <img src="{{ logo_url }}" 
+                         alt="School Logo" 
+                         style="height: 50px; margin-right: 15px;"
+                         onerror="this.src='{{ url_for('static', filename='images/applogo.png') }}'">
+                {% else %}
+                    <img src="{{ url_for('static', filename='images/applogo.png') }}" 
+                         alt="VishnoRex Logo" 
+                         style="height: 50px; margin-right: 15px;"
+                         onerror="this.src='{{ url_for('static', filename='images/applogo.png') }}'">
+                {% endif %}
+                <div>
+                    <h4 class="mb-0 text-primary">VISHNOREX</h4>
+                    <small class="text-muted">TECHNOLOGIES Pvt.Ltd.</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 text-end">
+            {% if session.user_type %}
+            <div class="dropdown">
+                <button class="btn btn-outline-primary dropdown-toggle" type="button" 
+                        id="userDropdown" data-bs-toggle="dropdown">
+                    <i class="bi bi-person-circle"></i> {{ session.full_name or 'User' }}
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><a class="dropdown-item" href="#">Profile</a></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li><a class="dropdown-item" href="{{ url_for('logout') }}">Logout</a></li>
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</header>

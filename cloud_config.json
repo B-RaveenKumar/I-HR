@@ -1,0 +1,46 @@
+{
+  "config": {
+    "cloud_provider": "disabled",
+    "api_base_url": "",
+    "websocket_url": "",
+    "mqtt_broker": "",
+    "mqtt_port": 0,
+    "api_key": "",
+    "secret_key": "",
+    "organization_id": "",
+    "connection_timeout": 30,
+    "retry_attempts": 0,
+    "heartbeat_interval": 0,
+    "use_ssl": false,
+    "verify_ssl": false,
+    "encryption_enabled": false,
+    "auto_sync": false,
+    "sync_interval": 0,
+    "batch_size": 0,
+    "local_backup": true,
+    "backup_retention_days": 30
+  },
+  "devices": [
+    {
+      "device_id": "181",
+      "device_name": "ZK Biometric Device 181",
+      "device_type": "ZK_BIOMETRIC",
+      "local_ip": "182.66.109.42",
+      "local_port": 32150,
+      "cloud_enabled": false,
+      "sync_interval": 0,
+      "last_sync": null
+    },
+    {
+      "device_id": "1",
+      "device_name": "ZK Factory Default Device",
+      "device_type": "ZK_BIOMETRIC",
+      "local_ip": "192.168.1.201",
+      "local_port": 4370,
+      "cloud_enabled": false,
+      "sync_interval": 0,
+      "last_sync": null
+    }
+  ],
+  "endpoints": []
+}

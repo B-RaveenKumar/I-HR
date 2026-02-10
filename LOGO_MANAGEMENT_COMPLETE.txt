@@ -1,0 +1,371 @@
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║            🏢 COMPANY ADMIN LOGO MANAGEMENT - IMPLEMENTATION COMPLETE        ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🎯 NEW FEATURES IMPLEMENTED                                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ EDIT SCHOOL BUTTON
+   - Green pencil icon added to Actions column
+   - Appears next to View, Archive, Delete buttons
+   - Opens edit modal with current school data
+
+✅ EDIT SCHOOL MODAL
+   - Pre-populated with existing data
+   - Current logo preview (if exists)
+   - Upload new logo to replace old one
+   - Toggle branding on/off
+   - Update button saves changes
+
+✅ LOGO UPLOAD (Add & Edit)
+   - File upload with validation
+   - Automatic old logo deletion
+   - Secure filename generation
+   - Multiple format support (PNG, JPG, GIF)
+
+✅ AUTOMATIC LOGO SYNC
+   - Company admin updates logo → Database updated
+   - Admin logs in → New logo in navbar
+   - Staff logs in → New logo in navbar
+   - Works across all 9+ template pages
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  📋 FILES MODIFIED                                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+⚙️  BACKEND (app.py)
+    ├── ✅ Updated add_school route
+    │      - Use logo_path column (not logo_url)
+    │      - Save to static/uploads/logos/
+    │      - Include branding_enabled flag
+    │
+    ├── ✅ NEW: get_school/<id> route (GET)
+    │      - Fetch school data for editing
+    │      - Return JSON with all fields
+    │      - Include current logo path
+    │
+    └── ✅ NEW: edit_school/<id> route (POST)
+           - Update school details
+           - Handle logo upload
+           - Delete old logo automatically
+           - Update branding settings
+
+📄 FRONTEND (templates/company_dashboard.html)
+    ├── ✅ Added Edit button to Actions column
+    │      - Green pencil icon
+    │      - data-school-id attribute
+    │      - Positioned between View and Archive
+    │
+    └── ✅ NEW: Edit School Modal
+           - School info fields (name, address, email, phone)
+           - Current logo preview
+           - New logo upload input
+           - Branding enable/disable toggle
+           - Update button
+
+📜 JAVASCRIPT (static/js/company_dashboard.js)
+    ├── ✅ Updated saveSchool function
+    │      - Use FormData for file upload
+    │      - Include logo file in POST
+    │
+    ├── ✅ NEW: Edit school button handler
+    │      - Fetch school data via GET
+    │      - Populate modal fields
+    │      - Show current logo preview
+    │      - Open edit modal
+    │
+    └── ✅ NEW: updateSchool function
+           - Validate required fields
+           - Create FormData with all fields
+           - Include new logo file if selected
+           - POST to edit_school endpoint
+           - Show success message
+           - Reload page
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🔄 HOW LOGO UPDATES FLOW                                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    COMPANY ADMIN                    DATABASE                    ADMIN/STAFF
+         │                              │                              │
+         │  1. Click Edit School        │                              │
+         ├─────────────────────────────►│                              │
+         │                              │                              │
+         │  2. Load Current Data        │                              │
+         │◄─────────────────────────────┤                              │
+         │  (name, logo_path, etc)      │                              │
+         │                              │                              │
+         │  3. Upload New Logo          │                              │
+         │  4. Click Update             │                              │
+         ├─────────────────────────────►│                              │
+         │                              │  5. Update logo_path         │
+         │                              │  6. Save new logo file       │
+         │                              │  7. Delete old logo          │
+         │                              │                              │
+         │  8. Success Message          │                              │
+         │◄─────────────────────────────┤                              │
+         │                              │                              │
+         │                              │  9. Admin/Staff Login        │
+         │                              │◄─────────────────────────────┤
+         │                              │                              │
+         │                              │  10. Context Processor       │
+         │                              │      Loads logo_path         │
+         │                              ├─────────────────────────────►│
+         │                              │                              │
+         │                              │  11. Render with New Logo    │
+         │                              │◄─────────────────────────────┤
+         │                              │                              │
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🎨 USER INTERFACE                                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+    COMPANY DASHBOARD - School Table
+    ┌────────────────────────────────────────────────────────────────────┐
+    │ School Name │ Address │ Contact │ Admins │ Staff │ Actions       │
+    ├────────────────────────────────────────────────────────────────────┤
+    │ Bharathiyar │ 123 St  │ email   │   2    │  50   │ [👁️] [✏️] [📦] [🗑️] │
+    │             │         │  phone  │        │       │  View Edit Hide Del  │
+    └────────────────────────────────────────────────────────────────────┘
+                                                         ↑
+                                                    NEW BUTTON!
+
+    EDIT SCHOOL MODAL
+    ┌─────────────────────────────────────────────────────────────┐
+    │  ✏️  Edit School                                     [X]     │
+    ├─────────────────────────────────────────────────────────────┤
+    │                                                             │
+    │  📋 School Information                                      │
+    │  ┌─────────────────┐  ┌─────────────────┐                 │
+    │  │ School Name *   │  │ Address         │                 │
+    │  │ [Bharathiyar  ] │  │ [123 Main St  ] │                 │
+    │  └─────────────────┘  └─────────────────┘                 │
+    │                                                             │
+    │  ┌─────────────────┐  ┌─────────────────┐                 │
+    │  │ Contact Email   │  │ Contact Phone   │                 │
+    │  │ [school@edu.in] │  │ [555-1234    ] │                 │
+    │  └─────────────────┘  └─────────────────┘                 │
+    │                                                             │
+    │  🖼️  Current Logo                                           │
+    │  ┌─────────────────────────────────┐                       │
+    │  │  [B]  ← Preview of current logo │                       │
+    │  └─────────────────────────────────┘                       │
+    │                                                             │
+    │  📤 Update Logo                                             │
+    │  ┌─────────────────────────────────┐                       │
+    │  │ [Choose File] No file chosen    │                       │
+    │  └─────────────────────────────────┘                       │
+    │                                                             │
+    │  🎨 ☑️ Enable Custom Branding                               │
+    │     When enabled, logo appears in admin/staff panels       │
+    │                                                             │
+    ├─────────────────────────────────────────────────────────────┤
+    │                          [Cancel] [✓ Update School]         │
+    └─────────────────────────────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  📝 USAGE INSTRUCTIONS                                                       │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+🔷 TO EDIT A SCHOOL:
+
+  1. Login as Company Admin
+     └─→ Navigate to Company Dashboard
+
+  2. Find the School
+     └─→ Use search box or scroll through table
+
+  3. Click Green Pencil Icon (✏️)
+     └─→ Edit button in Actions column
+     └─→ Modal opens with current data
+
+  4. Update Details
+     └─→ Change name, address, contact info
+     └─→ Current logo shows at top
+     └─→ Click "Choose File" to upload new logo
+
+  5. Click "Update School"
+     └─→ Success message appears
+     └─→ Page reloads with updated data
+
+  6. Verify Logo Update
+     └─→ Admin/Staff logs out
+     └─→ Logs back in
+     └─→ New logo appears in sidebar
+
+
+🔷 TO UPLOAD A LOGO:
+
+  ✅ Recommended Format: PNG with transparent background
+  ✅ Recommended Size: 200x60px or similar ratio
+  ✅ Max File Size: 5MB
+  ✅ Supported: PNG, JPG, JPEG, GIF, BMP, WebP
+
+
+🔷 LOGO APPEARS IN:
+
+  ✅ Admin Dashboard navbar
+  ✅ Staff Dashboard navbar
+  ✅ Staff Management page
+  ✅ Salary Management page
+  ✅ Admin Reports page
+  ✅ Admin Settings page
+  ✅ Department Shifts page
+  ✅ Staff Profile page
+  ✅ Work Time Assignment page
+  ✅ All other admin/staff pages
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🧪 TESTING CHECKLIST                                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+STEP 1: TEST EDIT BUTTON
+  □ Login as company admin
+  □ Open Company Dashboard
+  □ Locate school in table
+  □ Verify green pencil icon visible
+  □ Click edit button
+  □ Modal opens successfully
+
+STEP 2: TEST LOAD CURRENT DATA
+  □ Modal shows current school name
+  □ Modal shows current address
+  □ Modal shows current contact info
+  □ Current logo displays (if exists)
+  □ Branding toggle reflects current state
+
+STEP 3: TEST LOGO UPLOAD
+  □ Click "Choose File"
+  □ Select PNG/JPG image
+  □ File name appears in input
+  □ Click "Update School"
+  □ Success message: "School updated successfully!"
+  □ Page reloads
+
+STEP 4: TEST LOGO IN DATABASE
+  □ Run: SELECT logo_path FROM schools WHERE id = X;
+  □ Verify logo_path updated
+  □ Check file exists: ls static/uploads/logos/
+  □ Verify filename format: schoolname_logo_timestamp.ext
+
+STEP 5: TEST LOGO IN ADMIN PANEL
+  □ Logout as company admin
+  □ Login as school admin
+  □ Check sidebar header
+  □ Verify new logo displays
+  □ Navigate to Staff Management
+  □ Logo still shows
+  □ Navigate to Reports
+  □ Logo still shows
+
+STEP 6: TEST LOGO IN STAFF PANEL
+  □ Logout as admin
+  □ Login as staff member (same school)
+  □ Check sidebar header
+  □ Verify new logo displays
+  □ Navigate to My Profile
+  □ Logo still shows
+
+STEP 7: TEST MULTIPLE SCHOOLS
+  □ Edit School A logo (upload blue logo)
+  □ Edit School B logo (upload red logo)
+  □ Login as School A admin → see blue logo
+  □ Logout and login as School B admin → see red logo
+  □ No logo mixing between schools
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  🐛 TROUBLESHOOTING                                                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+❌ ISSUE: Edit button not visible
+   ✅ FIX: Clear browser cache, hard refresh (Ctrl+F5)
+
+❌ ISSUE: Modal doesn't open
+   ✅ FIX: Check browser console for JS errors
+   ✅ FIX: Ensure Bootstrap JS is loaded
+
+❌ ISSUE: Logo doesn't update after edit
+   ✅ FIX: Admin/staff must logout and login again
+   ✅ FIX: Session stores old logo path until refresh
+
+❌ ISSUE: "Failed to save school logo"
+   ✅ FIX: Check directory exists: static/uploads/logos/
+   ✅ FIX: Check write permissions on directory
+   ✅ FIX: Verify file format is allowed
+
+❌ ISSUE: Logo too big/small in sidebar
+   ✅ FIX: Adjust CSS max-height in admin_dashboard.css:
+          .institution-logo { max-height: 80px; }
+
+❌ ISSUE: Old logo not deleted
+   ✅ FIX: Check file permissions
+   ✅ FIX: Manually delete from static/uploads/logos/
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  📊 TECHNICAL SUMMARY                                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+BACKEND ROUTES ADDED:
+  • GET  /get_school/<id>      → Fetch school data for editing
+  • POST /edit_school/<id>     → Update school with new logo
+
+BACKEND ROUTES MODIFIED:
+  • POST /add_school           → Use logo_path, include branding
+
+FRONTEND COMPONENTS ADDED:
+  • Edit School button         → Green pencil in Actions column
+  • Edit School modal          → Full form with logo preview
+
+FRONTEND COMPONENTS MODIFIED:
+  • Add School handler         → Use FormData for file upload
+
+JAVASCRIPT FUNCTIONS ADDED:
+  • Edit school click handler  → Fetch and populate modal
+  • updateSchool()             → Save edits with logo upload
+
+DATABASE COLUMNS USED:
+  • schools.logo_path          → Path to logo file
+  • schools.branding_enabled   → Toggle branding on/off
+
+FILE STORAGE:
+  • Location: static/uploads/logos/
+  • Format: schoolname_logo_timestamp.ext
+  • Old files: Automatically deleted on update
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│  ✅ IMPLEMENTATION STATUS                                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+✅ Edit School Button ............................ COMPLETE
+✅ Edit School Modal ............................. COMPLETE
+✅ Load Current Data ............................. COMPLETE
+✅ Logo Preview .................................. COMPLETE
+✅ Logo Upload (Add School) ...................... COMPLETE
+✅ Logo Upload (Edit School) ..................... COMPLETE
+✅ Old Logo Deletion ............................. COMPLETE
+✅ Database Update ............................... COMPLETE
+✅ Context Processor (Already exists) ............ COMPLETE
+✅ Logo in Admin Panel (Already exists) .......... COMPLETE
+✅ Logo in Staff Panel (Already exists) .......... COMPLETE
+✅ Logo Across All Pages (Already exists) ........ COMPLETE
+✅ Branding Toggle ............................... COMPLETE
+
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                                                                              ║
+║                         🚀 READY FOR TESTING 🚀                              ║
+║                                                                              ║
+║              Company admins can now edit schools and upload logos!           ║
+║         Logo changes automatically appear in admin & staff panels!           ║
+║                                                                              ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+

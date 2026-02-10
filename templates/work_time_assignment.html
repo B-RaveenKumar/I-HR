@@ -1,0 +1,3825 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Work Time Assignment - VishnoRex</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.css">
+    <style>
+        /* OVERRIDE: Fix sidebar positioning for work time assignment - Higher specificity */
+        .container-fluid {
+            padding: 0;
+            margin: 0;
+        }
+        
+        .row {
+            margin: 0;
+            height: fit-content !important;
+            min-height: unset !important;
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        
+        /* Sidebar positioning - Match staff management exactly */
+        .enhanced-sidebar {
+            position: fixed !important;
+            top: 0;
+            left: 0;
+            width: 250px; /* Fixed width instead of percentage */
+            height: 100vh;
+            overflow-y: auto;
+            overflow-x: hidden;
+            z-index: 1000;
+            display: block !important; /* Override inline style */
+        }
+        
+        /* Main content positioning - Match staff management */
+        .salary-main-content {
+            margin-left: 250px !important; /* Match sidebar width exactly */
+            width: calc(100% - 250px) !important; /* Fill remaining space */
+            min-height: 100vh;
+            padding: 2rem 1rem;
+            overflow-x: hidden;
+        }
+        
+        /* Remove Bootstrap default spacing that causes issues */
+        .col-md-2, .col-md-10 {
+            padding-left: 0;
+            padding-right: 0;
+        }
+        
+        /* Mobile responsive fixes - Match staff management */
+        @media (max-width: 767.98px) {
+            .enhanced-sidebar {
+                position: fixed !important;
+                top: 0;
+                left: -100%;
+                width: 280px;
+                height: 100vh;
+                overflow: hidden !important;
+                transition: left 0.3s ease;
+                z-index: 1050;
+                display: none !important; /* Hidden by default on mobile */
+            }
+            
+            .enhanced-sidebar.show {
+                left: 0;
+                display: block !important;
+            }
+            
+            .salary-main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1rem 0.5rem;
+                padding-top: 4rem; /* Account for mobile toggle button */
+            }
+            
+            .sidebar-toggle {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+            }
+        }
+        
+        /* Enhanced sidebar toggle styling with intelligent behavior */
+        .sidebar-toggle {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 1100;
+            background: #221e66;
+            color: white;
+            border: none;
+            border-radius: 0.5rem;
+            padding: 0.75rem;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            transition: all 0.3s ease, opacity 0.2s ease-in-out;
+            cursor: pointer;
+            opacity: 1;
+        }
+        
+        .sidebar-toggle:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            background: #221e66;
+        }
+        
+        /* Show toggle button on mobile AND tablet/laptop views */
+        @media (max-width: 1024px) {
+            .sidebar-toggle {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+            }
+        }
+        
+        /* Hide toggle only on large desktop screens */
+        @media (min-width: 1025px) {
+            .sidebar-toggle {
+                display: none !important;
+                opacity: 0;
+            }
+        }
+
+        /* Work Time Assignment specific styles */
+        .timing-cards {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .timing-card {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            border-left: 4px solid #28a745;
+            transition: all 0.3s ease;
+        }
+
+        .timing-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .check-out-card {
+            border-left-color: #17a2b8;
+        }
+
+        .timing-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .timing-label {
+            font-weight: 600;
+            color: white;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .timing-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2c3e50;
+        }
+
+        .time-config-form {
+            background: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .form-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
+        }
+
+        .btn-save-timing {
+            background: #221e66;
+            border: none;
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .btn-save-timing:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(34, 30, 102, 0.3);
+        }
+
+        .btn-reset-timing {
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+        }
+
+        .validation-message {
+            margin: 1rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .timing-cards {
+                flex-direction: column;
+            }
+            
+            .form-actions {
+                flex-direction: column;
+            }
+            
+            .form-actions .btn {
+                width: 100%;
+            }
+        }
+
+        /* Enhanced card styling */
+        .card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+            transform: translateY(-2px);
+        }
+
+        .card-header {
+            border-radius: 12px 12px 0 0 !important;
+            border-bottom: none;
+            padding: 1.5rem;
+        }
+
+        .card-body {
+            padding: 2rem;
+        }
+
+        /* Holiday Management Styles */
+        .holiday-controls {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+
+        .control-title {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .weekly-off-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .form-check-input:checked {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+
+        .additional-days select {
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        /* Quota Management Styles */
+        .quota-section {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            padding: 1.5rem;
+            border: 1px solid rgba(0,0,0,0.08);
+        }
+
+        .quota-category-title {
+            color: #495057;
+            font-weight: 600;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .quota-actions {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .quota-status-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            border-left: 4px solid #007bff;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .quota-status-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+
+        .quota-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1rem;
+        }
+
+        .quota-card-title {
+            font-weight: 600;
+            color: #495057;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .quota-badge {
+            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+
+        .quota-progress {
+            height: 8px;
+            background: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 1rem;
+        }
+
+        .quota-progress-bar {
+            height: 100%;
+            transition: width 0.3s ease;
+            border-radius: 4px;
+        }
+
+        .quota-stats {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.9rem;
+        }
+
+        .quota-stat {
+            text-align: center;
+        }
+
+        .quota-stat-value {
+            font-weight: 600;
+            font-size: 1.1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .quota-stat-label {
+            color: white;
+            font-size: 0.8rem;
+        }
+
+        /* Quota progress bar colors */
+        .progress-bar-success { background: #221e66; }
+        .progress-bar-warning { background: #221e66; }
+        .progress-bar-danger { background: #221e66; }
+
+        /* Card border colors by quota type */
+        .quota-status-card.leave-card { border-left-color: #17a2b8; }
+        .quota-status-card.od-card { border-left-color: #007bff; }
+        .quota-status-card.permission-card { border-left-color: white; }
+
+        /* Quota Status Container Scrolling */
+        .quota-status-container {
+            max-height: 300px !important;
+            min-height: 100px;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            padding-right: 10px;
+            margin-right: -10px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            padding: 15px;
+            position: relative;
+            display: block !important;
+        }
+
+        /* More specific selector to override any conflicting styles */
+        #currentQuotaDisplay .quota-status-container {
+            overflow-y: scroll !important;
+            scrollbar-width: thin;
+            scrollbar-color: #c1c1c1 #f1f1f1;
+        }
+
+        /* Override Bootstrap row behavior inside quota container */
+        .quota-status-container .row {
+            margin-right: 0 !important;
+            margin-left: 0 !important;
+            flex-wrap: wrap !important;
+        }
+
+        /* Force scrollbar to always show for testing */
+        .quota-status-container::-webkit-scrollbar {
+            width: 12px !important;
+            display: block !important;
+        }
+
+
+
+        /* Scroll indicator gradient */
+        .quota-status-container::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 20px;
+            background: linear-gradient(transparent, rgba(248, 249, 250, 0.8));
+            pointer-events: none;
+            border-radius: 0 0 8px 8px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .quota-status-container {
+                max-height: 250px;
+                min-height: 80px;
+                padding: 10px;
+                padding-right: 15px;
+                margin-right: -15px;
+            }
+        }
+
+        /* Custom scrollbar for quota status container */
+        .quota-status-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .quota-status-container::-webkit-scrollbar-track {
+            background: #f1f1f1;
+            border-radius: 10px;
+        }
+
+        .quota-status-container::-webkit-scrollbar-thumb {
+            background: #c1c1c1;
+            border-radius: 10px;
+            transition: background-color 0.3s ease;
+        }
+
+        .quota-status-container::-webkit-scrollbar-thumb:hover {
+            background: #a1a1a1;
+        }
+
+        /* Smooth scrolling */
+        .quota-status-container {
+            scroll-behavior: smooth;
+        }
+
+        /* Holiday Calendar Styles */
+        .holiday-calendar-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .calendar-container {
+            margin-top: 1rem;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            /* Enable horizontal scrolling */
+            overflow-x: auto;
+            overflow-y: hidden;
+            /* Smooth scrolling behavior */
+            scroll-behavior: smooth;
+            /* Custom scrollbar styling */
+            scrollbar-width: thin;
+            scrollbar-color: #007bff #f8f9fa;
+        }
+
+        /* Custom scrollbar for webkit browsers */
+        .calendar-container::-webkit-scrollbar {
+            height: 8px;
+        }
+
+        .calendar-container::-webkit-scrollbar-track {
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .calendar-container::-webkit-scrollbar-thumb {
+            background: #007bff;
+            border-radius: 4px;
+        }
+
+        .calendar-container::-webkit-scrollbar-thumb:hover {
+            background: #0056b3;
+        }
+
+        /* Holiday calendar section enhancements for horizontal scrolling */
+        .holiday-calendar-section {
+            position: relative;
+        }
+
+        /* Scroll indicator for better UX */
+        .calendar-container::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 20px;
+            height: 100%;
+            background: linear-gradient(to left, rgba(255,255,255,0.8), transparent);
+            pointer-events: none;
+            z-index: 1;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .calendar-container:hover::before {
+            opacity: 1;
+        }
+
+        /* Ensure FullCalendar toolbar remains accessible */
+        .fc-toolbar {
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+
+        .fc-toolbar-chunk {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        #holidayCalendar {
+            height: 500px;
+            /* Ensure minimum width for horizontal scrolling */
+            min-width: 800px;
+            /* Prevent calendar from shrinking too much */
+            width: 100%;
+        }
+
+        /* Enhanced Calendar Legend Styling */
+        .calendar-legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            justify-content: center;
+            padding: 1.5rem;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-radius: 12px;
+            margin-top: 1rem;
+            border: 1px solid #dee2e6;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #495057;
+            padding: 0.5rem 1rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        .legend-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Institution-wide holidays - Enhanced Green gradient */
+        .legend-color.institution-wide {
+            background: #221e66;
+            border-color: #221e66;
+        }
+
+        /* Department-specific holidays - Enhanced Orange gradient */
+        .legend-color.department-specific {
+            background: #221e66;
+            border-color: #221e66;
+        }
+
+        /* Common leave holidays - Enhanced Blue/Purple gradient */
+        .legend-color.common-leave {
+            background: #221e66;
+            border-color: #221e66;
+        }
+
+        /* Weekly off legend styling removed per requirements */
+
+        /* Holiday List Styles */
+        .holiday-list-section {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+
+        .holiday-items-container {
+            max-height: 500px;
+            overflow-y: auto;
+            padding-right: 0.5rem;
+        }
+
+        .holiday-item {
+            background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 0.75rem;
+            border: 1px solid rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .holiday-item:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        .holiday-item.institution-wide {
+            border-left: 4px solid #28a745;
+        }
+
+        .holiday-item.department-specific {
+            border-left: 4px solid #ffc107;
+        }
+
+        .holiday-item.common-leave {
+            border-left: 4px solid #17a2b8;
+        }
+
+        .holiday-name {
+            font-weight: 600;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .holiday-dates {
+            color: white;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .holiday-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .holiday-type-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+
+        /* Month Navigation Styles */
+        .holiday-month-navigation {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .holiday-month-navigation .btn {
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+
+        #currentMonthDisplay {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #495057;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        /* Past Holiday Blackout Styles */
+        .holiday-item.past-holiday {
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+            border-color: rgba(0,0,0,0.05);
+            opacity: 0.6;
+            position: relative;
+        }
+
+        .holiday-item.past-holiday::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(108, 117, 125, 0.1);
+            border-radius: 8px;
+            pointer-events: none;
+        }
+
+        .holiday-item.past-holiday .holiday-name {
+            color: white;
+            text-decoration: line-through;
+        }
+
+        .holiday-item.past-holiday .holiday-dates {
+            color: #adb5bd;
+        }
+
+        .holiday-item.past-holiday .holiday-type-badge {
+            background-color: white !important;
+            color: #fff !important;
+        }
+
+        .holiday-item.past-holiday .holiday-actions .btn {
+            opacity: 0.5;
+            pointer-events: none;
+        }
+
+        /* Past holiday border colors override */
+        .holiday-item.past-holiday.institution-wide {
+            border-left-color: white;
+        }
+
+        .holiday-item.past-holiday.department-specific {
+            border-left-color: white;
+        }
+
+        .holiday-item.past-holiday.common-leave {
+            border-left-color: white;
+        }
+
+        /* FullCalendar Custom Styling - Enhanced Color Coding */
+        .fc-event.holiday-event {
+            border-radius: 8px;
+            padding: 3px 6px;
+            font-weight: 600;
+            font-size: 0.85rem;
+            border-width: 2px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+
+        /* Institution-wide holidays - Green gradient (applies to all staff) */
+        .fc-event.institution-wide {
+            background: #221e66;
+            border-color: #221e66;
+            color: white;
+        }
+
+        /* Department-specific holidays - Orange gradient (applies to specific departments) */
+        .fc-event.department-specific {
+            background: #221e66;
+            border-color: #221e66;
+            color: white;
+        }
+
+        /* Calendar Date Hover Effect for Double-Click */
+        .fc-daygrid-day:hover {
+            background-color: rgba(13, 110, 253, 0.05);
+            cursor: pointer;
+        }
+        
+        .fc-daygrid-day:hover .fc-daygrid-day-number {
+            color: #0d6efd;
+            font-weight: 600;
+        }
+        
+        /* Add subtle animation for better UX */
+        .fc-daygrid-day {
+            transition: background-color 0.2s ease;
+        }
+
+        /* Common leave holidays - Blue/Purple gradient (general leave days) */
+        .fc-event.common-leave {
+            background: #221e66;
+            border-color: #221e66;
+            color: white;
+        }
+
+        /* Weekly off event styling removed per requirements */
+
+        /* Enhanced hover effects with type-specific styling */
+        .fc-event.holiday-event:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            transition: all 0.3s ease;
+            z-index: 10;
+        }
+
+        .fc-event.institution-wide:hover {
+            box-shadow: 0 6px 12px rgba(40, 167, 69, 0.4);
+        }
+
+        .fc-event.department-specific:hover {
+            box-shadow: 0 6px 12px rgba(253, 126, 20, 0.4);
+        }
+
+        .fc-event.common-leave:hover {
+            box-shadow: 0 6px 12px rgba(111, 66, 193, 0.4);
+        }
+
+        /* Weekly off hover styling removed per requirements */
+
+        /* Holiday Form Styles */
+        #holidayModal .modal-content {
+            border-radius: 15px;
+            border: none;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        #holidayModal .modal-header {
+            background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+            border-bottom: none;
+        }
+
+        #holidayModal .form-label {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        #holidayModal .form-control, #holidayModal .form-select {
+            border-radius: 8px;
+            border: 1px solid #d1d5db;
+            padding: 0.75rem;
+            transition: all 0.3s ease;
+        }
+
+        #holidayModal .form-control:focus, #holidayModal .form-select:focus {
+            border-color: #6366f1;
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+        }
+
+        /* Delete Modal Styles */
+        #deleteHolidayModal .modal-header {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            color: white;
+            border-radius: 15px 15px 0 0;
+        }
+
+        /* Responsive Design */
+        @media (max-width: 768px) {
+            .holiday-controls {
+                padding: 1rem;
+            }
+            
+            .row .col-md-8, .row .col-md-4 {
+                margin-bottom: 2rem;
+            }
+            
+            .calendar-legend {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            #holidayCalendar {
+                height: 400px;
+                /* Maintain minimum width on mobile for horizontal scrolling */
+                min-width: 600px;
+            }
+
+            /* Enhanced calendar container for mobile */
+            .calendar-container {
+                /* Show scrollbar on mobile for better UX */
+                -webkit-overflow-scrolling: touch;
+                /* Add padding for touch scrolling */
+                padding-bottom: 10px;
+            }
+
+            /* Calendar legend responsive adjustments */
+            .calendar-legend {
+                /* Ensure legend doesn't interfere with scrolling */
+                margin-top: 1rem;
+                padding: 1rem;
+            }
+        }
+
+        /* Animation Classes */
+        @keyframes slideInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .holiday-item {
+            animation: slideInUp 0.3s ease-out;
+        }
+
+        /* Spin animation for loading icons */
+        @keyframes spin {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <!-- Mobile Sidebar Toggle -->
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Enhanced Sidebar -->
+            <nav class="col-md-2 enhanced-sidebar" id="enhanced-sidebar">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        {% if institution.branding_enabled and institution.logo_path %}
+                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        {% else %}
+                            <div class="logo-icon">
+                                <i class="bi bi-clock-history"></i>
+                            </div>
+                        {% endif %}
+                        <div class="brand-text">
+                            {% if institution.branding_enabled and institution.name %}
+                                <h6 class="brand-title">{{ institution.name }}</h6>
+                                <small class="brand-subtitle">Admin Panel</small>
+                            {% else %}
+                                <h6 class="brand-title">VishnoRex</h6>
+                                <small class="brand-subtitle">Admin Panel</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-content">
+                    <!-- User Profile Section -->
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ session.get('full_name', 'Admin User') }}</div>
+                            <div class="user-role">Administrator</div>
+                        </div>
+                    </div>
+
+                    <!-- Navigation Menu -->
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Main Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/dashboard">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-house-door"></i>
+                                    </div>
+                                    <span class="nav-text">Dashboard</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_management') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-people"></i>
+                                    </div>
+                                    <span class="nav-text">Staff Management</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link active" href="{{ url_for('work_time_assignment') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-clock-history"></i>
+                                    </div>
+                                    <span class="nav-text">Work Time Assignment</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('salary_management') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-currency-dollar"></i>
+                                    </div>
+                                    <span class="nav-text">Salary Management</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/reports">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-graph-up"></i>
+                                    </div>
+                                    <span class="nav-text">Reports & Analytics</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Sidebar Footer -->
+                <div class="sidebar-footer">
+                    <div class="footer-stats">
+                        <div class="stat-item">
+                            <i class="bi bi-people"></i>
+                            <span id="totalStaffCount">{{ total_staff_count|default("-") }}</span>
+                        </div>
+                        <div class="stat-item">
+                            <i class="bi bi-calendar-day"></i>
+                            <span id="currentDate">-</span>
+                        </div>
+                    </div>
+                    <button type="button" class="logout-btn" onclick="logout()" title="Logout" aria-label="Logout from work time assignment">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </nav>
+            <!-- Main content -->
+            <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
+                <!-- CSRF Token for AJAX requests -->
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+
+                <!-- Enhanced Header -->
+                <div class="salary-header">
+                    <div class="header-content">
+                        <div class="header-title">
+                            <div class="title-icon">
+                                <i class="bi bi-clock-history"></i>
+                            </div>
+                            <div class="title-text">
+                                <h1 class="main-title">Work Time Assignment</h1>
+                                <p class="subtitle">Set and manage default check-in and check-out times for the institution</p>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-outline-primary" id="refreshTimingBtn" title="Refresh timing data">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                            <button type="button" class="btn btn-success" id="exportTimingBtn" title="Export timing configuration">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Time Assignment Section -->
+                <div class="salary-results-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Institution Timing Configuration</h5>
+                            <p class="card-subtitle">Configure default working hours for your institution</p>
+                        </div>
+                        <div class="header-actions">
+                            <div class="results-stats">
+                                <div class="stat-item">
+                                    <i class="bi bi-gear"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <!-- Current Timings Display -->
+                            <div class="col-md-6">
+                                <div class="current-timings-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-info-circle text-primary"></i> Current Institution Timings
+                                    </h6>
+                                    <div class="timing-cards">
+                                        <div class="timing-card check-in-card">
+                                            <div class="timing-icon">
+                                                <i class="bi bi-box-arrow-in-right text-success"></i>
+                                            </div>
+                                            <div class="timing-info">
+                                                <div class="timing-label">Institution Check-in Time</div>
+                                                <div class="timing-value" id="currentCheckinTime">09:00 AM</div>
+                                            </div>
+                                        </div>
+                                        <div class="timing-card check-out-card">
+                                            <div class="timing-icon">
+                                                <i class="bi bi-box-arrow-right text-info"></i>
+                                            </div>
+                                            <div class="timing-info">
+                                                <div class="timing-label">Institution Check-out Time</div>
+                                                <div class="timing-value" id="currentCheckoutTime">05:00 PM</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Time Configuration Form -->
+                            <div class="col-md-6">
+                                <div class="time-config-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-pencil-square text-warning"></i> Update Institution Timings
+                                    </h6>
+                                    <form id="workTimeForm" class="time-config-form">
+                                        <div class="mb-4">
+                                            <label for="institutionCheckinTime" class="form-label">
+                                                <i class="bi bi-sunrise"></i> Institution Check-in Time
+                                            </label>
+                                            <input type="time" class="form-control time-picker" id="institutionCheckinTime" name="checkin_time" required>
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle"></i> Default time when staff should check in
+                                            </div>
+                                        </div>
+                                        <div class="mb-4">
+                                            <label for="institutionCheckoutTime" class="form-label">
+                                                <i class="bi bi-sunset"></i> Institution Check-out Time
+                                            </label>
+                                            <input type="time" class="form-control time-picker" id="institutionCheckoutTime" name="checkout_time" required>
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle"></i> Default time when staff should check out
+                                            </div>
+                                        </div>
+                                        <div class="validation-message" id="timeValidationMessage" style="display: none;">
+                                            <div class="alert alert-danger">
+                                                <i class="bi bi-exclamation-triangle"></i> Check-out time must be later than check-in time!
+                                            </div>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="btn btn-primary btn-save-timing" id="saveTimingBtn">
+                                                <i class="bi bi-check-circle"></i> Save & Update Timings
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary btn-reset-timing" id="resetTimingBtn">
+                                                <i class="bi bi-arrow-clockwise"></i> Reset to Default
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Success/Error Messages -->
+                        <div class="mt-3">
+                            <div class="alert alert-success" id="timingSuccessMessage" style="display: none;">
+                                <i class="bi bi-check-circle-fill"></i> Institution timings updated successfully!
+                            </div>
+                            <div class="alert alert-danger" id="timingErrorMessage" style="display: none;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> <span id="errorMessageText">Failed to update timings. Please try again.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Holiday Management Section -->
+                <div class="salary-results-card mt-4">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-calendar-event"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Holiday Management System</h5>
+                            <p class="card-subtitle">Manage institutional holidays, common leaves, and weekly offs • <i class="bi bi-hand-index"></i> Double-click calendar dates to add holidays</p>
+                        </div>
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-primary" id="addHolidayBtn">
+                                <i class="bi bi-calendar-plus"></i> Add Holiday
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <!-- Holiday Management Controls -->
+                        <div class="row mb-4">
+                            <div class="col-md-12">
+                                <div class="holiday-controls">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Holiday Calendar and List -->
+                        <div class="row">
+                            <!-- Holiday Calendar -->
+                            <div class="col-md-8">
+                                <div class="holiday-calendar-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-calendar3 text-primary"></i> Holiday Calendar View
+                                    </h6>
+                                    <div class="calendar-container">
+                                        <div id="holidayCalendar"></div>
+                                    </div>
+                                    <div class="calendar-legend mt-3">
+                                        <div class="legend-item">
+                                            <span class="legend-color institution-wide"></span>
+                                            <span class="legend-text">Institution-wide Holidays</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color department-specific"></span>
+                                            <span class="legend-text">Department-specific Holidays</span>
+                                        </div>
+                                        <div class="legend-item">
+                                            <span class="legend-color common-leave"></span>
+                                            <span class="legend-text">Common Leave Days</span>
+                                        </div>
+
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Holiday List -->
+                            <div class="col-md-4">
+                                <div class="holiday-list-section">
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <h6 class="section-title mb-0">
+                                            <i class="bi bi-list-check text-success"></i> Holiday List
+                                        </h6>
+                                        
+                                        <!-- Month Navigation Controls -->
+                                        <div class="holiday-month-navigation">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="prevMonthBtn" title="Previous Month">
+                                                <i class="bi bi-chevron-left"></i>
+                                            </button>
+                                            <span class="mx-2 text-nowrap" id="currentMonthDisplay">Current Month</span>
+                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="nextMonthBtn" title="Next Month">
+                                                <i class="bi bi-chevron-right"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    
+                                    <!-- Loading and Messages -->
+                                    <div class="text-center py-3" id="holidaysLoading" style="display: none;">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Loading holidays...</span>
+                                        </div>
+                                        <div class="mt-2">Loading holidays...</div>
+                                    </div>
+                                    
+                                    <div class="alert alert-info" id="noHolidaysMessage" style="display: none;">
+                                        <i class="bi bi-info-circle"></i> No holidays configured for this month. Click "Add Holiday" to get started.
+                                    </div>
+
+                                    <!-- Holiday Items Container -->
+                                    <div id="holidaysList" class="holiday-items-container">
+                                        <!-- Holiday items will be populated here -->
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Holiday Success/Error Messages -->
+                        <div class="mt-3">
+                            <div class="alert alert-success" id="holidaySuccessMessage" style="display: none;">
+                                <i class="bi bi-check-circle-fill"></i> <span id="holidaySuccessText">Holiday operation completed successfully!</span>
+                            </div>
+                            <div class="alert alert-danger" id="holidayErrorMessage" style="display: none;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> <span id="holidayErrorText">Holiday operation failed. Please try again.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Leave & Permission Quota Management Section -->
+                <div class="salary-results-card mt-4">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-clipboard-data"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Leave & Permission Quota Management</h5>
+                            <p class="card-subtitle">Assign and manage leave, on-duty, and permission quotas for staff members</p>
+                        </div>
+                        <div class="header-actions">
+                            <select class="form-select me-2" id="quotaYearSelect" style="width: auto; display: inline-block;">
+                                <option value="2024">2024</option>
+                                <option value="2025" selected>2025</option>
+                                <option value="2026">2026</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="card-body">
+
+                        <!-- Bulk Quota Configuration (by Department) -->
+                        <div class="bulk-quota-section mb-4">
+                            <h6 class="section-title mb-2">
+                                <i class="bi bi-people-fill text-warning"></i> Bulk Quota Configuration (by Department)
+                            </h6>
+                            <div class="row align-items-end">
+                                <div class="col-md-4">
+                                    <label for="bulkDeptSelect" class="form-label">Department *</label>
+                                    <select class="form-select" id="bulkDeptSelect">
+                                        <option value="">Select department...</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="bulkQuotaYear" class="form-label">Year</label>
+                                    <input type="number" id="bulkQuotaYear" class="form-control" value="2025">
+                                </div>
+                                <div class="col-md-6 text-end">
+                                    <button type="button" class="btn btn-outline-secondary" id="loadDeptCountBtn">Load Dept Count</button>
+                                    <span id="bulkDeptCount" class="ms-3 text-muted"></span>
+                                </div>
+                            </div>
+
+                            <div class="row mt-3">
+                                <div class="col-md-2">
+                                    <label class="form-label">Casual Leave (CL)</label>
+                                    <input type="number" id="bulkClQuota" class="form-control" min="0" value="0">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Sick Leave (SL)</label>
+                                    <input type="number" id="bulkSlQuota" class="form-control" min="0" value="0">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Earned Leave (EL)</label>
+                                    <input type="number" id="bulkElQuota" class="form-control" min="0" value="0">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Maternity Leave (ML)</label>
+                                    <input type="number" id="bulkMlQuota" class="form-control" min="0" value="0">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">OD Days</label>
+                                    <input type="number" id="bulkOdQuota" class="form-control" min="0" value="0">
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Permission Hours</label>
+                                    <input type="number" id="bulkPermissionQuota" class="form-control" min="0" step="0.5" value="0">
+                                </div>
+                            </div>
+
+                            <div class="mt-3">
+                                <button type="button" class="btn btn-warning" id="applyBulkQuotaBtn">
+                                    <i class="bi bi-upload"></i> Apply to Department
+                                </button>
+                                <small class="text-muted ms-3">This will overwrite quotas for all staff in the selected department for the chosen year.</small>
+                            </div>
+                        </div>
+
+                        <!-- Quota Assignment Controls -->
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="quotaStaffSelect" class="form-label">Select Staff Member *</label>
+                                    <select class="form-select" id="quotaStaffSelect" required>
+                                        <option value="">Choose a staff member...</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label for="quotaYear" class="form-label">Quota Year</label>
+                                    <input type="text" class="form-control" id="quotaYear" value="2025" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Quota Configuration Form -->
+                        <div id="quotaConfigurationForm" style="display: none;">
+                            <h6 class="section-title mb-3">
+                                <i class="bi bi-gear text-primary"></i> Quota Configuration
+                            </h6>
+                            
+                            <!-- Leave Quotas -->
+                            <div class="quota-section mb-4">
+                                <h6 class="quota-category-title">
+                                    <i class="bi bi-calendar-x text-info"></i> Leave Quotas
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label for="clQuota" class="form-label">
+                                                Casual Leave (CL) <span class="text-muted">days</span>
+                                            </label>
+                                            <input type="number" class="form-control" id="clQuota" min="0" max="365" value="12">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label for="slQuota" class="form-label">
+                                                Sick Leave (SL) <span class="text-muted">days</span>
+                                            </label>
+                                            <input type="number" class="form-control" id="slQuota" min="0" max="365" value="7">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label for="elQuota" class="form-label">
+                                                Earned Leave (EL) <span class="text-muted">days</span>
+                                            </label>
+                                            <input type="number" class="form-control" id="elQuota" min="0" max="365" value="21">
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="mb-3">
+                                            <label for="mlQuota" class="form-label">
+                                                Maternity Leave (ML) <span class="text-muted">days</span>
+                                            </label>
+                                            <input type="number" class="form-control" id="mlQuota" min="0" max="365" value="180">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- OD Quota -->
+                            <div class="quota-section mb-4">
+                                <h6 class="quota-category-title">
+                                    <i class="bi bi-briefcase text-primary"></i> On Duty (OD) Quota
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="odQuota" class="form-label">
+                                                On Duty Days <span class="text-muted">days</span>
+                                            </label>
+                                            <input type="number" class="form-control" id="odQuota" min="0" max="365" value="10">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Permission Quota -->
+                            <div class="quota-section mb-4">
+                                <h6 class="quota-category-title">
+                                    <i class="bi bi-shield-check text-secondary"></i> Permission Quota
+                                </h6>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <div class="mb-3">
+                                            <label for="permissionQuota" class="form-label">
+                                                Permission Hours <span class="text-muted">hours</span>
+                                            </label>
+                                            <input type="number" class="form-control" id="permissionQuota" min="0" max="500" step="0.5" value="15">
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Action Buttons -->
+                            <div class="quota-actions">
+                                <button type="button" class="btn btn-primary" id="saveQuotasBtn">
+                                    <i class="bi bi-save"></i> Save Quotas
+                                </button>
+                                <button type="button" class="btn btn-secondary" id="resetQuotasBtn">
+                                    <i class="bi bi-arrow-clockwise"></i> Reset to Defaults
+                                </button>
+                                <button type="button" class="btn btn-outline-info" id="viewUsageBtn">
+                                    <i class="bi bi-bar-chart"></i> View Usage Summary
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Current Quota Display -->
+                        <div id="currentQuotaDisplay" style="display: none;">
+                            <h6 class="section-title mb-3">
+                                <i class="bi bi-list-check text-success"></i> Current Quota Status
+                            </h6>
+                            <div class="quota-status-container">
+                                <div class="row" id="quotaStatusCards">
+                                    <!-- Quota status cards will be populated here -->
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Messages -->
+                        <div class="quota-messages mt-3">
+                            <div class="alert alert-success" id="quotaSuccessMessage" style="display: none;">
+                                <i class="bi bi-check-circle-fill"></i> <span id="quotaSuccessText">Quota operation completed successfully!</span>
+                            </div>
+                            <div class="alert alert-danger" id="quotaErrorMessage" style="display: none;">
+                                <i class="bi bi-exclamation-triangle-fill"></i> <span id="quotaErrorText">Quota operation failed. Please try again.</span>
+                            </div>
+                            <div class="alert alert-info" id="quotaInfoMessage" style="display: none;">
+                                <i class="bi bi-info-circle-fill"></i> <span id="quotaInfoText">Please select a staff member to manage their quotas.</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Holiday Management Modals -->
+                
+                <!-- Add/Edit Holiday Modal -->
+                <div class="modal fade" id="holidayModal" tabindex="-1" aria-labelledby="holidayModalLabel" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="holidayModalLabel">
+                                    <i class="bi bi-calendar-plus"></i> Add Holiday
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <form id="holidayForm">
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="holidayName" class="form-label">Holiday Name *</label>
+                                                <input type="text" class="form-control" id="holidayName" name="holiday_name" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="holidayType" class="form-label">Holiday Type *</label>
+                                                <select class="form-select" id="holidayType" name="holiday_type" required>
+                                                    <option value="institution_wide">Institution-wide Holiday</option>
+                                                    <option value="department_specific">Department-specific Holiday</option>
+                                                    <option value="common_leave">Common Leave Day</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="startDate" class="form-label">Start Date *</label>
+                                                <input type="date" class="form-control" id="startDate" name="start_date" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="endDate" class="form-label">End Date *</label>
+                                                <input type="date" class="form-control" id="endDate" name="end_date" required>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Department Selection (for department-specific holidays) -->
+                                    <div class="mb-3" id="departmentsSection" style="display: none;">
+                                        <label for="departments" class="form-label">Select Departments *</label>
+                                        <select class="form-select" id="departments" name="departments" multiple size="4">
+                                            <!-- Department options will be populated via JavaScript -->
+                                        </select>
+                                        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple departments</small>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="description" class="form-label">Description</label>
+                                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Optional description for this holiday"></textarea>
+                                    </div>
+
+                                    <!-- Recurring Holiday Options -->
+                                    <div class="mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="isRecurring" name="is_recurring">
+                                            <label class="form-check-label" for="isRecurring">
+                                                Recurring Holiday (appears every year)
+                                            </label>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3" id="recurringTypeSection" style="display: none;">
+                                        <label for="recurringType" class="form-label">Recurring Pattern</label>
+                                        <select class="form-select" id="recurringType" name="recurring_type">
+                                            <option value="yearly">Every Year (same date)</option>
+                                            <option value="monthly">Every Month (same day)</option>
+                                            <option value="weekly">Every Week (same day of week)</option>
+                                        </select>
+                                    </div>
+
+                                    <!-- Salary Impact Notice -->
+                                    <div class="alert alert-info">
+                                        <i class="bi bi-info-circle"></i>
+                                        <strong>Salary Impact:</strong> Staff salaries will NOT be deducted for days marked as holidays or common leave.
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" id="saveHolidayBtn">
+                                    <i class="bi bi-check-circle"></i> Save Holiday
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Delete Holiday Confirmation Modal -->
+                <div class="modal fade" id="deleteHolidayModal" tabindex="-1" aria-labelledby="deleteHolidayModalLabel" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteHolidayModalLabel">
+                                    <i class="bi bi-exclamation-triangle text-danger"></i> Delete Holiday
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <p>Are you sure you want to delete the holiday "<strong id="deleteHolidayName"></strong>"?</p>
+                                <div class="alert alert-warning">
+                                    <i class="bi bi-exclamation-triangle"></i>
+                                    <strong>Warning:</strong> This action cannot be undone. The holiday will be removed from all staff calendars and attendance calculations.
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-danger" id="confirmDeleteHolidayBtn">
+                                    <i class="bi bi-trash"></i> Delete Holiday
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            </main>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
+    <script>
+        // Enhanced sidebar functionality matching staff management
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('🔧 WORK TIME ASSIGNMENT: Fixed sidebar initialization...');
+            
+            // Enhanced sidebar toggle functionality with intelligent hiding
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('enhanced-sidebar');
+            let sidebarVisible = false;
+            
+            // Intelligent toggle sidebar function
+            function toggleSidebar() {
+                if (sidebarVisible) {
+                    // Hide sidebar
+                    sidebar.classList.remove('show');
+                    sidebarVisible = false;
+                    
+                    // Update toggle button icon and make it reappear
+                    sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                    sidebarToggle.setAttribute('title', 'Show sidebar menu');
+                    
+                    // Intelligent button reappearing - show toggle button when sidebar closes
+                    setTimeout(() => {
+                        sidebarToggle.style.display = 'flex';
+                        sidebarToggle.style.opacity = '1';
+                    }, 100);
+                    
+                    console.log('✅ Work Time Assignment - Sidebar hidden with intelligent toggle');
+                } else {
+                    // Show sidebar
+                    sidebar.classList.add('show');
+                    sidebarVisible = true;
+                    
+                    // Update toggle button icon
+                    sidebarToggle.innerHTML = '<i class="bi bi-x"></i>';
+                    sidebarToggle.setAttribute('aria-expanded', 'true');
+                    sidebarToggle.setAttribute('title', 'Hide sidebar menu');
+                    
+                    // Intelligent button hiding - hide toggle button when sidebar opens for clean UI
+                    setTimeout(() => {
+                        sidebarToggle.style.opacity = '0';
+                        setTimeout(() => {
+                            sidebarToggle.style.display = 'none';
+                        }, 200);
+                    }, 500);
+                    
+                    console.log('✅ Work Time Assignment - Sidebar shown with intelligent toggle');
+                }
+            }
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    console.log('🔄 WORK TIME ASSIGNMENT - Intelligent toggle clicked!');
+                    
+                    if (window.innerWidth <= 1024) {
+                        toggleSidebar();
+                    }
+                });
+
+                // Close sidebar when clicking outside on mobile/tablet/laptop
+                document.addEventListener('click', function(event) {
+                    if (window.innerWidth <= 1024 && sidebarVisible) {
+                        const isClickInsideSidebar = sidebar.contains(event.target);
+                        const isClickOnToggle = sidebarToggle.contains(event.target);
+                        
+                        if (!isClickInsideSidebar && !isClickOnToggle) {
+                            // Close sidebar and intelligently show toggle button
+                            sidebar.classList.remove('show');
+                            sidebarVisible = false;
+                            
+                            // Update toggle button and make it reappear
+                            sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                            sidebarToggle.setAttribute('aria-expanded', 'false');
+                            sidebarToggle.setAttribute('title', 'Show sidebar menu');
+                            
+                            // Intelligent button reappearing
+                            setTimeout(() => {
+                                sidebarToggle.style.display = 'flex';
+                                sidebarToggle.style.opacity = '1';
+                            }, 100);
+                            
+                            console.log('Work Time Assignment - Sidebar closed by outside click with intelligent toggle');
+                        }
+                    }
+                });
+
+                // Handle window resize
+                window.addEventListener('resize', function() {
+                    if (window.innerWidth > 1024) {
+                        // Desktop: reset sidebar and toggle button state
+                        sidebar.classList.remove('show');
+                        sidebarVisible = false;
+                        sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                        sidebarToggle.setAttribute('aria-expanded', 'false');
+                        sidebarToggle.setAttribute('title', 'Toggle sidebar menu');
+                        
+                        // Reset toggle button visibility for desktop
+                        sidebarToggle.style.display = 'none';
+                        sidebarToggle.style.opacity = '0';
+                        
+                        console.log('Work Time Assignment - Desktop mode: sidebar fixed, toggle hidden');
+                    } else {
+                        // Mobile/Tablet/Laptop: ensure toggle button is visible when sidebar is closed
+                        if (!sidebarVisible) {
+                            sidebarToggle.style.display = 'flex';
+                            sidebarToggle.style.opacity = '1';
+                        }
+                        
+                        console.log('Work Time Assignment - Mobile/Tablet mode: toggle visible');
+                    }
+                });
+                
+                // Initial state based on screen size
+                if (window.innerWidth <= 1024) {
+                    sidebarVisible = false;
+                    sidebarToggle.style.display = 'flex';
+                    sidebarToggle.style.opacity = '1';
+                    console.log('Work Time Assignment - Initial mobile/tablet state: toggle visible');
+                } else {
+                    sidebarVisible = false;
+                    sidebarToggle.style.display = 'none';
+                    sidebarToggle.style.opacity = '0';
+                    console.log('Work Time Assignment - Initial desktop state: toggle hidden');
+                }
+            }
+
+            // Set current date
+            const currentDateElement = document.getElementById('currentDate');
+            if (currentDateElement) {
+                const today = new Date();
+                const dateStr = today.toLocaleDateString('en-GB', { 
+                    day: '2-digit', 
+                    month: 'short', 
+                    year: 'numeric' 
+                });
+                currentDateElement.textContent = dateStr;
+            }
+
+            // Update total staff count in sidebar footer (dynamic update)
+            const totalStaffCountElement = document.getElementById('totalStaffCount');
+            if (totalStaffCountElement) {
+                // Get staff count from API
+                fetch('/get_staff_count')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.count !== undefined) {
+                            totalStaffCountElement.textContent = data.count;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching staff count:', error);
+                    });
+            }
+            
+            console.log('✅ WORK TIME ASSIGNMENT fixed sidebar initialized successfully');
+            
+            // Load current institution timings on page load
+            loadCurrentTimings();
+        });
+
+        // Helper function to get CSRF token (similar to admin dashboard)
+        function getCSRFToken() {
+            const token = document.querySelector('input[name="csrf_token"]');
+            return token ? token.value : '';
+        }
+
+        // Helper function to refresh CSRF token
+        async function refreshCSRFToken() {
+            try {
+                console.log('🔄 Refreshing CSRF token...');
+                const response = await fetch('/admin/work_time_assignment', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    const html = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    const tokenInput = doc.querySelector('input[name="csrf_token"]');
+
+                    if (tokenInput) {
+                        // Update the token in the current page
+                        const currentTokenInput = document.querySelector('input[name="csrf_token"]');
+                        if (currentTokenInput) {
+                            currentTokenInput.value = tokenInput.value;
+                        }
+                        console.log('✅ CSRF token refreshed successfully');
+                        return tokenInput.value;
+                    }
+                }
+                console.warn('⚠️ Could not refresh CSRF token');
+                return null;
+            } catch (error) {
+                console.error('❌ Error refreshing CSRF token:', error);
+                return null;
+            }
+        }
+
+        // Helper function to check session status
+        function checkSessionStatus() {
+            return fetch('/api/debug_session', {
+                method: 'GET',
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Session status:', data);
+                return data.success && data.session_data.has_session;
+            })
+            .catch(error => {
+                console.error('Error checking session:', error);
+                return false;
+            });
+        }
+
+        // Helper function to test timing synchronization
+        function testTimingSync() {
+            fetch('/api/test_timing_sync', {
+                method: 'GET',
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('✅ Timing Sync Test Results:', data.sync_check);
+                    if (data.sync_check.systems_synced) {
+                        console.log('✅ All systems are synchronized with institution timings');
+                    } else {
+                        console.warn('⚠️ Systems may not be fully synchronized');
+                    }
+                } else {
+                    console.error('❌ Sync test failed:', data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error testing sync:', error);
+            });
+        }
+
+        // Function to load current timings from API
+        function loadCurrentTimings() {
+            fetch('/api/get_institution_timings', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'same-origin'  // Include session cookies
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    const checkinTime = data.checkin_time || '09:00';
+                    const checkoutTime = data.checkout_time || '17:00';
+                    
+                    // Update form inputs
+                    document.getElementById('institutionCheckinTime').value = checkinTime;
+                    document.getElementById('institutionCheckoutTime').value = checkoutTime;
+                    
+                    // Update display cards
+                    document.getElementById('currentCheckinTime').textContent = convertTo12Hour(checkinTime);
+                    document.getElementById('currentCheckoutTime').textContent = convertTo12Hour(checkoutTime);
+                } else {
+                    console.error('API returned error:', data.message);
+                    setDefaultTimings();
+                }
+            })
+            .catch(error => {
+                console.error('Error loading timings:', error);
+                setDefaultTimings();
+            });
+        }
+
+        // Helper function to set default timings
+        function setDefaultTimings() {
+            document.getElementById('institutionCheckinTime').value = '09:00';
+            document.getElementById('institutionCheckoutTime').value = '17:00';
+            document.getElementById('currentCheckinTime').textContent = '09:00 AM';
+            document.getElementById('currentCheckoutTime').textContent = '05:00 PM';
+        }
+
+        // Work time form functionality
+        document.getElementById('workTimeForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const checkinTime = document.getElementById('institutionCheckinTime').value;
+            const checkoutTime = document.getElementById('institutionCheckoutTime').value;
+            
+            // Validate times
+            if (checkinTime >= checkoutTime) {
+                document.getElementById('timeValidationMessage').style.display = 'block';
+                return;
+            } else {
+                document.getElementById('timeValidationMessage').style.display = 'none';
+            }
+            
+            // Show loading state
+            const saveBtn = document.getElementById('saveTimingBtn');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="bi bi-spinner-grow spinner-grow-sm"></i> Saving...';
+            saveBtn.disabled = true;
+
+            try {
+                // Check session status first
+                const hasValidSession = await checkSessionStatus();
+                if (!hasValidSession) {
+                    alert('Session expired. Please log in as admin and try again.');
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                    return;
+                }
+
+                // Prepare form data
+                const formData = new FormData();
+                formData.append('checkin_time', checkinTime);
+                formData.append('checkout_time', checkoutTime);
+                
+                // Add CSRF token if available
+                const csrfToken = getCSRFToken();
+                if (csrfToken) {
+                    formData.append('csrf_token', csrfToken);
+                }
+
+                // Make actual API call
+                const response = await fetch('/api/update_institution_timings', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'  // Include session cookies
+                });
+
+                console.log('Response status:', response.status);
+                console.log('Response headers:', response.headers);
+                
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        throw new Error('Unauthorized: Please log in as admin');
+                    } else if (response.status === 400) {
+                        throw new Error('Bad request: Invalid data submitted');
+                    } else if (response.status === 500) {
+                        throw new Error('Server error: Please try again later');
+                    } else {
+                        throw new Error(`HTTP Error ${response.status}: ${response.statusText}`);
+                    }
+                }
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update display times
+                    const checkinDisplay = convertTo12Hour(checkinTime);
+                    const checkoutDisplay = convertTo12Hour(checkoutTime);
+                    
+                    document.getElementById('currentCheckinTime').textContent = checkinDisplay;
+                    document.getElementById('currentCheckoutTime').textContent = checkoutDisplay;
+                    
+                    // Show enhanced success message with sync confirmation
+                    const successMsg = document.getElementById('timingSuccessMessage');
+                    successMsg.innerHTML = `
+                        <div class="alert alert-success">
+                            <h6><i class="bi bi-check-circle-fill"></i> Institution Timings Updated Successfully!</h6>
+                            <p class="mb-2">
+                                <strong>New Timings:</strong> ${checkinDisplay} - ${checkoutDisplay}
+                            </p>
+                            <small class="text-muted">
+                                <i class="bi bi-sync"></i> These timings are now active across the entire system:
+                                <br>• Staff attendance calculations
+                                <br>• Biometric device processing
+                                <br>• Late/early departure detection
+                                <br>• Reporting and analytics
+                            </small>
+                        </div>
+                    `;
+                    successMsg.style.display = 'block';
+                    
+                    // Auto-hide success message after 8 seconds
+                    setTimeout(() => {
+                        successMsg.style.display = 'none';
+                    }, 8000);
+                    
+                    // Test sync after a short delay
+                    setTimeout(() => {
+                        testTimingSync();
+                    }, 1000);
+                } else {
+                    // Show error message with specific details
+                    const errorMsg = data.message || 'Unknown error occurred';
+                    alert('Failed to update timings: ' + errorMsg);
+                    console.error('API Error:', data);
+                }
+                
+            } catch (error) {
+                console.error('Error updating timings:', error);
+                
+                // More specific error handling with debugging info
+                let errorMessage = 'Network error. Please try again.';
+                console.log('Full error details:', error);
+                
+                if (error.message.includes('Unauthorized')) {
+                    errorMessage = 'Please log in as admin to update institution timings.';
+                } else if (error.message.includes('Bad request')) {
+                    errorMessage = 'Invalid time format. Please check your input.';
+                } else if (error.message.includes('Server error')) {
+                    errorMessage = 'Server error. Please try again later.';
+                } else if (error.message.includes('Failed to fetch')) {
+                    errorMessage = 'Connection failed. Please check your internet connection.';
+                } else if (error.name === 'TypeError') {
+                    errorMessage = 'Request failed. Please ensure you are logged in as admin.';
+                }
+                
+                alert(errorMessage + '\n\nTechnical details: ' + error.message);
+            } finally {
+                // Reset button
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+            }
+        });
+        
+        // Reset form
+        document.getElementById('resetTimingBtn').addEventListener('click', function() {
+            if (confirm('Are you sure you want to reset to current saved timings?')) {
+                loadCurrentTimings();
+                document.getElementById('timeValidationMessage').style.display = 'none';
+            }
+        });
+
+        // Header action buttons
+        document.getElementById('refreshTimingBtn').addEventListener('click', function() {
+            loadCurrentTimings();
+        });
+
+        document.getElementById('exportTimingBtn').addEventListener('click', function() {
+            // Simulate export functionality
+            const data = {
+                checkin_time: document.getElementById('currentCheckinTime').textContent,
+                checkout_time: document.getElementById('currentCheckoutTime').textContent,
+                export_date: new Date().toISOString()
+            };
+            
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'work_time_configuration.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+        
+        // Convert 24-hour to 12-hour format
+        function convertTo12Hour(time24) {
+            const [hour, minute] = time24.split(':');
+            const hour12 = hour % 12 || 12;
+            const ampm = hour < 12 ? 'AM' : 'PM';
+            return `${hour12}:${minute} ${ampm}`;
+        }
+        
+        // Logout function
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        /* ===============================================
+         * HOLIDAY MANAGEMENT SYSTEM
+         * =============================================== */
+
+        // Holiday Management Global Variables
+        let holidayCalendar;
+        let currentHolidays = [];
+        let allHolidays = []; // Store all holidays for filtering
+        let currentViewMonth = new Date(); // Current month being viewed
+        let editingHolidayId = null;
+        let weeklyOffDays = []; // Weekly off disabled
+        
+        // Double-click detection variables
+        let lastClickedDate = null;
+        let lastClickTime = 0;
+        let doubleClickDelay = 300; // milliseconds
+
+        // Initialize Holiday Management System
+        function initializeHolidayManagement() {
+            console.log('🎄 Initializing Holiday Management System...');
+
+            try {
+                // Initialize holiday calendar
+                initializeHolidayCalendar();
+                
+                // Setup event listeners
+                setupHolidayEventListeners();
+                
+                // Initialize month navigation
+                initializeMonthNavigation();
+                
+                // Load existing holidays
+                loadHolidays();
+                
+                // Load departments for dropdown
+                loadDepartments();
+                
+                // Weekly off configuration disabled per requirements
+                
+                console.log('✅ Holiday Management System initialized successfully');
+            } catch (error) {
+                console.error('❌ Error initializing Holiday Management:', error);
+                showHolidayError('Failed to initialize Holiday Management System');
+            }
+        }
+
+        // Initialize FullCalendar for Holiday Management
+        function initializeHolidayCalendar() {
+            const calendarEl = document.getElementById('holidayCalendar');
+            
+            if (!calendarEl) {
+                console.warn('⚠️ Holiday calendar element not found');
+                return;
+            }
+
+            holidayCalendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,listMonth'
+                },
+                height: 500,
+                // Enable responsive behavior
+                responsive: true,
+                // Ensure calendar maintains functionality with horizontal scrolling
+                aspectRatio: 1.35,
+                // Handle window resize for better scrolling experience
+                windowResizeDelay: 100,
+                events: function(fetchInfo, successCallback, failureCallback) {
+                    try {
+                        // Convert ALL holidays to calendar events (not just current month filter)
+                        const holidayEvents = allHolidays.map(holiday => ({
+                            id: holiday.id,
+                            title: holiday.holiday_name,
+                            start: holiday.start_date,
+                            end: holiday.end_date,
+                            className: `holiday-event ${holiday.holiday_type.replace('_', '-')}`,
+                            extendedProps: {
+                                holiday_type: holiday.holiday_type,
+                                description: holiday.description,
+                                departments: holiday.departments || [],
+                                event_type: 'holiday'
+                            }
+                        }));
+
+                        // Weekly off events disabled per requirements
+                        const weeklyOffEvents = [];
+
+                        // Combine holiday and weekly off events (weekly off disabled)
+                        const allEvents = [...holidayEvents];
+
+                        console.log(`📅 Rendering ${holidayEvents.length} holiday events (weekly off disabled)`);
+                        successCallback(allEvents);
+                    } catch (error) {
+                        console.error('❌ Error processing calendar events:', error);
+                        failureCallback(error);
+                    }
+                },
+                eventClick: function(info) {
+                    showHolidayDetails(info.event);
+                },
+                dateClick: function(info) {
+                    // Handle double-click to add holiday
+                    handleCalendarDateClick(info);
+                },
+                eventDidMount: function(info) {
+                    // Enhanced tooltips with color coding information
+                    const eventType = info.event.extendedProps.event_type;
+                    let tooltip = `${info.event.title}\n`;
+
+                    if (eventType === 'holiday') {
+                        const holidayType = info.event.extendedProps.holiday_type;
+                        let typeDescription = '';
+
+                        switch(holidayType) {
+                            case 'institution_wide':
+                                typeDescription = 'Institution-wide Holiday (Green) - Applies to all staff';
+                                break;
+                            case 'department_specific':
+                                typeDescription = 'Department-specific Holiday (Orange) - Applies to specific departments';
+                                break;
+                            case 'common_leave':
+                                typeDescription = 'Common Leave Day (Blue/Purple) - General leave day';
+                                break;
+                            default:
+                                typeDescription = `${holidayType.replace('_', ' ')} Holiday`;
+                        }
+
+                        tooltip += `Type: ${typeDescription}\n`;
+
+                        if (info.event.extendedProps.departments && info.event.extendedProps.departments.length > 0) {
+                            tooltip += `Departments: ${info.event.extendedProps.departments.join(', ')}\n`;
+                        }
+
+                        if (info.event.extendedProps.description) {
+                            tooltip += `Description: ${info.event.extendedProps.description}\n`;
+                        }
+
+                        tooltip += 'Click for details';
+                    }
+
+                    info.el.title = tooltip;
+                }
+            });
+
+            holidayCalendar.render();
+        }
+
+        // Generate Weekly Off Events for Calendar
+        function generateWeeklyOffEvents(startDate, endDate) {
+            // Weekly off events disabled per requirements
+            return [];
+        }
+
+        // Setup Holiday Management Event Listeners
+        function setupHolidayEventListeners() {
+            // Add Holiday button
+            document.getElementById('addHolidayBtn')?.addEventListener('click', function() {
+                openHolidayModal();
+            });
+
+            // Holiday type change event
+            document.getElementById('holidayType')?.addEventListener('change', function() {
+                toggleDepartmentsSection();
+            });
+
+            // Recurring checkbox event
+            document.getElementById('isRecurring')?.addEventListener('change', function() {
+                toggleRecurringSection();
+            });
+
+            // Save Holiday button
+            document.getElementById('saveHolidayBtn')?.addEventListener('click', function() {
+                saveHoliday();
+            });
+
+
+
+            // Delete Holiday confirmation
+            document.getElementById('confirmDeleteHolidayBtn')?.addEventListener('click', function() {
+                confirmDeleteHoliday();
+            });
+
+            // Month navigation event listeners
+            document.getElementById('prevMonthBtn')?.addEventListener('click', function() {
+                navigateMonth(-1);
+            });
+
+            document.getElementById('nextMonthBtn')?.addEventListener('click', function() {
+                navigateMonth(1);
+            });
+        }
+
+        // Initialize Month Navigation
+        function initializeMonthNavigation() {
+            currentViewMonth = new Date();
+            updateMonthDisplay();
+        }
+
+        // Navigate to previous/next month
+        function navigateMonth(direction) {
+            currentViewMonth.setMonth(currentViewMonth.getMonth() + direction);
+            updateMonthDisplay();
+            filterHolidaysByMonth();
+        }
+
+        // Update month display text
+        function updateMonthDisplay() {
+            const monthNames = [
+                'January', 'February', 'March', 'April', 'May', 'June',
+                'July', 'August', 'September', 'October', 'November', 'December'
+            ];
+            
+            const displayText = `${monthNames[currentViewMonth.getMonth()]} ${currentViewMonth.getFullYear()}`;
+            const displayEl = document.getElementById('currentMonthDisplay');
+            if (displayEl) {
+                displayEl.textContent = displayText;
+            }
+        }
+
+        // Filter holidays by current month
+        function filterHolidaysByMonth() {
+            const currentMonth = currentViewMonth.getMonth();
+            const currentYear = currentViewMonth.getFullYear();
+            
+            // Filter holidays that fall within the current viewing month
+            currentHolidays = allHolidays.filter(holiday => {
+                const startDate = new Date(holiday.start_date);
+                const endDate = new Date(holiday.end_date);
+                
+                // Check if holiday overlaps with current month
+                const monthStart = new Date(currentYear, currentMonth, 1);
+                const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+                
+                return (startDate <= monthEnd && endDate >= monthStart);
+            });
+            
+            console.log(`📅 Filtered ${currentHolidays.length} holidays for ${currentViewMonth.toLocaleDateString()}`);
+            displayHolidaysList();
+            updateHolidayCalendar();
+        }
+
+        // Handle calendar date click (double-click detection)
+        function handleCalendarDateClick(info) {
+            const clickedDate = info.dateStr;
+            const currentTime = new Date().getTime();
+            
+            // Check if this is a double-click
+            if (lastClickedDate === clickedDate && 
+                (currentTime - lastClickTime) < doubleClickDelay) {
+                
+                // This is a double-click - open add holiday modal with pre-filled date
+                console.log('📅 Double-click detected on date:', clickedDate);
+                openHolidayModalWithDate(clickedDate);
+                
+                // Reset click tracking
+                lastClickedDate = null;
+                lastClickTime = 0;
+            } else {
+                // This is a single click - just track it
+                lastClickedDate = clickedDate;
+                lastClickTime = currentTime;
+            }
+        }
+
+        // Open holiday modal with pre-filled date
+        function openHolidayModalWithDate(dateStr) {
+            // Check if a modal is already open to prevent multiple modals
+            const existingModal = document.querySelector('.modal.show');
+            if (existingModal) {
+                console.log('⚠️ Modal already open, ignoring double-click');
+                return;
+            }
+            
+            console.log('🎯 Opening holiday modal for date:', dateStr);
+            
+            // Show a brief success message to confirm double-click was detected
+            const dateObj = new Date(dateStr);
+            const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                weekday: 'long', 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric' 
+            });
+            
+            // Optional: Show a brief notification (you can uncomment this if you want visual feedback)
+            // showHolidaySuccess(`Adding holiday for ${formattedDate}...`);
+            
+            // Open the modal in add mode
+            openHolidayModal();
+            
+            // Pre-fill the date fields after modal is shown
+            setTimeout(() => {
+                const startDateInput = document.getElementById('startDate');
+                const endDateInput = document.getElementById('endDate');
+                
+                if (startDateInput) {
+                    startDateInput.value = dateStr;
+                }
+                if (endDateInput) {
+                    endDateInput.value = dateStr;
+                }
+                
+                // Focus on holiday name field for immediate input
+                const holidayNameInput = document.getElementById('holidayName');
+                if (holidayNameInput) {
+                    holidayNameInput.focus();
+                }
+                
+                console.log(`✅ Holiday modal opened with pre-filled date: ${dateStr} (${formattedDate})`);
+            }, 100); // Small delay to ensure modal is fully rendered
+        }
+
+        // Load Holidays from API
+        function loadHolidays() {
+            console.log('📋 Loading holidays...');
+
+            const loadingEl = document.getElementById('holidaysLoading');
+            const noHolidaysEl = document.getElementById('noHolidaysMessage');
+
+            if (loadingEl) loadingEl.style.display = 'block';
+            if (noHolidaysEl) noHolidaysEl.style.display = 'none';
+
+            fetch('/api/holidays', {
+                method: 'GET',
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                console.log('📋 Holidays API response status:', response.status);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('📋 Holidays API response data:', data);
+                if (data.success) {
+                    allHolidays = data.holidays || [];
+                    console.log(`📋 Loaded ${allHolidays.length} total holidays`);
+                    
+                    // Filter holidays for current month
+                    filterHolidaysByMonth();
+                } else {
+                    const message = data.message || 'Unknown error';
+                    console.error('❌ API returned error:', message);
+                    showHolidayError('Failed to load holidays: ' + message);
+                    currentHolidays = [];
+                    displayHolidaysList();
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error loading holidays:', error);
+                showHolidayError('Failed to load holidays. Please check your connection and try again.');
+                currentHolidays = [];
+                displayHolidaysList();
+            })
+            .finally(() => {
+                if (loadingEl) loadingEl.style.display = 'none';
+            });
+        }
+
+        // Display Holidays List
+        function displayHolidaysList() {
+            const holidaysList = document.getElementById('holidaysList');
+            const noHolidaysEl = document.getElementById('noHolidaysMessage');
+
+            if (!holidaysList) return;
+
+            if (currentHolidays.length === 0) {
+                holidaysList.innerHTML = '';
+                if (noHolidaysEl) noHolidaysEl.style.display = 'block';
+                return;
+            }
+
+            if (noHolidaysEl) noHolidaysEl.style.display = 'none';
+
+            holidaysList.innerHTML = currentHolidays.map(holiday => {
+                const startDate = new Date(holiday.start_date).toLocaleDateString();
+                const endDate = new Date(holiday.end_date).toLocaleDateString();
+                const dateRange = startDate === endDate ? startDate : `${startDate} - ${endDate}`;
+
+                // Check if holiday is in the past
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // Reset time to start of day for accurate comparison
+                const holidayEndDate = new Date(holiday.end_date);
+                const isPastHoliday = holidayEndDate < today;
+
+                const typeClass = holiday.holiday_type.replace('_', '-');
+                const pastClass = isPastHoliday ? 'past-holiday' : '';
+                
+                let typeBadge = '';
+                
+                switch (holiday.holiday_type) {
+                    case 'institution_wide':
+                        typeBadge = '<span class="badge bg-success holiday-type-badge">Institution-wide</span>';
+                        break;
+                    case 'department_specific':
+                        typeBadge = '<span class="badge bg-warning holiday-type-badge">Department-specific</span>';
+                        break;
+                    case 'common_leave':
+                        typeBadge = '<span class="badge bg-info holiday-type-badge">Common Leave</span>';
+                        break;
+                    default:
+                        typeBadge = '<span class="badge bg-secondary holiday-type-badge">Unknown</span>';
+                }
+
+                const departmentInfo = holiday.holiday_type === 'department_specific' && holiday.departments && holiday.departments.length > 0
+                    ? `<div class="text-muted small mt-1"><i class="bi bi-people"></i> ${holiday.departments.join(', ')}</div>`
+                    : '';
+
+                const description = holiday.description 
+                    ? `<div class="text-muted small mt-1"><i class="bi bi-info-circle"></i> ${holiday.description}</div>`
+                    : '';
+
+                // Add past holiday indicator
+                const pastIndicator = isPastHoliday 
+                    ? `<div class="text-muted small mt-1"><i class="bi bi-clock-history"></i> Past Holiday</div>`
+                    : '';
+
+                return `
+                    <div class="holiday-item ${typeClass} ${pastClass}" data-holiday-id="${holiday.id}">
+                        <div class="holiday-name">${holiday.holiday_name}</div>
+                        <div class="holiday-dates">
+                            <i class="bi bi-calendar-date"></i> ${dateRange}
+                        </div>
+                        ${departmentInfo}
+                        ${description}
+                        ${pastIndicator}
+                        <div class="d-flex justify-content-between align-items-center mt-2">
+                            ${typeBadge}
+                            <div class="holiday-actions">
+                                <button class="btn btn-outline-primary btn-sm" onclick="editHoliday(${holiday.id})" title="Edit Holiday" ${isPastHoliday ? 'disabled' : ''}>
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-outline-danger btn-sm" onclick="deleteHoliday(${holiday.id}, '${holiday.holiday_name.replace(/'/g, '\\\'')}')" title="Delete Holiday" ${isPastHoliday ? 'disabled' : ''}>
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Update Holiday Calendar
+        function updateHolidayCalendar() {
+            if (holidayCalendar) {
+                holidayCalendar.refetchEvents();
+            }
+        }
+
+        // Load Departments for Dropdown
+        function loadDepartments() {
+            fetch('/api/departments', {
+                method: 'GET',
+                credentials: 'same-origin'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const departmentsSelect = document.getElementById('departments');
+                    if (departmentsSelect) {
+                        departmentsSelect.innerHTML = data.departments.map(dept =>
+                            `<option value="${dept}">${dept}</option>`
+                        ).join('');
+                    }
+                    // Also populate bulk quota department selector
+                    const bulkDeptSelect = document.getElementById('bulkDeptSelect');
+                    if (bulkDeptSelect) {
+                        bulkDeptSelect.innerHTML = '<option value="">Select department...</option>' +
+                            data.departments.map(dept =>
+                                `<option value="${dept}">${dept}</option>`
+                            ).join('');
+                    }
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error loading departments:', error);
+            });
+        }
+
+        // Open Holiday Modal (Add/Edit)
+        function openHolidayModal(holiday = null) {
+            const modal = new bootstrap.Modal(document.getElementById('holidayModal'));
+            const modalTitle = document.getElementById('holidayModalLabel');
+            const saveBtn = document.getElementById('saveHolidayBtn');
+            
+            // Reset form
+            document.getElementById('holidayForm').reset();
+            editingHolidayId = holiday ? holiday.id : null;
+
+            if (holiday) {
+                modalTitle.innerHTML = '<i class="bi bi-pencil"></i> Edit Holiday';
+                saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Update Holiday';
+
+                // Populate form with holiday data
+                document.getElementById('holidayName').value = holiday.holiday_name || '';
+                document.getElementById('holidayType').value = holiday.holiday_type || 'institution_wide';
+                document.getElementById('startDate').value = holiday.start_date || '';
+                document.getElementById('endDate').value = holiday.end_date || '';
+                document.getElementById('description').value = holiday.description || '';
+                document.getElementById('isRecurring').checked = holiday.is_recurring || false;
+                document.getElementById('recurringType').value = holiday.recurring_type || 'yearly';
+
+                // Handle departments for department-specific holidays
+                if (holiday.holiday_type === 'department_specific' && holiday.departments) {
+                    setTimeout(() => {
+                        const departmentsSelect = document.getElementById('departments');
+                        if (departmentsSelect) {
+                            Array.from(departmentsSelect.options).forEach(option => {
+                                option.selected = holiday.departments.includes(option.value);
+                            });
+                        }
+                    }, 100);
+                }
+            } else {
+                modalTitle.innerHTML = '<i class="bi bi-calendar-plus"></i> Add Holiday';
+                saveBtn.innerHTML = '<i class="bi bi-check-circle"></i> Save Holiday';
+            }
+
+            // Show/hide relevant sections
+            toggleDepartmentsSection();
+            toggleRecurringSection();
+            
+            modal.show();
+        }
+
+        // Toggle Departments Section
+        function toggleDepartmentsSection() {
+            const holidayType = document.getElementById('holidayType')?.value;
+            const departmentsSection = document.getElementById('departmentsSection');
+            
+            if (departmentsSection) {
+                departmentsSection.style.display = holidayType === 'department_specific' ? 'block' : 'none';
+            }
+        }
+
+        // Toggle Recurring Section
+        function toggleRecurringSection() {
+            const isRecurring = document.getElementById('isRecurring')?.checked;
+            const recurringTypeSection = document.getElementById('recurringTypeSection');
+            
+            if (recurringTypeSection) {
+                recurringTypeSection.style.display = isRecurring ? 'block' : 'none';
+            }
+        }
+
+        // Save Holiday
+        function saveHoliday() {
+            const form = document.getElementById('holidayForm');
+
+            // Validate form
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            // Additional validation
+            const holidayName = document.getElementById('holidayName').value.trim();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!holidayName) {
+                showHolidayError('Holiday name is required');
+                return;
+            }
+
+            if (!startDate || !endDate) {
+                showHolidayError('Start date and end date are required');
+                return;
+            }
+
+            if (new Date(startDate) > new Date(endDate)) {
+                showHolidayError('Start date cannot be after end date');
+                return;
+            }
+
+            const formData = new FormData(form);
+
+            // Add CSRF token
+            const csrfToken = getCSRFToken();
+            if (csrfToken) {
+                formData.append('csrf_token', csrfToken);
+            }
+
+            // Handle departments for department-specific holidays
+            const holidayType = formData.get('holiday_type');
+            if (holidayType === 'department_specific') {
+                const selectedDepartments = Array.from(document.getElementById('departments').selectedOptions)
+                    .map(option => option.value);
+
+                if (selectedDepartments.length === 0) {
+                    showHolidayError('Please select at least one department for department-specific holidays');
+                    return;
+                }
+
+                // Clear existing departments entries
+                formData.delete('departments');
+                // Add selected departments
+                selectedDepartments.forEach(dept => {
+                    formData.append('departments', dept);
+                });
+            }
+
+            const saveBtn = document.getElementById('saveHolidayBtn');
+            const originalText = saveBtn.innerHTML;
+            saveBtn.innerHTML = '<i class="bi bi-spinner-grow spinner-grow-sm"></i> Saving...';
+            saveBtn.disabled = true;
+
+            const url = editingHolidayId ? `/api/holidays/${editingHolidayId}` : '/api/holidays';
+            const method = editingHolidayId ? 'PUT' : 'POST';
+
+            fetch(url, {
+                method: method,
+                body: formData,
+                credentials: 'same-origin'
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    const message = data.message || 'Holiday saved successfully';
+                    showHolidaySuccess(message);
+                    loadHolidays();
+
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('holidayModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+                } else {
+                    const errorMessage = data.message || data.error || 'Failed to save holiday';
+                    showHolidayError(errorMessage);
+                }
+            })
+            .catch(error => {
+                console.error('❌ Error saving holiday:', error);
+                showHolidayError(`Failed to save holiday: ${error.message}`);
+            })
+            .finally(() => {
+                saveBtn.innerHTML = originalText;
+                saveBtn.disabled = false;
+            });
+        }
+
+        // Edit Holiday
+        function editHoliday(holidayId) {
+            const holiday = currentHolidays.find(h => h.id === holidayId);
+            if (holiday) {
+                openHolidayModal(holiday);
+            }
+        }
+
+        // Delete Holiday
+        function deleteHoliday(holidayId, holidayName) {
+            document.getElementById('deleteHolidayName').textContent = holidayName;
+            editingHolidayId = holidayId;
+            
+            const modal = new bootstrap.Modal(document.getElementById('deleteHolidayModal'));
+            modal.show();
+        }
+
+        // Confirm Delete Holiday
+        async function confirmDeleteHoliday() {
+            if (!editingHolidayId) {
+                console.error('❌ No holiday ID found for deletion');
+                return;
+            }
+
+            console.log('🗑️ Confirming deletion of holiday:', editingHolidayId);
+
+            const deleteBtn = document.getElementById('confirmDeleteHolidayBtn');
+            const originalText = deleteBtn.innerHTML;
+            deleteBtn.innerHTML = '<i class="bi bi-spinner-grow spinner-grow-sm"></i> Deleting...';
+            deleteBtn.disabled = true;
+
+            try {
+                // Get CSRF token with fallback refresh
+                let csrfToken = getCSRFToken();
+                if (!csrfToken) {
+                    console.warn('⚠️ Initial CSRF token not found, attempting refresh...');
+                    csrfToken = await refreshCSRFToken();
+                }
+
+                if (!csrfToken) {
+                    showHolidayError('CSRF token not found. Please refresh the page and try again.');
+                    return;
+                }
+
+                // Create FormData with CSRF token
+                const formData = new FormData();
+                formData.append('csrf_token', csrfToken);
+
+                console.log('🗑️ Sending DELETE request with CSRF token');
+
+                const response = await fetch(`/api/holidays/${editingHolidayId}`, {
+                    method: 'DELETE',
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+
+                if (!response.ok) {
+                    const text = await response.text();
+                    console.error('❌ Delete request failed:', response.status, text);
+
+                    try {
+                        const errorData = JSON.parse(text);
+                        throw new Error(errorData.message || `HTTP ${response.status}: ${response.statusText}`);
+                    } catch (parseError) {
+                        if (text.includes('CSRF')) {
+                            throw new Error('CSRF token error. Please refresh the page and try again.');
+                        } else {
+                            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                        }
+                    }
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    console.log('✅ Holiday deleted successfully:', result.message);
+                    showHolidaySuccess(result.message || 'Holiday deleted successfully');
+
+                    // Close modal
+                    const modal = bootstrap.Modal.getInstance(document.getElementById('deleteHolidayModal'));
+                    if (modal) {
+                        modal.hide();
+                    }
+
+                    // Reload holidays to refresh the display
+                    loadHolidays();
+                } else {
+                    console.error('❌ Delete failed:', result.message);
+                    showHolidayError(result.message || 'Failed to delete holiday');
+                }
+            } catch (error) {
+                console.error('❌ Error deleting holiday:', error);
+                showHolidayError(error.message || 'Failed to delete holiday. Please try again.');
+            } finally {
+                deleteBtn.innerHTML = originalText;
+                deleteBtn.disabled = false;
+                editingHolidayId = null;
+            }
+        }
+
+        // Show Holiday Details
+        function showHolidayDetails(event) {
+            const holiday = currentHolidays.find(h => h.id == event.id);
+            if (holiday) {
+                const startDate = new Date(holiday.start_date).toLocaleDateString();
+                const endDate = new Date(holiday.end_date).toLocaleDateString();
+                const dateRange = startDate === endDate ? startDate : `${startDate} - ${endDate}`;
+                
+                let typeText = '';
+                switch (holiday.holiday_type) {
+                    case 'institution_wide':
+                        typeText = 'Institution-wide Holiday';
+                        break;
+                    case 'department_specific':
+                        typeText = 'Department-specific Holiday';
+                        break;
+                    case 'common_leave':
+                        typeText = 'Common Leave Day';
+                        break;
+                    default:
+                        typeText = 'Holiday';
+                }
+
+                let details = `${holiday.holiday_name}\n${typeText}\n${dateRange}`;
+                
+                if (holiday.description) {
+                    details += `\n\nDescription: ${holiday.description}`;
+                }
+                
+                if (holiday.holiday_type === 'department_specific' && holiday.departments && holiday.departments.length > 0) {
+                    details += `\n\nDepartments: ${holiday.departments.join(', ')}`;
+                }
+
+                alert(details);
+            }
+        }
+
+        // Load Weekly Off Configuration
+        async function loadWeeklyOffConfiguration() {
+            try {
+                console.log('📅 Loading weekly off configuration...');
+
+                const response = await fetch('/api/weekly_off_config', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        const weeklyOffDays = result.weekly_off_days || [];
+                        console.log('✅ Weekly off configuration loaded:', weeklyOffDays);
+
+                        // Update UI elements
+                        const sundayOffEnabled = document.getElementById('sundayOffEnabled');
+
+                        if (sundayOffEnabled) {
+                            sundayOffEnabled.checked = weeklyOffDays.includes('sunday');
+                        }
+
+                        // Update global variable
+                        window.weeklyOffDays = weeklyOffDays;
+
+                        // Refresh holiday calendar to show weekly off days
+                        if (typeof loadHolidays === 'function') {
+                            loadHolidays();
+                        }
+                    } else {
+                        console.warn('⚠️ Failed to load weekly off configuration:', result.message);
+                        // Set defaults
+                        setDefaultWeeklyOffConfiguration();
+                    }
+                } else {
+                    console.error('❌ Failed to load weekly off configuration:', response.status);
+                    setDefaultWeeklyOffConfiguration();
+                }
+            } catch (error) {
+                console.error('❌ Error loading weekly off configuration:', error);
+                setDefaultWeeklyOffConfiguration();
+            }
+        }
+
+        // Set default weekly off configuration
+        function setDefaultWeeklyOffConfiguration() {
+            const sundayOffEnabled = document.getElementById('sundayOffEnabled');
+            if (sundayOffEnabled) {
+                sundayOffEnabled.checked = false;  // Weekly off disabled
+            }
+            window.weeklyOffDays = [];
+        }
+
+        // Update Weekly Off Configuration
+        async function updateWeeklyOffConfiguration() {
+            try {
+                const sundayOffEnabled = document.getElementById('sundayOffEnabled')?.checked;
+
+                const weeklyOffDays = [];
+                if (sundayOffEnabled) {
+                    weeklyOffDays.push('sunday');
+                }
+
+                console.log('📅 Updating weekly off days:', weeklyOffDays);
+
+                // Get CSRF token
+                const csrfToken = getCSRFToken();
+                if (!csrfToken) {
+                    showHolidayError('CSRF token not found. Please refresh the page and try again.');
+                    return;
+                }
+
+                // Create FormData
+                const formData = new FormData();
+                formData.append('csrf_token', csrfToken);
+                formData.append('sunday_off_enabled', sundayOffEnabled ? 'true' : 'false');
+
+                // Save to API
+                const response = await fetch('/api/weekly_off_config', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        console.log('✅ Weekly off configuration saved successfully');
+                        showHolidaySuccess(result.message || 'Weekly off configuration updated successfully');
+
+                        // Update global variable
+                        window.weeklyOffDays = weeklyOffDays;
+
+                        // Refresh holiday calendar to show updated weekly off days
+                        if (typeof loadHolidays === 'function') {
+                            loadHolidays();
+                        }
+                    } else {
+                        console.error('❌ Failed to save weekly off configuration:', result.message);
+                        showHolidayError(result.message || 'Failed to save weekly off configuration');
+                    }
+                } else {
+                    console.error('❌ Failed to save weekly off configuration:', response.status);
+                    showHolidayError('Failed to save weekly off configuration. Please try again.');
+                }
+            } catch (error) {
+                console.error('❌ Error updating weekly off configuration:', error);
+                showHolidayError('Failed to update weekly off configuration. Please try again.');
+            }
+        }
+
+        // Show Holiday Success Message
+        function showHolidaySuccess(message) {
+            const successEl = document.getElementById('holidaySuccessMessage');
+            const successText = document.getElementById('holidaySuccessText');
+            
+            if (successEl && successText) {
+                successText.textContent = message;
+                successEl.style.display = 'block';
+                
+                // Hide error message
+                const errorEl = document.getElementById('holidayErrorMessage');
+                if (errorEl) errorEl.style.display = 'none';
+                
+                setTimeout(() => {
+                    successEl.style.display = 'none';
+                }, 5000);
+            }
+        }
+
+        // Show Holiday Error Message
+        function showHolidayError(message) {
+            const errorEl = document.getElementById('holidayErrorMessage');
+            const errorText = document.getElementById('holidayErrorText');
+            
+            if (errorEl && errorText) {
+                errorText.textContent = message;
+                errorEl.style.display = 'block';
+                
+                // Hide success message
+                const successEl = document.getElementById('holidaySuccessMessage');
+                if (successEl) successEl.style.display = 'none';
+                
+                setTimeout(() => {
+                    errorEl.style.display = 'none';
+                }, 8000);
+            }
+        }
+
+        // Initialize Holiday Management when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize both work time assignment and holiday management
+            setTimeout(() => {
+                initializeHolidayManagement();
+                initializeQuotaManagement();
+            }, 500);
+        });
+
+        /*
+         * QUOTA MANAGEMENT SYSTEM
+         */
+
+        // Quota Management Global Variables
+        let selectedStaffId = null;
+        let currentQuotaYear = new Date().getFullYear();
+        let staffList = [];
+
+        // Initialize Quota Management System
+        function initializeQuotaManagement() {
+            console.log('📊 Initializing Quota Management System...');
+            
+            try {
+                // Load staff list
+                loadStaffList();
+                
+                // Setup event listeners
+                setupQuotaEventListeners();
+                
+                // Set initial year
+                document.getElementById('quotaYear').value = currentQuotaYear;
+                document.getElementById('quotaYearSelect').value = currentQuotaYear;
+                
+                // Show info message initially
+                showQuotaMessage('Please select a staff member to manage their quotas.', 'info');
+                
+                console.log('✅ Quota Management System initialized successfully');
+            } catch (error) {
+                console.error('❌ Error initializing Quota Management:', error);
+                showQuotaMessage('Failed to initialize Quota Management System', 'error');
+            }
+        }
+
+        // Setup Quota Management Event Listeners
+        function setupQuotaEventListeners() {
+            // Staff selection change
+            const staffSelect = document.getElementById('quotaStaffSelect');
+            if (staffSelect) {
+                staffSelect.addEventListener('change', function() {
+                    selectedStaffId = this.value;
+                    if (selectedStaffId) {
+                        loadStaffQuotas(selectedStaffId);
+                        document.getElementById('quotaConfigurationForm').style.display = 'block';
+                        document.getElementById('currentQuotaDisplay').style.display = 'block';
+                        hideQuotaMessage('info');
+                    } else {
+                        document.getElementById('quotaConfigurationForm').style.display = 'none';
+                        document.getElementById('currentQuotaDisplay').style.display = 'none';
+                        showQuotaMessage('Please select a staff member to manage their quotas.', 'info');
+                    }
+                });
+            }
+
+            // Year selection change
+            const yearSelect = document.getElementById('quotaYearSelect');
+            if (yearSelect) {
+                yearSelect.addEventListener('change', function() {
+                    currentQuotaYear = parseInt(this.value);
+                    document.getElementById('quotaYear').value = currentQuotaYear;
+                    if (selectedStaffId) {
+                        loadStaffQuotas(selectedStaffId);
+                    }
+                });
+            }
+
+            // Save quotas button
+            const saveBtn = document.getElementById('saveQuotasBtn');
+            if (saveBtn) {
+                saveBtn.addEventListener('click', saveStaffQuotas);
+            }
+
+            // Reset quotas button
+            const resetBtn = document.getElementById('resetQuotasBtn');
+            if (resetBtn) {
+                resetBtn.addEventListener('click', resetToDefaults);
+            }
+
+            // View usage button
+            const usageBtn = document.getElementById('viewUsageBtn');
+            if (usageBtn) {
+                usageBtn.addEventListener('click', viewUsageSummary);
+            }
+
+            // Bulk quota buttons
+            const loadDeptCountBtn = document.getElementById('loadDeptCountBtn');
+            if (loadDeptCountBtn) {
+                loadDeptCountBtn.addEventListener('click', async function() {
+                    const dept = document.getElementById('bulkDeptSelect').value;
+                    if (!dept) {
+                        alert('Please select a department first');
+                        return;
+                    }
+                    try {
+                        const res = await fetch(`/api/department_staff_count?department=${encodeURIComponent(dept)}`, {credentials: 'same-origin'});
+                        if (res.ok) {
+                            const d = await res.json();
+                            if (d.success) {
+                                document.getElementById('bulkDeptCount').textContent = `${d.count} staff found`;
+                            } else {
+                                document.getElementById('bulkDeptCount').textContent = 'Error retrieving count';
+                            }
+                        }
+                    } catch (err) {
+                        console.error('Error loading dept count', err);
+                        document.getElementById('bulkDeptCount').textContent = 'Error';
+                    }
+                });
+            }
+
+            const applyBulkBtn = document.getElementById('applyBulkQuotaBtn');
+            if (applyBulkBtn) {
+                applyBulkBtn.addEventListener('click', async function() {
+                    const dept = document.getElementById('bulkDeptSelect').value;
+                    const year = document.getElementById('bulkQuotaYear').value;
+                    if (!dept) { alert('Please select a department'); return; }
+
+                    const cl = parseInt(document.getElementById('bulkClQuota').value) || 0;
+                    const sl = parseInt(document.getElementById('bulkSlQuota').value) || 0;
+                    const el = parseInt(document.getElementById('bulkElQuota').value) || 0;
+                    const ml = parseInt(document.getElementById('bulkMlQuota').value) || 0;
+                    const od = parseInt(document.getElementById('bulkOdQuota').value) || 0;
+                    const permission = parseFloat(document.getElementById('bulkPermissionQuota').value) || 0.0;
+
+                    if (!confirm(`This will overwrite quotas for all staff in '${dept}' for year ${year}. Are you sure?`)) return;
+
+                    const body = `department=${encodeURIComponent(dept)}&quota_year=${encodeURIComponent(year)}&cl=${encodeURIComponent(cl)}&sl=${encodeURIComponent(sl)}&el=${encodeURIComponent(el)}&ml=${encodeURIComponent(ml)}&od=${encodeURIComponent(od)}&permission=${encodeURIComponent(permission)}&csrf_token=${encodeURIComponent(getCSRFToken())}`;
+
+                    try {
+                        const response = await fetch('/admin/bulk_quota_assignment', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                            body: body,
+                            credentials: 'same-origin'
+                        });
+
+                        const data = await response.json();
+                        if (data.success) {
+                            showQuotaMessage(data.message || 'Bulk quotas applied successfully', 'success');
+                        } else {
+                            showQuotaMessage(data.message || data.error || 'Bulk quota assignment failed', 'error');
+                        }
+                    } catch (err) {
+                        console.error('Bulk quota error', err);
+                        showQuotaMessage('Bulk quota assignment failed', 'error');
+                    }
+                });
+            }
+        }
+
+        // Load staff list for quota management
+        async function loadStaffList() {
+            try {
+                const response = await fetch('/api/staff/list', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.staff) {
+                        staffList = data.staff;
+                        populateStaffSelect();
+                    } else {
+                        console.error('Failed to load staff list:', data.message);
+                        showQuotaMessage('Failed to load staff list', 'error');
+                    }
+                } else {
+                    console.error('Failed to load staff list:', response.status);
+                    showQuotaMessage('Failed to load staff list', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading staff list:', error);
+                showQuotaMessage('Error loading staff list', 'error');
+            }
+        }
+
+        // Populate staff select dropdown
+        function populateStaffSelect() {
+            const select = document.getElementById('quotaStaffSelect');
+            if (!select) return;
+
+            // Clear existing options except the first one
+            select.innerHTML = '<option value="">Choose a staff member...</option>';
+
+            // Add staff options
+            staffList.forEach(staff => {
+                const option = document.createElement('option');
+                option.value = staff.id;
+                option.textContent = `${staff.full_name} (${staff.staff_id}) - ${staff.department}`;
+                select.appendChild(option);
+            });
+        }
+
+        // Load staff quotas
+        async function loadStaffQuotas(staffId) {
+            try {
+                const response = await fetch(`/api/staff/${staffId}/quotas/${currentQuotaYear}`, {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        populateQuotaForm(data.quotas);
+                        displayQuotaStatus(data.quotas);
+                    } else {
+                        console.error('Failed to load quotas:', data.message);
+                        showQuotaMessage('Failed to load staff quotas', 'error');
+                    }
+                } else {
+                    console.error('Failed to load quotas:', response.status);
+                    showQuotaMessage('Failed to load staff quotas', 'error');
+                }
+            } catch (error) {
+                console.error('Error loading quotas:', error);
+                showQuotaMessage('Error loading staff quotas', 'error');
+            }
+        }
+
+        // Populate quota form with current values
+        function populateQuotaForm(quotas) {
+            // Leave quotas
+            if (quotas.leave_quotas) {
+                document.getElementById('clQuota').value = quotas.leave_quotas.CL?.allocated_days || 12;
+                document.getElementById('slQuota').value = quotas.leave_quotas.SL?.allocated_days || 7;
+                document.getElementById('elQuota').value = quotas.leave_quotas.EL?.allocated_days || 21;
+                document.getElementById('mlQuota').value = quotas.leave_quotas.ML?.allocated_days || 180;
+            }
+
+            // OD quota
+            document.getElementById('odQuota').value = quotas.od_quota?.allocated_days || 10;
+
+            // Permission quota
+            document.getElementById('permissionQuota').value = quotas.permission_quota?.allocated_hours || 15;
+        }
+
+        // Display quota status cards
+        function displayQuotaStatus(quotas) {
+            const container = document.getElementById('quotaStatusCards');
+            if (!container) return;
+
+            container.innerHTML = '';
+
+            // Create leave quota cards
+            if (quotas.leave_quotas) {
+                Object.entries(quotas.leave_quotas).forEach(([leaveType, quota]) => {
+                    const card = createQuotaCard('leave', leaveType, quota.allocated_days, quota.used_days, quota.remaining_days, 'days');
+                    container.appendChild(card);
+                });
+            }
+
+            // Create OD quota card
+            if (quotas.od_quota) {
+                const card = createQuotaCard('od', 'On Duty', quotas.od_quota.allocated_days, quotas.od_quota.used_days, quotas.od_quota.remaining_days, 'days');
+                container.appendChild(card);
+            }
+
+            // Create Permission quota card
+            if (quotas.permission_quota) {
+                const card = createQuotaCard('permission', 'Permission', quotas.permission_quota.allocated_hours, quotas.permission_quota.used_hours, quotas.permission_quota.remaining_hours, 'hours');
+                container.appendChild(card);
+            }
+        }
+
+        // Create quota status card
+        function createQuotaCard(type, title, allocated, used, remaining, unit) {
+            const col = document.createElement('div');
+            col.className = 'col-md-6 col-lg-4 mb-3';
+
+            const usagePercent = allocated > 0 ? (used / allocated) * 100 : 0;
+            let progressBarClass = 'progress-bar-success';
+            if (usagePercent > 80) progressBarClass = 'progress-bar-danger';
+            else if (usagePercent > 60) progressBarClass = 'progress-bar-warning';
+
+            const leaveTypeNames = {
+                'CL': 'Casual Leave',
+                'SL': 'Sick Leave', 
+                'EL': 'Earned Leave',
+                'ML': 'Maternity Leave'
+            };
+
+            const displayTitle = leaveTypeNames[title] || title;
+
+            col.innerHTML = `
+                <div class="quota-status-card ${type}-card">
+                    <div class="quota-card-header">
+                        <h6 class="quota-card-title">
+                            ${getQuotaIcon(type)} ${displayTitle}
+                        </h6>
+                        <span class="quota-badge">${allocated} ${unit}</span>
+                    </div>
+                    <div class="quota-progress">
+                        <div class="quota-progress-bar ${progressBarClass}" style="width: ${Math.min(usagePercent, 100)}%"></div>
+                    </div>
+                    <div class="quota-stats">
+                        <div class="quota-stat">
+                            <div class="quota-stat-value text-success">${allocated}</div>
+                            <div class="quota-stat-label">Allocated</div>
+                        </div>
+                        <div class="quota-stat">
+                            <div class="quota-stat-value text-warning">${used}</div>
+                            <div class="quota-stat-label">Used</div>
+                        </div>
+                        <div class="quota-stat">
+                            <div class="quota-stat-value text-primary">${remaining}</div>
+                            <div class="quota-stat-label">Remaining</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            return col;
+        }
+
+        // Get icon for quota type
+        function getQuotaIcon(type) {
+            const icons = {
+                'leave': '<i class="bi bi-calendar-x text-info"></i>',
+                'od': '<i class="bi bi-briefcase text-primary"></i>',
+                'permission': '<i class="bi bi-shield-check text-secondary"></i>'
+            };
+            return icons[type] || '<i class="bi bi-question-circle"></i>';
+        }
+
+        // Save staff quotas
+        async function saveStaffQuotas() {
+            if (!selectedStaffId) {
+                showQuotaMessage('Please select a staff member first', 'error');
+                return;
+            }
+
+            try {
+                const quotas = {
+                    leave: {
+                        CL: parseInt(document.getElementById('clQuota').value) || 0,
+                        SL: parseInt(document.getElementById('slQuota').value) || 0,
+                        EL: parseInt(document.getElementById('elQuota').value) || 0,
+                        ML: parseInt(document.getElementById('mlQuota').value) || 0
+                    },
+                    od: parseInt(document.getElementById('odQuota').value) || 0,
+                    permission: parseFloat(document.getElementById('permissionQuota').value) || 0
+                };
+
+                const csrfToken = getCSRFToken();
+                if (!csrfToken) {
+                    showQuotaMessage('CSRF token not found. Please refresh the page and try again.', 'error');
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append('csrf_token', csrfToken);
+                formData.append('quotas', JSON.stringify(quotas));
+                formData.append('quota_year', currentQuotaYear);
+
+                const response = await fetch(`/api/staff/${selectedStaffId}/quotas`, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        showQuotaMessage('Quotas saved successfully!', 'success');
+                        // Reload quotas to show updated values
+                        setTimeout(() => loadStaffQuotas(selectedStaffId), 1000);
+                    } else {
+                        showQuotaMessage(data.message || 'Failed to save quotas', 'error');
+                    }
+                } else {
+                    showQuotaMessage('Failed to save quotas', 'error');
+                }
+            } catch (error) {
+                console.error('Error saving quotas:', error);
+                showQuotaMessage('Error saving quotas', 'error');
+            }
+        }
+
+        // Reset to default values
+        async function resetToDefaults() {
+            try {
+                const response = await fetch('/api/default_quotas', {
+                    method: 'GET',
+                    credentials: 'same-origin'
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.defaults) {
+                        // Populate form with defaults
+                        document.getElementById('clQuota').value = data.defaults.leave.CL || 12;
+                        document.getElementById('slQuota').value = data.defaults.leave.SL || 7;
+                        document.getElementById('elQuota').value = data.defaults.leave.EL || 21;
+                        document.getElementById('mlQuota').value = data.defaults.leave.ML || 180;
+                        document.getElementById('odQuota').value = data.defaults.od || 10;
+                        document.getElementById('permissionQuota').value = data.defaults.permission || 15;
+                        
+                        showQuotaMessage('Reset to default values', 'success');
+                    }
+                }
+            } catch (error) {
+                console.error('Error resetting to defaults:', error);
+                // Use hardcoded defaults if API fails
+                document.getElementById('clQuota').value = 12;
+                document.getElementById('slQuota').value = 7;
+                document.getElementById('elQuota').value = 21;
+                document.getElementById('mlQuota').value = 180;
+                document.getElementById('odQuota').value = 10;
+                document.getElementById('permissionQuota').value = 15;
+                
+                showQuotaMessage('Reset to default values', 'success');
+            }
+        }
+
+        // View usage summary (placeholder for future enhancement)
+        async function viewUsageSummary() {
+            if (!selectedStaffId) {
+                showQuotaMessage('Please select a staff member first', 'error');
+                return;
+            }
+
+            try {
+                // Show loading state
+                const usageBtn = document.getElementById('viewUsageBtn');
+                const originalText = usageBtn.innerHTML;
+                usageBtn.disabled = true;
+                usageBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin me-2"></i>Loading...';
+
+                // Get selected year
+                const year = document.getElementById('quotaYearSelect').value;
+
+                // Fetch usage summary data
+                const response = await fetch('/get_leave_usage_summary', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+                    },
+                    body: JSON.stringify({
+                        staff_id: selectedStaffId,
+                        year: year
+                    })
+                });
+
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        showUsageSummaryModal(data.usage_data);
+                    } else {
+                        showQuotaMessage(`Failed to load usage summary: ${data.message}`, 'error');
+                    }
+                } else {
+                    showQuotaMessage('Failed to load usage summary. Please try again.', 'error');
+                }
+
+            } catch (error) {
+                console.error('Error loading usage summary:', error);
+                showQuotaMessage('Error loading usage summary. Please try again.', 'error');
+            } finally {
+                // Restore button state
+                const usageBtn = document.getElementById('viewUsageBtn');
+                usageBtn.disabled = false;
+                usageBtn.innerHTML = '<i class="bi bi-bar-chart"></i> View Usage Summary';
+            }
+        }
+
+        // Show quota message
+        function showQuotaMessage(message, type) {
+            // Hide all messages first
+            hideQuotaMessage('success');
+            hideQuotaMessage('error');
+            hideQuotaMessage('info');
+
+            // Show the appropriate message
+            const messageElement = document.getElementById(`quota${type.charAt(0).toUpperCase() + type.slice(1)}Message`);
+            const textElement = document.getElementById(`quota${type.charAt(0).toUpperCase() + type.slice(1)}Text`);
+            
+            if (messageElement && textElement) {
+                textElement.textContent = message;
+                messageElement.style.display = 'block';
+                
+                // Auto-hide success messages after 5 seconds
+                if (type === 'success') {
+                    setTimeout(() => hideQuotaMessage('success'), 5000);
+                }
+            }
+        }
+
+        // Hide quota message
+        function hideQuotaMessage(type) {
+            const messageElement = document.getElementById(`quota${type.charAt(0).toUpperCase() + type.slice(1)}Message`);
+            if (messageElement) {
+                messageElement.style.display = 'none';
+            }
+        }
+
+        // Show usage summary modal
+        function showUsageSummaryModal(usageData) {
+            const modal = document.createElement('div');
+            modal.className = 'modal fade';
+            modal.id = 'usageSummaryModal';
+            modal.setAttribute('tabindex', '-1');
+            modal.innerHTML = `
+                <div class="modal-dialog modal-xl">
+                    <div class="modal-content">
+                        <div class="modal-header bg-primary text-white">
+                            <h5 class="modal-title">
+                                <i class="bi bi-bar-chart-fill me-2"></i>
+                                Leave & Permission Usage Summary - ${usageData.staff_name}
+                            </h5>
+                            <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                        </div>
+                        <div class="modal-body">
+                            ${generateUsageSummaryContent(usageData)}
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                                <i class="bi bi-x-circle me-2"></i>Close
+                            </button>
+                            <button type="button" class="btn btn-success" onclick="generateUsageReport(${selectedStaffId})">
+                                <i class="bi bi-file-earmark-excel me-2"></i>Generate Report
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+            const bsModal = new bootstrap.Modal(modal);
+            
+            // Clean up modal when closed
+            modal.addEventListener('hidden.bs.modal', () => {
+                modal.remove();
+            });
+            
+            bsModal.show();
+        }
+
+        // Generate usage summary content
+        function generateUsageSummaryContent(data) {
+            const { staff_name, year, quota_types, usage_records, summary_stats } = data;
+            
+            let content = `
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <h6><i class="bi bi-person-badge me-2"></i>Staff Member: ${staff_name}</h6>
+                        <h6><i class="bi bi-calendar-range me-2"></i>Year: ${year}</h6>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="row">
+                            <div class="col-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center p-2">
+                                        <h6 class="mb-1">Total Used</h6>
+                                        <h4 class="text-primary mb-0">${summary_stats.total_used}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-6">
+                                <div class="card bg-light">
+                                    <div class="card-body text-center p-2">
+                                        <h6 class="mb-1">Remaining</h6>
+                                        <h4 class="text-success mb-0">${summary_stats.total_remaining}</h4>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Quota breakdown by type
+            content += '<div class="row mb-4">';
+            quota_types.forEach(quota => {
+                const usagePercentage = quota.total_quota > 0 ? (quota.used / quota.total_quota * 100).toFixed(1) : 0;
+                const progressClass = usagePercentage >= 90 ? 'bg-danger' : usagePercentage >= 70 ? 'bg-warning' : 'bg-success';
+                
+                content += `
+                    <div class="col-md-6 col-lg-4 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h6 class="card-title">${quota.type_name}</h6>
+                                <p class="mb-2">
+                                    <strong>Used:</strong> ${quota.used}/${quota.total_quota}
+                                    <span class="badge badge-${quota.used > quota.total_quota ? 'danger' : 'success'} ms-2">
+                                        ${quota.remaining} left
+                                    </span>
+                                </p>
+                                <div class="progress" style="height: 8px;">
+                                    <div class="progress-bar ${progressClass}" style="width: ${Math.min(usagePercentage, 100)}%"></div>
+                                </div>
+                                <small class="text-muted">${usagePercentage}% used</small>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            content += '</div>';
+
+            // Usage records timeline
+            if (usage_records.length > 0) {
+                content += `
+                    <h6 class="mb-3"><i class="bi bi-calendar2-event me-2"></i>Usage Timeline</h6>
+                    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                        <table class="table table-striped table-sm">
+                            <thead class="table-dark sticky-top">
+                                <tr>
+                                    <th>Date</th>
+                                    <th>Type</th>
+                                    <th>Days</th>
+                                    <th>Reason</th>
+                                    <th>Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+                
+                usage_records.forEach(record => {
+                    const statusBadge = record.status === 'approved' ? 'success' : 
+                                      record.status === 'pending' ? 'warning' : 'danger';
+                    
+                    content += `
+                        <tr>
+                            <td>
+                                <small>
+                                    ${formatDate(record.start_date)}
+                                    ${record.end_date !== record.start_date ? ' - ' + formatDate(record.end_date) : ''}
+                                </small>
+                            </td>
+                            <td><span class="badge bg-info">${record.quota_type}</span></td>
+                            <td><strong>${record.days_used}</strong></td>
+                            <td><small>${record.reason || 'N/A'}</small></td>
+                            <td><span class="badge bg-${statusBadge}">${record.status}</span></td>
+                        </tr>
+                    `;
+                });
+                
+                content += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            } else {
+                content += `
+                    <div class="text-center py-4">
+                        <i class="bi bi-calendar-x display-4 text-muted"></i>
+                        <h6 class="text-muted mt-2">No leave or permission records found for ${year}</h6>
+                    </div>
+                `;
+            }
+
+            return content;
+        }
+
+        // Format date helper
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-US', { 
+                month: 'short', 
+                day: 'numeric',
+                year: 'numeric'
+            });
+        }
+
+        // Generate usage report
+        async function generateUsageReport(staffId) {
+            try {
+                const year = document.getElementById('quotaYearSelect').value;
+                
+                // Create a form and submit it to download the report
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/generate_usage_report';
+                form.target = '_blank';
+                
+                const staffInput = document.createElement('input');
+                staffInput.type = 'hidden';
+                staffInput.name = 'staff_id';
+                staffInput.value = staffId;
+                form.appendChild(staffInput);
+                
+                const yearInput = document.createElement('input');
+                yearInput.type = 'hidden';
+                yearInput.name = 'year';
+                yearInput.value = year;
+                form.appendChild(yearInput);
+                
+                const csrfInput = document.createElement('input');
+                csrfInput.type = 'hidden';
+                csrfInput.name = 'csrf_token';
+                csrfInput.value = document.querySelector('input[name="csrf_token"]')?.value || '';
+                form.appendChild(csrfInput);
+                
+                document.body.appendChild(form);
+                form.submit();
+                document.body.removeChild(form);
+                
+                showQuotaMessage('Report generation started. Check your downloads folder.', 'success');
+                
+            } catch (error) {
+                console.error('Error generating usage report:', error);
+                showQuotaMessage('Failed to generate usage report. Please try again.', 'error');
+            }
+        }
+
+        // Test function to create sample quota cards for scrolling test
+        function testQuotaScrolling() {
+            const sampleQuotas = {
+                leave_quotas: {
+                    CL: { allocated_days: 12, used_days: 3, remaining_days: 9 },
+                    SL: { allocated_days: 10, used_days: 7, remaining_days: 3 },
+                    EL: { allocated_days: 21, used_days: 5, remaining_days: 16 },
+                    ML: { allocated_days: 90, used_days: 0, remaining_days: 90 }
+                },
+                od_quota: { allocated_days: 20, used_days: 8, remaining_days: 12 },
+                permission_quota: { allocated_hours: 40, used_hours: 15, remaining_hours: 25 }
+            };
+            
+            displayQuotaStatus(sampleQuotas);
+            document.getElementById('currentQuotaDisplay').style.display = 'block';
+        }
+
+        // Auto-test on page load (remove this line in production)
+        // document.addEventListener('DOMContentLoaded', testQuotaScrolling);
+
+
+    </script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

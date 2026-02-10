@@ -1,0 +1,1517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Biometric Device Management - Staff Management System</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --primary-color: #4e73df;
+            --success-color: #1cc88a;
+            --danger-color: #e74a3b;
+            --warning-color: #f6c23e;
+            --info-color: #36b9cc;
+            --sidebar-width: 250px;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fc;
+        }
+
+        .enhanced-sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: var(--sidebar-width);
+            background: linear-gradient(180deg, #4e73df 0%, #224abe 100%);
+            color: white;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 4px 0 15px rgba(0,0,0,0.1);
+        }
+
+        .main-content {
+            margin-left: var(--sidebar-width);
+            padding: 2rem;
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.75rem;
+            color: #2c3e50;
+            margin: 0;
+        }
+
+        .page-header .breadcrumb {
+            margin: 0.5rem 0 0 0;
+            background: transparent;
+            padding: 0;
+        }
+
+        .nav-tabs {
+            border-bottom: 2px solid #e3e6f0;
+        }
+
+        .nav-tabs .nav-link {
+            color: white;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 1rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+        }
+
+        .nav-tabs .nav-link:hover {
+            border-bottom-color: #4e73df;
+            color: #4e73df;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #4e73df;
+            border-bottom-color: #4e73df;
+            background: transparent;
+        }
+
+        .device-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .device-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+        }
+
+        .device-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .device-name {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .device-status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 600;
+        }
+
+        .status-online {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .status-offline {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .status-pending {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .device-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .info-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .info-item i {
+            color: #4e73df;
+            font-size: 1.25rem;
+        }
+
+        .info-label {
+            font-size: 0.875rem;
+            color: white;
+            font-weight: 600;
+        }
+
+        .info-value {
+            font-size: 0.875rem;
+            color: #2c3e50;
+        }
+
+        .device-actions {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .btn-icon {
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            transition: all 0.3s ease;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 4rem 2rem;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            color: #d1d3e2;
+            margin-bottom: 1rem;
+        }
+
+        .empty-state h3 {
+            color: #5a5c69;
+            margin-bottom: 0.5rem;
+        }
+
+        .empty-state p {
+            color: #858796;
+        }
+
+        .connection-badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .conn-direct-lan {
+            background-color: #d1ecf1;
+            color: #0c5460;
+        }
+
+        .conn-adms {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .conn-agent-lan {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+
+        .server-config-box {
+            background: #f8f9fc;
+            border: 2px dashed #4e73df;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .server-config-box strong {
+            display: block;
+            color: #e74a3b;
+            margin-bottom: 0.5rem;
+        }
+
+        .config-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            background: white;
+            margin: 0.25rem 0;
+            border-radius: 4px;
+        }
+
+        .config-label {
+            font-weight: 600;
+            color: #5a5c69;
+        }
+
+        .config-value {
+            font-family: 'Courier New', monospace;
+            color: #2c3e50;
+        }
+
+        .agent-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            border-left: 4px solid #4e73df;
+        }
+
+        .agent-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .heartbeat-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            margin-right: 0.5rem;
+        }
+
+        .heartbeat-online {
+            background-color: #1cc88a;
+            animation: pulse 2s infinite;
+        }
+
+        .heartbeat-offline {
+            background-color: #e74a3b;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .api-key-display {
+            background: #f8f9fc;
+            padding: 0.75rem;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+            border: 1px solid #e3e6f0;
+            margin-top: 0.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-btn {
+            cursor: pointer;
+            color: #4e73df;
+            transition: color 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            color: #224abe;
+        }
+
+        .modal-lg {
+            max-width: 900px;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #5a5c69;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 1px solid #d1d3e2;
+            padding: 0.75rem 1rem;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #4e73df;
+            box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
+        }
+
+        @media (max-width: 768px) {
+            .enhanced-sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease;
+            }
+
+            .enhanced-sidebar.show {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+            }
+
+            .device-info {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <!-- PWA Meta Tags -->
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+</head>
+<body>
+    <!-- Main Content -->
+    <div class="main-content" style="margin-left: 0; padding: 20px;">
+        <!-- Page Header -->
+        <div class="page-header">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h1><i class="bi bi-fingerprint me-2"></i>Biometric Device Management</h1>
+                    <nav aria-label="breadcrumb">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}">Dashboard</a></li>
+                            <li class="breadcrumb-item active">Device Management</li>
+                        </ol>
+                    </nav>
+                </div>
+                {% if session.school_id %}
+                <div class="text-end">
+                    <div class="badge bg-primary p-2" style="font-size: 0.9rem;">
+                        <i class="bi bi-building me-1"></i>
+                        <span>Institution ID: <strong>{{ session.school_id }}</strong></span>
+                    </div>
+                    {% if session.school_name %}
+                    <div class="text-muted small mt-1">
+                        {{ session.school_name }}
+                    </div>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs" id="deviceTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="devices-tab" data-bs-toggle="tab" data-bs-target="#devices" 
+                        type="button" role="tab" aria-controls="devices" aria-selected="true">
+                    <i class="bi bi-hdd-network me-2"></i>Devices
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="agents-tab" data-bs-toggle="tab" data-bs-target="#agents" 
+                        type="button" role="tab" aria-controls="agents" aria-selected="false">
+                    <i class="bi bi-pc-display me-2"></i>Local Agents
+                </button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content mt-4" id="deviceTabContent">
+            <!-- Devices Tab -->
+            <div class="tab-pane fade show active" id="devices" role="tabpanel" aria-labelledby="devices-tab">
+                <!-- Auto-Sync Configuration Card -->
+                <div class="card mb-3" style="border-left: 4px solid #4e73df;">
+                    <div class="card-body">
+                        <div class="row align-items-center">
+                            <div class="col-md-8">
+                                <h5 class="mb-2"><i class="bi bi-arrow-repeat me-2"></i>Auto-Sync Configuration</h5>
+                                <p class="mb-0 text-muted">Direct LAN devices will automatically sync every <strong id="currentIntervalDisplay">15 minutes</strong></p>
+                            </div>
+                            <div class="col-md-4 text-end">
+                                <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#syncConfigModal">
+                                    <i class="bi bi-gear me-2"></i>Configure Interval
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3>Registered Devices</h3>
+                    <button type="button" class="btn btn-primary btn-icon" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+                        <i class="bi bi-plus-circle"></i> Add Device
+                    </button>
+                </div>
+
+                <!-- Devices List -->
+                <div id="devicesContainer">
+                    <!-- Devices will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Agents Tab -->
+            <div class="tab-pane fade" id="agents" role="tabpanel" aria-labelledby="agents-tab">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h3>Local Agents (Desktop Bridge Software)</h3>
+                    <button type="button" class="btn btn-primary btn-icon" data-bs-toggle="modal" data-bs-target="#addAgentModal">
+                        <i class="bi bi-plus-circle"></i> Create Agent
+                    </button>
+                </div>
+
+                <!-- Agents List -->
+                <div id="agentsContainer">
+                    <!-- Agents will be loaded here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Device Modal -->
+    <div class="modal fade" id="addDeviceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-hdd-network me-2"></i>Add Biometric Device</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addDeviceForm">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="deviceName" class="form-label">Device Name *</label>
+                                <input type="text" class="form-control" id="deviceName" name="deviceName" 
+                                       placeholder="e.g., Main Gate" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="institution" class="form-label">Institution *</label>
+                                <select class="form-select" id="institution" name="institution" required>
+                                    <option value="">Select Institution</option>
+                                    <!-- Will be populated dynamically -->
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Connection Type *</label>
+                            <div class="btn-group w-100" role="group">
+                                <input type="radio" class="btn-check" name="connectionType" id="connDirectLAN" value="Direct_LAN" checked>
+                                <label class="btn btn-outline-primary" for="connDirectLAN">
+                                    <i class="bi bi-ethernet me-1"></i>Direct LAN
+                                </label>
+
+                                <input type="radio" class="btn-check" name="connectionType" id="connADMS" value="ADMS">
+                                <label class="btn btn-outline-success" for="connADMS">
+                                    <i class="bi bi-cloud-upload me-1"></i>ADMS Cloud
+                                </label>
+
+                                <input type="radio" class="btn-check" name="connectionType" id="connAgentLAN" value="Agent_LAN">
+                                <label class="btn btn-outline-warning" for="connAgentLAN">
+                                    <i class="bi bi-pc-display me-1"></i>Local Agent
+                                </label>
+                            </div>
+                        </div>
+
+                        <!-- Direct LAN Fields -->
+                        <div id="directLANFields" class="connection-fields">
+                            <div class="row">
+                                <div class="col-md-8 mb-3">
+                                    <label for="ipAddress" class="form-label">IP Address *</label>
+                                    <input type="text" class="form-control" id="ipAddress" name="ipAddress" 
+                                           placeholder="e.g., 192.168.1.201" pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="port" class="form-label">Port</label>
+                                    <input type="number" class="form-control" id="port" name="port" value="4370">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ADMS Fields -->
+                        <div id="admsFields" class="connection-fields" style="display:none;">
+                            <div class="mb-3">
+                                <label for="serialNumber" class="form-label">Device Serial Number *</label>
+                                <input type="text" class="form-control" id="serialNumber" name="serialNumber" 
+                                       placeholder="e.g., ZKDEV123456">
+                                <small class="text-muted">Find this on the device admin panel or physical label</small>
+                            </div>
+
+                            <!-- Server Configuration Display -->
+                            <div class="server-config-box">
+                                <strong>⚠️ IMPORTANT: Configure Device Network Settings</strong>
+                                <div class="config-item">
+                                    <span class="config-label">Server Address:</span>
+                                    <span class="config-value" id="serverAddress">Loading...</span>
+                                </div>
+                                <div class="config-item">
+                                    <span class="config-label">Server Port:</span>
+                                    <span class="config-value" id="serverPort">Loading...</span>
+                                </div>
+                                <div class="config-item">
+                                    <span class="config-label">Endpoint Path:</span>
+                                    <span class="config-value">/iclock/cdata.aspx</span>
+                                </div>
+                                <small class="text-muted d-block mt-2">
+                                    <i class="bi bi-info-circle me-1"></i>
+                                    Enter these settings in your ZK device's ADMS/Cloud configuration panel
+                                </small>
+                            </div>
+                        </div>
+
+                        <!-- Agent LAN Fields -->
+                        <div id="agentLANFields" class="connection-fields" style="display:none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="selectAgent" class="form-label">Select Agent *</label>
+                                    <select class="form-select" id="selectAgent" name="selectAgent">
+                                        <option value="">Choose Local Agent</option>
+                                        <!-- Will be populated dynamically -->
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="agentDeviceIP" class="form-label">Device IP (Local to Agent) *</label>
+                                    <input type="text" class="form-control" id="agentDeviceIP" name="agentDeviceIP" 
+                                           placeholder="e.g., 192.168.10.50">
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="agentPort" class="form-label">Port</label>
+                                <input type="number" class="form-control" id="agentPort" name="agentPort" value="4370">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="saveDevice()">
+                        <i class="bi bi-save me-1"></i>Save Device
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Agent Modal -->
+    <div class="modal fade" id="addAgentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pc-display me-2"></i>Create Local Agent</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addAgentForm">
+                        <div class="mb-3">
+                            <label for="agentName" class="form-label">Agent Name *</label>
+                            <input type="text" class="form-control" id="agentName" name="agentName" 
+                                   placeholder="e.g., Front Desk PC" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="agentInstitution" class="form-label">Institution *</label>
+                            <select class="form-select" id="agentInstitution" name="agentInstitution" required>
+                                <option value="">Select Institution</option>
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>After creating the agent, you'll receive an API key to configure the desktop software.</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="createAgent()">
+                        <i class="bi bi-plus-circle me-1"></i>Create Agent
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Device Modal -->
+    <div class="modal fade" id="editDeviceModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-pencil me-2"></i>Edit Biometric Device</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editDeviceForm">
+                        <input type="hidden" id="editDeviceId" name="editDeviceId">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="editDeviceName" class="form-label">Device Name *</label>
+                                <input type="text" class="form-control" id="editDeviceName" name="editDeviceName" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="editInstitution" class="form-label">Institution</label>
+                                <input type="text" class="form-control" id="editInstitution" name="editInstitution" readonly disabled>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Connection Type</label>
+                            <input type="text" class="form-control" id="editConnectionType" readonly disabled>
+                        </div>
+
+                        <div id="editDirectLANFields" style="display:none;">
+                            <div class="row">
+                                <div class="col-md-8 mb-3">
+                                    <label for="editIpAddress" class="form-label">IP Address *</label>
+                                    <input type="text" class="form-control" id="editIpAddress" name="editIpAddress" 
+                                           pattern="^(?:[0-9]{1,3}\.){3}[0-9]{1,3}$">
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label for="editPort" class="form-label">Port</label>
+                                    <input type="number" class="form-control" id="editPort" name="editPort">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="editADMSFields" style="display:none;">
+                            <div class="mb-3">
+                                <label for="editSerialNumber" class="form-label">Device Serial Number *</label>
+                                <input type="text" class="form-control" id="editSerialNumber" name="editSerialNumber">
+                            </div>
+                        </div>
+
+                        <div id="editAgentLANFields" style="display:none;">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="editSelectAgent" class="form-label">Select Agent *</label>
+                                    <select class="form-select" id="editSelectAgent" name="editSelectAgent">
+                                        <option value="">Choose Local Agent</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="editAgentDeviceIP" class="form-label">Device IP (Local to Agent) *</label>
+                                    <input type="text" class="form-control" id="editAgentDeviceIP" name="editAgentDeviceIP">
+                                </div>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label for="editAgentPort" class="form-label">Port</label>
+                                <input type="number" class="form-control" id="editAgentPort" name="editAgentPort">
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="updateDevice()">
+                        <i class="bi bi-save me-1"></i>Update Device
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sync Configuration Modal -->
+    <div class="modal fade" id="syncConfigModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-gear me-2"></i>Auto-Sync Configuration</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="syncConfigForm">
+                        <div class="mb-3">
+                            <label for="syncInterval" class="form-label">Sync Interval (minutes) *</label>
+                            <input type="number" class="form-control" id="syncInterval" name="syncInterval" 
+                                   min="1" max="1440" value="15" required>
+                            <small class="text-muted">Enter a value between 1-1440 minutes (1 minute to 24 hours)</small>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Quick Presets:</strong>
+                            <div class="btn-group-vertical w-100 mt-2" role="group">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setSyncInterval(5)">5 minutes</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setSyncInterval(15)">15 minutes (default)</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setSyncInterval(30)">30 minutes</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setSyncInterval(60)">1 hour</button>
+                                <button type="button" class="btn btn-sm btn-outline-secondary" onclick="setSyncInterval(120)">2 hours</button>
+                            </div>
+                        </div>
+
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> Shorter intervals provide more real-time data but may increase server load.
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="updateSyncInterval()">
+                        <i class="bi bi-check-circle me-2"></i>Save Configuration
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Agent API Key Modal -->
+    <div class="modal fade" id="apiKeyModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title"><i class="bi bi-check-circle me-2"></i>Agent Created Successfully</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Agent Name:</strong> <span id="createdAgentName"></span></p>
+                    <p><strong>API Key:</strong></p>
+                    <div class="api-key-display">
+                        <code id="apiKeyValue"></code>
+                        <i class="bi bi-clipboard copy-btn" onclick="copyAPIKey()" title="Copy to clipboard"></i>
+                    </div>
+                    <div class="alert alert-warning mt-3">
+                        <i class="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Important:</strong> Save this API key now! You won't be able to see it again.
+                    </div>
+                    <p class="mt-3"><small>Use this API key to configure the Local Agent desktop software.</small></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Done</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        // Global variables
+        let devices = [];
+        let agents = [];
+        let schools = [];
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSchools();
+            loadDevices();
+            loadAgents();
+            loadServerConfig();
+            loadSyncConfig();
+            
+            // Connection type change handlers
+            document.querySelectorAll('input[name="connectionType"]').forEach(radio => {
+                radio.addEventListener('change', updateConnectionFields);
+            });
+        });
+
+        // Load schools for dropdowns
+        function loadSchools() {
+            fetch('/api/schools')
+                .then(response => response.json())
+                .then(data => {
+                    schools = data.schools || [];
+                    populateSchoolDropdowns();
+                })
+                .catch(error => console.error('Error loading schools:', error));
+        }
+
+        function populateSchoolDropdowns() {
+            const institutionSelect = document.getElementById('institution');
+            const agentInstitutionSelect = document.getElementById('agentInstitution');
+            
+            [institutionSelect, agentInstitutionSelect].forEach(select => {
+                select.innerHTML = '<option value="">Select Institution</option>';
+                schools.forEach(school => {
+                    select.innerHTML += `<option value="${school.id}">${school.name}</option>`;
+                });
+            });
+        }
+
+        // Load server configuration
+        function loadServerConfig() {
+            // Try to detect server IP/hostname
+            const serverAddress = window.location.hostname || 'YOUR_SERVER_IP';
+            
+            // Get actual port from current URL
+            // If port is not specified in URL, it means default port (80 for HTTP, 443 for HTTPS)
+            let serverPort = window.location.port;
+            if (!serverPort) {
+                // No port in URL means default port, but for Flask dev it's usually on a specific port
+                // Try to get from current URL or default to 5000 for Flask development
+                serverPort = '5000';
+            }
+            
+            document.getElementById('serverAddress').textContent = serverAddress;
+            document.getElementById('serverPort').textContent = serverPort;
+        }
+
+        // Update form fields based on connection type
+        function updateConnectionFields() {
+            const connectionType = document.querySelector('input[name="connectionType"]:checked').value;
+            
+            document.getElementById('directLANFields').style.display = connectionType === 'Direct_LAN' ? 'block' : 'none';
+            document.getElementById('admsFields').style.display = connectionType === 'ADMS' ? 'block' : 'none';
+            document.getElementById('agentLANFields').style.display = connectionType === 'Agent_LAN' ? 'block' : 'none';
+        }
+
+        // Load devices
+        function loadDevices() {
+            fetch('/api/devices/list')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        devices = data.devices || [];
+                        renderDevices();
+                    }
+                })
+                .catch(error => console.error('Error loading devices:', error));
+        }
+
+        function renderDevices() {
+            const container = document.getElementById('devicesContainer');
+            
+            if (devices.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-hdd-network"></i>
+                        <h3>No Devices Registered</h3>
+                        <p>Click "Add Device" to register your first biometric device</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = devices.map(device => `
+                <div class="device-card">
+                    <div class="device-header">
+                        <div>
+                            <div class="device-name">${device.device_name} <span style="color: white; font-size: 0.875rem;">(ID: ${device.id})</span></div>
+                            <span class="connection-badge conn-${device.connection_type.toLowerCase().replace('_', '-')}">${device.connection_type}</span>
+                        </div>
+                        <span class="device-status status-${device.sync_status || 'pending'}">${device.sync_status || 'Pending'}</span>
+                    </div>
+                    <div class="device-info">
+                        <div class="info-item">
+                            <i class="bi bi-building"></i>
+                            <div>
+                                <div class="info-label">Institution</div>
+                                <div class="info-value">${device.school_name || 'N/A'}</div>
+                            </div>
+                        </div>
+                        ${device.ip_address ? `
+                        <div class="info-item">
+                            <i class="bi bi-router"></i>
+                            <div>
+                                <div class="info-label">IP Address</div>
+                                <div class="info-value">${device.ip_address}:${device.port || 4370}</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        ${device.serial_number ? `
+                        <div class="info-item">
+                            <i class="bi bi-upc-scan"></i>
+                            <div>
+                                <div class="info-label">Serial Number</div>
+                                <div class="info-value">${device.serial_number}</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        ${device.agent_name ? `
+                        <div class="info-item">
+                            <i class="bi bi-pc-display"></i>
+                            <div>
+                                <div class="info-label">Managed By</div>
+                                <div class="info-value">${device.agent_name}</div>
+                            </div>
+                        </div>
+                        ` : ''}
+                        <div class="info-item">
+                            <i class="bi bi-clock-history"></i>
+                            <div>
+                                <div class="info-label">Last Sync</div>
+                                <div class="info-value">${device.last_sync ? new Date(device.last_sync).toLocaleString() : 'Never'}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="device-actions">
+                        <button class="btn btn-sm btn-outline-primary btn-icon" onclick="testConnection(${device.id})">
+                            <i class="bi bi-lightning"></i> Test
+                        </button>
+                        <button class="btn btn-sm btn-outline-warning btn-icon" onclick="diagnoseDevice(${device.id})">
+                            <i class="bi bi-search"></i> Diagnose
+                        </button>
+                        <button class="btn btn-sm btn-outline-info btn-icon" onclick="syncDevice(${device.id})">
+                            <i class="bi bi-arrow-repeat"></i> Sync
+                        </button>
+                        <button class="btn btn-sm btn-outline-secondary btn-icon" onclick="editDevice(${device.id})">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button class="btn btn-sm btn-outline-danger btn-icon" onclick="deleteDevice(${device.id})">
+                            <i class="bi bi-trash"></i> Delete
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Load agents
+        function loadAgents() {
+            fetch('/api/agents/list')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        agents = data.agents || [];
+                        renderAgents();
+                        populateAgentDropdown();
+                    }
+                })
+                .catch(error => console.error('Error loading agents:', error));
+        }
+
+        function renderAgents() {
+            const container = document.getElementById('agentsContainer');
+            
+            if (agents.length === 0) {
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="bi bi-pc-display"></i>
+                        <h3>No Agents Registered</h3>
+                        <p>Create a Local Agent to manage devices in isolated network segments</p>
+                    </div>
+                `;
+                return;
+            }
+
+            container.innerHTML = agents.map(agent => {
+                // Calculate time difference in milliseconds
+                const now = new Date();
+                const lastHeartbeat = agent.last_heartbeat ? new Date(agent.last_heartbeat) : null;
+                const timeDiff = lastHeartbeat ? (now - lastHeartbeat) : Infinity;
+                const isOnline = lastHeartbeat && timeDiff < 120000; // 2 minutes
+                
+                // Debug logging
+                console.log(`Agent ${agent.agent_name}: last_heartbeat=${agent.last_heartbeat}, timeDiff=${timeDiff}ms, isOnline=${isOnline}`);
+                
+                return `
+                    <div class="agent-card">
+                        <div class="agent-header">
+                            <div>
+                                <h5>
+                                    <span class="heartbeat-indicator ${isOnline ? 'heartbeat-online' : 'heartbeat-offline'}"></span>
+                                    ${agent.agent_name}
+                                </h5>
+                                <small class="text-muted">${agent.school_name}</small>
+                            </div>
+                            <span class="badge ${isOnline ? 'bg-success' : 'bg-secondary'}">${isOnline ? 'Online' : 'Offline'}</span>
+                        </div>
+                        <div class="device-info">
+                            <div class="info-item">
+                                <i class="bi bi-hdd-network"></i>
+                                <div>
+                                    <div class="info-label">Managed Devices</div>
+                                    <div class="info-value">${agent.device_count || 0}</div>
+                                </div>
+                            </div>
+                            <div class="info-item">
+                                <i class="bi bi-clock-history"></i>
+                                <div>
+                                    <div class="info-label">Last Heartbeat</div>
+                                    <div class="info-value">${agent.last_heartbeat ? new Date(agent.last_heartbeat).toLocaleString() : 'Never'}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="device-actions mt-2">
+                            <button class="btn btn-sm btn-outline-danger btn-icon" onclick="deactivateAgent(${agent.id})">
+                                <i class="bi bi-power"></i> Deactivate
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function populateAgentDropdown() {
+            const select = document.getElementById('selectAgent');
+            select.innerHTML = '<option value="">Choose Local Agent</option>';
+            agents.forEach(agent => {
+                if (agent.is_active) {
+                    select.innerHTML += `<option value="${agent.id}">${agent.agent_name} (${agent.school_name})</option>`;
+                }
+            });
+        }
+
+        // Save device
+        function saveDevice() {
+            const form = document.getElementById('addDeviceForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const connectionType = document.querySelector('input[name="connectionType"]:checked').value;
+            const data = {
+                device_name: document.getElementById('deviceName').value,
+                school_id: document.getElementById('institution').value,
+                connection_type: connectionType
+            };
+
+            if (connectionType === 'Direct_LAN') {
+                data.ip_address = document.getElementById('ipAddress').value;
+                data.port = document.getElementById('port').value;
+            } else if (connectionType === 'ADMS') {
+                data.serial_number = document.getElementById('serialNumber').value;
+            } else if (connectionType === 'Agent_LAN') {
+                data.agent_id = document.getElementById('selectAgent').value;
+                data.ip_address = document.getElementById('agentDeviceIP').value;
+                data.port = document.getElementById('agentPort').value;
+            }
+
+            fetch('/api/devices/add', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Device added successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('addDeviceModal')).hide();
+                    form.reset();
+                    loadDevices();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error adding device');
+            });
+        }
+
+        // Create agent
+        function createAgent() {
+            const form = document.getElementById('addAgentForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const data = {
+                agent_name: document.getElementById('agentName').value,
+                school_id: document.getElementById('agentInstitution').value
+            };
+
+            fetch('/api/agents/create', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Hide add agent modal
+                    bootstrap.Modal.getInstance(document.getElementById('addAgentModal')).hide();
+                    form.reset();
+                    
+                    // Show API key modal
+                    document.getElementById('createdAgentName').textContent = data.agent_name;
+                    document.getElementById('apiKeyValue').textContent = result.api_key;
+                    new bootstrap.Modal(document.getElementById('apiKeyModal')).show();
+                    
+                    loadAgents();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error creating agent');
+            });
+        }
+
+        // Copy API key to clipboard
+        function copyAPIKey() {
+            const apiKeyElement = document.getElementById('apiKeyValue');
+            const apiKey = apiKeyElement.textContent.trim();
+            
+            // Use fallback method which is more reliable
+            const textarea = document.createElement('textarea');
+            textarea.value = apiKey;
+            textarea.style.position = 'fixed';
+            textarea.style.top = '0';
+            textarea.style.left = '0';
+            textarea.style.width = '2em';
+            textarea.style.height = '2em';
+            textarea.style.padding = '0';
+            textarea.style.border = 'none';
+            textarea.style.outline = 'none';
+            textarea.style.boxShadow = 'none';
+            textarea.style.background = 'transparent';
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            
+            let successful = false;
+            try {
+                successful = document.execCommand('copy');
+            } catch (err) {
+                console.error('Copy failed:', err);
+            }
+            
+            document.body.removeChild(textarea);
+            
+            if (successful) {
+                const icon = event.target;
+                const originalClass = icon.className;
+                icon.className = 'bi bi-check2 copy-btn';
+                
+                // Show success message
+                const alertDiv = document.createElement('div');
+                alertDiv.className = 'alert alert-success';
+                alertDiv.style.position = 'fixed';
+                alertDiv.style.top = '20px';
+                alertDiv.style.right = '20px';
+                alertDiv.style.zIndex = '9999';
+                alertDiv.innerHTML = '<strong>✅ Success!</strong> API Key copied to clipboard';
+                document.body.appendChild(alertDiv);
+                
+                setTimeout(() => {
+                    icon.className = originalClass;
+                    document.body.removeChild(alertDiv);
+                }, 2000);
+            } else {
+                alert('❌ Copy failed. Please select and copy the API Key manually:\n\n' + apiKey);
+            }
+        }
+
+        // Sync configuration functions
+        function loadSyncConfig() {
+            fetch('/api/biometric/sync-config')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('syncInterval').value = data.interval_minutes;
+                        document.getElementById('currentIntervalDisplay').textContent = data.interval_display;
+                    }
+                })
+                .catch(error => console.error('Error loading sync config:', error));
+        }
+
+        function setSyncInterval(minutes) {
+            document.getElementById('syncInterval').value = minutes;
+        }
+
+        function updateSyncInterval() {
+            const interval = parseInt(document.getElementById('syncInterval').value);
+            
+            if (interval < 1 || interval > 1440) {
+                alert('Please enter a value between 1 and 1440 minutes');
+                return;
+            }
+
+            fetch('/api/biometric/sync-config', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ interval_minutes: interval })
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('✅ ' + result.message);
+                    loadSyncConfig(); // Refresh display
+                    bootstrap.Modal.getInstance(document.getElementById('syncConfigModal')).hide();
+                } else {
+                    alert('❌ Error: ' + result.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating sync interval: ' + error.message);
+            });
+        }
+
+        // Device actions
+        function testConnection(deviceId) {
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Testing...';
+            
+            fetch(`/api/devices/${deviceId}/test`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(result => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                
+                if (result.success) {
+                    let infoMsg = `✅ Connection Successful!\n\n`;
+                    if (result.device_info) {
+                        infoMsg += `Device: ${result.device_info.device_name}\n`;
+                        infoMsg += `Firmware: ${result.device_info.firmware_version}\n`;
+                        infoMsg += `Platform: ${result.device_info.platform}\n`;
+                        infoMsg += `Users: ${result.device_info.user_count}\n`;
+                    }
+                    alert(infoMsg);
+                } else {
+                    alert('❌ Connection Failed!\n\n' + result.error);
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                console.error('Error:', error);
+                alert('Error testing connection: ' + error.message);
+            });
+        }
+
+        function syncDevice(deviceId) {
+            if (!confirm('Sync attendance records from this device now?')) {
+                return;
+            }
+            
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Syncing...';
+            
+            fetch(`/api/devices/${deviceId}/sync`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(result => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                
+                if (result.success) {
+                    let msg = `✅ Sync Complete!\n\n${result.message}`;
+                    
+                    if (result.rejected > 0 && result.rejection_summary) {
+                        msg += '\n\n⚠️ TIP: Click "Diagnose" button to see which staff IDs are missing!';
+                    }
+                    
+                    alert(msg);
+                    loadDevices(); // Refresh to show new last_sync time
+                } else {
+                    alert('❌ Sync Failed!\n\n' + result.error);
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                console.error('Error:', error);
+                alert('Error syncing device: ' + error.message);
+            });
+        }
+
+        function diagnoseDevice(deviceId) {
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Checking...';
+            
+            fetch(`/api/devices/${deviceId}/diagnose`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(result => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                
+                if (result.success) {
+                    let msg = `🔍 Sync Diagnosis for ${result.device_name}\n\n`;
+                    msg += `📊 Summary:\n`;
+                    msg += `  • Users in Device: ${result.summary.device_users}\n`;
+                    msg += `  • Staff in Database: ${result.summary.database_staff}\n`;
+                    msg += `  • ✅ Matched: ${result.summary.matched}\n`;
+                    msg += `  • ⚠️ In Device Only: ${result.summary.device_only}\n`;
+                    msg += `  • ⚠️ In Database Only: ${result.summary.database_only}\n\n`;
+                    
+                    if (result.summary.device_only > 0) {
+                        msg += `❌ Users in device but NOT in your database:\n`;
+                        result.device_only.forEach(u => {
+                            msg += `  • ID: ${u.user_id} - ${u.name}\n`;
+                        });
+                        msg += `\n💡 ACTION: Add these staff to your database with matching staff_id\n\n`;
+                    }
+                    
+                    if (result.summary.database_only > 0) {
+                        msg += `⚠️ Staff in database but NOT enrolled in device:\n`;
+                        result.database_only.slice(0, 10).forEach(s => {
+                            msg += `  • ID: ${s.staff_id} - ${s.name}\n`;
+                        });
+                        if (result.database_only.length > 10) {
+                            msg += `  ... and ${result.database_only.length - 10} more\n`;
+                        }
+                        msg += `\n💡 ACTION: Enroll these staff fingerprints in the device\n`;
+                    }
+                    
+                    if (result.summary.matched > 0 && result.summary.device_only === 0) {
+                        msg += `✅ All device users are properly registered!\n`;
+                    }
+                    
+                    alert(msg);
+                } else {
+                    alert('❌ Diagnosis Failed!\n\n' + result.error);
+                }
+            })
+            .catch(error => {
+                btn.disabled = false;
+                btn.innerHTML = originalHTML;
+                console.error('Error:', error);
+                alert('Error diagnosing device: ' + error.message);
+            });
+        }
+
+        function editDevice(deviceId) {
+            const device = devices.find(d => d.id === deviceId);
+            if (!device) {
+                alert('Device not found');
+                return;
+            }
+
+            // Populate edit form
+            document.getElementById('editDeviceId').value = device.id;
+            document.getElementById('editDeviceName').value = device.device_name;
+            document.getElementById('editInstitution').value = device.school_name;
+            document.getElementById('editConnectionType').value = device.connection_type.replace('_', ' ');
+
+            // Hide all connection fields
+            document.getElementById('editDirectLANFields').style.display = 'none';
+            document.getElementById('editADMSFields').style.display = 'none';
+            document.getElementById('editAgentLANFields').style.display = 'none';
+
+            // Show and populate relevant fields based on connection type
+            if (device.connection_type === 'Direct_LAN') {
+                document.getElementById('editDirectLANFields').style.display = 'block';
+                document.getElementById('editIpAddress').value = device.ip_address || '';
+                document.getElementById('editPort').value = device.port || 4370;
+            } else if (device.connection_type === 'ADMS') {
+                document.getElementById('editADMSFields').style.display = 'block';
+                document.getElementById('editSerialNumber').value = device.serial_number || '';
+            } else if (device.connection_type === 'Agent_LAN') {
+                document.getElementById('editAgentLANFields').style.display = 'block';
+                
+                // Populate agent dropdown
+                const agentSelect = document.getElementById('editSelectAgent');
+                agentSelect.innerHTML = '<option value="">Choose Local Agent</option>';
+                agents.forEach(agent => {
+                    if (agent.is_active) {
+                        const selected = device.agent_name === agent.agent_name ? 'selected' : '';
+                        agentSelect.innerHTML += `<option value="${agent.id}" ${selected}>${agent.agent_name} (${agent.school_name})</option>`;
+                    }
+                });
+                
+                document.getElementById('editAgentDeviceIP').value = device.ip_address || '';
+                document.getElementById('editAgentPort').value = device.port || 4370;
+            }
+
+            // Show modal
+            new bootstrap.Modal(document.getElementById('editDeviceModal')).show();
+        }
+
+        function updateDevice() {
+            const form = document.getElementById('editDeviceForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const deviceId = document.getElementById('editDeviceId').value;
+            const device = devices.find(d => d.id == deviceId);
+            const data = {
+                device_name: document.getElementById('editDeviceName').value
+            };
+
+            // Add connection-specific fields
+            if (device.connection_type === 'Direct_LAN') {
+                data.ip_address = document.getElementById('editIpAddress').value;
+                data.port = document.getElementById('editPort').value;
+            } else if (device.connection_type === 'ADMS') {
+                data.serial_number = document.getElementById('editSerialNumber').value;
+            } else if (device.connection_type === 'Agent_LAN') {
+                data.agent_id = document.getElementById('editSelectAgent').value;
+                data.ip_address = document.getElementById('editAgentDeviceIP').value;
+                data.port = document.getElementById('editAgentPort').value;
+            }
+
+            fetch(`/api/devices/${deviceId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('Device updated successfully!');
+                    bootstrap.Modal.getInstance(document.getElementById('editDeviceModal')).hide();
+                    loadDevices();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error updating device');
+            });
+        }
+
+        function deleteDevice(deviceId) {
+            if (confirm('Are you sure you want to delete this device?')) {
+                fetch(`/api/devices/${deviceId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        alert('Device deleted successfully');
+                        loadDevices();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deleting device');
+                });
+            }
+        }
+
+        function deactivateAgent(agentId) {
+            if (confirm('Are you sure you want to deactivate this agent? Devices assigned to this agent will stop syncing.')) {
+                fetch(`/api/agents/${agentId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        alert('Agent deactivated successfully');
+                        loadAgents();
+                    } else {
+                        alert('Error: ' + result.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('Error deactivating agent');
+                });
+            }
+        }
+    </script>
+
+    <script>
+        // Register Service Worker for PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                    .then(reg => console.log('Service Worker registered'))
+                    .catch(err => console.log('Service Worker registration failed:', err));
+            });
+        }
+    </script>
+</body>
+</html>

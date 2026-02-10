@@ -1,0 +1,437 @@
+TIMETABLE SYSTEM - NAVIGATION & URLS
+====================================
+
+DIRECT ACCESS URLS:
+===================
+
+Admin Panel:
+  http://localhost:5000/timetable_management
+  (Requires: School Admin login)
+
+Staff Panel:
+  http://localhost:5000/staff_timetable
+  (Requires: Staff login)
+
+
+API ENDPOINTS:
+==============
+
+All endpoints under: /api/timetable/*
+
+Settings & Configuration:
+  GET  /api/timetable/settings                    → Get current settings
+  POST /api/timetable/settings/toggle             → Enable/Disable system
+
+Period Management:
+  GET  /api/timetable/periods                     → List all periods
+  POST /api/timetable/period/save                 → Create/Update period
+  POST /api/timetable/period/delete               → Delete period
+  GET  /api/timetable/periods/<period_id>         → Get period details
+
+Department Permissions:
+  GET  /api/timetable/departments                 → List departments & permissions
+  POST /api/timetable/department/permission       → Update permission
+
+Timetable Assignments:
+  GET  /api/timetable/assignments                 → Get day assignments
+  POST /api/timetable/assignment/save             → Create assignment
+  POST /api/timetable/assignment/lock             → Lock/unlock assignment
+  POST /api/timetable/assignment/override         → Admin override reassign
+
+Staff Timetable (Read-only):
+  GET  /api/timetable/staff/timetable             → Get staff's weekly timetable
+
+Swap Requests:
+  POST /api/timetable/swap/request                → Request swap with peer
+  GET  /api/timetable/swap/requests               → Get pending requests
+  POST /api/timetable/swap/respond                → Accept/reject swap
+
+Self-Allocations:
+  GET  /api/timetable/allocations                 → List allocations
+  POST /api/timetable/allocation/save             → Self-allocate
+  POST /api/timetable/allocation/update           → Update allocation
+  POST /api/timetable/allocation/delete           → Delete allocation
+
+Utility Endpoints:
+  GET  /api/timetable/staff/list                  → Get all staff (admin)
+  GET  /api/timetable/staff/available             → Get available staff for swap
+
+
+NAVIGATION STRUCTURE:
+====================
+
+For SCHOOL ADMIN:
+  Dashboard
+    └─ Timetable Management (when enabled)
+       ├─ Periods Tab
+       │  ├─ Add New Period
+       │  └─ Manage Existing Periods
+       ├─ Department Permissions Tab
+       │  ├─ Set Department Controls
+       │  └─ Configure Swap Rules
+       └─ Assignments & Overrides Tab
+          ├─ Select Day
+          ├─ Assign Staff
+          └─ Override Assignments
+
+For STAFF:
+  Dashboard
+    └─ My Timetable (when enabled)
+       ├─ Weekly Grid View
+       │  ├─ Click Period → Request Swap
+       │  └─ Click Empty → Self-Allocate
+       ├─ Swap Requests Section
+       │  ├─ Incoming Requests
+       │  └─ Accept/Reject buttons
+       └─ My Allocations Table
+          ├─ View Allocations
+          ├─ Edit Button
+          └─ Delete Button
+
+For COMPANY ADMIN:
+  School Details Page
+    └─ Timetable Management Section
+       └─ Enable/Disable Toggle
+
+
+MENU LINKS TO ADD:
+==================
+
+In Admin Dashboard (header/sidebar):
+  <a href="/timetable_management" class="nav-link">
+    <i class="bi bi-calendar-event"></i> Timetable Management
+  </a>
+  (Only show if timetable_settings.is_enabled = 1)
+
+In Staff Dashboard (header/sidebar):
+  <a href="/staff_timetable" class="nav-link">
+    <i class="bi bi-calendar2-week"></i> My Timetable
+  </a>
+  (Only show if timetable_settings.is_enabled = 1)
+
+In Company Admin School Details:
+  <div class="timetable-settings">
+    <label>Enable Timetable Management</label>
+    <input type="checkbox" id="timetable_toggle">
+  </div>
+
+
+TEMPLATE LOCATIONS:
+===================
+
+Admin Interface:
+  File: templates/timetable_management.html
+  Sections:
+    - Periods Configuration Tab
+    - Department Permissions Tab
+    - Staff Assignments & Overrides Tab
+  Modals:
+    - Add/Edit Period Modal
+    - Admin Override Modal
+  Size: 3.5 KB, ~130 lines HTML
+
+Staff Interface:
+  File: templates/staff_timetable.html
+  Sections:
+    - Weekly Timetable Grid (7 days)
+    - Swap Requests Section
+    - My Allocations Table
+  Modals:
+    - Swap Request Modal
+    - Self-Allocate Modal
+    - Allocation Edit Modal
+  Size: 3.8 KB, ~150 lines HTML
+
+
+STYLING FILES:
+==============
+
+Main CSS File:
+  File: static/css/timetable_management.css
+  Size: 7.5 KB
+  Sections:
+    - Period slot styling (4 states)
+    - Request card styling
+    - Custom toggles
+    - Modal styling
+    - Responsive grid
+    - Status badges
+    - Print styles
+  
+Color Variables (if using CSS variables):
+  --color-assigned: #E7F1FF (blue)
+  --color-allocated: #E7FDE7 (green)
+  --color-empty: #F0F0F0 (gray)
+  --color-locked: #FFE7E7 (red)
+
+
+JAVASCRIPT FILES:
+=================
+
+Admin Panel JS:
+  File: static/js/timetable_management.js
+  Size: 2.8 KB
+  Functions:
+    - loadPeriods()
+    - renderPeriodsTable()
+    - showAddPeriodModal()
+    - savePeriod()
+    - deletePeriod()
+    - loadDepartments()
+    - renderDepartmentsTable()
+    - toggleDepartmentPermission()
+    - saveDepartmentPermission()
+    - loadDayAssignments()
+    - renderAssignmentsTable()
+    - showOverrideModal()
+    - performAdminOverride()
+
+Staff Panel JS:
+  File: static/js/staff_timetable.js
+  Size: 4.2 KB
+  Functions:
+    - loadTimetable()
+    - renderWeeklyGrid()
+    - loadSwapRequests()
+    - renderSwapRequests()
+    - showSwapModal()
+    - submitSwapRequest()
+    - acceptSwapRequest()
+    - rejectSwapRequest()
+    - loadAllocations()
+    - renderAllocationsTable()
+    - showAllocateModal()
+    - submitAllocation()
+    - editAllocation()
+    - deleteAllocation()
+
+
+TESTING URLS (CURL):
+====================
+
+Test Period List:
+  curl http://localhost:5000/api/timetable/periods
+
+Test Department List:
+  curl http://localhost:5000/api/timetable/departments
+
+Test Settings:
+  curl http://localhost:5000/api/timetable/settings
+
+Test Add Period (POST):
+  curl -X POST http://localhost:5000/api/timetable/period/save \
+    -H "Content-Type: application/json" \
+    -d '{"period_number": 1, "period_name": "Lecture-1", 
+         "start_time": "09:00", "end_time": "10:00"}'
+
+Test Update Department Permission (POST):
+  curl -X POST http://localhost:5000/api/timetable/department/permission \
+    -H "Content-Type: application/json" \
+    -d '{"department": "CS", "allow_alterations": true, 
+         "allow_inbound": true}'
+
+Test Request Swap (POST):
+  curl -X POST http://localhost:5000/api/timetable/swap/request \
+    -H "Content-Type: application/json" \
+    -d '{"assignment_id": 1, "target_staff_id": 5, "reason": "Need swap"}'
+
+Test Self-Allocate (POST):
+  curl -X POST http://localhost:5000/api/timetable/allocation/save \
+    -H "Content-Type: application/json" \
+    -d '{"day_of_week": "Monday", "period_number": 3}'
+
+
+AUTHENTICATION HEADERS:
+=======================
+
+Admin Requests (School Admin):
+  Required: session['user_id'], session['user_type'] = 'admin'
+  Decorator: @check_admin_auth
+  Error: 401 Unauthorized
+
+Staff Requests (Staff Members):
+  Required: session['user_id'], session['user_type'] = 'staff'
+  Decorator: @check_staff_auth
+  Error: 401 Unauthorized
+
+Either (Admin or Staff):
+  Required: session['user_id'] (any user_type)
+  Decorator: @check_auth_either
+  Error: 401 Unauthorized
+
+
+RESPONSE FORMATS:
+=================
+
+Success Response:
+  {
+    "success": true,
+    "data": { ... }  or  "periods": [ ... ]  or  message
+  }
+  Status: 200
+
+Error Response:
+  {
+    "success": false,
+    "error": "Error description here"
+  }
+  Status: 400 or 401 or 500
+
+
+TYPICAL USER FLOW:
+==================
+
+ADMIN SETUP:
+  1. POST /api/timetable/settings/toggle (enable)
+  2. POST /api/timetable/period/save (add periods)
+  3. POST /api/timetable/period/save (repeat for all)
+  4. GET /api/timetable/departments
+  5. POST /api/timetable/department/permission (set perms)
+  6. POST /api/timetable/assignment/save (assign staff)
+
+STAFF WORKFLOW (Swap):
+  1. GET /api/timetable/staff/timetable (view schedule)
+  2. GET /api/timetable/staff/available (find peer)
+  3. POST /api/timetable/swap/request (send request)
+  4. Wait for peer response...
+  5. (Peer) GET /api/timetable/swap/requests
+  6. (Peer) POST /api/timetable/swap/respond (accept)
+  7. Timetables updated automatically
+
+STAFF WORKFLOW (Self-Allocate):
+  1. GET /api/timetable/staff/timetable (view schedule)
+  2. POST /api/timetable/allocation/save (allocate)
+  3. GET /api/timetable/allocations (view)
+  4. POST /api/timetable/allocation/update (edit if not locked)
+  5. POST /api/timetable/allocation/delete (remove if not locked)
+
+
+PERMISSION LEVELS:
+==================
+
+Company Admin Can:
+  ✓ Enable/Disable system per school
+  ✓ View school settings
+  ✗ Configure periods
+  ✗ View timetables
+  ✗ Process swaps
+
+School Admin Can:
+  ✓ Configure periods
+  ✓ Set department permissions
+  ✓ Assign staff to periods
+  ✓ Override assignments
+  ✓ Lock allocations
+  ✓ View all swaps & allocations
+  ✗ Make swaps themselves
+  ✗ Request swaps
+
+Staff Can:
+  ✓ View own timetable
+  ✓ Request swaps
+  ✓ Accept/reject swaps
+  ✓ Self-allocate
+  ✓ Edit own allocations
+  ✓ View own requests
+  ✗ View others' timetables
+  ✗ Configure periods
+  ✗ Override assignments
+
+
+DEBUGGING PATHS:
+================
+
+Browser Console (JavaScript):
+  fetch('/api/timetable/periods')
+    .then(r => r.json())
+    .then(d => console.log(d))
+
+Network Tab:
+  Right-click → Inspect → Network tab
+  Click any API request to see:
+    - Request headers
+    - Response body
+    - Status code
+    - Timing info
+
+Python Logging:
+  import logging
+  logger = logging.getLogger(__name__)
+  logger.info("Message here")
+  logger.error("Error here")
+
+Database Queries:
+  sqlite3 instance/vishnorex.db
+  SELECT * FROM timetable_periods WHERE school_id = 1;
+
+
+ERROR PAGES:
+============
+
+If menu link broken:
+  GET /timetable_management → Check authentication
+  GET /staff_timetable → Check authentication
+
+If API returns 401:
+  Problem: Not logged in or wrong user_type
+  Solution: Login first, check session
+
+If API returns 400:
+  Problem: Invalid request data
+  Solution: Check JSON format, required fields
+
+If API returns 500:
+  Problem: Server error
+  Solution: Check Python logs, database connection
+
+If UI shows blank:
+  Problem: No data loaded
+  Solution: Check API call, verify periods/assignments exist
+
+
+INTEGRATION CHECKLIST:
+======================
+
+[ ] Create sidebar menu links in base template
+[ ] Add timetable link to admin dashboard
+[ ] Add timetable link to staff dashboard
+[ ] Integrate Company Admin toggle in admin_settings page
+[ ] Add conditional rendering: if is_enabled then show menu
+[ ] Test direct URL access: /timetable_management
+[ ] Test direct URL access: /staff_timetable
+[ ] Test API endpoints: GET /api/timetable/periods
+[ ] Test admin workflow: Add period, assign staff, lock
+[ ] Test staff workflow: View timetable, request swap, self-allocate
+[ ] Test permission enforcement: Cross-dept swap rejection
+[ ] Test admin lock: Staff can't edit when locked
+[ ] Gather user feedback
+[ ] Deploy to production
+[ ] Monitor logs for errors
+
+
+NEXT STEPS:
+===========
+
+1. Add Sidebar Links (5 min)
+   - Modify base template/sidebar.html
+   - Add links with conditional rendering
+
+2. Test Workflows (10 min)
+   - Test admin setup workflow
+   - Test staff swap workflow
+   - Test self-allocation workflow
+
+3. Deploy (5 min)
+   - Push changes to server
+   - Restart Flask app
+
+4. Monitor (Ongoing)
+   - Check logs for errors
+   - Gather user feedback
+   - Monitor performance
+
+Total Time to Complete Integration: ~20-30 minutes
+
+=====================================================
+Timetable System - Ready for Deployment ✅
+=====================================================

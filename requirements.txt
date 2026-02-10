@@ -1,0 +1,29 @@
+Flask==2.3.3
+Flask-WTF==1.1.1
+Werkzeug==2.3.7
+kazoo==2.10.0
+pyzk==0.9
+pymysql==1.1.1
+
+# Excel and reporting dependencies
+openpyxl==3.1.2
+xlsxwriter==3.1.9
+pandas==2.1.4
+matplotlib==3.8.2
+seaborn==0.13.0
+
+# Email and notifications
+Flask-Mail==0.9.1
+
+# Data visualization and charts
+plotly==5.17.0
+
+# Cloud connectivity dependencies
+requests==2.31.0
+websocket-client==1.6.4
+paho-mqtt==1.6.1
+cryptography==41.0.7
+python-dotenv==1.0.0
+schedule==1.2.0
+redis==5.0.1
+celery==5.3.4
