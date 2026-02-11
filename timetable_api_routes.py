@@ -1,816 +1,1008 @@
 """
-Timetable Management API Routes
-Provides REST endpoints for timetable CRUD operations, department permissions,
-and staff self-service swap/allocation workflows.
+Timetable API Routes
+Handles all API endpoints for timetable management
 """
 
 from flask import Blueprint, request, jsonify, session
-from functools import wraps
-from timetable_management import (
-    TimetableManager,
-    DepartmentPermissionManager,
-    TimetableAssignmentManager,
-    AlterationManager,
-    SelfAllocationManager
-)
 from database import get_db
-import logging
+from functools import wraps
+import sqlite3
+from datetime import datetime
 
-logger = logging.getLogger(__name__)
+timetable_api = Blueprint('timetable_api', __name__)
 
-# Create Blueprint
-timetable_bp = Blueprint('timetable', __name__, url_prefix='/api/timetable')
 
-# ==================== AUTHENTICATION & AUTHORIZATION ====================
-
-def check_admin_auth(f):
-    """Decorator to ensure only school admins can access route"""
+def company_admin_required(f):
+    """Decorator to ensure only company admins can access"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session['user_type'] != 'admin':
-            return jsonify({'success': False, 'error': 'Unauthorized access. Admin required.'}), 401
+        if session.get('user_type') != 'company_admin':
+            return jsonify({'success': False, 'error': 'Unauthorized access'}), 403
         return f(*args, **kwargs)
     return decorated_function
 
-def check_staff_auth(f):
-    """Decorator to ensure only staff can access route"""
+
+def admin_required(f):
+    """Decorator to ensure only school admins can access"""
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if 'user_id' not in session or session['user_type'] != 'staff':
-            return jsonify({'success': False, 'error': 'Unauthorized access. Staff login required.'}), 401
+        if session.get('user_type') != 'admin':
+            return jsonify({'success': False, 'error': 'Unauthorized access'}), 403
         return f(*args, **kwargs)
     return decorated_function
 
-def check_auth_either(f):
-    """Decorator to ensure user is logged in (admin or staff)"""
-    @wraps(f)
-    def decorated_function(*args, **kwargs):
-        if 'user_id' not in session:
-            return jsonify({'success': False, 'error': 'Unauthorized access. Login required.'}), 401
-        return f(*args, **kwargs)
-    return decorated_function
 
-# ==================== HELPER FUNCTIONS ====================
+# ==================== COMPANY ADMIN ENDPOINTS ====================
 
-def get_school_id():
-    """Get school_id from session"""
-    return session.get('school_id')
-
-def get_user_id():
-    """Get user_id from session"""
-    return session.get('user_id')
-
-# ==================== TIMETABLE SETTINGS ENDPOINTS ====================
-
-@timetable_bp.route('/settings', methods=['GET'])
-@check_auth_either
-def get_timetable_settings():
-    """Get timetable settings for the school"""
+@timetable_api.route('/api/timetable/toggle-school', methods=['POST'])
+@company_admin_required
+def toggle_school_timetable():
+    """
+    Company Admin: Enable/Disable timetable module for a school
+    """
     try:
-        school_id = get_school_id()
-        manager = TimetableManager()
+        data = request.get_json()
+        school_id = data.get('school_id')
+        is_enabled = data.get('is_enabled', False)
         
-        result = manager.get_timetable_status(school_id)
-        if result['success']:
-            return jsonify({'success': True, 'settings': result['data']}), 200
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID is required'}), 400
+        
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Check if timetable_settings exists for this school
+        cursor.execute('''
+            SELECT id FROM timetable_settings WHERE school_id = ?
+        ''', (school_id,))
+        
+        existing = cursor.fetchone()
+        
+        if existing:
+            # Update existing setting
+            cursor.execute('''
+                UPDATE timetable_settings 
+                SET is_enabled = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE school_id = ?
+            ''', (is_enabled, school_id))
         else:
-            return jsonify({'success': False, 'error': result.get('error', 'Failed to retrieve settings')}), 400
+            # Create new setting
+            cursor.execute('''
+                INSERT INTO timetable_settings (school_id, is_enabled)
+                VALUES (?, ?)
+            ''', (school_id, is_enabled))
+        
+        db.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Timetable module {"enabled" if is_enabled else "disabled"} for school',
+            'is_enabled': is_enabled
+        })
+        
     except Exception as e:
-        logger.error(f"Error fetching timetable settings: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/settings/toggle', methods=['POST'])
-@check_admin_auth
-def toggle_timetable_enabled():
-    """Toggle timetable system enabled/disabled for school (Company Admin)"""
+
+@timetable_api.route('/api/timetable/school-status/<int:school_id>', methods=['GET'])
+@company_admin_required
+def get_school_timetable_status(school_id):
+    """
+    Company Admin: Get timetable module status for a school
+    """
     try:
-        school_id = get_school_id()
-        is_enabled = request.json.get('is_enabled', False)
+        db = get_db()
+        cursor = db.cursor()
         
-        manager = TimetableManager()
-        if is_enabled:
-            result = manager.enable_timetable_for_school(school_id)
+        cursor.execute('''
+            SELECT is_enabled, number_of_periods, created_at, updated_at
+            FROM timetable_settings 
+            WHERE school_id = ?
+        ''', (school_id,))
+        
+        result = cursor.fetchone()
+        
+        if result:
+            return jsonify({
+                'success': True,
+                'is_enabled': bool(result['is_enabled']),
+                'number_of_periods': result['number_of_periods'],
+                'created_at': result['created_at'],
+                'updated_at': result['updated_at']
+            })
         else:
-            result = manager.disable_timetable_for_school(school_id)
+            # No settings found, return default
+            return jsonify({
+                'success': True,
+                'is_enabled': False,
+                'number_of_periods': 8,
+                'created_at': None,
+                'updated_at': None
+            })
         
-        return jsonify(result), 200 if result['success'] else 400
     except Exception as e:
-        logger.error(f"Error toggling timetable: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/all-schools-status', methods=['GET'])
+@company_admin_required
+def get_all_schools_timetable_status():
+    """
+    Company Admin: Get timetable status for all schools
+    """
+    try:
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            SELECT 
+                s.id,
+                s.name,
+                s.address,
+                s.contact_email,
+                COALESCE(ts.is_enabled, 0) as is_enabled,
+                COALESCE(ts.number_of_periods, 8) as number_of_periods,
+                ts.updated_at
+            FROM schools s
+            LEFT JOIN timetable_settings ts ON s.id = ts.school_id
+            WHERE s.is_hidden = 0
+            ORDER BY s.name
+        ''')
+        
+        schools = []
+        for row in cursor.fetchall():
+            schools.append({
+                'id': row['id'],
+                'name': row['name'],
+                'address': row['address'],
+                'contact_email': row['contact_email'],
+                'timetable_enabled': bool(row['is_enabled']),
+                'number_of_periods': row['number_of_periods'],
+                'last_updated': row['updated_at']
+            })
+        
+        return jsonify({
+            'success': True,
+            'schools': schools
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== SCHOOL ADMIN ENDPOINTS ====================
+
+@timetable_api.route('/api/timetable/check-access', methods=['GET'])
+def check_timetable_access():
+    """
+    Check if current user has access to timetable module
+    """
+    try:
+        user_type = session.get('user_type')
+        school_id = session.get('school_id')
+        
+        if user_type == 'company_admin':
+            return jsonify({
+                'success': True,
+                'has_access': True,
+                'role': 'company_admin'
+            })
+        
+        if user_type == 'admin' and school_id:
+            db = get_db()
+            cursor = db.cursor()
+            
+            cursor.execute('''
+                SELECT is_enabled FROM timetable_settings WHERE school_id = ?
+            ''', (school_id,))
+            
+            result = cursor.fetchone()
+            is_enabled = bool(result['is_enabled']) if result else False
+            
+            return jsonify({
+                'success': True,
+                'has_access': is_enabled,
+                'role': 'admin'
+            })
+        
+        if user_type == 'staff' and school_id:
+            db = get_db()
+            cursor = db.cursor()
+            
+            cursor.execute('''
+                SELECT is_enabled FROM timetable_settings WHERE school_id = ?
+            ''', (school_id,))
+            
+            result = cursor.fetchone()
+            is_enabled = bool(result['is_enabled']) if result else False
+            
+            return jsonify({
+                'success': True,
+                'has_access': is_enabled,
+                'role': 'staff'
+            })
+        
+        return jsonify({
+            'success': True,
+            'has_access': False,
+            'role': None
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # ==================== PERIOD MANAGEMENT ENDPOINTS ====================
 
-@timetable_bp.route('/periods', methods=['GET'])
-@check_admin_auth
+@timetable_api.route('/api/timetable/periods', methods=['GET'])
 def get_periods():
-    """Get all periods for the school"""
+    """Get all periods for a school"""
     try:
-        school_id = get_school_id()
-        manager = TimetableManager()
+        school_id = request.args.get('school_id') or session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT id, period_number, period_name, start_time, end_time, duration_minutes 
+            FROM timetable_periods 
+            WHERE school_id = ? 
+            ORDER BY period_number
+        ''', (school_id,))
         
-        periods = manager.get_periods(school_id)
-        return jsonify({'success': True, 'periods': periods}), 200
+        periods = []
+        for row in cursor.fetchall():
+            periods.append({
+                'id': row['id'],
+                'period_number': row['period_number'],
+                'period_name': row['period_name'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'duration_minutes': row['duration_minutes']
+            })
+            
+        return jsonify({'success': True, 'periods': periods, 'data': periods}) # Added 'data' for compatibility
     except Exception as e:
-        logger.error(f"Error fetching periods: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/period/save', methods=['POST'])
-@check_admin_auth
+
+@timetable_api.route('/api/timetable/period/save', methods=['POST'])
+@admin_required
 def save_period():
     """Create or update a period"""
     try:
-        school_id = get_school_id()
-        data = request.json
-        
+        data = request.get_json()
+        school_id = data.get('school_id') or session.get('school_id')
         period_number = data.get('period_number')
         period_name = data.get('period_name')
         start_time = data.get('start_time')
         end_time = data.get('end_time')
         
-        if not all([period_number, period_name, start_time, end_time]):
-            return jsonify({'success': False, 'error': 'All fields are required'}), 400
+        if not all([school_id, period_number, start_time, end_time]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+            
+        # Calculate duration
+        try:
+            start = datetime.strptime(start_time, '%H:%M')
+            end = datetime.strptime(end_time, '%H:%M')
+            duration = int((end - start).total_seconds() / 60)
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid time format. Use HH:MM'}), 400
+
+        db = get_db()
+        cursor = db.cursor()
         
-        manager = TimetableManager()
-        result = manager.create_period(school_id, period_number, period_name, start_time, end_time)
+        # Check if exists (UPSET-like behavior)
+        cursor.execute('''
+            SELECT id FROM timetable_periods 
+            WHERE school_id = ? AND period_number = ?
+        ''', (school_id, period_number))
         
-        return jsonify(result), 200 if result['success'] else 400
+        existing = cursor.fetchone()
+        
+        if existing:
+            cursor.execute('''
+                UPDATE timetable_periods SET
+                period_name = ?, start_time = ?, end_time = ?, 
+                duration_minutes = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (period_name, start_time, end_time, duration, existing['id']))
+        else:
+            cursor.execute('''
+                INSERT INTO timetable_periods 
+                (school_id, period_number, period_name, start_time, end_time, duration_minutes)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (school_id, period_number, period_name, start_time, end_time, duration))
+            
+        db.commit()
+        return jsonify({'success': True, 'message': 'Period saved successfully'})
     except Exception as e:
-        logger.error(f"Error saving period: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/period/delete', methods=['POST'])
-@check_admin_auth
+
+@timetable_api.route('/api/timetable/period/delete', methods=['POST'])
+@admin_required
 def delete_period():
     """Delete a period"""
     try:
-        school_id = get_school_id()
-        period_id = request.json.get('period_id')
+        data = request.get_json()
+        school_id = data.get('school_id') or session.get('school_id')
+        period_id = data.get('period_id')
         
         if not period_id:
-            return jsonify({'success': False, 'error': 'Period ID is required'}), 400
+            return jsonify({'success': False, 'error': 'Period ID required'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute('DELETE FROM timetable_periods WHERE id = ? AND school_id = ?', (period_id, school_id))
+        db.commit()
         
-        manager = TimetableManager()
-        result = manager.delete_period(school_id, period_id)
-        
-        return jsonify(result), 200 if result['success'] else 400
+        return jsonify({'success': True, 'message': 'Period deleted successfully'})
     except Exception as e:
-        logger.error(f"Error deleting period: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
 
 # ==================== DEPARTMENT PERMISSIONS ENDPOINTS ====================
 
-@timetable_bp.route('/departments', methods=['GET'])
-@check_admin_auth
+@timetable_api.route('/api/timetable/departments', methods=['GET'])
 def get_departments():
-    """Get all departments and their permissions"""
+    """Get departments and their timetable permissions"""
     try:
-        school_id = get_school_id()
+        school_id = request.args.get('school_id') or session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+            
         db = get_db()
+        cursor = db.cursor()
         
-        # Get list of departments from staff table
-        depts = db.execute("""
-            SELECT DISTINCT department FROM staff 
-            WHERE school_id = ? AND department IS NOT NULL AND department != ''
-            ORDER BY department
-        """, (school_id,)).fetchall()
+        # Get all unique departments from staff table for this school
+        cursor.execute('SELECT DISTINCT department FROM staff WHERE school_id = ? AND department IS NOT NULL', (school_id,))
+        all_depts = [row[0] for row in cursor.fetchall()]
         
-        department_list = [d['department'] for d in depts]
+        # Get existing permissions
+        cursor.execute('SELECT department, allow_alterations, allow_inbound FROM timetable_department_permissions WHERE school_id = ?', (school_id,))
+        permissions = {row[0]: {'allow_alterations': bool(row[1]), 'allow_inbound': bool(row[2])} for row in cursor.fetchall()}
         
-        # Get permission settings for each department
-        manager = DepartmentPermissionManager()
-        permissions = manager.get_department_permissions(school_id)
-        
-        # Merge department list with permission settings
-        result = []
-        for dept in department_list:
-            perm = next((p for p in permissions if p.get('department') == dept), None)
-            if perm:
-                result.append(perm)
-            else:
-                # Default permissions if not set yet
-                result.append({
-                    'department': dept,
-                    'allow_alterations': False,
-                    'allow_inbound': False
-                })
-        
-        return jsonify({'success': True, 'departments': result}), 200
+        results = []
+        for dept in all_depts:
+            results.append({
+                'department': dept,
+                'allow_alterations': permissions.get(dept, {}).get('allow_alterations', True),
+                'allow_inbound': permissions.get(dept, {}).get('allow_inbound', True)
+            })
+            
+        return jsonify({'success': True, 'departments': results})
     except Exception as e:
-        logger.error(f"Error fetching departments: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/department/permission', methods=['POST'])
-@check_admin_auth
+
+@timetable_api.route('/api/timetable/department/permission', methods=['POST'])
+@timetable_api.route('/api/timetable/departments/permissions', methods=['POST'])
+@admin_required
 def update_department_permission():
-    """Update department permission settings"""
+    """Update timetable permissions for a department"""
     try:
-        school_id = get_school_id()
-        data = request.json
-        
+        data = request.get_json()
+        school_id = data.get('school_id') or session.get('school_id')
         department = data.get('department')
-        allow_alterations = data.get('allow_alterations', False)
-        allow_inbound = data.get('allow_inbound', False)
+        allow_alterations = data.get('allow_alterations', True)
+        allow_inbound = data.get('allow_inbound', True)
         
         if not department:
-            return jsonify({'success': False, 'error': 'Department is required'}), 400
-        
-        manager = DepartmentPermissionManager()
-        result = manager.set_department_permission(
-            school_id, department, allow_alterations, allow_inbound
-        )
-        
-        return jsonify(result), 200 if result['success'] else 400
-    except Exception as e:
-        logger.error(f"Error updating department permission: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-# ==================== TIMETABLE ASSIGNMENT ENDPOINTS ====================
-
-@timetable_bp.route('/assignment/delete', methods=['POST'])
-@check_admin_auth
-def delete_assignment():
-    """Delete a staff assignment"""
-    try:
-        school_id = get_school_id()
-        data = request.json
-        assignment_id = data.get('assignment_id')
-        
-        if not assignment_id:
-            return jsonify({'success': False, 'error': 'Assignment ID is required'}), 400
-        
+            return jsonify({'success': False, 'error': 'Department name required'}), 400
+            
         db = get_db()
-        db.execute("""
-            DELETE FROM timetable_assignments 
-            WHERE id = ? AND school_id = ?
-        """, (assignment_id, school_id))
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            INSERT INTO timetable_department_permissions 
+            (school_id, department, allow_alterations, allow_inbound)
+            VALUES (?, ?, ?, ?)
+            ON CONFLICT(school_id, department) 
+            DO UPDATE SET 
+                allow_alterations = excluded.allow_alterations,
+                allow_inbound = excluded.allow_inbound,
+                updated_at = CURRENT_TIMESTAMP
+        ''', (school_id, department, allow_alterations, allow_inbound))
+        
         db.commit()
-        
-        return jsonify({'success': True, 'message': 'Assignment deleted successfully'}), 200
+        return jsonify({'success': True, 'message': 'Permissions updated successfully'})
     except Exception as e:
-        logger.error(f"Error deleting assignment: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# Get all assignments for a school
-@timetable_bp.route('/assignments/all', methods=['GET'])
-@check_admin_auth
-def get_all_assignments():
-    """Get all assignments for the school"""
+
+@timetable_api.route('/api/timetable/staff/list', methods=['GET'])
+def get_staff_list():
+    """Get list of staff for a school"""
     try:
-        school_id = get_school_id()
-        
+        school_id = request.args.get('school_id') or session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+            
         db = get_db()
-        assignments = db.execute("""
-            SELECT 
-                ta.id,
-                ta.staff_id,
-                ta.day_of_week,
-                ta.period_number,
-                ta.is_locked,
-                s.full_name as staff_name,
-                tp.start_time,
-                tp.end_time
-            FROM timetable_assignments ta
-            LEFT JOIN staff s ON ta.staff_id = s.id
-            LEFT JOIN timetable_periods tp ON ta.period_number = tp.period_number AND ta.school_id = tp.school_id
-            WHERE ta.school_id = ?
-            ORDER BY ta.day_of_week, ta.period_number
-        """, (school_id,)).fetchall()
+        cursor = db.cursor()
+        cursor.execute('SELECT id, staff_id, full_name, department FROM staff WHERE school_id = ?', (school_id,))
         
-        data = [{
-            'id': a['id'],
-            'staff_id': a['staff_id'],
-            'staff_name': a['staff_name'],
-            'day_of_week': a['day_of_week'],
-            'period_number': a['period_number'],
-            'start_time': a['start_time'],
-            'end_time': a['end_time'],
-            'is_locked': a['is_locked'],
-            'full_name': a['staff_name']
-        } for a in assignments]
-        
-        return jsonify({'success': True, 'data': data}), 200
+        staff = []
+        for row in cursor.fetchall():
+            staff.append({
+                'id': row['id'],
+                'staff_id': row['staff_id'],
+                'full_name': row['full_name'],
+                'department': row['department']
+            })
+            
+        return jsonify({'success': True, 'staff': staff})
     except Exception as e:
-        logger.error(f"Error fetching assignments: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-    """Get assignments for a specific day"""
+# ==================== ASSIGNMENT & ALLOCATION ENDPOINTS ====================
+
+@timetable_api.route('/api/timetable/assignments/all', methods=['GET'])
+def get_all_assignments():
+    """Get all assignments for a school (can filter by day)"""
     try:
-        school_id = get_school_id()
+        school_id = request.args.get('school_id') or session.get('school_id')
         day_of_week = request.args.get('day_of_week')
         
-        if not day_of_week:
-            return jsonify({'success': False, 'error': 'day_of_week is required'}), 400
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
         
-        manager = TimetableAssignmentManager()
-        assignments = manager.get_daily_timetable(school_id, day_of_week)
+        query = '''
+            SELECT ta.id, ta.staff_id, ta.day_of_week, ta.period_number, ta.class_subject, ta.is_locked,
+                   s.full_name, s.department,
+                   tp.period_name, tp.start_time, tp.end_time
+            FROM timetable_assignments ta
+            JOIN staff s ON ta.staff_id = s.id
+            LEFT JOIN timetable_periods tp ON ta.school_id = tp.school_id AND ta.period_number = tp.period_number
+            WHERE ta.school_id = ?
+        '''
+        params = [school_id]
         
-        return jsonify({'success': True, 'assignments': assignments}), 200
+        if day_of_week is not None:
+            query += ' AND ta.day_of_week = ?'
+            params.append(day_of_week)
+            
+        query += ' ORDER BY ta.day_of_week, ta.period_number'
+        
+        cursor.execute(query, params)
+        assignments = []
+        for row in cursor.fetchall():
+            assignments.append({
+                'id': row['id'],
+                'staff_id': row['staff_id'],
+                'day_of_week': row['day_of_week'],
+                'period_number': row['period_number'],
+                'class_subject': row['class_subject'],
+                'is_locked': bool(row['is_locked']),
+                'full_name': row['full_name'],
+                'department': row['department'],
+                'period_name': row['period_name'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time']
+            })
+            
+        return jsonify({'success': True, 'data': assignments})
     except Exception as e:
-        logger.error(f"Error fetching assignments: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/assignment/save', methods=['POST'])
-@check_admin_auth
-def save_assignment():
-    """Create or update a staff assignment"""
-    try:
-        school_id = get_school_id()
-        data = request.json
-        
-        staff_id = data.get('staff_id')
-        day_of_week = data.get('day_of_week')
-        period_number = data.get('period_number')
-        
-        if not all([staff_id, day_of_week, period_number]):
-            return jsonify({'success': False, 'error': 'All fields are required'}), 400
-        
-        manager = TimetableAssignmentManager()
-        result = manager.assign_staff_to_period(
-            school_id, staff_id, day_of_week, period_number
-        )
-        
-        return jsonify(result), 200 if result['success'] else 400
-    except Exception as e:
-        logger.error(f"Error saving assignment: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/assignment/lock', methods=['POST'])
-@check_admin_auth
-def lock_assignment():
-    """Lock a staff assignment (prevent self-alterations)"""
+@timetable_api.route('/api/timetable/assignment/override', methods=['POST'])
+@admin_required
+def admin_override_assignment():
+    """Admin reassigns an existing assignment"""
     try:
-        school_id = get_school_id()
-        admin_id = get_user_id()
-        data = request.json
-        
-        assignment_id = data.get('assignment_id')
-        is_locked = data.get('is_locked', True)
-        
-        if not assignment_id:
-            return jsonify({'success': False, 'error': 'assignment_id is required'}), 400
-        
-        manager = TimetableAssignmentManager()
-        result = manager.lock_assignment(school_id, assignment_id, is_locked, admin_id)
-        
-        return jsonify(result), 200 if result['success'] else 400
-    except Exception as e:
-        logger.error(f"Error locking assignment: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@timetable_bp.route('/assignment/override', methods=['POST'])
-@check_admin_auth
-def admin_override():
-    """Admin override: reassign a period to different staff"""
-    try:
-        school_id = get_school_id()
-        admin_id = get_user_id()
-        data = request.json
-        
+        data = request.get_json()
+        school_id = data.get('school_id') or session.get('school_id')
         assignment_id = data.get('assignment_id')
         new_staff_id = data.get('new_staff_id')
-        reason = data.get('reason', 'Admin override')
+        notes = data.get('admin_notes', '')
+        admin_id = session.get('user_id')
         
         if not all([assignment_id, new_staff_id]):
-            return jsonify({'success': False, 'error': 'assignment_id and new_staff_id are required'}), 400
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
         
-        manager = TimetableAssignmentManager()
-        result = manager.admin_override_assignment(
-            school_id, assignment_id, new_staff_id, admin_id, reason
-        )
+        # Verify assignment exists
+        cursor.execute('SELECT * FROM timetable_assignments WHERE id = ? AND school_id = ?', (assignment_id, school_id))
+        assignment = cursor.fetchone()
+        if not assignment:
+            return jsonify({'success': False, 'error': 'Assignment not found'}), 404
+            
+        # Update assignment
+        cursor.execute('''
+            UPDATE timetable_assignments SET
+            staff_id = ?, is_locked = 1, locked_reason = ?, locked_by = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (new_staff_id, 'Admin Override: ' + notes, admin_id, assignment_id))
         
-        return jsonify(result), 200 if result['success'] else 400
+        db.commit()
+        return jsonify({'success': True, 'message': 'Assignment overridden successfully'})
     except Exception as e:
-        logger.error(f"Error performing admin override: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ==================== STAFF TIMETABLE VIEW ENDPOINTS ====================
 
-@timetable_bp.route('/staff/timetable', methods=['GET'])
-@check_staff_auth
-def get_staff_timetable():
-    """Get staff member's weekly timetable"""
+@timetable_api.route('/api/timetable/staff-period/list/<int:staff_id>', methods=['GET'])
+def get_staff_allocations(staff_id):
+    """Get all assignments for a specific staff member"""
     try:
-        school_id = get_school_id()
-        staff_id = get_user_id()
+        school_id = session.get('school_id')
+        if not school_id:
+             # If not in session, try to get from staff record
+             db = get_db()
+             cursor = db.cursor()
+             cursor.execute('SELECT school_id FROM staff WHERE id = ?', (staff_id,))
+             row = cursor.fetchone()
+             if not row:
+                 return jsonify({'success': False, 'error': 'Staff not found'}), 404
+             school_id = row['school_id']
+
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT ta.id, ta.day_of_week, ta.period_number, ta.class_subject, ta.created_at,
+                   tp.period_name, tp.start_time, tp.end_time
+            FROM timetable_assignments ta
+            LEFT JOIN timetable_periods tp ON ta.school_id = tp.school_id AND ta.period_number = tp.period_number
+            WHERE ta.staff_id = ? AND ta.school_id = ?
+            ORDER BY ta.day_of_week, ta.period_number
+        ''', (staff_id, school_id))
         
-        manager = TimetableAssignmentManager()
-        timetable = manager.get_staff_timetable(school_id, staff_id)
-        
-        return jsonify({'success': True, 'timetable': timetable}), 200
+        allocations = []
+        full_name = ""
+        for row in cursor.fetchall():
+            allocations.append({
+                'assignment_id': row['id'], # Frontend expects assignment_id
+                'period_number': row['period_number'], # Frontend expects period_number
+                'day_of_week': row['day_of_week'],
+                'day_name': ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'][row['day_of_week']],
+                'period_id': row['period_number'],
+                'period_name': row['period_name'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'class_subject': row['class_subject'],
+                'created_at': row['created_at']
+            })
+            
+        # Get staff name
+        cursor.execute('SELECT full_name FROM staff WHERE id = ?', (staff_id,))
+        staff_row = cursor.fetchone()
+        full_name = staff_row['full_name'] if staff_row else "Unknown"
+
+        return jsonify({
+            'success': True, 
+            'periods': allocations, 
+            'staff_name': full_name,
+            'total_periods': len(allocations)
+        })
     except Exception as e:
-        logger.error(f"Error fetching staff timetable: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ==================== SWAP REQUEST ENDPOINTS ====================
 
-@timetable_bp.route('/swap/request', methods=['POST'])
-@check_staff_auth
+@timetable_api.route('/api/timetable/staff-period/assign', methods=['POST'])
+@timetable_api.route('/api/timetable/assignment/save', methods=['POST'])
+@admin_required
+def assign_staff_period():
+    """Assign a staff member to a period"""
+    try:
+        data = request.get_json()
+        staff_id = data.get('staff_id')
+        day_of_week = data.get('day_of_week')
+        period_id = data.get('period_id') # Can be id from timetable_periods
+        period_number = data.get('period_number') # Or direct period_number
+        school_id = data.get('school_id') or session.get('school_id')
+        
+        if staff_id is None or day_of_week is None or (period_id is None and period_number is None):
+            return jsonify({'success': False, 'message': 'Missing required fields'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
+        
+        # If period_id is provided, look up period_number
+        if period_id is not None and period_number is None:
+            cursor.execute('SELECT period_number FROM timetable_periods WHERE id = ?', (period_id,))
+            period_row = cursor.fetchone()
+            if not period_row:
+                return jsonify({'success': False, 'message': 'Invalid period ID'}), 400
+            period_number = period_row['period_number']
+        
+        # Check for conflict
+        cursor.execute('''
+            SELECT id FROM timetable_assignments 
+            WHERE school_id = ? AND staff_id = ? AND day_of_week = ? AND period_number = ?
+        ''', (school_id, staff_id, day_of_week, period_number))
+        
+        if cursor.fetchone():
+            return jsonify({'success': False, 'message': 'Staff already assigned to this slot'}), 400
+            
+        # Create assignment
+        cursor.execute('''
+            INSERT INTO timetable_assignments (school_id, staff_id, day_of_week, period_number)
+            VALUES (?, ?, ?, ?)
+        ''', (school_id, staff_id, day_of_week, period_number))
+        
+        db.commit()
+        return jsonify({'success': True, 'message': 'Period assigned successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/staff-period/remove/<int:allocation_id>', methods=['POST'])
+@timetable_api.route('/api/timetable/assignment/delete', methods=['POST'])
+@admin_required
+def remove_staff_period(allocation_id=None):
+    """Remove a staff period assignment"""
+    try:
+        if allocation_id is None:
+            data = request.get_json() or {}
+            allocation_id = data.get('assignment_id')
+            
+        if not allocation_id:
+            return jsonify({'success': False, 'message': 'Assignment ID required'}), 400
+            
+        school_id = session.get('school_id')
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('DELETE FROM timetable_assignments WHERE id = ? AND school_id = ?', (allocation_id, school_id))
+        db.commit()
+        
+        return jsonify({'success': True, 'message': 'Assignment removed successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ==================== STAFF SELF-SERVICE ENDPOINTS ====================
+
+@timetable_api.route('/api/timetable/staff', methods=['GET'])
+@timetable_api.route('/api/timetable/assignments/<int:target_staff_id>', methods=['GET'])
+def get_personal_timetable(target_staff_id=None):
+    """Get weekly timetable for the logged-in staff member"""
+    try:
+        staff_id = target_staff_id or request.args.get('staff_id') or session.get('user_id')
+        
+        # If staff_id is 0 and we have a session user_id, use that
+        if str(staff_id) == '0' and session.get('user_id'):
+            staff_id = session.get('user_id')
+            
+        school_id = request.args.get('school_id') or session.get('school_id')
+        
+        if not staff_id or not school_id:
+            return jsonify({'success': False, 'error': 'Unauthorized or missing params'}), 401
+            
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Get regular assignments
+        cursor.execute('''
+            SELECT ta.id, ta.day_of_week, ta.period_number, ta.class_subject, ta.is_locked,
+                   tp.period_name, tp.start_time, tp.end_time
+            FROM timetable_assignments ta
+            LEFT JOIN timetable_periods tp ON ta.school_id = tp.school_id AND ta.period_number = tp.period_number
+            WHERE ta.staff_id = ? AND ta.school_id = ?
+            ORDER BY ta.day_of_week, ta.period_number
+        ''', (staff_id, school_id))
+        
+        timetable = []
+        for row in cursor.fetchall():
+            timetable.append({
+                'id': row['id'],
+                'day_of_week': row['day_of_week'],
+                'period_number': row['period_number'],
+                'period_name': row['period_name'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'class_subject': row['class_subject'],
+                'is_locked': bool(row['is_locked']),
+                'type': 'assigned'
+            })
+            
+        return jsonify({'success': True, 'timetable': timetable, 'data': timetable})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/requests', methods=['GET'])
+def get_swap_requests():
+    """Get pending swap requests for the staff member"""
+    try:
+        staff_id = session.get('user_id')
+        school_id = session.get('school_id')
+        
+        if not staff_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+            
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Get received requests
+        cursor.execute('''
+            SELECT tar.id, tar.requester_staff_id, s.full_name as requester_name, s.department as requester_dept,
+                   tar.assignment_id, tar.reason, tar.status, tar.created_at,
+                   tp.period_name, tp.start_time, tp.end_time, ta.period_number
+            FROM timetable_alteration_requests tar
+            JOIN staff s ON tar.requester_staff_id = s.id
+            JOIN timetable_assignments ta ON tar.assignment_id = ta.id
+            LEFT JOIN timetable_periods tp ON ta.school_id = tp.school_id AND ta.period_number = tp.period_number
+            WHERE tar.target_staff_id = ? AND tar.school_id = ? AND tar.status = 'pending'
+            ORDER BY tar.created_at DESC
+        ''', (staff_id, school_id))
+        
+        requests = []
+        for row in cursor.fetchall():
+            requests.append({
+                'id': row['id'],
+                'requester_id': row['requester_staff_id'],
+                'requester_name': row['requester_name'],
+                'requester_dept': row['requester_dept'],
+                'assignment_id': row['assignment_id'],
+                'period_name': row['period_name'],
+                'period_number': row['period_number'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'reason': row['reason'],
+                'status': row['status'],
+                'created_at': row['created_at']
+            })
+            
+        return jsonify({'success': True, 'requests': requests})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/swap/request', methods=['POST'])
 def request_swap():
-    """Staff: Request swap with peer"""
+    """Submit a swap request"""
     try:
-        school_id = get_school_id()
-        requester_staff_id = get_user_id()
-        data = request.json
-        
+        data = request.get_json()
+        requester_id = session.get('user_id')
+        school_id = session.get('school_id')
         assignment_id = data.get('assignment_id')
         target_staff_id = data.get('target_staff_id')
         reason = data.get('reason', '')
         
         if not all([assignment_id, target_staff_id]):
-            return jsonify({'success': False, 'error': 'assignment_id and target_staff_id are required'}), 400
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
         
-        manager = AlterationManager()
-        result = manager.request_peer_swap(
-            school_id, assignment_id, requester_staff_id, target_staff_id, reason
-        )
+        # Check if requester owns the assignment
+        cursor.execute('SELECT staff_id FROM timetable_assignments WHERE id = ? AND school_id = ?', (assignment_id, school_id))
+        assignment = cursor.fetchone()
+        if not assignment or int(assignment['staff_id']) != int(requester_id):
+            return jsonify({'success': False, 'error': 'Invalid assignment'}), 400
+            
+        cursor.execute('''
+            INSERT INTO timetable_alteration_requests 
+            (school_id, assignment_id, requester_staff_id, target_staff_id, alteration_type, reason, status)
+            VALUES (?, ?, ?, ?, 'peer_swap', ?, 'pending')
+        ''', (school_id, assignment_id, requester_id, target_staff_id, reason))
         
-        return jsonify(result), 200 if result['success'] else 400
+        db.commit()
+        return jsonify({'success': True, 'message': 'Swap request sent successfully'})
     except Exception as e:
-        logger.error(f"Error requesting swap: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/swap/requests', methods=['GET'])
-@check_staff_auth
-def get_swap_requests():
-    """Get pending swap requests for staff member"""
-    try:
-        school_id = get_school_id()
-        staff_id = get_user_id()
-        
-        manager = AlterationManager()
-        requests = manager.get_pending_requests(school_id, staff_id)
-        
-        return jsonify({'success': True, 'requests': requests}), 200
-    except Exception as e:
-        logger.error(f"Error fetching swap requests: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/swap/respond', methods=['POST'])
-@check_staff_auth
-def respond_to_swap():
-    """Staff: Accept or reject swap request"""
+@timetable_api.route('/api/timetable/swap/respond', methods=['POST'])
+def respond_swap():
+    """Accept or reject a swap request"""
     try:
-        school_id = get_school_id()
-        staff_id = get_user_id()
-        data = request.json
-        
+        data = request.get_json()
         request_id = data.get('request_id')
-        action = data.get('action')  # 'accept' or 'reject'
+        accept = data.get('accept', False)
+        reason = data.get('response_reason', '')
+        staff_id = session.get('user_id')
         
-        if not request_id or action not in ['accept', 'reject']:
-            return jsonify({'success': False, 'error': 'request_id and valid action are required'}), 400
+        if not request_id:
+            return jsonify({'success': False, 'error': 'Request ID mandatory'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
         
-        manager = AlterationManager()
-        result = manager.respond_to_swap_request(school_id, request_id, staff_id, action)
+        # Verify target is the logged in user
+        cursor.execute('SELECT * FROM timetable_alteration_requests WHERE id = ?', (request_id,))
+        req_row = cursor.fetchone()
+        if not req_row or int(req_row['target_staff_id']) != int(staff_id):
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+            
+        status = 'accepted' if accept else 'rejected'
+        cursor.execute('''
+            UPDATE timetable_alteration_requests 
+            SET status = ?, response_reason = ?, responded_by = ?, responded_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (status, reason, staff_id, request_id))
         
-        return jsonify(result), 200 if result['success'] else 400
+        if accept:
+            # Swap the staff on the assignment
+            cursor.execute('''
+                UPDATE timetable_assignments 
+                SET staff_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (staff_id, req_row['assignment_id']))
+            
+        db.commit()
+        return jsonify({'success': True, 'message': f'Request {status} successfully'})
     except Exception as e:
-        logger.error(f"Error responding to swap: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ==================== SELF-ALLOCATION ENDPOINTS ====================
 
-@timetable_bp.route('/allocations', methods=['GET'])
-@check_staff_auth
-def get_allocations():
-    """Get staff member's self-allocations"""
+@timetable_api.route('/api/timetable/allocations', methods=['GET'])
+def get_personal_allocations():
+    """Get all self-allocations for the logged-in staff member"""
     try:
-        school_id = get_school_id()
-        staff_id = get_user_id()
+        staff_id = session.get('user_id')
+        school_id = session.get('school_id')
         
-        manager = SelfAllocationManager()
-        allocations = manager.get_staff_allocations(school_id, staff_id)
+        if not staff_id or not school_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+            
+        db = get_db()
+        cursor = db.cursor()
+        cursor.execute('''
+            SELECT tsa.*, tp.period_name, tp.start_time, tp.end_time
+            FROM timetable_self_allocations tsa
+            LEFT JOIN timetable_periods tp ON tsa.school_id = tp.school_id AND tsa.period_number = tp.period_number
+            WHERE tsa.staff_id = ? AND tsa.school_id = ?
+            ORDER BY tsa.day_of_week, tsa.period_number
+        ''', (staff_id, school_id))
         
-        return jsonify({'success': True, 'allocations': allocations}), 200
+        allocations = []
+        for row in cursor.fetchall():
+            allocations.append({
+                'id': row['id'],
+                'day_of_week': row['day_of_week'],
+                'period_number': row['period_number'],
+                'period_name': row['period_name'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'class_subject': row['class_subject'],
+                'is_admin_locked': bool(row['is_admin_locked'])
+            })
+            
+        return jsonify({'success': True, 'allocations': allocations, 'data': allocations})
     except Exception as e:
-        logger.error(f"Error fetching allocations: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/allocation/save', methods=['POST'])
-@check_staff_auth
+
+@timetable_api.route('/api/timetable/allocation/save', methods=['POST'])
 def save_allocation():
-    """Staff: Self-allocate to an empty period"""
+    """Staff fills an empty slot (self-allocation)"""
     try:
-        school_id = get_school_id()
-        staff_id = get_user_id()
-        data = request.json
-        
+        data = request.get_json()
+        staff_id = session.get('user_id')
+        school_id = session.get('school_id')
         day_of_week = data.get('day_of_week')
         period_number = data.get('period_number')
+        class_subject = data.get('class_subject')
         
-        if not all([day_of_week, period_number]):
-            return jsonify({'success': False, 'error': 'day_of_week and period_number are required'}), 400
+        if not all([day_of_week is not None, period_number, class_subject]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
         
-        manager = SelfAllocationManager()
-        result = manager.allocate_to_empty_slot(
-            school_id, staff_id, day_of_week, period_number
-        )
+        # Check if slot is already assigned or allocated
+        cursor.execute('''
+            SELECT id FROM timetable_assignments 
+            WHERE school_id = ? AND day_of_week = ? AND period_number = ?
+        ''', (school_id, day_of_week, period_number))
+        if cursor.fetchone():
+            return jsonify({'success': False, 'error': 'Slot already assigned'}), 400
+            
+        cursor.execute('''
+            INSERT INTO timetable_self_allocations (school_id, staff_id, day_of_week, period_number, class_subject)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (school_id, staff_id, day_of_week, period_number, class_subject))
         
-        return jsonify(result), 200 if result['success'] else 400
+        db.commit()
+        return jsonify({'success': True, 'message': 'Slot allocated successfully'})
     except Exception as e:
-        logger.error(f"Error saving allocation: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/allocation/update', methods=['POST'])
-@check_staff_auth
+
+@timetable_api.route('/api/timetable/allocation/update', methods=['POST'])
 def update_allocation():
-    """Staff: Update their self-allocation (if not locked)"""
+    """Update an existing self-allocation"""
     try:
-        school_id = get_school_id()
-        staff_id = get_user_id()
-        data = request.json
-        
+        data = request.get_json()
         allocation_id = data.get('allocation_id')
-        new_period_number = data.get('new_period_number')
+        class_subject = data.get('class_subject')
+        staff_id = session.get('user_id')
         
-        if not all([allocation_id, new_period_number]):
-            return jsonify({'success': False, 'error': 'allocation_id and new_period_number are required'}), 400
+        if not allocation_id or not class_subject:
+            return jsonify({'success': False, 'error': 'Missing fields'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
         
-        manager = SelfAllocationManager()
-        result = manager.update_allocation(
-            school_id, allocation_id, staff_id, new_period_number
-        )
+        # Verify ownership and lock status
+        cursor.execute('SELECT * FROM timetable_self_allocations WHERE id = ?', (allocation_id,))
+        row = cursor.fetchone()
+        if not row or int(row['staff_id']) != int(staff_id):
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        if row['is_admin_locked']:
+            return jsonify({'success': False, 'error': 'Allocation is locked by admin'}), 403
+            
+        cursor.execute('''
+            UPDATE timetable_self_allocations SET class_subject = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (class_subject, allocation_id))
         
-        return jsonify(result), 200 if result['success'] else 400
+        db.commit()
+        return jsonify({'success': True, 'message': 'Allocation updated'})
     except Exception as e:
-        logger.error(f"Error updating allocation: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-@timetable_bp.route('/allocation/delete', methods=['POST'])
-@check_staff_auth
-def delete_allocation():
-    """Staff: Delete their self-allocation"""
+
+@timetable_api.route('/api/timetable/allocation/delete', methods=['POST'])
+def delete_personal_allocation():
+    """Delete a self-allocation (if not locked)"""
     try:
-        school_id = get_school_id()
-        staff_id = get_user_id()
-        allocation_id = request.json.get('allocation_id')
+        data = request.get_json()
+        allocation_id = data.get('allocation_id')
+        staff_id = session.get('user_id')
         
         if not allocation_id:
-            return jsonify({'success': False, 'error': 'allocation_id is required'}), 400
+            return jsonify({'success': False, 'error': 'Missing ID'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
         
-        manager = SelfAllocationManager()
-        result = manager.delete_allocation(school_id, allocation_id, staff_id)
+        # Verify ownership and lock status
+        cursor.execute('SELECT * FROM timetable_self_allocations WHERE id = ?', (allocation_id,))
+        row = cursor.fetchone()
+        if not row or int(row['staff_id']) != int(staff_id):
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+        if row['is_admin_locked']:
+            return jsonify({'success': False, 'error': 'Cannot delete admin-locked allocation'}), 403
+            
+        cursor.execute('DELETE FROM timetable_self_allocations WHERE id = ?', (allocation_id,))
+        db.commit()
         
-        return jsonify(result), 200 if result['success'] else 400
+        return jsonify({'success': True, 'message': 'Allocation deleted'})
     except Exception as e:
-        logger.error(f"Error deleting allocation: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
-# ==================== UTILITY ENDPOINTS ====================
 
-@timetable_bp.route('/staff/available', methods=['GET'])
-@check_staff_auth
+@timetable_api.route('/api/staff/available', methods=['GET'])
 def get_available_staff():
-    """Get list of available staff for swap targeting"""
+    """Get staff members available for swap (same school, exclude self)"""
     try:
-        school_id = get_school_id()
-        day_of_week = request.args.get('day_of_week')
-        period_number = request.args.get('period_number')
+        school_id = request.args.get('school_id') or session.get('school_id')
+        exclude_self = request.args.get('exclude_self', 'false').lower() == 'true'
+        current_user_id = session.get('user_id')
         
-        db = get_db()
-        
-        # Get list of staff in same department
-        current_staff = db.execute("""
-            SELECT department FROM staff WHERE id = ? AND school_id = ?
-        """, (get_user_id(), school_id)).fetchone()
-        
-        if not current_staff or not current_staff['department']:
-            return jsonify({'success': False, 'error': 'Staff department not found'}), 400
-        
-        # Get staff with available slots on this day/period
-        available = db.execute("""
-            SELECT s.id, s.staff_id, s.full_name, s.department
-            FROM staff s
-            LEFT JOIN timetable_assignments ta ON 
-                ta.staff_id = s.id 
-                AND ta.day_of_week = ?
-                AND ta.period_number = ?
-                AND ta.school_id = ?
-            WHERE s.school_id = ? 
-            AND s.department = ?
-            AND ta.id IS NULL
-            ORDER BY s.full_name
-        """, (day_of_week, period_number, school_id, school_id, current_staff['department'])).fetchall()
-        
-        staff_list = [{
-            'id': s['id'],
-            'staff_id': s['staff_id'],
-            'full_name': s['full_name']
-        } for s in available]
-        
-        return jsonify({'success': True, 'staff': staff_list}), 200
-    except Exception as e:
-        logger.error(f"Error fetching available staff: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@timetable_bp.route('/periods/<int:period_id>', methods=['GET'])
-@check_auth_either
-def get_period_details(period_id):
-    """Get details of a specific period"""
-    try:
-        school_id = get_school_id()
-        db = get_db()
-        
-        period = db.execute("""
-            SELECT * FROM timetable_periods 
-            WHERE id = ? AND school_id = ?
-        """, (period_id, school_id)).fetchone()
-        
-        if not period:
-            return jsonify({'success': False, 'error': 'Period not found'}), 404
-        
-        return jsonify({'success': True, 'period': dict(period)}), 200
-    except Exception as e:
-        logger.error(f"Error fetching period details: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@timetable_bp.route('/staff/list', methods=['GET'])
-@check_admin_auth
-def get_staff_list():
-    """Get list of all staff for admin dropdowns"""
-    try:
-        school_id = get_school_id()
-        db = get_db()
-        
-        staff = db.execute("""
-            SELECT id, staff_id, full_name, department 
-            FROM staff 
-            WHERE school_id = ? AND is_active = 1
-            ORDER BY CAST(staff_id AS INTEGER) ASC
-        """, (school_id,)).fetchall()
-        
-        staff_list = [{
-            'id': s['id'],
-            'staff_id': s['staff_id'],
-            'full_name': s['full_name'],
-            'department': s['department']
-        } for s in staff]
-        
-        return jsonify({'success': True, 'staff': staff_list}), 200
-    except Exception as e:
-        logger.error(f"Error fetching staff list: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-# ==================== DEDICATED STAFF PERIOD ASSIGNMENT ====================
-
-@timetable_bp.route('/staff-period/assign', methods=['POST'])
-@check_admin_auth
-def assign_period_to_staff():
-    """
-    Assign a specific period to a staff member for a particular day
-    Separate endpoint for individual staff period assignment
-    """
-    try:
-        school_id = get_school_id()
-        data = request.json or {}
-        
-        staff_id = data.get('staff_id')
-        day_of_week = data.get('day_of_week')
-        period_number = data.get('period_number')
-        
-        if None in [staff_id, day_of_week, period_number]:
-            return jsonify({
-                'success': False,
-                'error': 'Missing required fields: staff_id, day_of_week, period_number'
-            }), 400
-        
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+            
         db = get_db()
         cursor = db.cursor()
         
-        # Verify staff exists
-        cursor.execute('SELECT id, full_name FROM staff WHERE id = ? AND school_id = ?', 
-                      (staff_id, school_id))
-        staff = cursor.fetchone()
-        if not staff:
-            return jsonify({'success': False, 'error': 'Staff member not found'}), 404
+        query = 'SELECT id, full_name, department FROM staff WHERE school_id = ?'
+        params = [school_id]
         
-        # Check if already assigned to this period
-        cursor.execute('''
-            SELECT id FROM timetable_assignments
-            WHERE school_id = ? AND staff_id = ? 
-            AND day_of_week = ? AND period_number = ?
-        ''', (school_id, staff_id, day_of_week, period_number))
-        
-        existing = cursor.fetchone()
-        if existing:
-            return jsonify({
-                'success': False,
-                'error': f'{staff[1]} is already assigned to this period'
-            }), 400
-        
-        # Create assignment
-        cursor.execute('''
-            INSERT INTO timetable_assignments
-            (school_id, staff_id, day_of_week, period_number, is_assigned)
-            VALUES (?, ?, ?, ?, 1)
-        ''', (school_id, staff_id, day_of_week, period_number))
-        
-        db.commit()
-        
-        return jsonify({
-            'success': True,
-            'assignment_id': cursor.lastrowid,
-            'staff_name': staff[1],
-            'day_of_week': day_of_week,
-            'period_number': period_number,
-            'message': f'Period assigned to {staff[1]} successfully'
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error assigning period to staff: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@timetable_bp.route('/staff-period/list/<int:staff_id>', methods=['GET'])
-@check_admin_auth
-def get_staff_assigned_periods(staff_id):
-    """Get all periods assigned to a specific staff member"""
-    try:
-        school_id = get_school_id()
-        db = get_db()
-        cursor = db.cursor()
-        
-        # Verify staff exists
-        cursor.execute('SELECT full_name FROM staff WHERE id = ? AND school_id = ?', 
-                      (staff_id, school_id))
-        staff = cursor.fetchone()
-        if not staff:
-            return jsonify({'success': False, 'error': 'Staff member not found'}), 404
-        
-        # Get all assigned periods
-        cursor.execute('''
-            SELECT ta.id, ta.day_of_week, ta.period_number, 
-                   tp.start_time, tp.end_time, tp.period_name
-            FROM timetable_assignments ta
-            LEFT JOIN timetable_periods tp ON ta.period_number = tp.period_number 
-                AND tp.school_id = ta.school_id
-            WHERE ta.school_id = ? AND ta.staff_id = ?
-            ORDER BY ta.day_of_week, ta.period_number
-        ''', (school_id, staff_id))
-        
-        periods = []
-        days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-        
+        if exclude_self and current_user_id:
+            query += ' AND id != ?'
+            params.append(current_user_id)
+            
+        cursor.execute(query, params)
+        staff = []
         for row in cursor.fetchall():
-            periods.append({
-                'assignment_id': row[0],
-                'day_of_week': row[1],
-                'day_name': days[row[1]],
-                'period_number': row[2],
-                'start_time': row[3],
-                'end_time': row[4],
-                'period_name': row[5]
+            staff.append({
+                'id': row['id'],
+                'full_name': row['full_name'],
+                'department': row['department']
             })
-        
-        return jsonify({
-            'success': True,
-            'staff_name': staff[0],
-            'staff_id': staff_id,
-            'periods': periods,
-            'total_periods': len(periods)
-        }), 200
-        
+            
+        return jsonify({'success': True, 'staff': staff})
     except Exception as e:
-        logger.error(f"Error fetching staff periods: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
-
-@timetable_bp.route('/staff-period/remove/<int:assignment_id>', methods=['POST'])
-@check_admin_auth
-def remove_staff_period_assignment(assignment_id):
-    """Remove a period assignment from a staff member"""
-    try:
-        school_id = get_school_id()
-        db = get_db()
-        cursor = db.cursor()
-        
-        # Verify assignment exists
-        cursor.execute('''
-            SELECT ta.id, s.full_name, ta.day_of_week, ta.period_number
-            FROM timetable_assignments ta
-            JOIN staff s ON ta.staff_id = s.id
-            WHERE ta.id = ? AND ta.school_id = ?
-        ''', (assignment_id, school_id))
-        
-        assignment = cursor.fetchone()
-        if not assignment:
-            return jsonify({'success': False, 'error': 'Assignment not found'}), 404
-        
-        # Delete assignment
-        cursor.execute('DELETE FROM timetable_assignments WHERE id = ? AND school_id = ?',
-                      (assignment_id, school_id))
-        db.commit()
-        
-        days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-        
-        return jsonify({
-            'success': True,
-            'message': f'Period removed from {assignment[1]} (Day: {days[assignment[2]]}, Period: {assignment[3]})',
-            'staff_name': assignment[1]
-        }), 200
-        
-    except Exception as e:
-        logger.error(f"Error removing staff period assignment: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-# Export blueprint to be registered in main app
-__all__ = ['timetable_bp']

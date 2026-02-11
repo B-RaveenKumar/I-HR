@@ -173,8 +173,8 @@ if CLOUD_ENABLED:
 
 # Register timetable management API blueprint
 try:
-    from timetable_api_routes import timetable_bp
-    app.register_blueprint(timetable_bp)
+    from timetable_api_routes import timetable_api
+    app.register_blueprint(timetable_api)
     print("Timetable Management API endpoints registered")
 except ImportError:
     print("Timetable API routes module not found - timetable features may be unavailable")
@@ -4834,13 +4834,19 @@ def staff_dashboard():
         ORDER BY permission_date DESC
     ''', (staff_db_id,)).fetchall()
 
+    # Get timetable module status for this school
+    school_id = session.get('school_id')
+    timetable_settings = db.execute('SELECT is_enabled FROM timetable_settings WHERE school_id = ?', (school_id,)).fetchone()
+    timetable_enabled = bool(timetable_settings['is_enabled']) if timetable_settings else False
+
     return render_template('staff_dashboard.html',
                          attendance=attendance,
                          leaves=leaves,
                          on_duty_applications=on_duty_applications,
                          permission_applications=permission_applications,
                          today=today,
-                         staff_info=staff_info)
+                         staff_info=staff_info,
+                         timetable_enabled=timetable_enabled)
 
 @app.route('/admin/department_shifts')
 def department_shifts():
@@ -5260,6 +5266,7 @@ def admin_dashboard():
 
     db = get_db()
     school_id = session['school_id']
+    use_modern_ui = session.get('use_modern_ui', False)
 
     # Get all staff
     staff = db.execute('''
@@ -5361,8 +5368,9 @@ def admin_dashboard():
     # Convert to match expected format
     attendance_summary = status_counts
 
-    # Check if user wants modern UI (can be a session variable or parameter)
-    use_modern_ui = request.args.get('modern', 'false').lower() == 'true' or session.get('use_modern_ui', False)
+    # Get timetable module status for this school
+    timetable_settings = db.execute('SELECT is_enabled FROM timetable_settings WHERE school_id = ?', (school_id,)).fetchone()
+    timetable_enabled = bool(timetable_settings['is_enabled']) if timetable_settings else False
 
     if use_modern_ui:
         return render_template('admin_dashboard_modern.html',
@@ -5373,6 +5381,7 @@ def admin_dashboard():
                              attendance_summary=attendance_summary,
                              today_attendance=today_attendance,
                              today=today,
+                             timetable_enabled=timetable_enabled,
                              recent_activities=[],  # Add recent activities data
                              performance={},  # Add performance metrics
                              biometric_status={},  # Add biometric status
@@ -5385,7 +5394,8 @@ def admin_dashboard():
                              pending_permissions=pending_permissions,
                              attendance_summary=attendance_summary,
                              today_attendance=today_attendance,
-                             today=today)
+                             today=today,
+                             timetable_enabled=timetable_enabled)
 
 
 @app.route('/admin/timetable')
@@ -5799,14 +5809,16 @@ def company_dashboard():
 
     db = get_db()
 
-    # Get all schools
+    # Get all schools with timetable status
     schools = db.execute('''
         SELECT s.id, s.name, s.address, s.contact_email, s.contact_phone,
-               COUNT(a.id) as admin_count,
-               COUNT(st.id) as staff_count
+               COUNT(DISTINCT a.id) as admin_count,
+               COUNT(DISTINCT st.id) as staff_count,
+               COALESCE(ts.is_enabled, 0) as timetable_enabled
         FROM schools s
         LEFT JOIN admins a ON s.id = a.school_id
         LEFT JOIN staff st ON s.id = st.school_id
+        LEFT JOIN timetable_settings ts ON s.id = ts.school_id
         GROUP BY s.id
         ORDER BY s.name
     ''').fetchall()

@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Timetable Management - VishnoRex</title>
-    
+
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
-    
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -22,7 +23,7 @@
             padding: 0;
             margin: 0;
         }
-        
+
         .row {
             margin: 0;
             height: fit-content !important;
@@ -30,35 +31,40 @@
             display: flex;
             flex-wrap: nowrap;
         }
-        
+
         /* Sidebar positioning */
         .enhanced-sidebar {
             position: fixed !important;
             top: 0;
             left: 0;
-            width: 250px; /* Fixed width instead of percentage */
+            width: 250px;
+            /* Fixed width instead of percentage */
             height: 100vh;
             overflow-y: auto;
             overflow-x: hidden;
             z-index: 1000;
-            display: block !important; /* Override inline style */
+            display: block !important;
+            /* Override inline style */
         }
-        
+
         /* Main content positioning */
         .salary-main-content {
-            margin-left: 250px !important; /* Match sidebar width exactly */
-            width: calc(100% - 250px) !important; /* Fill remaining space */
+            margin-left: 250px !important;
+            /* Match sidebar width exactly */
+            width: calc(100% - 250px) !important;
+            /* Fill remaining space */
             min-height: 100vh;
             padding: 2rem 1rem;
             overflow-x: hidden;
         }
-        
+
         /* Remove Bootstrap default spacing that causes issues */
-        .col-md-2, .col-md-10 {
+        .col-md-2,
+        .col-md-10 {
             padding-left: 0;
             padding-right: 0;
         }
-        
+
         /* Mobile responsive fixes */
         @media (max-width: 767.98px) {
             .enhanced-sidebar {
@@ -70,26 +76,28 @@
                 overflow: hidden !important;
                 transition: left 0.3s ease;
                 z-index: 1050;
-                display: none !important; /* Hidden by default on mobile */
+                display: none !important;
+                /* Hidden by default on mobile */
             }
-            
+
             .enhanced-sidebar.show {
                 left: 0;
                 display: block !important;
             }
-            
+
             .salary-main-content {
                 margin-left: 0 !important;
                 width: 100% !important;
                 padding: 1rem 0.5rem;
-                padding-top: 4rem; /* Account for mobile toggle button */
+                padding-top: 4rem;
+                /* Account for mobile toggle button */
             }
-            
+
             .sidebar-toggle {
                 display: block !important;
             }
         }
-        
+
         /* Ensure sidebar toggle is properly styled */
         .sidebar-toggle {
             position: fixed;
@@ -177,7 +185,7 @@
             padding: 0.4rem 0.8rem;
             font-size: 0.85rem;
         }
-        
+
         @media (min-width: 768px) {
             .sidebar-toggle {
                 display: none !important;
@@ -194,11 +202,13 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
     <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
-    
+
 </head>
+
 <body>
     <!-- Mobile Sidebar Toggle -->
-    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false"
+        aria-controls="enhanced-sidebar">
         <i class="bi bi-list"></i>
     </button>
     <div class="container-fluid">
@@ -208,19 +218,19 @@
                 <div class="sidebar-header">
                     <div class="brand-logo">
                         {% if institution.branding_enabled and institution.logo_path %}
-                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
                         {% else %}
-                            <div class="logo-icon">
-                                <i class="bi bi-building-gear"></i>
-                            </div>
+                        <div class="logo-icon">
+                            <i class="bi bi-building-gear"></i>
+                        </div>
                         {% endif %}
                         <div class="brand-text">
                             {% if institution.branding_enabled and institution.name %}
-                                <h6 class="brand-title">{{ institution.name }}</h6>
-                                <small class="brand-subtitle">Admin Panel</small>
+                            <h6 class="brand-title">{{ institution.name }}</h6>
+                            <small class="brand-subtitle">Admin Panel</small>
                             {% else %}
-                                <h6 class="brand-title">VishnoRex</h6>
-                                <small class="brand-subtitle">Admin Panel</small>
+                            <h6 class="brand-title">VishnoRex</h6>
+                            <small class="brand-subtitle">Admin Panel</small>
                             {% endif %}
                         </div>
                     </div>
@@ -305,27 +315,28 @@
                     </div>
                     <!-- Sidebar Footer -->
                     <div class="sidebar-footer">
-                    <div class="footer-stats">
-                        <div class="stat-item">
-                            <i class="bi bi-people"></i>
-                            <span id="totalStaffCount">-</span>
+                        <div class="footer-stats">
+                            <div class="stat-item">
+                                <i class="bi bi-people"></i>
+                                <span id="totalStaffCount">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="bi bi-calendar-day"></i>
+                                <span id="currentDate">-</span>
+                            </div>
                         </div>
-                        <div class="stat-item">
-                            <i class="bi bi-calendar-day"></i>
-                            <span id="currentDate">-</span>
-                        </div>
+                        <button type="button" class="logout-btn" onclick="logout()" title="Logout"
+                            aria-label="Logout from admin panel">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </button>
                     </div>
-                    <button type="button" class="logout-btn" onclick="logout()" title="Logout" aria-label="Logout from admin panel">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Logout</span>
-                    </button>
-                </div>
                 </div>
             </nav>
             <!-- Main content -->
             <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
                 <!-- CSRF Token for AJAX requests -->
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
                 <!-- Enhanced Header -->
                 <div class="salary-header">
@@ -340,10 +351,12 @@
                             </div>
                         </div>
                         <div class="header-actions">
-                            <button type="button" class="btn btn-outline-primary" id="refreshDataBtn" title="Refresh data">
+                            <button type="button" class="btn btn-outline-primary" id="refreshDataBtn"
+                                title="Refresh data">
                                 <i class="bi bi-arrow-clockwise"></i> Refresh
                             </button>
-                            <button type="button" class="btn btn-success" id="exportDashboardBtn" title="Export timetable data">
+                            <button type="button" class="btn btn-success" id="exportDashboardBtn"
+                                title="Export timetable data">
                                 <i class="bi bi-download"></i> Export
                             </button>
                         </div>
@@ -410,11 +423,13 @@
                                         <th>Department</th>
                                         <th>
                                             <i class="bi bi-arrow-left-right"></i> Can Send Requests
-                                            <small style="display: block; color: white; font-weight: normal;">Staff can request swaps</small>
+                                            <small style="display: block; color: white; font-weight: normal;">Staff can
+                                                request swaps</small>
                                         </th>
                                         <th>
                                             <i class="bi bi-arrow-right"></i> Can Receive Requests
-                                            <small style="display: block; color: white; font-weight: normal;">Visible in target dropdown</small>
+                                            <small style="display: block; color: white; font-weight: normal;">Visible in
+                                                target dropdown</small>
                                         </th>
                                         <th class="text-center">Actions</th>
                                     </tr>
@@ -448,7 +463,8 @@
                                 <label for="daySelector" class="form-label">
                                     <i class="bi bi-calendar"></i> Select Day
                                 </label>
-                                <select id="daySelector" class="form-control enhanced-select" onchange="loadDayAssignments()">
+                                <select id="daySelector" class="form-control enhanced-select"
+                                    onchange="loadDayAssignments()">
                                     <option value="">-- Choose a day --</option>
                                     <option value="0">Sunday</option>
                                     <option value="1">Monday</option>
@@ -463,7 +479,8 @@
                                 <label for="staffSearch" class="form-label">
                                     <i class="bi bi-search"></i> Search Staff
                                 </label>
-                                <input type="text" class="form-control enhanced-select" id="staffSearch" placeholder="Search by name or ID..." title="Search staff members">
+                                <input type="text" class="form-control enhanced-select" id="staffSearch"
+                                    placeholder="Search by name or ID..." title="Search staff members">
                             </div>
                         </div>
 
@@ -499,7 +516,8 @@
                         </div>
                         <div class="header-content">
                             <h5 class="card-title">Staff Period Allocation Manager</h5>
-                            <p class="card-subtitle">Manage and allocate periods to individual staff members separately</p>
+                            <p class="card-subtitle">Manage and allocate periods to individual staff members separately
+                            </p>
                         </div>
                     </div>
                     <div class="card-body">
@@ -513,7 +531,8 @@
                                     <label for="staffSelectAssign" class="form-label">
                                         <i class="bi bi-person"></i> Staff Member
                                     </label>
-                                    <select id="staffSelectAssign" class="form-control enhanced-select" onchange="onStaffSelected()" title="Choose a staff member">
+                                    <select id="staffSelectAssign" class="form-control enhanced-select"
+                                        onchange="onStaffSelected()" title="Choose a staff member">
                                         <option value="">-- Choose Staff Member --</option>
                                     </select>
                                 </div>
@@ -539,7 +558,8 @@
                                     <label for="daySelectAssign" class="form-label">
                                         <i class="bi bi-calendar"></i> Select Day
                                     </label>
-                                    <select id="daySelectAssign" class="form-control enhanced-select" title="Choose a day">
+                                    <select id="daySelectAssign" class="form-control enhanced-select"
+                                        title="Choose a day">
                                         <option value="">-- Choose Day --</option>
                                         <option value="0">Sunday</option>
                                         <option value="1">Monday</option>
@@ -554,7 +574,8 @@
                                     <label for="periodSelectAssign" class="form-label">
                                         <i class="bi bi-clock"></i> Select Period
                                     </label>
-                                    <select id="periodSelectAssign" class="form-control enhanced-select" title="Choose a period">
+                                    <select id="periodSelectAssign" class="form-control enhanced-select"
+                                        title="Choose a period">
                                         <option value="">-- Choose Period --</option>
                                     </select>
                                 </div>
@@ -648,7 +669,8 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Period Number</label>
-                        <input type="number" id="periodNumber" class="form-control" min="1" placeholder="e.g., 1, 2, 3...">
+                        <input type="number" id="periodNumber" class="form-control" min="1"
+                            placeholder="e.g., 1, 2, 3...">
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Period Name</label>
@@ -672,7 +694,7 @@
             </div>
         </div>
     </div>
-    
+
     <!-- Admin Override Modal -->
     <div class="modal fade" id="overrideModal" tabindex="-1">
         <div class="modal-dialog">
@@ -692,10 +714,12 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Admin Notes</label>
-                        <textarea id="overrideNotes" class="form-control" rows="3" placeholder="Why is this override necessary?"></textarea>
+                        <textarea id="overrideNotes" class="form-control" rows="3"
+                            placeholder="Why is this override necessary?"></textarea>
                     </div>
                     <div class="alert alert-info">
-                        <i class="bi bi-info-circle"></i> This action will lock the assignment and prevent staff from editing.
+                        <i class="bi bi-info-circle"></i> This action will lock the assignment and prevent staff from
+                        editing.
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -707,57 +731,57 @@
             </div>
         </div>
     </div>
-    
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/timetable_management.js') }}"></script>
-    
+
     <script>
         // Initialize schoolId from Flask session, URL param, or default
         // This uses Jinja2 to get the school_id from the server-side session
         window.schoolId = {{ session.get('school_id', 1) | int }};
         console.log('🏫 School ID from session:', window.schoolId);
-        
+
         // Allow URL parameter to override session
         const urlSchoolId = new URLSearchParams(window.location.search).get('school_id');
         if (urlSchoolId) {
             window.schoolId = parseInt(urlSchoolId);
             console.log('🏫 School ID overridden by URL parameter:', window.schoolId);
         }
-        
+
         // Initialize current date
         document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-        
+
         // Sidebar toggle for mobile
-        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+        document.getElementById('sidebarToggle')?.addEventListener('click', function () {
             const sidebar = document.getElementById('enhanced-sidebar');
             sidebar.classList.toggle('show');
         });
-        
+
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             loadPeriods();
             loadDepartments();
             loadStaffForAssignment();
             loadPeriodsForAssignment();
             loadStaffAssignments();
         });
-        
+
         // Logout function
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
                 window.location.href = '/logout';
             }
         }
-        
+
         // Refresh data
-        document.getElementById('refreshDataBtn')?.addEventListener('click', function() {
+        document.getElementById('refreshDataBtn')?.addEventListener('click', function () {
             loadPeriods();
             loadDepartments();
             if (document.getElementById('daySelector').value) {
                 loadDayAssignments();
             }
         });
-        
+
         // Show add period modal
         function showAddPeriodModal() {
             document.getElementById('periodNumber').value = '';
@@ -767,19 +791,19 @@
             document.getElementById('periodModalTitle').textContent = 'Add Period';
             new bootstrap.Modal(document.getElementById('periodModal')).show();
         }
-        
+
         // Save period
         function savePeriod() {
             const periodNumber = document.getElementById('periodNumber').value;
             const periodName = document.getElementById('periodName').value;
             const startTime = document.getElementById('startTime').value;
             const endTime = document.getElementById('endTime').value;
-            
+
             if (!periodNumber || !periodName || !startTime || !endTime) {
                 alert('Please fill in all fields');
                 return;
             }
-            
+
             fetch('/api/timetable/period/save', {
                 method: 'POST',
                 headers: {
@@ -794,38 +818,38 @@
                     end_time: endTime
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Period saved successfully!');
-                    bootstrap.Modal.getInstance(document.getElementById('periodModal')).hide();
-                    loadPeriods();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(err => {
-                console.error('Error:', err);
-                alert('Error saving period');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Period saved successfully!');
+                        bootstrap.Modal.getInstance(document.getElementById('periodModal')).hide();
+                        loadPeriods();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('Error saving period');
+                });
         }
-        
+
         // Load periods
         function loadPeriods() {
             fetch(`/api/timetable/periods?school_id=${window.schoolId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const tbody = document.getElementById('periodsTableBody');
-                    tbody.innerHTML = '';
-                    
-                    if (data.data.length === 0) {
-                        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="6" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No periods defined</td></tr>';
-                    } else {
-                        data.data.forEach(period => {
-                            const startTime = period.start_time ? period.start_time.slice(0, 5) : '--:--';
-                            const endTime = period.end_time ? period.end_time.slice(0, 5) : '--:--';
-                            tbody.innerHTML += `
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const tbody = document.getElementById('periodsTableBody');
+                        tbody.innerHTML = '';
+
+                        if (data.data.length === 0) {
+                            tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="6" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No periods defined</td></tr>';
+                        } else {
+                            data.data.forEach(period => {
+                                const startTime = period.start_time ? period.start_time.slice(0, 5) : '--:--';
+                                const endTime = period.end_time ? period.end_time.slice(0, 5) : '--:--';
+                                tbody.innerHTML += `
                                 <tr>
                                     <td><strong>${period.period_number}</strong></td>
                                     <td>${period.period_name || '-'}</td>
@@ -839,12 +863,12 @@
                                     </td>
                                 </tr>
                             `;
-                        });
+                            });
+                        }
                     }
-                }
-            });
+                });
         }
-        
+
         // Delete period
         function deletePeriod(id) {
             if (confirm('Are you sure?')) {
@@ -858,28 +882,28 @@
                         period_id: id
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        loadPeriods();
-                    } else {
-                        alert('Error: ' + data.error);
-                    }
-                });
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            loadPeriods();
+                        } else {
+                            alert('Error: ' + data.error);
+                        }
+                    });
             }
         }
-        
+
         // Load departments
         function loadDepartments() {
             fetch(`/api/timetable/departments?school_id=${window.schoolId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const tbody = document.getElementById('departmentsTableBody');
-                    tbody.innerHTML = '';
-                    
-                    data.data.forEach(dept => {
-                        tbody.innerHTML += `
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const tbody = document.getElementById('departmentsTableBody');
+                        tbody.innerHTML = '';
+
+                        data.data.forEach(dept => {
+                            tbody.innerHTML += `
                             <tr>
                                 <td><strong>${dept.department}</strong></td>
                                 <td class="text-center">
@@ -895,11 +919,11 @@
                                 </td>
                             </tr>
                         `;
-                    });
-                }
-            });
+                        });
+                    }
+                });
         }
-        
+
         // Toggle department permission
         function toggleDepartmentPermission(dept, type, value) {
             fetch('/api/timetable/departments/permissions', {
@@ -914,31 +938,31 @@
                     allow_inbound: type === 'inbound' ? value : null
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (!data.success) {
-                    alert('Error updating permission');
-                }
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        alert('Error updating permission');
+                    }
+                });
         }
-        
+
         // Load day assignments
         function loadDayAssignments() {
             const day = document.getElementById('daySelector').value;
             if (!day) return;
-            
+
             fetch(`/api/timetable/assignments/all?school_id=${window.schoolId}`)
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const tbody = document.getElementById('assignmentsTableBody');
-                    tbody.innerHTML = '';
-                    
-                    if (data.data.length === 0) {
-                        tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-4">No assignments for this day</td></tr>';
-                    } else {
-                        data.data.forEach(assign => {
-                            tbody.innerHTML += `
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const tbody = document.getElementById('assignmentsTableBody');
+                        tbody.innerHTML = '';
+
+                        if (data.data.length === 0) {
+                            tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted p-4">No assignments for this day</td></tr>';
+                        } else {
+                            data.data.forEach(assign => {
+                                tbody.innerHTML += `
                                 <tr>
                                     <td>${assign.staff_name || '-'}</td>
                                     <td>${assign.period_number || '-'}</td>
@@ -952,73 +976,73 @@
                                     </td>
                                 </tr>
                             `;
-                        });
+                            });
+                        }
                     }
-                }
-            });
+                });
         }
-        
+
         // Show override modal
         function showOverrideModal() {
             new bootstrap.Modal(document.getElementById('overrideModal')).show();
         }
-        
+
         // Perform admin override
         function performAdminOverride() {
             alert('Override performed successfully!');
             bootstrap.Modal.getInstance(document.getElementById('overrideModal')).hide();
         }
-        
+
         // ========== INDIVIDUAL STAFF PERIOD ASSIGNMENT FUNCTIONS ==========
-        
+
         // Load staff for assignment dropdown
         function loadStaffForAssignment() {
             fetch('/api/staff/list?school_id=' + window.schoolId)
-            .then(response => response.json())
-            .then(data => {
-                const select = document.getElementById('staffSelectAssign');
-                if (data.success && data.data) {
-                    data.data.forEach(staff => {
-                        const option = document.createElement('option');
-                        option.value = staff.id;
-                        option.textContent = staff.full_name || staff.name || 'Unknown';
-                        select.appendChild(option);
-                    });
-                }
-            })
-            .catch(err => console.error('Error loading staff:', err));
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('staffSelectAssign');
+                    if (data.success && data.data) {
+                        data.data.forEach(staff => {
+                            const option = document.createElement('option');
+                            option.value = staff.id;
+                            option.textContent = staff.full_name || staff.name || 'Unknown';
+                            select.appendChild(option);
+                        });
+                    }
+                })
+                .catch(err => console.error('Error loading staff:', err));
         }
-        
+
         // Load periods for assignment dropdown
         function loadPeriodsForAssignment() {
             fetch(`/api/timetable/periods?school_id=${window.schoolId}`)
-            .then(response => response.json())
-            .then(data => {
-                const select = document.getElementById('periodSelectAssign');
-                select.innerHTML = '<option value="">-- Choose Period --</option>';
-                if (data.success && data.data) {
-                    data.data.forEach(period => {
-                        const option = document.createElement('option');
-                        option.value = period.period_number;
-                        option.textContent = `${period.period_number}. ${period.period_name || 'Period'} (${period.start_time?.slice(0, 5) || '--:--'})`;
-                        select.appendChild(option);
-                    });
-                }
-            })
-            .catch(err => console.error('Error loading periods:', err));
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('periodSelectAssign');
+                    select.innerHTML = '<option value="">-- Choose Period --</option>';
+                    if (data.success && data.data) {
+                        data.data.forEach(period => {
+                            const option = document.createElement('option');
+                            option.value = period.period_number;
+                            option.textContent = `${period.period_number}. ${period.period_name || 'Period'} (${period.start_time?.slice(0, 5) || '--:--'})`;
+                            select.appendChild(option);
+                        });
+                    }
+                })
+                .catch(err => console.error('Error loading periods:', err));
         }
-        
+
         // Assign period to individual staff member
         function assignStaffPeriod() {
             const staffId = document.getElementById('staffSelectAssign').value;
             const day = document.getElementById('daySelectAssign').value;
             const period = document.getElementById('periodSelectAssign').value;
-            
+
             if (!staffId || day === '' || !period) {
                 alert('Please select staff member, day, and period');
                 return;
             }
-            
+
             fetch('/api/timetable/assignment/save', {
                 method: 'POST',
                 headers: {
@@ -1032,42 +1056,42 @@
                     period_number: parseInt(period)
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Period assigned successfully!');
-                    // Reset form
-                    document.getElementById('staffSelectAssign').value = '';
-                    document.getElementById('daySelectAssign').value = '';
-                    document.getElementById('periodSelectAssign').value = '';
-                    // Reload assignments
-                    loadStaffAssignments();
-                } else {
-                    alert('Error: ' + (data.error || 'Failed to assign period'));
-                }
-            })
-            .catch(err => {
-                console.error('Error:', err);
-                alert('Error assigning period');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Period assigned successfully!');
+                        // Reset form
+                        document.getElementById('staffSelectAssign').value = '';
+                        document.getElementById('daySelectAssign').value = '';
+                        document.getElementById('periodSelectAssign').value = '';
+                        // Reload assignments
+                        loadStaffAssignments();
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to assign period'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('Error assigning period');
+                });
         }
-        
+
         // Load all staff assignments
         function loadStaffAssignments() {
             fetch(`/api/timetable/assignments/all?school_id=${window.schoolId}`)
-            .then(response => response.json())
-            .then(data => {
-                const tbody = document.getElementById('staffAssignmentsTableBody');
-                tbody.innerHTML = '';
-                
-                if (!data.success || !data.data || data.data.length === 0) {
-                    tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="6" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No staff assignments yet</td></tr>';
-                } else {
-                    const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                    data.data.forEach(assign => {
-                        const startTime = assign.start_time ? assign.start_time.slice(0, 5) : '--:--';
-                        const endTime = assign.end_time ? assign.end_time.slice(0, 5) : '--:--';
-                        tbody.innerHTML += `
+                .then(response => response.json())
+                .then(data => {
+                    const tbody = document.getElementById('staffAssignmentsTableBody');
+                    tbody.innerHTML = '';
+
+                    if (!data.success || !data.data || data.data.length === 0) {
+                        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="6" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No staff assignments yet</td></tr>';
+                    } else {
+                        const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                        data.data.forEach(assign => {
+                            const startTime = assign.start_time ? assign.start_time.slice(0, 5) : '--:--';
+                            const endTime = assign.end_time ? assign.end_time.slice(0, 5) : '--:--';
+                            tbody.innerHTML += `
                             <tr>
                                 <td><strong>${assign.staff_name || assign.full_name || 'Unknown'}</strong></td>
                                 <td>${DAYS[assign.day_of_week] || 'Unknown'}</td>
@@ -1081,16 +1105,16 @@
                                 </td>
                             </tr>
                         `;
-                    });
-                }
-            })
-            .catch(err => console.error('Error loading staff assignments:', err));
+                        });
+                    }
+                })
+                .catch(err => console.error('Error loading staff assignments:', err));
         }
-        
+
         // Remove staff assignment
         function removeStaffAssignment(assignmentId) {
             if (!confirm('Are you sure you want to remove this assignment?')) return;
-            
+
             fetch('/api/timetable/assignment/delete', {
                 method: 'POST',
                 headers: {
@@ -1101,20 +1125,21 @@
                     assignment_id: assignmentId
                 })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    alert('Assignment removed successfully!');
-                    loadStaffAssignments();
-                } else {
-                    alert('Error: ' + (data.error || 'Failed to remove assignment'));
-                }
-            })
-            .catch(err => {
-                console.error('Error:', err);
-                alert('Error removing assignment');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        alert('Assignment removed successfully!');
+                        loadStaffAssignments();
+                    } else {
+                        alert('Error: ' + (data.error || 'Failed to remove assignment'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Error:', err);
+                    alert('Error removing assignment');
+                });
         }
     </script>
 </body>
+
 </html>

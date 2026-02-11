@@ -10,11 +10,11 @@ let allStaff = [];
 let currentAssignments = [];
 
 // Initialize on page load
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     // Use the schoolId initialized in HTML (from Flask session)
     schoolId = window.schoolId;
     console.log('🏫 Timetable Management initialized with school_id:', schoolId);
-    
+
     // Check if user is authenticated and load data
     console.log('Starting data load...');
     loadPeriods();
@@ -50,12 +50,12 @@ function loadPeriods() {
 
 function renderPeriodsTable() {
     const tbody = document.getElementById('periodsTableBody');
-    
+
     if (allPeriods.length === 0) {
         tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="6" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No periods defined. Add one to get started!</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = allPeriods.map(p => `
         <tr>
             <td style="padding: 1rem; font-weight: 600;">${p.period_number}</td>
@@ -90,7 +90,7 @@ function showAddPeriodModal() {
 function editPeriod(periodId) {
     const period = allPeriods.find(p => p.id === periodId);
     if (!period) return;
-    
+
     document.getElementById('periodNumber').value = period.period_number;
     document.getElementById('periodName').value = period.period_name || '';
     document.getElementById('startTime').value = period.start_time;
@@ -105,14 +105,14 @@ function savePeriod() {
     const periodName = document.getElementById('periodName').value;
     const startTime = document.getElementById('startTime').value;
     const endTime = document.getElementById('endTime').value;
-    
+
     console.log('📝 Saving period:', { periodNumber, periodName, startTime, endTime, schoolId });
-    
+
     if (!periodNumber || !startTime || !endTime) {
         showAlert('Please fill all required fields', 'error');
         return;
     }
-    
+
     const data = {
         school_id: schoolId,
         period_number: periodNumber,
@@ -120,58 +120,58 @@ function savePeriod() {
         start_time: startTime,
         end_time: endTime
     };
-    
+
     fetch('/api/timetable/period/save', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
-    .then(r => {
-        console.log('Period save response status:', r.status);
-        if (!r.ok) {
-            throw new Error(`HTTP Error: ${r.status} ${r.statusText}`);
-        }
-        return r.json();
-    })
-    .then(result => {
-        console.log('Period save result:', result);
-        if (result.success) {
-            showAlert('Period saved successfully', 'success');
-            const modalElement = document.getElementById('periodModal');
-            const modalInstance = bootstrap.Modal.getInstance(modalElement);
-            if (modalInstance) {
-                modalInstance.hide();
+        .then(r => {
+            console.log('Period save response status:', r.status);
+            if (!r.ok) {
+                throw new Error(`HTTP Error: ${r.status} ${r.statusText}`);
             }
-            console.log('Reloading periods after save...');
-            loadPeriods();
-        } else {
-            showAlert(result.error || 'Failed to save period', 'error');
-        }
-    })
-    .catch(err => {
-        console.error('Error saving period:', err);
-        showAlert('Error saving period: ' + err.message, 'error');
-    });
+            return r.json();
+        })
+        .then(result => {
+            console.log('Period save result:', result);
+            if (result.success) {
+                showAlert('Period saved successfully', 'success');
+                const modalElement = document.getElementById('periodModal');
+                const modalInstance = bootstrap.Modal.getInstance(modalElement);
+                if (modalInstance) {
+                    modalInstance.hide();
+                }
+                console.log('Reloading periods after save...');
+                loadPeriods();
+            } else {
+                showAlert(result.error || 'Failed to save period', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error saving period:', err);
+            showAlert('Error saving period: ' + err.message, 'error');
+        });
 }
 
 function deletePeriod(periodId) {
     if (!confirm('Are you sure you want to delete this period?')) return;
-    
+
     fetch('/api/timetable/period/delete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ school_id: schoolId, period_id: periodId })
     })
-    .then(r => r.json())
-    .then(result => {
-        if (result.success) {
-            showAlert('Period deleted successfully', 'success');
-            loadPeriods();
-        } else {
-            showAlert(result.error || 'Failed to delete period', 'error');
-        }
-    })
-    .catch(err => console.error('Error deleting period:', err));
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Period deleted successfully', 'success');
+                loadPeriods();
+            } else {
+                showAlert(result.error || 'Failed to delete period', 'error');
+            }
+        })
+        .catch(err => console.error('Error deleting period:', err));
 }
 
 // ==========================================================================
@@ -202,12 +202,12 @@ function loadDepartments() {
 
 function renderDepartmentsTable() {
     const tbody = document.getElementById('departmentsTableBody');
-    
+
     if (allDepartments.length === 0) {
         tbody.innerHTML = '<tr><td colspan="4" style="padding: 2rem; text-align: center; color: white;">Loading departments...</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = allDepartments.map(d => `
         <tr>
             <td style="padding: 1rem; font-weight: 600;">${d.department}</td>
@@ -247,29 +247,29 @@ function toggleDepartmentPermission(department, permType, value) {
 function saveDepartmentPermission(department) {
     const row = event.target.closest('tr');
     const perms = JSON.parse(row.dataset.permissions || '{}');
-    
+
     const data = {
         school_id: schoolId,
         department: department,
         allow_alterations: perms.allow_alterations !== false,
         allow_inbound: perms.allow_inbound !== false
     };
-    
+
     fetch('/api/timetable/department/permission', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
-    .then(r => r.json())
-    .then(result => {
-        if (result.success) {
-            showAlert('Department permissions updated', 'success');
-            loadDepartments();
-        } else {
-            showAlert(result.error || 'Failed to update permissions', 'error');
-        }
-    })
-    .catch(err => console.error('Error saving permissions:', err));
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Department permissions updated', 'success');
+                loadDepartments();
+            } else {
+                showAlert(result.error || 'Failed to update permissions', 'error');
+            }
+        })
+        .catch(err => console.error('Error saving permissions:', err));
 }
 
 // ==========================================================================
@@ -306,7 +306,7 @@ function populateStaffSelect() {
             allStaff.map(s => `<option value="${s.id}">${s.full_name} (${s.department})</option>`).join('');
         console.log(`✅ Populated staffSelectAssign with ${allStaff.length} staff`);
     }
-    
+
     // Populate the admin override modal dropdown
     const overrideSelect = document.getElementById('overrideStaffSelect');
     if (overrideSelect) {
@@ -319,11 +319,11 @@ function populateStaffSelect() {
 function loadDayAssignments() {
     const dayValue = document.getElementById('daySelector').value;
     if (!dayValue) {
-        document.getElementById('assignmentsTableBody').innerHTML = 
+        document.getElementById('assignmentsTableBody').innerHTML =
             '<tr><td colspan="6" style="padding: 2rem; text-align: center;">Select a day to view</td></tr>';
         return;
     }
-    
+
     fetch(`/api/timetable/assignments/all?school_id=${schoolId}`)
         .then(response => {
             if (!response.ok) {
@@ -347,12 +347,12 @@ function loadDayAssignments() {
 
 function renderAssignmentsTable() {
     const tbody = document.getElementById('assignmentsTableBody');
-    
+
     if (currentAssignments.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" style="padding: 2rem; text-align: center; color: white;">No assignments for this day</td></tr>';
         return;
     }
-    
+
     tbody.innerHTML = currentAssignments.map(a => `
         <tr>
             <td style="padding: 1rem;">${a.full_name}</td>
@@ -360,10 +360,10 @@ function renderAssignmentsTable() {
             <td style="padding: 1rem; font-family: monospace;">${a.start_time} - ${a.end_time}</td>
             <td style="padding: 1rem;">${a.class_subject || '-'}</td>
             <td style="padding: 1rem;">
-                ${a.is_locked 
-                    ? '<span class="status-badge status-locked"><i class="bi bi-lock"></i> Locked</span>'
-                    : '<span class="status-badge status-active">Active</span>'
-                }
+                ${a.is_locked
+            ? '<span class="status-badge status-locked"><i class="bi bi-lock"></i> Locked</span>'
+            : '<span class="status-badge status-active">Active</span>'
+        }
             </td>
             <td style="padding: 1rem; text-align: center;">
                 <button class="btn btn-sm btn-override" onclick="showOverrideModal(${a.id})">
@@ -377,7 +377,7 @@ function renderAssignmentsTable() {
 function filterAssignments() {
     const search = document.getElementById('staffSearchInput').value.toLowerCase();
     const rows = document.getElementById('assignmentsTableBody').querySelectorAll('tr');
-    
+
     rows.forEach(row => {
         const staffName = row.cells[0]?.textContent.toLowerCase() || '';
         row.style.display = staffName.includes(search) ? '' : 'none';
@@ -395,38 +395,38 @@ function performAdminOverride() {
     const assignmentId = document.getElementById('overrideModal').dataset.assignmentId;
     const newStaffId = document.getElementById('overrideStaffSelect').value;
     const notes = document.getElementById('overrideNotes').value;
-    
+
     if (!newStaffId) {
         showAlert('Please select a staff member', 'error');
         return;
     }
-    
+
     const data = {
         school_id: schoolId,
         assignment_id: assignmentId,
         new_staff_id: newStaffId,
         admin_notes: notes
     };
-    
+
     fetch('/api/timetable/assignment/override', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data)
     })
-    .then(r => r.json())
-    .then(result => {
-        if (result.success) {
-            showAlert('Assignment reassigned successfully', 'success');
-            bootstrap.Modal.getInstance(document.getElementById('overrideModal')).hide();
-            loadDayAssignments();
-        } else {
-            showAlert(result.error || 'Failed to override assignment', 'error');
-        }
-    })
-    .catch(err => {
-        console.error('Error overriding assignment:', err);
-        showAlert('Error overriding assignment', 'error');
-    });
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Assignment reassigned successfully', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('overrideModal')).hide();
+                loadDayAssignments();
+            } else {
+                showAlert(result.error || 'Failed to override assignment', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error overriding assignment:', err);
+            showAlert('Error overriding assignment', 'error');
+        });
 }
 
 // ==========================================================================
@@ -436,16 +436,16 @@ function performAdminOverride() {
 function showAlert(message, type = 'info') {
     const alertClass = type === 'error' ? 'alert-danger' : type === 'success' ? 'alert-success' : 'alert-info';
     const iconClass = type === 'error' ? 'bi-exclamation-circle' : type === 'success' ? 'bi-check-circle' : 'bi-info-circle';
-    
+
     const alertHTML = `
         <div class="alert ${alertClass} alert-dismissible fade show" style="position: fixed; top: 20px; right: 20px; z-index: 9999; min-width: 300px;">
             <i class="bi ${iconClass}"></i> ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
     `;
-    
+
     document.body.insertAdjacentHTML('beforeend', alertHTML);
-    
+
     // Auto-dismiss after 5 seconds
     setTimeout(() => {
         const alert = document.querySelector('.alert');
@@ -478,13 +478,13 @@ function onStaffSelected() {
     const staffSelect = document.getElementById('staffSelectAssign');
     const staffId = staffSelect.value;
     const staffName = staffSelect.options[staffSelect.selectedIndex].text;
-    
+
     const allocationSection = document.getElementById('allocationSection');
     const currentAllocationsSection = document.getElementById('currentAllocationsSection');
     const staffInfoDisplay = document.getElementById('staffInfoDisplay');
     const staffInfoText = document.getElementById('staffInfoText');
     const divider = document.getElementById('staffPeriodsDivider');
-    
+
     if (!staffId) {
         // Hide sections if no staff selected
         allocationSection.style.display = 'none';
@@ -493,15 +493,15 @@ function onStaffSelected() {
         divider.style.display = 'none';
         return;
     }
-    
+
     // Show allocation interface
     allocationSection.style.display = 'block';
     divider.style.display = 'block';
-    
+
     // Show staff info
     staffInfoDisplay.classList.remove('d-none');
     staffInfoText.textContent = `Currently managing allocations for: ${staffName}`;
-    
+
     // Load current allocations for this staff
     loadStaffCurrentAllocations(staffId);
 }
@@ -512,7 +512,7 @@ function onStaffSelected() {
 function loadStaffCurrentAllocations(staffId) {
     const tbody = document.getElementById('staffCurrentAllocationsBody');
     const section = document.getElementById('currentAllocationsSection');
-    
+
     fetch(`/api/timetable/staff-period/list/${staffId}`)
         .then(response => {
             if (!response.ok) throw new Error('Failed to load allocations');
@@ -521,13 +521,13 @@ function loadStaffCurrentAllocations(staffId) {
         .then(data => {
             if (data.status === 'success' && data.data && data.data.length > 0) {
                 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-                
+
                 tbody.innerHTML = data.data.map(allocation => {
                     const day = DAYS[allocation.day_of_week] || 'Unknown';
                     const periodName = allocation.period_name || `Period ${allocation.period_id}`;
                     const timeSlot = allocation.time_slot || '--:-- to --:--';
                     const createdDate = new Date(allocation.created_at).toLocaleDateString() || 'Unknown';
-                    
+
                     return `
                         <tr>
                             <td><strong>${day}</strong></td>
@@ -542,7 +542,7 @@ function loadStaffCurrentAllocations(staffId) {
                         </tr>
                     `;
                 }).join('');
-                
+
                 section.style.display = 'block';
             } else {
                 tbody.innerHTML = `
@@ -575,14 +575,14 @@ function assignStaffPeriod() {
     const staffSelect = document.getElementById('staffSelectAssign');
     const daySelect = document.getElementById('daySelectAssign');
     const periodSelect = document.getElementById('periodSelectAssign');
-    
+
     const staffId = staffSelect.value;
     const day = daySelect.value;
     const periodId = periodSelect.value;
     const staffName = staffSelect.options[staffSelect.selectedIndex].text;
     const dayName = daySelect.options[daySelect.selectedIndex].text;
     const periodName = periodSelect.options[periodSelect.selectedIndex].text;
-    
+
     // Validation
     if (!staffId) {
         showAlert('Please select a staff member', 'error');
@@ -596,7 +596,7 @@ function assignStaffPeriod() {
         showAlert('Please select a period', 'error');
         return;
     }
-    
+
     // Check for duplicate allocation
     const tbody = document.getElementById('staffCurrentAllocationsBody');
     const isDuplicate = Array.from(tbody.querySelectorAll('tr')).some(row => {
@@ -604,12 +604,12 @@ function assignStaffPeriod() {
         const rowPeriod = row.cells[1].textContent.trim();
         return rowDay === dayName && rowPeriod === periodName;
     });
-    
+
     if (isDuplicate) {
         showAlert(`Period already allocated for this day!`, 'warning');
         return;
     }
-    
+
     // Make API call to assign period
     fetch('/api/timetable/staff-period/assign', {
         method: 'POST',
@@ -623,25 +623,25 @@ function assignStaffPeriod() {
             period_id: parseInt(periodId)
         })
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success' || data.success) {
-            showAlert(`Period "${periodName}" successfully allocated to ${staffName} on ${dayName}`, 'success');
-            
-            // Reset form
-            daySelect.value = '';
-            periodSelect.value = '';
-            
-            // Reload allocations
-            loadStaffCurrentAllocations(staffId);
-        } else {
-            showAlert(`Error: ${data.message || 'Failed to allocate period'}`, 'error');
-        }
-    })
-    .catch(err => {
-        console.error('Error assigning period:', err);
-        showAlert('Error assigning period. Please try again.', 'error');
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' || data.success) {
+                showAlert(`Period "${periodName}" successfully allocated to ${staffName} on ${dayName}`, 'success');
+
+                // Reset form
+                daySelect.value = '';
+                periodSelect.value = '';
+
+                // Reload allocations
+                loadStaffCurrentAllocations(staffId);
+            } else {
+                showAlert(`Error: ${data.message || 'Failed to allocate period'}`, 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error assigning period:', err);
+            showAlert('Error assigning period. Please try again.', 'error');
+        });
 }
 
 /**
@@ -651,7 +651,7 @@ function deleteStaffAllocation(allocationId, staffId) {
     if (!confirm('Are you sure you want to delete this allocation?')) {
         return;
     }
-    
+
     fetch(`/api/timetable/staff-period/remove/${allocationId}`, {
         method: 'POST',
         headers: {
@@ -659,19 +659,19 @@ function deleteStaffAllocation(allocationId, staffId) {
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         }
     })
-    .then(response => response.json())
-    .then(data => {
-        if (data.status === 'success' || data.success) {
-            showAlert('Allocation deleted successfully', 'success');
-            loadStaffCurrentAllocations(staffId);
-        } else {
-            showAlert(`Error: ${data.message || 'Failed to delete allocation'}`, 'error');
-        }
-    })
-    .catch(err => {
-        console.error('Error deleting allocation:', err);
-        showAlert('Error deleting allocation. Please try again.', 'error');
-    });
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success' || data.success) {
+                showAlert('Allocation deleted successfully', 'success');
+                loadStaffCurrentAllocations(staffId);
+            } else {
+                showAlert(`Error: ${data.message || 'Failed to delete allocation'}`, 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error deleting allocation:', err);
+            showAlert('Error deleting allocation. Please try again.', 'error');
+        });
 }
 
 /**
@@ -694,21 +694,21 @@ function loadStaffAllocationScheduleGrid(staffId) {
 function generateAllocationScheduleGrid(allocations) {
     const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const PERIODS = {};
-    
+
     // Build period map
     allPeriods.forEach(period => {
         PERIODS[period.id] = `${period.period_name || `Period ${period.period_number}`}`;
     });
-    
+
     // Create grid structure
     let gridHTML = '<div class="allocation-schedule-grid">';
-    
+
     DAYS.forEach((day, dayIdx) => {
         gridHTML += `
             <div class="allocation-day-column">
                 <div class="day-header">${day}</div>
         `;
-        
+
         allocations
             .filter(a => a.day_of_week === dayIdx)
             .forEach(alloc => {
@@ -720,11 +720,11 @@ function generateAllocationScheduleGrid(allocations) {
                     </div>
                 `;
             });
-        
+
         gridHTML += '</div>';
     });
-    
+
     gridHTML += '</div>';
-    
+
     return gridHTML;
 }

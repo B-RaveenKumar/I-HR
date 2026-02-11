@@ -4,15 +4,15 @@ document.addEventListener('DOMContentLoaded', function () {
         const token = document.querySelector('input[name="csrf_token"]');
         return token ? token.value : '';
     }
-document.getElementById('schoolSearch')?.addEventListener('input', function() {
-    const searchTerm = this.value.toLowerCase();
-    const rows = document.querySelectorAll('.table tbody tr');
-    
-    rows.forEach(row => {
-        const schoolName = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
-        row.style.display = schoolName.includes(searchTerm) ? '' : 'none';
+    document.getElementById('schoolSearch')?.addEventListener('input', function () {
+        const searchTerm = this.value.toLowerCase();
+        const rows = document.querySelectorAll('.table tbody tr');
+
+        rows.forEach(row => {
+            const schoolName = row.querySelector('td:nth-child(1)').textContent.toLowerCase();
+            row.style.display = schoolName.includes(searchTerm) ? '' : 'none';
+        });
     });
-});
 
     // Delete school
     document.querySelectorAll('.delete-school').forEach(btn => {
@@ -102,7 +102,7 @@ document.getElementById('schoolSearch')?.addEventListener('input', function() {
         formData.append('admin_full_name', adminFullName);
         formData.append('admin_email', adminEmail);
         formData.append('csrf_token', getCSRFToken());
-        
+
         if (schoolLogo) {
             formData.append('logo', schoolLogo);
         }
@@ -127,14 +127,14 @@ document.getElementById('schoolSearch')?.addEventListener('input', function() {
     document.querySelectorAll('.edit-school').forEach(btn => {
         btn.addEventListener('click', function () {
             const schoolId = this.getAttribute('data-school-id');
-            
+
             // Fetch school data
             fetch(`/get_school/${schoolId}`)
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
                         const school = data.school;
-                        
+
                         // Populate form
                         document.getElementById('editSchoolId').value = school.id;
                         document.getElementById('editSchoolName').value = school.name || '';
@@ -142,11 +142,11 @@ document.getElementById('schoolSearch')?.addEventListener('input', function() {
                         document.getElementById('editSchoolEmail').value = school.contact_email || '';
                         document.getElementById('editSchoolPhone').value = school.contact_phone || '';
                         document.getElementById('editBrandingEnabled').checked = school.branding_enabled == 1;
-                        
+
                         // Show current logo
                         const logoImage = document.getElementById('currentLogoImage');
                         const noLogoText = document.getElementById('noLogoText');
-                        
+
                         if (school.logo_path) {
                             logoImage.src = '/' + school.logo_path;
                             logoImage.style.display = 'block';
@@ -155,7 +155,7 @@ document.getElementById('schoolSearch')?.addEventListener('input', function() {
                             logoImage.style.display = 'none';
                             noLogoText.style.display = 'block';
                         }
-                        
+
                         // Show modal
                         const editModal = new bootstrap.Modal(document.getElementById('editSchoolModal'));
                         editModal.show();
@@ -192,7 +192,7 @@ document.getElementById('schoolSearch')?.addEventListener('input', function() {
         formData.append('contact_phone', schoolPhone);
         formData.append('branding_enabled', brandingEnabled);
         formData.append('csrf_token', getCSRFToken());
-        
+
         if (schoolLogo) {
             formData.append('logo', schoolLogo);
         }
@@ -222,6 +222,54 @@ document.getElementById('schoolSearch')?.addEventListener('input', function() {
         btn.addEventListener('click', function () {
             const schoolId = this.getAttribute('data-school-id');
             window.location.href = `/company/school_details/${schoolId}`;
+        });
+    });
+
+    // Timetable Toggle Logic
+    document.querySelectorAll('.timetable-toggle').forEach(toggle => {
+        toggle.addEventListener('change', function () {
+            const schoolId = this.getAttribute('data-school-id');
+            const isEnabled = this.checked;
+            const label = this.nextElementSibling;
+
+            // Show loading state or disable toggle
+            this.disabled = true;
+
+            fetch('/api/timetable/toggle-school', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': getCSRFToken()
+                },
+                body: JSON.stringify({
+                    school_id: parseInt(schoolId),
+                    is_enabled: isEnabled
+                })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    this.disabled = false;
+                    if (data.success) {
+                        // Update label/badge
+                        if (label) {
+                            label.innerHTML = isEnabled
+                                ? '<span class="badge bg-success">ON</span>'
+                                : '<span class="badge bg-secondary">OFF</span>';
+                        }
+                        // Optional: show a small toast notification
+                        console.log(`Timetable ${isEnabled ? 'enabled' : 'disabled'} for school ${schoolId}`);
+                    } else {
+                        // Revert toggle if failed
+                        this.checked = !isEnabled;
+                        alert(data.error || 'Failed to update timetable status');
+                    }
+                })
+                .catch(error => {
+                    this.disabled = false;
+                    this.checked = !isEnabled;
+                    console.error('Error:', error);
+                    alert('An error occurred while updating timetable status');
+                });
         });
     });
 

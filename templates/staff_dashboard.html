@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,7 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
-    
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -20,7 +21,7 @@
             padding: 0 !important;
             margin: 0 !important;
         }
-        
+
         .row {
             margin: 0;
             height: fit-content !important;
@@ -28,7 +29,7 @@
             display: flex;
             flex-wrap: nowrap;
         }
-        
+
         /* FIXED SIDEBAR - Override external CSS */
         nav.enhanced-sidebar,
         .enhanced-sidebar {
@@ -45,7 +46,7 @@
             background: #221e66 !important;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
         }
-        
+
         /* MAIN CONTENT - Match sidebar width exactly */
         main.salary-main-content,
         .salary-main-content {
@@ -55,15 +56,17 @@
             padding: 2rem 1rem !important;
             overflow-x: hidden;
         }
-        
+
         /* Remove Bootstrap default spacing */
-        .col-md-2, .col-md-10 {
+        .col-md-2,
+        .col-md-10 {
             padding-left: 0 !important;
             padding-right: 0 !important;
         }
-        
+
         /* MOBILE RESPONSIVE - Override external CSS */
         @media (max-width: 768px) {
+
             nav.enhanced-sidebar,
             .enhanced-sidebar {
                 position: fixed !important;
@@ -77,12 +80,12 @@
                 z-index: 1050 !important;
                 display: block !important;
             }
-            
+
             nav.enhanced-sidebar.show,
             .enhanced-sidebar.show {
                 transform: translateX(0) !important;
             }
-            
+
             main.salary-main-content,
             .salary-main-content {
                 margin-left: 0 !important;
@@ -90,7 +93,7 @@
                 padding: 1rem 0.5rem !important;
                 padding-top: 4rem !important;
             }
-            
+
             .sidebar-toggle {
                 display: flex;
                 align-items: center !important;
@@ -105,19 +108,19 @@
                 border-radius: 0.5rem !important;
                 padding: 0.75rem !important;
                 font-size: 1.25rem !important;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.2) !important;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
                 transition: all 0.3s ease, opacity 0.2s ease-in-out !important;
                 cursor: pointer !important;
                 opacity: 1;
             }
-            
+
             .sidebar-toggle:hover {
                 transform: translateY(-2px) !important;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
                 background: #221e66 !important;
             }
         }
-        
+
         /* Show toggle button on mobile AND tablet/laptop views */
         @media (max-width: 1024px) {
             .sidebar-toggle {
@@ -126,9 +129,10 @@
                 justify-content: center !important;
             }
         }
-        
+
         /* DESKTOP - Ensure sidebar is always visible and fixed */
         @media (min-width: 1025px) {
+
             nav.enhanced-sidebar,
             .enhanced-sidebar {
                 position: fixed !important;
@@ -137,18 +141,18 @@
                 width: 250px !important;
                 height: 100vh !important;
             }
-            
+
             .sidebar-toggle {
                 display: none;
                 opacity: 0;
             }
         }
-        
+
         /* Ensure proper stacking and prevent layout shifts */
         body {
             overflow-x: hidden;
         }
-        
+
         /* Force sidebar content to be properly positioned */
         .enhanced-sidebar .sidebar-header,
         .enhanced-sidebar .sidebar-content,
@@ -156,7 +160,7 @@
             position: relative;
             z-index: 1;
         }
-        
+
         /* Pay Slip Preview Styling */
         .pay-slip-preview {
             font-family: 'Inter', Arial, sans-serif;
@@ -165,60 +169,73 @@
             border-radius: 0.5rem;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
         }
-        
+
         .pay-slip-preview .card {
             border: 1px solid #e0e6ed;
             border-radius: 0.375rem;
             box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
         }
-        
+
         .pay-slip-preview .card-header {
             border-bottom: 1px solid rgba(255, 255, 255, 0.2);
             padding: 0.75rem 1rem;
         }
-        
+
         .pay-slip-preview .card-body p {
             margin-bottom: 0.5rem;
             line-height: 1.4;
         }
-        
+
         .pay-slip-preview .d-flex {
             padding: 0.25rem 0;
             border-bottom: 1px solid #f1f3f4;
         }
-        
+
         .pay-slip-preview .d-flex:last-child {
             border-bottom: none;
         }
-        
+
         .pay-slip-preview hr {
             margin: 0.75rem 0;
             border-color: #dee2e6;
         }
-        
+
         @media print {
             .pay-slip-preview {
                 box-shadow: none;
                 border: 1px solid #ddd;
             }
         }
-        
+
         /* Spinning animation for refresh button */
         .spinning {
             animation: spin 1s linear infinite;
         }
-        
+
         @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
-        
+
         @keyframes pulse {
-            0% { opacity: 1; }
-            50% { opacity: 0.6; }
-            100% { opacity: 1; }
+            0% {
+                opacity: 1;
+            }
+
+            50% {
+                opacity: 0.6;
+            }
+
+            100% {
+                opacity: 1;
+            }
         }
-        
+
         /* Enhanced attendance display styling */
         .attendance-time-display {
             padding: 0.5rem;
@@ -230,7 +247,7 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .attendance-status-display {
             padding: 0.5rem;
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -241,7 +258,7 @@
             align-items: center;
             justify-content: center;
         }
-        
+
         .time-value {
             font-size: 1.1rem;
             font-weight: 600;
@@ -254,6 +271,7 @@
 
         /* Mobile First - Small devices (≤576px) */
         @media (max-width: 576px) {
+
             /* Modal sizing and positioning */
             #paySlipModal .modal-dialog {
                 margin: 0.25rem !important;
@@ -622,12 +640,14 @@
             .form-select,
             .form-control {
                 min-height: 44px !important;
-                font-size: 16px !important; /* Prevents zoom on iOS */
+                font-size: 16px !important;
+                /* Prevents zoom on iOS */
             }
         }
 
         /* High DPI displays */
-        @media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+        @media (-webkit-min-device-pixel-ratio: 2),
+        (min-resolution: 192dpi) {
             #paySlipModal .modal-content {
                 border: 0.5px solid rgba(0, 0, 0, 0.125) !important;
                 box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
@@ -660,11 +680,13 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
     <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
-    
+
 </head>
+
 <body>
     <!-- Intelligent Sidebar Toggle -->
-    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false"
+        aria-controls="enhanced-sidebar">
         <i class="bi bi-list"></i>
     </button>
 
@@ -675,19 +697,19 @@
                 <div class="sidebar-header">
                     <div class="brand-logo">
                         {% if institution.branding_enabled and institution.logo_path %}
-                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
                         {% else %}
-                            <div class="logo-icon">
-                                <i class="bi bi-person-workspace"></i>
-                            </div>
+                        <div class="logo-icon">
+                            <i class="bi bi-person-workspace"></i>
+                        </div>
                         {% endif %}
                         <div class="brand-text">
                             {% if institution.branding_enabled and institution.name %}
-                                <h6 class="brand-title">{{ institution.name }}</h6>
-                                <small class="brand-subtitle">Staff Panel</small>
+                            <h6 class="brand-title">{{ institution.name }}</h6>
+                            <small class="brand-subtitle">Staff Panel</small>
                             {% else %}
-                                <h6 class="brand-title">VishnoRex</h6>
-                                <small class="brand-subtitle">Staff Panel</small>
+                            <h6 class="brand-title">VishnoRex</h6>
+                            <small class="brand-subtitle">Staff Panel</small>
                             {% endif %}
                         </div>
                     </div>
@@ -739,6 +761,7 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% if timetable_enabled %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('staff_timetable') }}">
                                     <div class="nav-icon">
@@ -748,15 +771,8 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="/staff/my-period-assignment">
-                                    <div class="nav-icon">
-                                        <i class="bi bi-person-check"></i>
-                                    </div>
-                                    <span class="nav-text">My Period Assignment</span>
-                                    <div class="nav-indicator"></div>
-                                </a>
-                            </li>
+                            {% endif %}
+
                         </ul>
                     </div>
 
@@ -798,19 +814,19 @@
                     </div>
                 </div> -->
 
-                <!-- Sidebar Footer -->
-                <div class="sidebar-footer">
-                    <div class="footer-stats">
-                        <div class="stat-item">
-                            <i class="bi bi-calendar-day"></i>
-                            <span id="currentDate">-</span>
+                    <!-- Sidebar Footer -->
+                    <div class="sidebar-footer">
+                        <div class="footer-stats">
+                            <div class="stat-item">
+                                <i class="bi bi-calendar-day"></i>
+                                <span id="currentDate">-</span>
+                            </div>
                         </div>
+                        <button type="button" class="logout-btn" onclick="logout()" title="Logout">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </button>
                     </div>
-                    <button type="button" class="logout-btn" onclick="logout()" title="Logout">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Logout</span>
-                    </button>
-                </div>
             </nav>
 
             <!-- Main content -->
@@ -824,16 +840,18 @@
                             </div>
                             <div class="title-text">
                                 <h1 class="main-title">Staff Dashboard</h1>
-                                <p class="subtitle">Welcome back, {{ session.get('full_name', 'Staff User') }}! Track your attendance and manage applications</p>
+                                <p class="subtitle">Welcome back, {{ session.get('full_name', 'Staff User') }}! Track
+                                    your attendance and manage applications</p>
                             </div>
                         </div>
                         <div class="header-actions">
-                            <button type="button" class="btn btn-outline-primary" id="refreshDataBtn" title="Refresh data">
+                            <button type="button" class="btn btn-outline-primary" id="refreshDataBtn"
+                                title="Refresh data">
                                 <i class="bi bi-arrow-clockwise"></i> Refresh
                             </button>
                         </div>
                     </div>
-                <!-- </div>
+                    <!-- </div>
                             <i class="bi bi-person me-2"></i>My Profile</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('staff_change_password') }}">
                             <i class="bi bi-key me-2"></i>Change Password</a></li>
@@ -842,261 +860,272 @@
                             <i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
                     </ul>
                 </li> -->
-                <!-- CSRF Token for AJAX requests -->
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <!-- CSRF Token for AJAX requests -->
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
-                <!-- Today's Attendance Card -->
-                <div class="salary-filters-card">
-                    <div class="card-header">
-                        <div class="header-icon">
-                            <i class="bi bi-calendar-check"></i>
+                    <!-- Today's Attendance Card -->
+                    <div class="salary-filters-card">
+                        <div class="card-header">
+                            <div class="header-icon">
+                                <i class="bi bi-calendar-check"></i>
+                            </div>
+                            <div class="header-content">
+                                <h5 class="card-title">Today's Attendance</h5>
+                                <p class="card-subtitle">{{ today.strftime('%d %b %Y') }} - Track your daily attendance
+                                </p>
+                            </div>
                         </div>
-                        <div class="header-content">
-                            <h5 class="card-title">Today's Attendance</h5>
-                            <p class="card-subtitle">{{ today.strftime('%d %b %Y') }} - Track your daily attendance</p>
+                        <div class="card-body">
+                            <div class="filters-grid">
+                                <div class="filter-group">
+                                    <label class="form-label">
+                                        <i class="bi bi-clock"></i> Check-in Time
+                                    </label>
+                                    <div class="attendance-time-display">
+                                        <span class="time-value text-success" id="timeIn">--:--:--</span>
+                                    </div>
+                                </div>
+                                <div class="filter-group">
+                                    <label class="form-label">
+                                        <i class="bi bi-clock-history"></i> Check-out Time
+                                    </label>
+                                    <div class="attendance-time-display">
+                                        <span class="time-value text-info" id="timeOut">--:--:--</span>
+                                    </div>
+                                </div>
+                                <div class="filter-group">
+                                    <label class="form-label">
+                                        <i class="bi bi-check-circle"></i> Status
+                                    </label>
+                                    <div class="attendance-status-display">
+                                        <span class="badge bg-secondary" id="currentStatus">Not Marked</span>
+                                    </div>
+                                </div>
+                                <div class="filter-group">
+                                    <label class="form-label">
+                                        <i class="bi bi-stopwatch"></i> Total Hours
+                                    </label>
+                                    <div class="attendance-time-display">
+                                        <span class="time-value text-primary" id="totalHours">--:--</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                    <div class="card-body">
-                        <div class="filters-grid">
-                            <div class="filter-group">
-                                <label class="form-label">
-                                    <i class="bi bi-clock"></i> Check-in Time
-                                </label>
-                                <div class="attendance-time-display">
-                                    <span class="time-value text-success" id="timeIn">--:--:--</span>
-                                </div>
-                            </div>
-                            <div class="filter-group">
-                                <label class="form-label">
-                                    <i class="bi bi-clock-history"></i> Check-out Time
-                                </label>
-                                <div class="attendance-time-display">
-                                    <span class="time-value text-info" id="timeOut">--:--:--</span>
-                                </div>
-                            </div>
-                            <div class="filter-group">
-                                <label class="form-label">
-                                    <i class="bi bi-check-circle"></i> Status
-                                </label>
-                                <div class="attendance-status-display">
-                                    <span class="badge bg-secondary" id="currentStatus">Not Marked</span>
-                                </div>
-                            </div>
-                            <div class="filter-group">
-                                <label class="form-label">
-                                    <i class="bi bi-stopwatch"></i> Total Hours
-                                </label>
-                                <div class="attendance-time-display">
-                                    <span class="time-value text-primary" id="totalHours">--:--</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
-                <!-- My Leave Applications -->
-                <div class="salary-results-card">
-                    <div class="card-header">
-                        <div class="header-icon">
-                            <i class="bi bi-calendar-x"></i>
-                        </div>
-                        <div class="header-content">
-                            <h5 class="card-title">My Leave Applications</h5>
-                            <p class="card-subtitle">Track your leave requests and their status</p>
-                        </div>
-                        <div class="header-actions">
-                            <div class="results-stats">
-                                <div class="stat-item">
-                                    <i class="bi bi-file-earmark-text"></i>
-                                    <span class="stat-value">{{ leaves|length }}</span>
-                                    <span>Applications</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="card-body">
-                        {% if leaves %}
-                        <div class="table-responsive">
-                            <table class="table salary-results-table">
-                                <thead>
-                                    <tr>
-                                        <th>Leave Type</th>
-                                        <th>Duration</th>
-                                        <th>Reason</th>
-                                        <th>Status</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {% for leave in leaves %}
-                                    <tr>
-                                        <td>
-                                            <span class="badge bg-info">{{ leave.leave_type }}</span>
-                                        </td>
-                                        <td>
-                                            <div>
-                                                <small class="d-block"><i class="bi bi-calendar-event"></i> {{ leave.start_date }}</small>
-                                                <small class="d-block"><i class="bi bi-calendar-event"></i> {{ leave.end_date }}</small>
-                                            </div>
-                                        </td>
-                                        <td>{{ leave.reason }}</td>
-                                        <td>
-                                            {% if leave.status == 'approved' %}
-                                                <span class="earnings-badge">Approved</span>
-                                            {% elif leave.status == 'rejected' %}
-                                                <span class="badge bg-danger">Rejected</span>
-                                            {% else %}
-                                                <span class="deductions-badge">Pending</span>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% endfor %}
-                                </tbody>
-                            </table>
-                        </div>
-                        {% else %}
-                        <div class="empty-state">
-                            <div class="empty-icon">
+                    <!-- My Leave Applications -->
+                    <div class="salary-results-card">
+                        <div class="card-header">
+                            <div class="header-icon">
                                 <i class="bi bi-calendar-x"></i>
                             </div>
-                            <h6 class="empty-title">No Leave Applications</h6>
-                            <p class="empty-text">You haven't applied for any leave yet. Click "Apply Leave" to submit your first request.</p>
+                            <div class="header-content">
+                                <h5 class="card-title">My Leave Applications</h5>
+                                <p class="card-subtitle">Track your leave requests and their status</p>
+                            </div>
+                            <div class="header-actions">
+                                <div class="results-stats">
+                                    <div class="stat-item">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                        <span class="stat-value">{{ leaves|length }}</span>
+                                        <span>Applications</span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        {% endif %}
+                        <div class="card-body">
+                            {% if leaves %}
+                            <div class="table-responsive">
+                                <table class="table salary-results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Leave Type</th>
+                                            <th>Duration</th>
+                                            <th>Reason</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for leave in leaves %}
+                                        <tr>
+                                            <td>
+                                                <span class="badge bg-info">{{ leave.leave_type }}</span>
+                                            </td>
+                                            <td>
+                                                <div>
+                                                    <small class="d-block"><i class="bi bi-calendar-event"></i> {{
+                                                        leave.start_date }}</small>
+                                                    <small class="d-block"><i class="bi bi-calendar-event"></i> {{
+                                                        leave.end_date }}</small>
+                                                </div>
+                                            </td>
+                                            <td>{{ leave.reason }}</td>
+                                            <td>
+                                                {% if leave.status == 'approved' %}
+                                                <span class="earnings-badge">Approved</span>
+                                                {% elif leave.status == 'rejected' %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                                {% else %}
+                                                <span class="deductions-badge">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-calendar-x"></i>
+                                </div>
+                                <h6 class="empty-title">No Leave Applications</h6>
+                                <p class="empty-text">You haven't applied for any leave yet. Click "Apply Leave" to
+                                    submit your first request.</p>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
-                </div>
 
-            <!-- My On Duty Applications -->
-            <div class="salary-results-card mb-4">
-                <div class="card-header">
-                    <div class="header-icon">
-                        <i class="bi bi-briefcase"></i>
-                    </div>
-                    <div class="header-content">
-                        <h5 class="card-title">My On Duty Applications</h5>
-                        <p class="card-subtitle">Your on-duty request history and status</p>
-                    </div>
-                    <div class="header-actions">
-                        <!-- <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyOnDutyModal">
+                    <!-- My On Duty Applications -->
+                    <div class="salary-results-card mb-4">
+                        <div class="card-header">
+                            <div class="header-icon">
+                                <i class="bi bi-briefcase"></i>
+                            </div>
+                            <div class="header-content">
+                                <h5 class="card-title">My On Duty Applications</h5>
+                                <p class="card-subtitle">Your on-duty request history and status</p>
+                            </div>
+                            <div class="header-actions">
+                                <!-- <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyOnDutyModal">
                             <i class="bi bi-plus"></i> Apply On Duty
                         </button> -->
-                    </div>
-                </div>
-                <div class="card-body">
-                    {% if on_duty_applications %}
-                    <div class="table-responsive">
-                        <table class="table salary-results-table">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>From</th>
-                                    <th>To</th>
-                                    <th>Location</th>
-                                    <th>Purpose</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for duty in on_duty_applications %}
-                                <tr>
-                                    <td><span class="badge bg-success">{{ duty.duty_type }}</span></td>
-                                    <td>{{ duty.start_date|dateformat if duty.start_date else '-' }}</td>
-                                    <td>{{ duty.end_date|dateformat if duty.end_date else '-' }}</td>
-                                    <td>{{ duty.location or '-' }}</td>
-                                    <td>{{ duty.purpose[:30] }}{% if duty.purpose|length > 30 %}...{% endif %}</td>
-                                    <td>
-                                        {% if duty.status == 'approved' %}
-                                            <span class="earnings-badge">Approved</span>
-                                        {% elif duty.status == 'rejected' %}
-                                            <span class="badge bg-danger">Rejected</span>
-                                        {% else %}
-                                            <span class="deductions-badge">Pending</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="bi bi-briefcase"></i>
+                            </div>
                         </div>
-                        <h6 class="empty-title">No On Duty Applications</h6>
-                        <p class="empty-text">You haven't applied for any on-duty yet. Click "Apply On Duty" to submit your first request.</p>
+                        <div class="card-body">
+                            {% if on_duty_applications %}
+                            <div class="table-responsive">
+                                <table class="table salary-results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>From</th>
+                                            <th>To</th>
+                                            <th>Location</th>
+                                            <th>Purpose</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for duty in on_duty_applications %}
+                                        <tr>
+                                            <td><span class="badge bg-success">{{ duty.duty_type }}</span></td>
+                                            <td>{{ duty.start_date|dateformat if duty.start_date else '-' }}</td>
+                                            <td>{{ duty.end_date|dateformat if duty.end_date else '-' }}</td>
+                                            <td>{{ duty.location or '-' }}</td>
+                                            <td>{{ duty.purpose[:30] }}{% if duty.purpose|length > 30 %}...{% endif %}
+                                            </td>
+                                            <td>
+                                                {% if duty.status == 'approved' %}
+                                                <span class="earnings-badge">Approved</span>
+                                                {% elif duty.status == 'rejected' %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                                {% else %}
+                                                <span class="deductions-badge">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-briefcase"></i>
+                                </div>
+                                <h6 class="empty-title">No On Duty Applications</h6>
+                                <p class="empty-text">You haven't applied for any on-duty yet. Click "Apply On Duty" to
+                                    submit your first request.</p>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    {% endif %}
-                </div>
-            </div>
 
-            <!-- My Permission Applications -->
-            <div class="salary-results-card mb-4">
-                <div class="card-header">
-                    <div class="header-icon">
-                        <i class="bi bi-clock-history"></i>
-                    </div>
-                    <div class="header-content">
-                        <h5 class="card-title">My Permission Applications</h5>
-                        <p class="card-subtitle">Your permission request history and status</p>
-                    </div>
-                    <div class="header-actions">
-                        <!-- <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyPermissionModal">
+                    <!-- My Permission Applications -->
+                    <div class="salary-results-card mb-4">
+                        <div class="card-header">
+                            <div class="header-icon">
+                                <i class="bi bi-clock-history"></i>
+                            </div>
+                            <div class="header-content">
+                                <h5 class="card-title">My Permission Applications</h5>
+                                <p class="card-subtitle">Your permission request history and status</p>
+                            </div>
+                            <div class="header-actions">
+                                <!-- <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#applyPermissionModal">
                             <i class="bi bi-plus"></i> Apply Permission
                         </button> -->
-                    </div>
-                </div>
-                <div class="card-body">
-                    {% if permission_applications %}
-                    <div class="table-responsive">
-                        <table class="table salary-results-table">
-                            <thead>
-                                <tr>
-                                    <th>Type</th>
-                                    <th>Date</th>
-                                    <th>Time</th>
-                                    <th>Duration</th>
-                                    <th>Reason</th>
-                                    <th>Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {% for permission in permission_applications %}
-                                <tr>
-                                    <td><span class="badge bg-warning">{{ permission.permission_type }}</span></td>
-                                    <td>{{ permission.permission_date|dateformat if permission.permission_date else '-' }}</td>
-                                    <td>{{ permission.start_time|timeformat }} - {{ permission.end_time|timeformat }}</td>
-                                    <td>{{ "%.1f"|format(permission.duration_hours) }} hrs</td>
-                                    <td>{{ permission.reason[:30] }}{% if permission.reason|length > 30 %}...{% endif %}</td>
-                                    <td>
-                                        {% if permission.status == 'approved' %}
-                                            <span class="earnings-badge">Approved</span>
-                                        {% elif permission.status == 'rejected' %}
-                                            <span class="badge bg-danger">Rejected</span>
-                                        {% else %}
-                                            <span class="deductions-badge">Pending</span>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                                {% endfor %}
-                            </tbody>
-                        </table>
-                    </div>
-                    {% else %}
-                    <div class="empty-state">
-                        <div class="empty-icon">
-                            <i class="bi bi-clock-history"></i>
+                            </div>
                         </div>
-                        <h6 class="empty-title">No Permission Applications</h6>
-                        <p class="empty-text">You haven't applied for any permission yet. Click "Apply Permission" to submit your first request.</p>
+                        <div class="card-body">
+                            {% if permission_applications %}
+                            <div class="table-responsive">
+                                <table class="table salary-results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Type</th>
+                                            <th>Date</th>
+                                            <th>Time</th>
+                                            <th>Duration</th>
+                                            <th>Reason</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for permission in permission_applications %}
+                                        <tr>
+                                            <td><span class="badge bg-warning">{{ permission.permission_type }}</span>
+                                            </td>
+                                            <td>{{ permission.permission_date|dateformat if permission.permission_date
+                                                else '-' }}</td>
+                                            <td>{{ permission.start_time|timeformat }} - {{
+                                                permission.end_time|timeformat }}</td>
+                                            <td>{{ "%.1f"|format(permission.duration_hours) }} hrs</td>
+                                            <td>{{ permission.reason[:30] }}{% if permission.reason|length > 30 %}...{%
+                                                endif %}</td>
+                                            <td>
+                                                {% if permission.status == 'approved' %}
+                                                <span class="earnings-badge">Approved</span>
+                                                {% elif permission.status == 'rejected' %}
+                                                <span class="badge bg-danger">Rejected</span>
+                                                {% else %}
+                                                <span class="deductions-badge">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-clock-history"></i>
+                                </div>
+                                <h6 class="empty-title">No Permission Applications</h6>
+                                <p class="empty-text">You haven't applied for any permission yet. Click "Apply
+                                    Permission" to submit your first request.</p>
+                            </div>
+                            {% endif %}
+                        </div>
                     </div>
-                    {% endif %}
+
                 </div>
-            </div>
 
-        </div>
-
-        <!-- Right Column -->
-        <!-- <div class="col-md-4">
+                <!-- Right Column -->
+                <!-- <div class="col-md-4">
 
 
             Today's Status Card
@@ -1132,8 +1161,8 @@
                 </div>
             </div> -->
 
-            <!-- Quick Actions -->
-            <!-- <div class="card mb-4">
+                <!-- Quick Actions -->
+                <!-- <div class="card mb-4">
                 <div class="card-header bg-primary text-white">
                     <h5>Quick Actions</h5>
                 </div>
@@ -1153,8 +1182,8 @@
                 </div>
             </div> -->
 
-            <!-- Attendance Summary -->
-            <!-- <div class="card">
+                <!-- Attendance Summary -->
+                <!-- <div class="card">
                 <div class="card-header bg-primary text-white">
                     <h5>Attendance Summary ({{ today.strftime('%B %Y') }})</h5>
                 </div>
@@ -1173,656 +1202,698 @@
     </div>
 </div> -->
 
-<!-- Apply Leave Modal -->
-<div class="modal fade" id="applyLeaveModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-primary text-white">
-                <h5 class="modal-title">Apply for Leave</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Quota Balance Display -->
-                <div class="quota-balance-section mb-4" id="leaveQuotaBalance" style="display: none;">
-                    <h6 class="fw-bold text-primary mb-3">
-                        <i class="bi bi-bar-chart"></i> Your Leave Balance
-                    </h6>
-                    <div class="row" id="leaveBalanceCards">
-                        <!-- Leave balance cards will be populated here -->
+                <!-- Apply Leave Modal -->
+                <div class="modal fade" id="applyLeaveModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-primary text-white">
+                                <h5 class="modal-title">Apply for Leave</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <!-- Quota Balance Display -->
+                                <div class="quota-balance-section mb-4" id="leaveQuotaBalance" style="display: none;">
+                                    <h6 class="fw-bold text-primary mb-3">
+                                        <i class="bi bi-bar-chart"></i> Your Leave Balance
+                                    </h6>
+                                    <div class="row" id="leaveBalanceCards">
+                                        <!-- Leave balance cards will be populated here -->
+                                    </div>
+                                </div>
+
+                                <form id="leaveForm">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                    <div class="mb-3">
+                                        <label for="leaveType" class="form-label">Leave Type</label>
+                                        <select class="form-select" id="leaveType" required>
+                                            <option value="" selected disabled>Select leave type</option>
+                                            <option value="CL">Casual Leave (CL)</option>
+                                            <option value="SL">Sick Leave (SL)</option>
+                                            <option value="EL">Earned Leave (EL)</option>
+                                            <option value="ML">Maternity Leave (ML)</option>
+                                        </select>
+                                        <div class="form-text" id="leaveTypeHelp">Select a leave type to see your
+                                            remaining balance</div>
+                                    </div>
+
+                                    <!-- Selected Leave Type Balance -->
+                                    <div class="alert alert-info" id="selectedLeaveBalance" style="display: none;">
+                                        <i class="bi bi-info-circle"></i>
+                                        <span id="selectedLeaveBalanceText">You have 0 days remaining for this leave
+                                            type</span>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="startDate" class="form-label">Start Date</label>
+                                        <input type="date" class="form-control" id="startDate" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="endDate" class="form-label">End Date</label>
+                                        <input type="date" class="form-control" id="endDate" required>
+                                        <div class="form-text" id="leaveDaysCalculated" style="display: none;">
+                                            Total days: <span id="totalLeaveDays">0</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Quota Validation Message -->
+                                    <div class="alert alert-warning" id="leaveQuotaWarning" style="display: none;">
+                                        <i class="bi bi-exclamation-triangle"></i>
+                                        <span id="leaveQuotaWarningText">Your request exceeds available balance</span>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="leaveReason" class="form-label">Reason</label>
+                                        <textarea class="form-control" id="leaveReason" rows="3" required></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-primary" id="submitLeave">Submit</button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                
-                <form id="leaveForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <div class="mb-3">
-                        <label for="leaveType" class="form-label">Leave Type</label>
-                        <select class="form-select" id="leaveType" required>
-                            <option value="" selected disabled>Select leave type</option>
-                            <option value="CL">Casual Leave (CL)</option>
-                            <option value="SL">Sick Leave (SL)</option>
-                            <option value="EL">Earned Leave (EL)</option>
-                            <option value="ML">Maternity Leave (ML)</option>
-                        </select>
-                        <div class="form-text" id="leaveTypeHelp">Select a leave type to see your remaining balance</div>
-                    </div>
-                    
-                    <!-- Selected Leave Type Balance -->
-                    <div class="alert alert-info" id="selectedLeaveBalance" style="display: none;">
-                        <i class="bi bi-info-circle"></i> 
-                        <span id="selectedLeaveBalanceText">You have 0 days remaining for this leave type</span>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="startDate" class="form-label">Start Date</label>
-                        <input type="date" class="form-control" id="startDate" required>
-                    </div>
-                    <div class="mb-3">
-                        <label for="endDate" class="form-label">End Date</label>
-                        <input type="date" class="form-control" id="endDate" required>
-                        <div class="form-text" id="leaveDaysCalculated" style="display: none;">
-                            Total days: <span id="totalLeaveDays">0</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Quota Validation Message -->
-                    <div class="alert alert-warning" id="leaveQuotaWarning" style="display: none;">
-                        <i class="bi bi-exclamation-triangle"></i> 
-                        <span id="leaveQuotaWarningText">Your request exceeds available balance</span>
-                    </div>
-                    
-                    <div class="mb-3">
-                        <label for="leaveReason" class="form-label">Reason</label>
-                        <textarea class="form-control" id="leaveReason" rows="3" required></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-primary" id="submitLeave">Submit</button>
-            </div>
-        </div>
-    </div>
-</div>
 
-<!-- Apply On Duty Modal -->
-<div class="modal fade" id="applyOnDutyModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">Apply for On Duty</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- OD Quota Balance Display -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <div class="alert alert-info mb-3">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>On Duty Quota Information</strong>
+                <!-- Apply On Duty Modal -->
+                <div class="modal fade" id="applyOnDutyModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-success text-white">
+                                <h5 class="modal-title">Apply for On Duty</h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <!-- OD Quota Balance Display -->
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <div class="alert alert-info mb-3">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <strong>On Duty Quota Information</strong>
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="card border-primary">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title text-primary mb-1">
+                                                            <i class="fas fa-calendar-plus me-1"></i>Allocated
+                                                        </h6>
+                                                        <h4 class="text-primary mb-0" id="odAllocatedQuota">-</h4>
+                                                        <small class="text-muted">days/year</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="card border-warning">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title text-warning mb-1">
+                                                            <i class="fas fa-calendar-minus me-1"></i>Used
+                                                        </h6>
+                                                        <h4 class="text-warning mb-0" id="odUsedQuota">-</h4>
+                                                        <small class="text-muted">days</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="card border-success">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title text-success mb-1">
+                                                            <i class="fas fa-calendar-check me-1"></i>Remaining
+                                                        </h6>
+                                                        <h4 class="text-success mb-0" id="odRemainingQuota">-</h4>
+                                                        <small class="text-muted">days</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Application Validation Alert -->
+                                <div id="odQuotaAlert" class="alert alert-warning d-none mb-3">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <span id="odQuotaAlertText"></span>
+                                </div>
+
+                                <form id="onDutyForm">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="dutyType" class="form-label">Duty Type</label>
+                                                <select class="form-select" id="dutyType" name="duty_type" required>
+                                                    <option value="" selected disabled>Select duty type</option>
+                                                    <option value="Official Work">Official Work</option>
+                                                    <option value="Training">Training</option>
+                                                    <option value="Meeting">Meeting</option>
+                                                    <option value="Conference">Conference</option>
+                                                    <option value="Field Work">Field Work</option>
+                                                    <option value="Other">Other</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="dutyLocation" class="form-label">Location</label>
+                                                <input type="text" class="form-control" id="dutyLocation"
+                                                    name="location" placeholder="Enter location">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="dutyStartDate" class="form-label">Start Date</label>
+                                                <input type="date" class="form-control" id="dutyStartDate"
+                                                    name="start_date" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="dutyEndDate" class="form-label">End Date</label>
+                                                <input type="date" class="form-control" id="dutyEndDate" name="end_date"
+                                                    required>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Total Days Calculation -->
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <div class="alert alert-light border">
+                                                <div class="row align-items-center">
+                                                    <div class="col-md-8">
+                                                        <strong>Total OD Days:</strong>
+                                                        <span id="odTotalDays" class="badge bg-primary ms-2">0
+                                                            days</span>
+                                                    </div>
+                                                    <div class="col-md-4 text-end">
+                                                        <small class="text-muted">Remaining after this: <span
+                                                                id="odRemainingAfter" class="fw-bold">-</span></small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="dutyStartTime" class="form-label">Start Time
+                                                    (Optional)</label>
+                                                <input type="time" class="form-control" id="dutyStartTime"
+                                                    name="start_time">
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="dutyEndTime" class="form-label">End Time (Optional)</label>
+                                                <input type="time" class="form-control" id="dutyEndTime"
+                                                    name="end_time">
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="dutyPurpose" class="form-label">Purpose</label>
+                                        <textarea class="form-control" id="dutyPurpose" name="purpose" rows="2" required
+                                            placeholder="Brief description of the duty purpose"></textarea>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="dutyReason" class="form-label">Additional Details (Optional)</label>
+                                        <textarea class="form-control" id="dutyReason" name="reason" rows="2"
+                                            placeholder="Any additional information"></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-success" id="submitOnDuty">Submit
+                                    Application</button>
+                            </div>
                         </div>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <div class="card border-primary">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title text-primary mb-1">
-                                            <i class="fas fa-calendar-plus me-1"></i>Allocated
+                    </div>
+                </div>
+
+                <!-- Apply Permission Modal -->
+                <div class="modal fade" id="applyPermissionModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning text-dark">
+                                <h5 class="modal-title">Apply for Permission</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <!-- Permission Quota Balance Display -->
+                                <div class="row mb-4">
+                                    <div class="col-12">
+                                        <div class="alert alert-info mb-3">
+                                            <i class="fas fa-info-circle me-2"></i>
+                                            <strong>Permission Quota Information</strong>
+                                        </div>
+                                        <div class="row g-3">
+                                            <div class="col-md-4">
+                                                <div class="card border-primary">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title text-primary mb-1">
+                                                            <i class="fas fa-clock me-1"></i>Allocated
+                                                        </h6>
+                                                        <h4 class="text-primary mb-0" id="permissionAllocatedQuota">-
+                                                        </h4>
+                                                        <small class="text-muted">hours/year</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="card border-warning">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title text-warning mb-1">
+                                                            <i class="fas fa-clock me-1"></i>Used
+                                                        </h6>
+                                                        <h4 class="text-warning mb-0" id="permissionUsedQuota">-</h4>
+                                                        <small class="text-muted">hours</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4">
+                                                <div class="card border-success">
+                                                    <div class="card-body text-center">
+                                                        <h6 class="card-title text-success mb-1">
+                                                            <i class="fas fa-clock me-1"></i>Remaining
+                                                        </h6>
+                                                        <h4 class="text-success mb-0" id="permissionRemainingQuota">-
+                                                        </h4>
+                                                        <small class="text-muted">hours</small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Application Validation Alert -->
+                                <div id="permissionQuotaAlert" class="alert alert-warning d-none mb-3">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    <span id="permissionQuotaAlertText"></span>
+                                </div>
+
+                                <form id="permissionForm">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                    <div class="mb-3">
+                                        <label for="permissionType" class="form-label">Permission Type</label>
+                                        <select class="form-select" id="permissionType" name="permission_type" required>
+                                            <option value="" selected disabled>Select permission type</option>
+                                            <option value="Personal Work">Personal Work</option>
+                                            <option value="Medical">Medical</option>
+                                            <option value="Emergency">Emergency</option>
+                                            <option value="Family Function">Family Function</option>
+                                            <option value="Other">Other</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="permissionDate" class="form-label">Date</label>
+                                        <input type="date" class="form-control" id="permissionDate"
+                                            name="permission_date" required>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="permissionStartTime" class="form-label">Start Time</label>
+                                                <input type="time" class="form-control" id="permissionStartTime"
+                                                    name="start_time" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="permissionEndTime" class="form-label">End Time</label>
+                                                <input type="time" class="form-control" id="permissionEndTime"
+                                                    name="end_time" required>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Total Hours Calculation -->
+                                    <div class="row mb-3">
+                                        <div class="col-12">
+                                            <div class="alert alert-light border">
+                                                <div class="row align-items-center">
+                                                    <div class="col-md-8">
+                                                        <strong>Total Permission Hours:</strong>
+                                                        <span id="permissionTotalHours" class="badge bg-warning ms-2">0
+                                                            hours</span>
+                                                    </div>
+                                                    <div class="col-md-4 text-end">
+                                                        <small class="text-muted">Remaining after this: <span
+                                                                id="permissionRemainingAfter"
+                                                                class="fw-bold">-</span></small>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="permissionReason" class="form-label">Reason</label>
+                                        <textarea class="form-control" id="permissionReason" name="reason" rows="3"
+                                            required
+                                            placeholder="Please provide detailed reason for permission"></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-warning" id="submitPermission">Submit
+                                    Application</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Pay Slip Modal -->
+                <div class="modal fade" id="paySlipModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-success text-white">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-receipt"></i> Download Pay Slip
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info mb-4 d-flex align-items-start">
+                                    <i class="bi bi-info-circle me-2 mt-1 flex-shrink-0"></i>
+                                    <div>
+                                        <strong class="d-block mb-1">Your Pay Slip Access</strong>
+                                        <span class="small">Download your salary slip for any month. Please select the
+                                            year and month below.</span>
+                                    </div>
+                                </div>
+
+                                <form id="paySlipForm">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                    <div class="row g-3">
+                                        <div class="col-md-6 col-12">
+                                            <div class="mb-3">
+                                                <label for="paySlipYear" class="form-label fw-semibold">
+                                                    <i class="bi bi-calendar-event me-1 text-primary"></i>Year
+                                                </label>
+                                                <select class="form-select form-select-lg" id="paySlipYear" name="year"
+                                                    required>
+                                                    <option value="" selected disabled>Select year</option>
+                                                    <!-- Years will be populated by JavaScript -->
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6 col-12">
+                                            <div class="mb-3">
+                                                <label for="paySlipMonth" class="form-label fw-semibold">
+                                                    <i class="bi bi-calendar-month me-1 text-primary"></i>Month
+                                                </label>
+                                                <select class="form-select form-select-lg" id="paySlipMonth"
+                                                    name="month" required>
+                                                    <option value="" selected disabled>Select month</option>
+                                                    <option value="1">January</option>
+                                                    <option value="2">February</option>
+                                                    <option value="3">March</option>
+                                                    <option value="4">April</option>
+                                                    <option value="5">May</option>
+                                                    <option value="6">June</option>
+                                                    <option value="7">July</option>
+                                                    <option value="8">August</option>
+                                                    <option value="9">September</option>
+                                                    <option value="10">October</option>
+                                                    <option value="11">November</option>
+                                                    <option value="12">December</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Pay Slip Preview Information -->
+                                    <div class="alert alert-light border border-success" id="paySlipPreview"
+                                        style="display: none;">
+                                        <div class="row g-2 align-items-start align-items-md-center">
+                                            <div class="col-md-8 col-12">
+                                                <div
+                                                    class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center">
+                                                    <strong class="me-2 mb-1 mb-sm-0 text-success">
+                                                        <i class="bi bi-receipt me-1"></i>Pay Slip:
+                                                    </strong>
+                                                    <span id="paySlipPeriod" class="badge bg-success fs-6">-</span>
+                                                </div>
+                                            </div>
+                                            <div class="col-md-4 col-12 text-start text-md-end">
+                                                <small
+                                                    class="text-muted d-flex align-items-center justify-content-start justify-content-md-end">
+                                                    <i class="bi bi-person-badge me-1"></i>
+                                                    Staff ID: <span id="paySlipStaffId" class="fw-bold ms-1">{{
+                                                        staff_info.staff_id if staff_info else '-' }}</span>
+                                                </small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+
+                                <div class="card mt-3 border-success shadow-sm">
+                                    <div class="card-body p-3">
+                                        <h6 class="card-title text-success d-flex align-items-center mb-3">
+                                            <i class="bi bi-download me-2"></i>
+                                            <span>Download Instructions</span>
                                         </h6>
-                                        <h4 class="text-primary mb-0" id="odAllocatedQuota">-</h4>
-                                        <small class="text-muted">days/year</small>
+                                        <div class="instructions-list">
+                                            <div class="instruction-item d-flex align-items-start mb-2">
+                                                <i class="bi bi-check-circle text-success me-2 mt-1 flex-shrink-0"></i>
+                                                <span class="small">Select the year and month for your pay slip</span>
+                                            </div>
+                                            <div class="instruction-item d-flex align-items-start mb-2">
+                                                <i class="bi bi-check-circle text-success me-2 mt-1 flex-shrink-0"></i>
+                                                <span class="small">Click "Download Pay Slip" to generate PDF</span>
+                                            </div>
+                                            <div class="instruction-item d-flex align-items-start">
+                                                <i class="bi bi-check-circle text-success me-2 mt-1 flex-shrink-0"></i>
+                                                <span class="small">Your pay slip will be downloaded
+                                                    automatically</span>
+                                            </div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
-                            <div class="col-md-4">
-                                <div class="card border-warning">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title text-warning mb-1">
-                                            <i class="fas fa-calendar-minus me-1"></i>Used
-                                        </h6>
-                                        <h4 class="text-warning mb-0" id="odUsedQuota">-</h4>
-                                        <small class="text-muted">days</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card border-success">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title text-success mb-1">
-                                            <i class="fas fa-calendar-check me-1"></i>Remaining
-                                        </h6>
-                                        <h4 class="text-success mb-0" id="odRemainingQuota">-</h4>
-                                        <small class="text-muted">days</small>
-                                    </div>
-                                </div>
+                            <div class="modal-footer d-flex justify-content-end gap-2">
+                                <button type="button" class="btn btn-info d-flex align-items-center" id="previewPaySlip"
+                                    disabled>
+                                    <i class="bi bi-eye me-2"></i>
+                                    <span class="d-none d-sm-inline">Preview Pay Slip</span>
+                                    <span class="d-sm-none">Preview</span>
+                                </button>
+                                <button type="button" class="btn btn-success d-flex align-items-center"
+                                    id="downloadPaySlip" disabled>
+                                    <i class="bi bi-download me-2"></i>
+                                    <span class="d-none d-sm-inline">Download Pay Slip</span>
+                                    <span class="d-sm-none">Download</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary d-flex align-items-center"
+                                    data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    Cancel
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Application Validation Alert -->
-                <div id="odQuotaAlert" class="alert alert-warning d-none mb-3">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <span id="odQuotaAlertText"></span>
-                </div>
-
-                <form id="onDutyForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="dutyType" class="form-label">Duty Type</label>
-                                <select class="form-select" id="dutyType" name="duty_type" required>
-                                    <option value="" selected disabled>Select duty type</option>
-                                    <option value="Official Work">Official Work</option>
-                                    <option value="Training">Training</option>
-                                    <option value="Meeting">Meeting</option>
-                                    <option value="Conference">Conference</option>
-                                    <option value="Field Work">Field Work</option>
-                                    <option value="Other">Other</option>
-                                </select>
+                <!-- Pay Slip Preview Modal -->
+                <div class="modal fade" id="paySlipPreviewModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-xl">
+                        <div class="modal-content">
+                            <div class="modal-header bg-info text-white">
+                                <h5 class="modal-title">
+                                    <i class="bi bi-eye"></i> Pay Slip Preview
+                                </h5>
+                                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
                             </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="dutyLocation" class="form-label">Location</label>
-                                <input type="text" class="form-control" id="dutyLocation" name="location" placeholder="Enter location">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="dutyStartDate" class="form-label">Start Date</label>
-                                <input type="date" class="form-control" id="dutyStartDate" name="start_date" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="dutyEndDate" class="form-label">End Date</label>
-                                <input type="date" class="form-control" id="dutyEndDate" name="end_date" required>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Total Days Calculation -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <div class="alert alert-light border">
-                                <div class="row align-items-center">
-                                    <div class="col-md-8">
-                                        <strong>Total OD Days:</strong> 
-                                        <span id="odTotalDays" class="badge bg-primary ms-2">0 days</span>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <small class="text-muted">Remaining after this: <span id="odRemainingAfter" class="fw-bold">-</span></small>
-                                    </div>
+                            <div class="modal-body">
+                                <div id="paySlipPreviewContent">
+                                    <!-- Preview content will be loaded here -->
                                 </div>
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="dutyStartTime" class="form-label">Start Time (Optional)</label>
-                                <input type="time" class="form-control" id="dutyStartTime" name="start_time">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="dutyEndTime" class="form-label">End Time (Optional)</label>
-                                <input type="time" class="form-control" id="dutyEndTime" name="end_time">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="mb-3">
-                        <label for="dutyPurpose" class="form-label">Purpose</label>
-                        <textarea class="form-control" id="dutyPurpose" name="purpose" rows="2" required placeholder="Brief description of the duty purpose"></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="dutyReason" class="form-label">Additional Details (Optional)</label>
-                        <textarea class="form-control" id="dutyReason" name="reason" rows="2" placeholder="Any additional information"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-success" id="submitOnDuty">Submit Application</button>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Apply Permission Modal -->
-<div class="modal fade" id="applyPermissionModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-warning text-dark">
-                <h5 class="modal-title">Apply for Permission</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <!-- Permission Quota Balance Display -->
-                <div class="row mb-4">
-                    <div class="col-12">
-                        <div class="alert alert-info mb-3">
-                            <i class="fas fa-info-circle me-2"></i>
-                            <strong>Permission Quota Information</strong>
-                        </div>
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <div class="card border-primary">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title text-primary mb-1">
-                                            <i class="fas fa-clock me-1"></i>Allocated
-                                        </h6>
-                                        <h4 class="text-primary mb-0" id="permissionAllocatedQuota">-</h4>
-                                        <small class="text-muted">hours/year</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card border-warning">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title text-warning mb-1">
-                                            <i class="fas fa-clock me-1"></i>Used
-                                        </h6>
-                                        <h4 class="text-warning mb-0" id="permissionUsedQuota">-</h4>
-                                        <small class="text-muted">hours</small>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="card border-success">
-                                    <div class="card-body text-center">
-                                        <h6 class="card-title text-success mb-1">
-                                            <i class="fas fa-clock me-1"></i>Remaining
-                                        </h6>
-                                        <h4 class="text-success mb-0" id="permissionRemainingQuota">-</h4>
-                                        <small class="text-muted">hours</small>
-                                    </div>
-                                </div>
+                            <div class="modal-footer d-flex justify-content-end gap-2">
+                                <button type="button" class="btn btn-success d-flex align-items-center"
+                                    id="downloadFromPreview">
+                                    <i class="bi bi-download me-2"></i>
+                                    <span class="d-none d-sm-inline">Download This Pay Slip</span>
+                                    <span class="d-sm-none">Download</span>
+                                </button>
+                                <button type="button" class="btn btn-secondary d-flex align-items-center"
+                                    data-bs-dismiss="modal">
+                                    <i class="bi bi-x-circle me-2"></i>
+                                    Close
+                                </button>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Application Validation Alert -->
-                <div id="permissionQuotaAlert" class="alert alert-warning d-none mb-3">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    <span id="permissionQuotaAlertText"></span>
-                </div>
+                <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-                <form id="permissionForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <div class="mb-3">
-                        <label for="permissionType" class="form-label">Permission Type</label>
-                        <select class="form-select" id="permissionType" name="permission_type" required>
-                            <option value="" selected disabled>Select permission type</option>
-                            <option value="Personal Work">Personal Work</option>
-                            <option value="Medical">Medical</option>
-                            <option value="Emergency">Emergency</option>
-                            <option value="Family Function">Family Function</option>
-                            <option value="Other">Other</option>
-                        </select>
-                    </div>
-                    <div class="mb-3">
-                        <label for="permissionDate" class="form-label">Date</label>
-                        <input type="date" class="form-control" id="permissionDate" name="permission_date" required>
-                    </div>
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="permissionStartTime" class="form-label">Start Time</label>
-                                <input type="time" class="form-control" id="permissionStartTime" name="start_time" required>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="mb-3">
-                                <label for="permissionEndTime" class="form-label">End Time</label>
-                                <input type="time" class="form-control" id="permissionEndTime" name="end_time" required>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Total Hours Calculation -->
-                    <div class="row mb-3">
-                        <div class="col-12">
-                            <div class="alert alert-light border">
-                                <div class="row align-items-center">
-                                    <div class="col-md-8">
-                                        <strong>Total Permission Hours:</strong> 
-                                        <span id="permissionTotalHours" class="badge bg-warning ms-2">0 hours</span>
-                                    </div>
-                                    <div class="col-md-4 text-end">
-                                        <small class="text-muted">Remaining after this: <span id="permissionRemainingAfter" class="fw-bold">-</span></small>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                <script>
+                    // Set current staff ID for JavaScript access
+                    window.currentStaffId = '{{ staff_info.staff_id if staff_info else "" }}';
+                    window.staffDbId = '{{ session.get("user_id", "") }}';
 
-                    <div class="mb-3">
-                        <label for="permissionReason" class="form-label">Reason</label>
-                        <textarea class="form-control" id="permissionReason" name="reason" rows="3" required placeholder="Please provide detailed reason for permission"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                <button type="button" class="btn btn-warning" id="submitPermission">Submit Application</button>
-            </div>
-        </div>
-    </div>
-</div>
+                    // Pay Slip Modal Functionality
+                    document.addEventListener('DOMContentLoaded', function () {
+                        // Pay slip modal elements
+                        const paySlipLink = document.getElementById('paySlipLink');
+                        const paySlipModal = new bootstrap.Modal(document.getElementById('paySlipModal'));
+                        const paySlipPreviewModal = new bootstrap.Modal(document.getElementById('paySlipPreviewModal'));
+                        const paySlipYear = document.getElementById('paySlipYear');
+                        const paySlipMonth = document.getElementById('paySlipMonth');
+                        const paySlipPreview = document.getElementById('paySlipPreview');
+                        const paySlipPeriod = document.getElementById('paySlipPeriod');
+                        const previewPaySlipBtn = document.getElementById('previewPaySlip');
+                        const downloadPaySlipBtn = document.getElementById('downloadPaySlip');
+                        const paySlipPreviewContent = document.getElementById('paySlipPreviewContent');
+                        const downloadFromPreviewBtn = document.getElementById('downloadFromPreview');
 
-<!-- Pay Slip Modal -->
-<div class="modal fade" id="paySlipModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header bg-success text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-receipt"></i> Download Pay Slip
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div class="alert alert-info mb-4 d-flex align-items-start">
-                    <i class="bi bi-info-circle me-2 mt-1 flex-shrink-0"></i>
-                    <div>
-                        <strong class="d-block mb-1">Your Pay Slip Access</strong>
-                        <span class="small">Download your salary slip for any month. Please select the year and month below.</span>
-                    </div>
-                </div>
+                        // Populate years (current year and past 5 years)
+                        const currentYear = new Date().getFullYear();
+                        for (let year = currentYear; year >= currentYear - 5; year--) {
+                            const option = document.createElement('option');
+                            option.value = year;
+                            option.textContent = year;
+                            paySlipYear.appendChild(option);
+                        }
 
-                <form id="paySlipForm">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-                    <div class="row g-3">
-                        <div class="col-md-6 col-12">
-                            <div class="mb-3">
-                                <label for="paySlipYear" class="form-label fw-semibold">
-                                    <i class="bi bi-calendar-event me-1 text-primary"></i>Year
-                                </label>
-                                <select class="form-select form-select-lg" id="paySlipYear" name="year" required>
-                                    <option value="" selected disabled>Select year</option>
-                                    <!-- Years will be populated by JavaScript -->
-                                </select>
-                            </div>
-                        </div>
-                        <div class="col-md-6 col-12">
-                            <div class="mb-3">
-                                <label for="paySlipMonth" class="form-label fw-semibold">
-                                    <i class="bi bi-calendar-month me-1 text-primary"></i>Month
-                                </label>
-                                <select class="form-select form-select-lg" id="paySlipMonth" name="month" required>
-                                    <option value="" selected disabled>Select month</option>
-                                    <option value="1">January</option>
-                                    <option value="2">February</option>
-                                    <option value="3">March</option>
-                                    <option value="4">April</option>
-                                    <option value="5">May</option>
-                                    <option value="6">June</option>
-                                    <option value="7">July</option>
-                                    <option value="8">August</option>
-                                    <option value="9">September</option>
-                                    <option value="10">October</option>
-                                    <option value="11">November</option>
-                                    <option value="12">December</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Pay Slip Preview Information -->
-                    <div class="alert alert-light border border-success" id="paySlipPreview" style="display: none;">
-                        <div class="row g-2 align-items-start align-items-md-center">
-                            <div class="col-md-8 col-12">
-                                <div class="d-flex flex-column flex-sm-row align-items-start align-items-sm-center">
-                                    <strong class="me-2 mb-1 mb-sm-0 text-success">
-                                        <i class="bi bi-receipt me-1"></i>Pay Slip:
-                                    </strong> 
-                                    <span id="paySlipPeriod" class="badge bg-success fs-6">-</span>
-                                </div>
-                            </div>
-                            <div class="col-md-4 col-12 text-start text-md-end">
-                                <small class="text-muted d-flex align-items-center justify-content-start justify-content-md-end">
-                                    <i class="bi bi-person-badge me-1"></i>
-                                    Staff ID: <span id="paySlipStaffId" class="fw-bold ms-1">{{ staff_info.staff_id if staff_info else '-' }}</span>
-                                </small>
-                            </div>
-                        </div>
-                    </div>
-                </form>
-                
-                <div class="card mt-3 border-success shadow-sm">
-                    <div class="card-body p-3">
-                        <h6 class="card-title text-success d-flex align-items-center mb-3">
-                            <i class="bi bi-download me-2"></i>
-                            <span>Download Instructions</span>
-                        </h6>
-                        <div class="instructions-list">
-                            <div class="instruction-item d-flex align-items-start mb-2">
-                                <i class="bi bi-check-circle text-success me-2 mt-1 flex-shrink-0"></i>
-                                <span class="small">Select the year and month for your pay slip</span>
-                            </div>
-                            <div class="instruction-item d-flex align-items-start mb-2">
-                                <i class="bi bi-check-circle text-success me-2 mt-1 flex-shrink-0"></i>
-                                <span class="small">Click "Download Pay Slip" to generate PDF</span>
-                            </div>
-                            <div class="instruction-item d-flex align-items-start">
-                                <i class="bi bi-check-circle text-success me-2 mt-1 flex-shrink-0"></i>
-                                <span class="small">Your pay slip will be downloaded automatically</span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-info d-flex align-items-center" id="previewPaySlip" disabled>
-                    <i class="bi bi-eye me-2"></i>
-                    <span class="d-none d-sm-inline">Preview Pay Slip</span>
-                    <span class="d-sm-none">Preview</span>
-                </button>
-                <button type="button" class="btn btn-success d-flex align-items-center" id="downloadPaySlip" disabled>
-                    <i class="bi bi-download me-2"></i>
-                    <span class="d-none d-sm-inline">Download Pay Slip</span>
-                    <span class="d-sm-none">Download</span>
-                </button>
-                <button type="button" class="btn btn-secondary d-flex align-items-center" data-bs-dismiss="modal">
-                    <i class="bi bi-x-circle me-2"></i>
-                    Cancel
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+                        // Open pay slip modal
+                        if (paySlipLink) {
+                            paySlipLink.addEventListener('click', function (e) {
+                                e.preventDefault();
+                                paySlipModal.show();
+                            });
+                        }
 
-<!-- Pay Slip Preview Modal -->
-<div class="modal fade" id="paySlipPreviewModal" tabindex="-1" aria-hidden="true">
-    <div class="modal-dialog modal-xl">
-        <div class="modal-content">
-            <div class="modal-header bg-info text-white">
-                <h5 class="modal-title">
-                    <i class="bi bi-eye"></i> Pay Slip Preview
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <div id="paySlipPreviewContent">
-                    <!-- Preview content will be loaded here -->
-                </div>
-            </div>
-            <div class="modal-footer d-flex justify-content-end gap-2">
-                <button type="button" class="btn btn-success d-flex align-items-center" id="downloadFromPreview">
-                    <i class="bi bi-download me-2"></i>
-                    <span class="d-none d-sm-inline">Download This Pay Slip</span>
-                    <span class="d-sm-none">Download</span>
-                </button>
-                <button type="button" class="btn btn-secondary d-flex align-items-center" data-bs-dismiss="modal">
-                    <i class="bi bi-x-circle me-2"></i>
-                    Close
-                </button>
-            </div>
-        </div>
-    </div>
-</div>
+                        // Update preview when year/month changes
+                        function updatePaySlipPreview() {
+                            const year = paySlipYear.value;
+                            const month = paySlipMonth.value;
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+                            if (year && month) {
+                                const monthNames = [
+                                    'January', 'February', 'March', 'April', 'May', 'June',
+                                    'July', 'August', 'September', 'October', 'November', 'December'
+                                ];
+                                const monthName = monthNames[parseInt(month) - 1];
+                                paySlipPeriod.textContent = `${monthName} ${year}`;
+                                paySlipPreview.style.display = 'block';
+                                previewPaySlipBtn.disabled = false;
+                                downloadPaySlipBtn.disabled = false;
+                            } else {
+                                paySlipPreview.style.display = 'none';
+                                previewPaySlipBtn.disabled = true;
+                                downloadPaySlipBtn.disabled = true;
+                            }
+                        }
 
-<script>
-    // Set current staff ID for JavaScript access
-    window.currentStaffId = '{{ staff_info.staff_id if staff_info else "" }}';
-    window.staffDbId = '{{ session.get("user_id", "") }}';
-    
-    // Pay Slip Modal Functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        // Pay slip modal elements
-        const paySlipLink = document.getElementById('paySlipLink');
-        const paySlipModal = new bootstrap.Modal(document.getElementById('paySlipModal'));
-        const paySlipPreviewModal = new bootstrap.Modal(document.getElementById('paySlipPreviewModal'));
-        const paySlipYear = document.getElementById('paySlipYear');
-        const paySlipMonth = document.getElementById('paySlipMonth');
-        const paySlipPreview = document.getElementById('paySlipPreview');
-        const paySlipPeriod = document.getElementById('paySlipPeriod');
-        const previewPaySlipBtn = document.getElementById('previewPaySlip');
-        const downloadPaySlipBtn = document.getElementById('downloadPaySlip');
-        const paySlipPreviewContent = document.getElementById('paySlipPreviewContent');
-        const downloadFromPreviewBtn = document.getElementById('downloadFromPreview');
-        
-        // Populate years (current year and past 5 years)
-        const currentYear = new Date().getFullYear();
-        for (let year = currentYear; year >= currentYear - 5; year--) {
-            const option = document.createElement('option');
-            option.value = year;
-            option.textContent = year;
-            paySlipYear.appendChild(option);
-        }
-        
-        // Open pay slip modal
-        if (paySlipLink) {
-            paySlipLink.addEventListener('click', function(e) {
-                e.preventDefault();
-                paySlipModal.show();
-            });
-        }
-        
-        // Update preview when year/month changes
-        function updatePaySlipPreview() {
-            const year = paySlipYear.value;
-            const month = paySlipMonth.value;
-            
-            if (year && month) {
-                const monthNames = [
-                    'January', 'February', 'March', 'April', 'May', 'June',
-                    'July', 'August', 'September', 'October', 'November', 'December'
-                ];
-                const monthName = monthNames[parseInt(month) - 1];
-                paySlipPeriod.textContent = `${monthName} ${year}`;
-                paySlipPreview.style.display = 'block';
-                previewPaySlipBtn.disabled = false;
-                downloadPaySlipBtn.disabled = false;
-            } else {
-                paySlipPreview.style.display = 'none';
-                previewPaySlipBtn.disabled = true;
-                downloadPaySlipBtn.disabled = true;
-            }
-        }
-        
-        paySlipYear.addEventListener('change', updatePaySlipPreview);
-        paySlipMonth.addEventListener('change', updatePaySlipPreview);
-        
-        // Preview pay slip
-        previewPaySlipBtn.addEventListener('click', function() {
-            const year = paySlipYear.value;
-            const month = paySlipMonth.value;
-            
-            if (!year || !month) {
-                showAlert('Please select both year and month', 'warning');
-                return;
-            }
-            
-            previewStaffPaySlip(year, month);
-        });
-        
-        // Download pay slip
-        downloadPaySlipBtn.addEventListener('click', function() {
-            const year = paySlipYear.value;
-            const month = paySlipMonth.value;
-            
-            if (!year || !month) {
-                showAlert('Please select both year and month', 'warning');
-                return;
-            }
-            
-            downloadStaffPaySlip(year, month);
-        });
-        
-        // Download from preview
-        downloadFromPreviewBtn.addEventListener('click', function() {
-            const year = paySlipYear.value;
-            const month = paySlipMonth.value;
-            
-            if (!year || !month) {
-                showAlert('Please select both year and month', 'warning');
-                return;
-            }
-            
-            downloadStaffPaySlip(year, month);
-            paySlipPreviewModal.hide();
-        });
-        
-        // Function to preview staff pay slip
-        function previewStaffPaySlip(year, month) {
-            showAlert('<i class="bi bi-eye me-2"></i>Loading pay slip preview...', 'info');
-            
-            const formData = new FormData();
-            formData.append('year', year);
-            formData.append('month', month);
-            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
-            
-            fetch('/staff/preview_pay_slip', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.json();
-                } else {
-                    return response.json().then(err => Promise.reject(err));
-                }
-            })
-            .then(data => {
-                if (data.success) {
-                    displayPaySlipPreview(data.data, year, month);
-                    paySlipModal.hide();
-                    paySlipPreviewModal.show();
-                    showAlert('<i class="bi bi-check-circle me-2"></i>Pay slip preview loaded successfully', 'success');
-                } else {
-                    showAlert(`<i class="bi bi-exclamation-triangle me-2"></i>${data.error}`, 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error previewing pay slip:', error);
-                const errorMessage = error.error || error.message || 'Error loading pay slip preview. Please try again.';
-                showAlert(`<i class="bi bi-exclamation-triangle me-2"></i>${errorMessage}`, 'danger');
-            });
-        }
-        
-        // Function to display pay slip preview
-        function displayPaySlipPreview(salaryData, year, month) {
-            const monthNames = [
-                'January', 'February', 'March', 'April', 'May', 'June',
-                'July', 'August', 'September', 'October', 'November', 'December'
-            ];
-            const monthName = monthNames[parseInt(month) - 1];
-            
-            const staff = salaryData.staff_info;
-            const breakdown = salaryData.salary_details;
-            const earnings = breakdown.earnings;
-            const deductions = breakdown.deductions;
-            const attendance = breakdown.attendance_summary;
-            
-            const previewHTML = `
+                        paySlipYear.addEventListener('change', updatePaySlipPreview);
+                        paySlipMonth.addEventListener('change', updatePaySlipPreview);
+
+                        // Preview pay slip
+                        previewPaySlipBtn.addEventListener('click', function () {
+                            const year = paySlipYear.value;
+                            const month = paySlipMonth.value;
+
+                            if (!year || !month) {
+                                showAlert('Please select both year and month', 'warning');
+                                return;
+                            }
+
+                            previewStaffPaySlip(year, month);
+                        });
+
+                        // Download pay slip
+                        downloadPaySlipBtn.addEventListener('click', function () {
+                            const year = paySlipYear.value;
+                            const month = paySlipMonth.value;
+
+                            if (!year || !month) {
+                                showAlert('Please select both year and month', 'warning');
+                                return;
+                            }
+
+                            downloadStaffPaySlip(year, month);
+                        });
+
+                        // Download from preview
+                        downloadFromPreviewBtn.addEventListener('click', function () {
+                            const year = paySlipYear.value;
+                            const month = paySlipMonth.value;
+
+                            if (!year || !month) {
+                                showAlert('Please select both year and month', 'warning');
+                                return;
+                            }
+
+                            downloadStaffPaySlip(year, month);
+                            paySlipPreviewModal.hide();
+                        });
+
+                        // Function to preview staff pay slip
+                        function previewStaffPaySlip(year, month) {
+                            showAlert('<i class="bi bi-eye me-2"></i>Loading pay slip preview...', 'info');
+
+                            const formData = new FormData();
+                            formData.append('year', year);
+                            formData.append('month', month);
+                            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+
+                            fetch('/staff/preview_pay_slip', {
+                                method: 'POST',
+                                body: formData
+                            })
+                                .then(response => {
+                                    if (response.ok) {
+                                        return response.json();
+                                    } else {
+                                        return response.json().then(err => Promise.reject(err));
+                                    }
+                                })
+                                .then(data => {
+                                    if (data.success) {
+                                        displayPaySlipPreview(data.data, year, month);
+                                        paySlipModal.hide();
+                                        paySlipPreviewModal.show();
+                                        showAlert('<i class="bi bi-check-circle me-2"></i>Pay slip preview loaded successfully', 'success');
+                                    } else {
+                                        showAlert(`<i class="bi bi-exclamation-triangle me-2"></i>${data.error}`, 'danger');
+                                    }
+                                })
+                                .catch(error => {
+                                    console.error('Error previewing pay slip:', error);
+                                    const errorMessage = error.error || error.message || 'Error loading pay slip preview. Please try again.';
+                                    showAlert(`<i class="bi bi-exclamation-triangle me-2"></i>${errorMessage}`, 'danger');
+                                });
+                        }
+
+                        // Function to display pay slip preview
+                        function displayPaySlipPreview(salaryData, year, month) {
+                            const monthNames = [
+                                'January', 'February', 'March', 'April', 'May', 'June',
+                                'July', 'August', 'September', 'October', 'November', 'December'
+                            ];
+                            const monthName = monthNames[parseInt(month) - 1];
+
+                            const staff = salaryData.staff_info;
+                            const breakdown = salaryData.salary_details;
+                            const earnings = breakdown.earnings;
+                            const deductions = breakdown.deductions;
+                            const attendance = breakdown.attendance_summary;
+
+                            const previewHTML = `
                 <div class="pay-slip-preview">
                     <!-- Header -->
                     <div class="text-center mb-4">
@@ -1981,245 +2052,246 @@
                     </div>
                 </div>
             `;
-            
-            paySlipPreviewContent.innerHTML = previewHTML;
-        }
-        
-        // Function to download staff pay slip
-        function downloadStaffPaySlip(year, month) {
-            showAlert('<i class="bi bi-download me-2"></i>Generating your pay slip...', 'info');
-            
-            const formData = new FormData();
-            formData.append('year', year);
-            formData.append('month', month);
-            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
-            
-            fetch('/staff/download_pay_slip', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => {
-                if (response.ok) {
-                    return response.blob();
-                } else {
-                    return response.json().then(err => Promise.reject(err));
-                }
-            })
-            .then(blob => {
-                // Create download link
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.style.display = 'none';
-                a.href = url;
-                a.download = `pay_slip_${window.currentStaffId}_${year}_${month.toString().padStart(2, '0')}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-                
-                showAlert('<i class="bi bi-check-circle me-2"></i>Pay slip downloaded successfully', 'success');
-                paySlipModal.hide();
-            })
-            .catch(error => {
-                console.error('Error downloading pay slip:', error);
-                const errorMessage = error.error || error.message || 'Error downloading pay slip. Please try again.';
-                showAlert(`<i class="bi bi-exclamation-triangle me-2"></i>${errorMessage}`, 'danger');
-            });
-        }
-        
-        // Alert function
-        function showAlert(message, type = 'info') {
-            // Create alert element
-            const alertDiv = document.createElement('div');
-            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
-            alertDiv.style.cssText = 'top: 1rem; right: 1rem; z-index: 9999; min-width: 300px;';
-            alertDiv.innerHTML = `
+
+                            paySlipPreviewContent.innerHTML = previewHTML;
+                        }
+
+                        // Function to download staff pay slip
+                        function downloadStaffPaySlip(year, month) {
+                            showAlert('<i class="bi bi-download me-2"></i>Generating your pay slip...', 'info');
+
+                            const formData = new FormData();
+                            formData.append('year', year);
+                            formData.append('month', month);
+                            formData.append('csrf_token', document.querySelector('input[name="csrf_token"]').value);
+
+                            fetch('/staff/download_pay_slip', {
+                                method: 'POST',
+                                body: formData
+                            })
+                                .then(response => {
+                                    if (response.ok) {
+                                        return response.blob();
+                                    } else {
+                                        return response.json().then(err => Promise.reject(err));
+                                    }
+                                })
+                                .then(blob => {
+                                    // Create download link
+                                    const url = window.URL.createObjectURL(blob);
+                                    const a = document.createElement('a');
+                                    a.style.display = 'none';
+                                    a.href = url;
+                                    a.download = `pay_slip_${window.currentStaffId}_${year}_${month.toString().padStart(2, '0')}.pdf`;
+                                    document.body.appendChild(a);
+                                    a.click();
+                                    window.URL.revokeObjectURL(url);
+                                    document.body.removeChild(a);
+
+                                    showAlert('<i class="bi bi-check-circle me-2"></i>Pay slip downloaded successfully', 'success');
+                                    paySlipModal.hide();
+                                })
+                                .catch(error => {
+                                    console.error('Error downloading pay slip:', error);
+                                    const errorMessage = error.error || error.message || 'Error downloading pay slip. Please try again.';
+                                    showAlert(`<i class="bi bi-exclamation-triangle me-2"></i>${errorMessage}`, 'danger');
+                                });
+                        }
+
+                        // Alert function
+                        function showAlert(message, type = 'info') {
+                            // Create alert element
+                            const alertDiv = document.createElement('div');
+                            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+                            alertDiv.style.cssText = 'top: 1rem; right: 1rem; z-index: 9999; min-width: 300px;';
+                            alertDiv.innerHTML = `
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
-            
-            document.body.appendChild(alertDiv);
-            
-            // Auto remove after 5 seconds
-            setTimeout(() => {
-                if (alertDiv.parentNode) {
-                    alertDiv.remove();
-                }
-            }, 5000);
-        }
-    });
-    
-    // Mobile sidebar toggle functionality
-    document.addEventListener('DOMContentLoaded', function() {
-        const sidebarToggle = document.getElementById('sidebarToggle');
-        const sidebar = document.getElementById('enhanced-sidebar');
-        
-        // Show sidebar on desktop by default
-        function updateSidebarVisibility() {
-            if (window.innerWidth > 768) {
-                sidebar.style.display = 'block';
-                sidebar.classList.remove('show');
-            } else {
-                sidebar.style.display = 'block'; // Make sure it's not hidden by inline style
-            }
-        }
-        
-        // Initial setup
-        updateSidebarVisibility();
-        
-        let sidebarVisible = false;
-        
-        // Intelligent toggle sidebar function
-        function toggleSidebar() {
-            if (sidebarVisible) {
-                // Hide sidebar
-                sidebar.classList.remove('show');
-                sidebarVisible = false;
-                
-                // Keep toggle button as hamburger menu and make it reappear
-                sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
-                sidebarToggle.setAttribute('aria-expanded', 'false');
-                sidebarToggle.setAttribute('title', 'Show sidebar menu');
-                
-                // Intelligent button reappearing - show toggle button when sidebar closes
-                setTimeout(() => {
-                    sidebarToggle.style.setProperty('display', 'flex', 'important');
-                    sidebarToggle.style.setProperty('opacity', '1', 'important');
-                }, 100);
-                
-                console.log('✅ Sidebar closed, toggle button reappeared');
-            } else {
-                // Show sidebar
-                sidebar.classList.add('show');
-                sidebarVisible = true;
-                
-                // Don't change icon to X, just hide the button completely for clean UI
-                sidebarToggle.setAttribute('aria-expanded', 'true');
-                
-                console.log('✅ Sidebar opened, starting intelligent button hiding...');
-                
-                // Intelligent button hiding - hide toggle button completely when sidebar opens
-                setTimeout(() => {
-                    sidebarToggle.style.setProperty('opacity', '0', 'important');
-                    setTimeout(() => {
-                        sidebarToggle.style.setProperty('display', 'none', 'important');
-                        console.log('✅ Toggle button completely hidden for clean interface');
-                    }, 200);
-                }, 300); // Reduced delay for faster hiding
-            }
-        }
-        
-        if (sidebarToggle && sidebar) {
-            sidebarToggle.addEventListener('click', function(e) {
-                e.preventDefault();
-                console.log('Staff Dashboard - Toggle button clicked, screen width:', window.innerWidth);
-                
-                // Only allow toggle on mobile/tablet/laptop screens
-                if (window.innerWidth <= 1024) {
-                    toggleSidebar();
-                } else {
-                    console.log('Toggle disabled on desktop screens');
-                }
-            });
-            
-            // Close sidebar when clicking outside on mobile/tablet
-            document.addEventListener('click', function(event) {
-                if (window.innerWidth <= 1024 && sidebarVisible) {
-                    const isClickInsideSidebar = sidebar.contains(event.target);
-                    const isClickOnToggle = sidebarToggle.contains(event.target);
-                    
-                    if (!isClickInsideSidebar && !isClickOnToggle) {
-                        // Close sidebar and intelligently show toggle button
-                        sidebar.classList.remove('show');
-                        sidebarVisible = false;
-                        
-                        // Reset toggle button to hamburger menu and make it reappear
-                        sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
-                        sidebarToggle.setAttribute('aria-expanded', 'false');
-                        sidebarToggle.setAttribute('title', 'Show sidebar menu');
-                        
-                        // Intelligent button reappearing
-                        setTimeout(() => {
-                            sidebarToggle.style.setProperty('display', 'flex', 'important');
-                            sidebarToggle.style.setProperty('opacity', '1', 'important');
-                        }, 100);
-                        
-                        console.log('✅ Outside click: sidebar closed, toggle button reappeared');
-                    }
-                }
-            });
-            
-            // Handle window resize
-            window.addEventListener('resize', function() {
-                updateSidebarVisibility();
-                
-                if (window.innerWidth > 1024) {
-                    // Desktop: reset sidebar and toggle button state
-                    sidebar.classList.remove('show');
-                    sidebarVisible = false;
-                    sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
-                    sidebarToggle.setAttribute('aria-expanded', 'false');
-                    sidebarToggle.setAttribute('title', 'Show sidebar menu');
-                    
-                    // Reset toggle button visibility for desktop
-                    sidebarToggle.style.setProperty('display', 'none', 'important');
-                    sidebarToggle.style.setProperty('opacity', '0', 'important');
-                    
-                    console.log('Desktop mode - toggle hidden, sidebar always visible');
-                } else {
-                    // Mobile/Tablet/Laptop: ensure toggle button is visible when sidebar is closed
-                    if (!sidebarVisible) {
-                        sidebarToggle.style.setProperty('display', 'flex', 'important');
-                        sidebarToggle.style.setProperty('opacity', '1', 'important');
-                    }
-                    console.log('Mobile/Tablet mode - toggle behavior active');
-                }
-            });
-            
-            // Initialize toggle button visibility on page load
-            if (window.innerWidth <= 1024) {
-                sidebarToggle.style.setProperty('display', 'flex', 'important');
-                sidebarToggle.style.setProperty('opacity', '1', 'important');
-                sidebarVisible = false;
-                console.log('Initial state: toggle visible, sidebar hidden for mobile/tablet');
-            } else {
-                sidebarToggle.style.setProperty('display', 'none', 'important');
-                sidebarToggle.style.setProperty('opacity', '0', 'important');
-                sidebarVisible = false;
-                console.log('Initial state: desktop mode, toggle hidden');
-            }
-        }
-    });
-    
-    // Logout function for staff dashboard
-    function logout() {
-        if (confirm('Are you sure you want to logout?')) {
-            // Show loading state
-            const logoutBtn = document.querySelector('.logout-btn');
-            if (logoutBtn) {
-                logoutBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> <span>Logging out...</span>';
-                logoutBtn.disabled = true;
-            }
-            
-            // Redirect to logout route
-            window.location.href = '/logout';
-        }
-    }
-    
-    // Make logout function globally available
-    window.logout = logout;
-</script>
-<script src="{{ url_for('static', filename='js/staff_dashboard.js') }}"></script>
 
-    <script>
-        // Register Service Worker for PWA
-        if ('serviceWorker' in navigator) {
-            window.addEventListener('load', () => {
-                navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
-                    .then(reg => console.log('Service Worker registered'))
-                    .catch(err => console.log('Service Worker registration failed:', err));
-            });
-        }
-    </script>
+                            document.body.appendChild(alertDiv);
+
+                            // Auto remove after 5 seconds
+                            setTimeout(() => {
+                                if (alertDiv.parentNode) {
+                                    alertDiv.remove();
+                                }
+                            }, 5000);
+                        }
+                    });
+
+                    // Mobile sidebar toggle functionality
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const sidebarToggle = document.getElementById('sidebarToggle');
+                        const sidebar = document.getElementById('enhanced-sidebar');
+
+                        // Show sidebar on desktop by default
+                        function updateSidebarVisibility() {
+                            if (window.innerWidth > 768) {
+                                sidebar.style.display = 'block';
+                                sidebar.classList.remove('show');
+                            } else {
+                                sidebar.style.display = 'block'; // Make sure it's not hidden by inline style
+                            }
+                        }
+
+                        // Initial setup
+                        updateSidebarVisibility();
+
+                        let sidebarVisible = false;
+
+                        // Intelligent toggle sidebar function
+                        function toggleSidebar() {
+                            if (sidebarVisible) {
+                                // Hide sidebar
+                                sidebar.classList.remove('show');
+                                sidebarVisible = false;
+
+                                // Keep toggle button as hamburger menu and make it reappear
+                                sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                                sidebarToggle.setAttribute('aria-expanded', 'false');
+                                sidebarToggle.setAttribute('title', 'Show sidebar menu');
+
+                                // Intelligent button reappearing - show toggle button when sidebar closes
+                                setTimeout(() => {
+                                    sidebarToggle.style.setProperty('display', 'flex', 'important');
+                                    sidebarToggle.style.setProperty('opacity', '1', 'important');
+                                }, 100);
+
+                                console.log('✅ Sidebar closed, toggle button reappeared');
+                            } else {
+                                // Show sidebar
+                                sidebar.classList.add('show');
+                                sidebarVisible = true;
+
+                                // Don't change icon to X, just hide the button completely for clean UI
+                                sidebarToggle.setAttribute('aria-expanded', 'true');
+
+                                console.log('✅ Sidebar opened, starting intelligent button hiding...');
+
+                                // Intelligent button hiding - hide toggle button completely when sidebar opens
+                                setTimeout(() => {
+                                    sidebarToggle.style.setProperty('opacity', '0', 'important');
+                                    setTimeout(() => {
+                                        sidebarToggle.style.setProperty('display', 'none', 'important');
+                                        console.log('✅ Toggle button completely hidden for clean interface');
+                                    }, 200);
+                                }, 300); // Reduced delay for faster hiding
+                            }
+                        }
+
+                        if (sidebarToggle && sidebar) {
+                            sidebarToggle.addEventListener('click', function (e) {
+                                e.preventDefault();
+                                console.log('Staff Dashboard - Toggle button clicked, screen width:', window.innerWidth);
+
+                                // Only allow toggle on mobile/tablet/laptop screens
+                                if (window.innerWidth <= 1024) {
+                                    toggleSidebar();
+                                } else {
+                                    console.log('Toggle disabled on desktop screens');
+                                }
+                            });
+
+                            // Close sidebar when clicking outside on mobile/tablet
+                            document.addEventListener('click', function (event) {
+                                if (window.innerWidth <= 1024 && sidebarVisible) {
+                                    const isClickInsideSidebar = sidebar.contains(event.target);
+                                    const isClickOnToggle = sidebarToggle.contains(event.target);
+
+                                    if (!isClickInsideSidebar && !isClickOnToggle) {
+                                        // Close sidebar and intelligently show toggle button
+                                        sidebar.classList.remove('show');
+                                        sidebarVisible = false;
+
+                                        // Reset toggle button to hamburger menu and make it reappear
+                                        sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                                        sidebarToggle.setAttribute('aria-expanded', 'false');
+                                        sidebarToggle.setAttribute('title', 'Show sidebar menu');
+
+                                        // Intelligent button reappearing
+                                        setTimeout(() => {
+                                            sidebarToggle.style.setProperty('display', 'flex', 'important');
+                                            sidebarToggle.style.setProperty('opacity', '1', 'important');
+                                        }, 100);
+
+                                        console.log('✅ Outside click: sidebar closed, toggle button reappeared');
+                                    }
+                                }
+                            });
+
+                            // Handle window resize
+                            window.addEventListener('resize', function () {
+                                updateSidebarVisibility();
+
+                                if (window.innerWidth > 1024) {
+                                    // Desktop: reset sidebar and toggle button state
+                                    sidebar.classList.remove('show');
+                                    sidebarVisible = false;
+                                    sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                                    sidebarToggle.setAttribute('title', 'Show sidebar menu');
+
+                                    // Reset toggle button visibility for desktop
+                                    sidebarToggle.style.setProperty('display', 'none', 'important');
+                                    sidebarToggle.style.setProperty('opacity', '0', 'important');
+
+                                    console.log('Desktop mode - toggle hidden, sidebar always visible');
+                                } else {
+                                    // Mobile/Tablet/Laptop: ensure toggle button is visible when sidebar is closed
+                                    if (!sidebarVisible) {
+                                        sidebarToggle.style.setProperty('display', 'flex', 'important');
+                                        sidebarToggle.style.setProperty('opacity', '1', 'important');
+                                    }
+                                    console.log('Mobile/Tablet mode - toggle behavior active');
+                                }
+                            });
+
+                            // Initialize toggle button visibility on page load
+                            if (window.innerWidth <= 1024) {
+                                sidebarToggle.style.setProperty('display', 'flex', 'important');
+                                sidebarToggle.style.setProperty('opacity', '1', 'important');
+                                sidebarVisible = false;
+                                console.log('Initial state: toggle visible, sidebar hidden for mobile/tablet');
+                            } else {
+                                sidebarToggle.style.setProperty('display', 'none', 'important');
+                                sidebarToggle.style.setProperty('opacity', '0', 'important');
+                                sidebarVisible = false;
+                                console.log('Initial state: desktop mode, toggle hidden');
+                            }
+                        }
+                    });
+
+                    // Logout function for staff dashboard
+                    function logout() {
+                        if (confirm('Are you sure you want to logout?')) {
+                            // Show loading state
+                            const logoutBtn = document.querySelector('.logout-btn');
+                            if (logoutBtn) {
+                                logoutBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> <span>Logging out...</span>';
+                                logoutBtn.disabled = true;
+                            }
+
+                            // Redirect to logout route
+                            window.location.href = '/logout';
+                        }
+                    }
+
+                    // Make logout function globally available
+                    window.logout = logout;
+                </script>
+                <script src="{{ url_for('static', filename='js/staff_dashboard.js') }}"></script>
+
+                <script>
+                    // Register Service Worker for PWA
+                    if ('serviceWorker' in navigator) {
+                        window.addEventListener('load', () => {
+                            navigator.serviceWorker.register("{{ url_for('static', filename='sw.js') }}")
+                                .then(reg => console.log('Service Worker registered'))
+                                .catch(err => console.log('Service Worker registration failed:', err));
+                        });
+                    }
+                </script>
 </body>
+
 </html>

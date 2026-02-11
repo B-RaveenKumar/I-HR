@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -80,7 +81,8 @@
             font-size: 14px;
         }
 
-        .form-control, .form-select {
+        .form-control,
+        .form-select {
             border: 2px solid var(--light-gray);
             border-radius: 8px;
             padding: 10px 12px;
@@ -88,7 +90,8 @@
             transition: all 0.3s;
         }
 
-        .form-control:focus, .form-select:focus {
+        .form-control:focus,
+        .form-select:focus {
             border-color: var(--primary-color);
             box-shadow: 0 0 0 0.2rem rgba(74, 144, 226, 0.25);
         }
@@ -306,6 +309,7 @@
         }
     </style>
 </head>
+
 <body>
     <div class="container-main">
         <!-- Page Header -->
@@ -315,7 +319,8 @@
                     <h1><i class="bi bi-calendar-event"></i> Staff Period Assignment</h1>
                     <nav aria-label="breadcrumb">
                         <ol class="breadcrumb">
-                            <li class="breadcrumb-item"><a href="{{ url_for('dashboard') }}" style="color: var(--primary-color);">Dashboard</a></li>
+                            <li class="breadcrumb-item"><a href="{{ url_for('admin_dashboard') }}"
+                                    style="color: var(--primary-color);">Dashboard</a></li>
                             <li class="breadcrumb-item active">Period Assignment</li>
                         </ol>
                     </nav>
@@ -446,7 +451,7 @@
         let periods = [];
 
         // Initialize on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             loadStaffList();
             loadPeriods();
             loadAllAssignments();
@@ -554,10 +559,10 @@
                         `;
 
                         result.periods.forEach(period => {
-                            const timeDisplay = period.start_time && period.end_time 
+                            const timeDisplay = period.start_time && period.end_time
                                 ? `${period.start_time.slice(0, 5)} - ${period.end_time.slice(0, 5)}`
                                 : 'N/A';
-                            
+
                             html += `
                                 <tr>
                                     <td><strong>${period.day_name}</strong></td>
@@ -613,7 +618,7 @@
                     showMessage(`✅ ${result.message}`, 'success');
                     document.getElementById('assignmentForm').reset();
                     document.querySelectorAll('.day-option').forEach(el => el.classList.remove('selected'));
-                    
+
                     // Reload data
                     loadStaffSchedule(staffId);
                     loadAllAssignments();
@@ -685,10 +690,10 @@
 
                         result.data.forEach(assignment => {
                             const dayName = DAYS[assignment.day_of_week] || 'Unknown';
-                            const timeDisplay = assignment.start_time && assignment.end_time 
+                            const timeDisplay = assignment.start_time && assignment.end_time
                                 ? `${assignment.start_time.slice(0, 5)} - ${assignment.end_time.slice(0, 5)}`
                                 : 'N/A';
-                            const badge = assignment.is_locked 
+                            const badge = assignment.is_locked
                                 ? '<span class="badge badge-warning">Locked</span>'
                                 : '<span class="badge badge-success">Active</span>';
 
@@ -737,4 +742,5 @@
         }
     </script>
 </body>
+
 </html>
