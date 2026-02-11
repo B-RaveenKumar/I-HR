@@ -236,20 +236,35 @@ def check_timetable_access():
 
 @timetable_api.route('/api/timetable/periods', methods=['GET'])
 def get_periods():
-    """Get all periods for a school"""
+    """Get all periods for a school, optionally filtered by level/section"""
     try:
         school_id = request.args.get('school_id') or session.get('school_id')
+        level_id = request.args.get('level_id')
+        section_id = request.args.get('section_id')
+        
         if not school_id:
             return jsonify({'success': False, 'error': 'School ID required'}), 400
             
         db = get_db()
         cursor = db.cursor()
-        cursor.execute('''
-            SELECT id, period_number, period_name, start_time, end_time, duration_minutes 
+        
+        query = '''
+            SELECT id, period_number, period_name, start_time, end_time, duration_minutes, level_id, section_id
             FROM timetable_periods 
-            WHERE school_id = ? 
-            ORDER BY period_number
-        ''', (school_id,))
+            WHERE school_id = ?
+        '''
+        params = [school_id]
+        
+        if level_id and level_id != 'null':
+            query += ' AND level_id = ?'
+            params.append(level_id)
+        if section_id and section_id != 'null':
+            query += ' AND section_id = ?'
+            params.append(section_id)
+            
+        query += ' ORDER BY period_number'
+        
+        cursor.execute(query, params)
         
         periods = []
         for row in cursor.fetchall():
@@ -259,10 +274,12 @@ def get_periods():
                 'period_name': row['period_name'],
                 'start_time': row['start_time'],
                 'end_time': row['end_time'],
-                'duration_minutes': row['duration_minutes']
+                'duration_minutes': row['duration_minutes'],
+                'level_id': row['level_id'],
+                'section_id': row['section_id']
             })
             
-        return jsonify({'success': True, 'periods': periods, 'data': periods}) # Added 'data' for compatibility
+        return jsonify({'success': True, 'periods': periods, 'data': periods})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
@@ -270,7 +287,7 @@ def get_periods():
 @timetable_api.route('/api/timetable/period/save', methods=['POST'])
 @admin_required
 def save_period():
-    """Create or update a period"""
+    """Create or update a period with hierarchical support"""
     try:
         data = request.get_json()
         school_id = data.get('school_id') or session.get('school_id')
@@ -278,6 +295,8 @@ def save_period():
         period_name = data.get('period_name')
         start_time = data.get('start_time')
         end_time = data.get('end_time')
+        level_id = data.get('level_id')
+        section_id = data.get('section_id')
         
         if not all([school_id, period_number, start_time, end_time]):
             return jsonify({'success': False, 'error': 'Missing required fields'}), 400
@@ -293,11 +312,13 @@ def save_period():
         db = get_db()
         cursor = db.cursor()
         
-        # Check if exists (UPSET-like behavior)
+        # Check if exists (UPSERT-like behavior)
+        # Unique constraint is on (school_id, level_id, section_id, period_number)
         cursor.execute('''
             SELECT id FROM timetable_periods 
-            WHERE school_id = ? AND period_number = ?
-        ''', (school_id, period_number))
+            WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0) 
+            AND COALESCE(section_id, 0) = COALESCE(?, 0) AND period_number = ?
+        ''', (school_id, level_id, section_id, period_number))
         
         existing = cursor.fetchone()
         
@@ -311,12 +332,118 @@ def save_period():
         else:
             cursor.execute('''
                 INSERT INTO timetable_periods 
-                (school_id, period_number, period_name, start_time, end_time, duration_minutes)
-                VALUES (?, ?, ?, ?, ?, ?)
-            ''', (school_id, period_number, period_name, start_time, end_time, duration))
+                (school_id, level_id, section_id, period_number, period_name, start_time, end_time, duration_minutes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (school_id, level_id, section_id, period_number, period_name, start_time, end_time, duration))
             
         db.commit()
         return jsonify({'success': True, 'message': 'Period saved successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/next-period-number', methods=['GET'])
+def get_next_period_number():
+    """Auto-increment: Get the next period number for a Grade/Section"""
+    try:
+        school_id = request.args.get('school_id') or session.get('school_id')
+        level_id = request.args.get('level_id')
+        section_id = request.args.get('section_id')
+        
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            SELECT MAX(period_number) FROM timetable_periods
+            WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0) 
+            AND COALESCE(section_id, 0) = COALESCE(?, 0)
+        ''', (school_id, level_id, section_id))
+        
+        max_period = cursor.fetchone()[0]
+        next_period = (max_period or 0) + 1
+        
+        return jsonify({'success': True, 'next_period_number': next_period})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/period/check-duplicate', methods=['GET'])
+def check_duplicate_period():
+    """Check if a period name already exists in a specific Grade/Section"""
+    try:
+        school_id = request.args.get('school_id') or session.get('school_id')
+        level_id = request.args.get('level_id')
+        section_id = request.args.get('section_id')
+        period_name = request.args.get('period_name')
+        
+        if not all([school_id, period_name]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            SELECT id, period_number, start_time, end_time FROM timetable_periods
+            WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0) 
+            AND COALESCE(section_id, 0) = COALESCE(?, 0) AND LOWER(period_name) = LOWER(?)
+        ''', (school_id, level_id, section_id, period_name.strip()))
+        
+        existing = cursor.fetchone()
+        
+        if existing:
+            return jsonify({
+                'success': True, 
+                'is_duplicate': True, 
+                'period': {
+                    'id': existing['id'],
+                    'period_number': existing['period_number'],
+                    'start_time': existing['start_time'],
+                    'end_time': existing['end_time']
+                }
+            })
+        
+        return jsonify({'success': True, 'is_duplicate': False})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/similar-periods', methods=['GET'])
+def get_similar_periods():
+    """Quick Fill: Find similar periods in other sections for suggestions"""
+    try:
+        school_id = request.args.get('school_id') or session.get('school_id')
+        period_name = request.args.get('period_name')
+        
+        if not all([school_id, period_name]):
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Find same period name in other levels/sections
+        cursor.execute('''
+            SELECT DISTINCT tp.start_time, tp.end_time, tal.level_name, ts.section_name
+            FROM timetable_periods tp
+            LEFT JOIN timetable_academic_levels tal ON tp.level_id = tal.id
+            LEFT JOIN timetable_sections ts ON tp.section_id = ts.id
+            WHERE tp.school_id = ? AND LOWER(tp.period_name) = LOWER(?)
+            AND (tp.level_id IS NOT NULL OR tp.section_id IS NOT NULL)
+            LIMIT 5
+        ''', (school_id, period_name.strip()))
+        
+        suggestions = []
+        for row in cursor.fetchall():
+            source = f"{row['level_name'] or ''} {row['section_name'] or ''}".strip() or "Global"
+            suggestions.append({
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'source': source
+            })
+            
+        return jsonify({'success': True, 'suggestions': suggestions})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

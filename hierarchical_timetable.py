@@ -149,21 +149,27 @@ class HierarchicalTimetableManager:
     def create_section(school_id, level_id, section_name, capacity=60):
         """
         Create a new section for an academic level
-        
-        Args:
-            school_id (int): School identifier
-            level_id (int): Academic level identifier
-            section_name (str): Section name (e.g., "A", "B", "Section A")
-            capacity (int): Class capacity
-            
-        Returns:
-            dict: {success: bool, section_id: int, message: str}
         """
+        if not school_id:
+            logger.error("Create section failed: Missing school_id in session")
+            return {'success': False, 'error': 'Authenticated session missing school_id. Please re-login.'}
+
         try:
             db = get_db()
             cursor = db.cursor()
             
-            section_code = section_name.upper().replace(" ", "_")
+            section_code = str(section_name).strip().upper().replace(" ", "_")
+            if not section_code:
+                return {'success': False, 'error': 'Invalid section name'}
+            
+            # Check for existing section in this level
+            cursor.execute('''
+                SELECT id FROM timetable_sections 
+                WHERE school_id = ? AND level_id = ? AND section_code = ? AND is_active = 1
+            ''', (school_id, level_id, section_code))
+            
+            if cursor.fetchone():
+                return {'success': False, 'error': f'Section "{section_name}" already exists for this grade.'}
             
             cursor.execute('''
                 INSERT INTO timetable_sections
@@ -173,6 +179,7 @@ class HierarchicalTimetableManager:
             
             db.commit()
             
+            logger.info(f"✅ Section {section_name} created for level {level_id} (School {school_id})")
             return {
                 'success': True,
                 'section_id': cursor.lastrowid,
@@ -180,8 +187,8 @@ class HierarchicalTimetableManager:
             }
         
         except Exception as e:
-            logger.error(f"Error creating section: {e}")
-            return {'success': False, 'error': str(e)}
+            logger.error(f"❌ Error creating section: {e}")
+            return {'success': False, 'error': f"Database error: {str(e)}"}
     
     @staticmethod
     def get_sections_for_level(level_id):
@@ -239,6 +246,30 @@ class HierarchicalTimetableManager:
             logger.error(f"Error fetching all sections: {e}")
             return {'success': False, 'error': str(e)}
     
+    @staticmethod
+    def delete_section(school_id, section_id):
+        """Delete a section (Deactivates it)"""
+        try:
+            db = get_db()
+            cursor = db.cursor()
+            
+            # Check if section has active assignments
+            cursor.execute('SELECT COUNT(*) FROM timetable_assignments WHERE section_id = ?', (section_id,))
+            if cursor.fetchone()[0] > 0:
+                return {'success': False, 'error': 'Cannot delete section with active timetable assignments'}
+            
+            cursor.execute('''
+                UPDATE timetable_sections SET is_active = 0 
+                WHERE id = ? AND school_id = ?
+            ''', (section_id, school_id))
+            
+            db.commit()
+            return {'success': True, 'message': 'Section deleted successfully'}
+        
+        except Exception as e:
+            logger.error(f"Error deleting section: {e}")
+            return {'success': False, 'error': str(e)}
+
     # ==================== CONFLICT DETECTION ====================
     
     @staticmethod

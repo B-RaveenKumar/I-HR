@@ -7,7 +7,10 @@ let schoolId = null;
 let allPeriods = [];
 let allDepartments = [];
 let allStaff = [];
+let allLevels = [];
+let allSections = [];
 let currentAssignments = [];
+let currentLevelFilter = null; // Track selected academic level
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', function () {
@@ -17,6 +20,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Check if user is authenticated and load data
     console.log('Starting data load...');
+    loadAcademicLevels();
+    loadAllSections();
     loadPeriods();
     loadDepartments();
     loadStaffList();
@@ -28,7 +33,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
 function loadPeriods() {
     console.log('Loading periods for school_id:', schoolId);
-    fetch(`/api/timetable/periods?school_id=${schoolId}`)
+    const levelId = document.getElementById('filterGrade')?.value;
+    const sectionId = document.getElementById('filterSection')?.value;
+
+    let url = `/api/timetable/periods?school_id=${schoolId}`;
+    if (levelId) url += `&level_id=${levelId}`;
+    if (sectionId) url += `&section_id=${sectionId}`;
+
+    fetch(url)
         .then(r => {
             console.log('Periods API response status:', r.status);
             if (!r.ok) {
@@ -52,38 +64,51 @@ function renderPeriodsTable() {
     const tbody = document.getElementById('periodsTableBody');
 
     if (allPeriods.length === 0) {
-        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="6" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No periods defined. Add one to get started!</td></tr>';
+        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="8" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No periods defined. Add one to get started!</td></tr>';
         return;
     }
 
-    tbody.innerHTML = allPeriods.map(p => `
-        <tr>
-            <td style="padding: 1rem; font-weight: 600;">${p.period_number}</td>
-            <td style="padding: 1rem;">${p.period_name || '-'}</td>
-            <td style="padding: 1rem;"><span class="time-display">${p.start_time}</span></td>
-            <td style="padding: 1rem;"><span class="time-display">${p.end_time}</span></td>
-            <td style="padding: 1rem;"><span class="duration-badge">${p.duration_minutes} mins</span></td>
-            <td style="padding: 1rem; text-align: center;">
-                <div class="action-buttons">
-                    <button class="btn-edit btn-sm" onclick="editPeriod(${p.id})">
-                        <i class="bi bi-pencil"></i> Edit
-                    </button>
-                    <button class="btn-delete-action btn-sm" onclick="deletePeriod(${p.id})">
-                        <i class="bi bi-trash"></i>
-                    </button>
-                </div>
-            </td>
-        </tr>
-    `).join('');
+    tbody.innerHTML = allPeriods.map(p => {
+        const level = allLevels.find(l => l.id == p.level_id);
+        const section = allSections.find(s => s.id == p.section_id);
+        const gsLabel = level ? `${level.level_name} - ${section ? section.section_name : 'All'}` : 'Global';
+
+        return `
+            <tr>
+                <td style="padding: 1rem;">${gsLabel}</td>
+                <td style="padding: 1rem; font-weight: 600;">${p.period_number}</td>
+                <td style="padding: 1rem;">${p.period_name || '-'}</td>
+                <td style="padding: 1rem;"><span class="time-display">${p.start_time}</span></td>
+                <td style="padding: 1rem;"><span class="time-display">${p.end_time}</span></td>
+                <td style="padding: 1rem;"><span class="duration-badge">${p.duration_minutes} mins</span></td>
+                <td style="padding: 1rem; text-align: center;">
+                    <div class="action-buttons">
+                        <button class="btn-edit btn-sm" onclick="editPeriod(${p.id})">
+                            <i class="bi bi-pencil"></i> Edit
+                        </button>
+                        <button class="btn-delete-action btn-sm" onclick="deletePeriod(${p.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
 }
 
 function showAddPeriodModal() {
+    document.getElementById('periodGrade').value = '';
+    document.getElementById('periodSection').innerHTML = '<option value="">-- Select Section --</option>';
     document.getElementById('periodNumber').value = '';
     document.getElementById('periodName').value = '';
     document.getElementById('startTime').value = '';
     document.getElementById('endTime').value = '';
     document.getElementById('periodModalTitle').textContent = 'Add Period';
     document.getElementById('periodModal').dataset.editId = '';
+
+    document.getElementById('duplicateAlert').classList.add('d-none');
+    document.getElementById('quickFillContainer').classList.add('d-none');
+
     new bootstrap.Modal(document.getElementById('periodModal')).show();
 }
 
@@ -91,22 +116,29 @@ function editPeriod(periodId) {
     const period = allPeriods.find(p => p.id === periodId);
     if (!period) return;
 
+    document.getElementById('periodGrade').value = period.level_id || '';
+    onPeriodGradeChange(period.section_id);
+
     document.getElementById('periodNumber').value = period.period_number;
     document.getElementById('periodName').value = period.period_name || '';
     document.getElementById('startTime').value = period.start_time;
     document.getElementById('endTime').value = period.end_time;
     document.getElementById('periodModalTitle').textContent = 'Edit Period';
     document.getElementById('periodModal').dataset.editId = periodId;
+
+    document.getElementById('duplicateAlert').classList.add('d-none');
+    document.getElementById('quickFillContainer').classList.add('d-none');
+
     new bootstrap.Modal(document.getElementById('periodModal')).show();
 }
 
 function savePeriod() {
+    const levelId = document.getElementById('periodGrade').value;
+    const sectionId = document.getElementById('periodSection').value;
     const periodNumber = document.getElementById('periodNumber').value;
     const periodName = document.getElementById('periodName').value;
     const startTime = document.getElementById('startTime').value;
     const endTime = document.getElementById('endTime').value;
-
-    console.log('📝 Saving period:', { periodNumber, periodName, startTime, endTime, schoolId });
 
     if (!periodNumber || !startTime || !endTime) {
         showAlert('Please fill all required fields', 'error');
@@ -115,6 +147,8 @@ function savePeriod() {
 
     const data = {
         school_id: schoolId,
+        level_id: levelId || null,
+        section_id: sectionId || null,
         period_number: periodNumber,
         period_name: periodName,
         start_time: startTime,
@@ -123,35 +157,398 @@ function savePeriod() {
 
     fetch('/api/timetable/period/save', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
         body: JSON.stringify(data)
     })
-        .then(r => {
-            console.log('Period save response status:', r.status);
-            if (!r.ok) {
-                throw new Error(`HTTP Error: ${r.status} ${r.statusText}`);
-            }
-            return r.json();
-        })
+        .then(r => r.json())
         .then(result => {
-            console.log('Period save result:', result);
             if (result.success) {
                 showAlert('Period saved successfully', 'success');
-                const modalElement = document.getElementById('periodModal');
-                const modalInstance = bootstrap.Modal.getInstance(modalElement);
-                if (modalInstance) {
-                    modalInstance.hide();
-                }
-                console.log('Reloading periods after save...');
+                bootstrap.Modal.getInstance(document.getElementById('periodModal')).hide();
                 loadPeriods();
             } else {
                 showAlert(result.error || 'Failed to save period', 'error');
             }
         })
-        .catch(err => {
-            console.error('Error saving period:', err);
-            showAlert('Error saving period: ' + err.message, 'error');
+        .catch(err => showAlert('Error saving period: ' + err.message, 'error'));
+}
+
+// ==========================================================================
+// HIERARCHICAL DYNAMIC LOGIC
+// ==========================================================================
+
+// ==========================================================================
+// HIERARCHICAL DYNAMIC LOGIC & MANAGEMENT
+// ==========================================================================
+
+function loadAcademicLevels() {
+    fetch('/api/hierarchical-timetable/levels')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                allLevels = data.data;
+                const filterGrade = document.getElementById('filterGrade');
+                const periodGrade = document.getElementById('periodGrade');
+                const sectionLevel = document.getElementById('sectionLevelId');
+
+                const options = allLevels.map(l => `<option value="${l.id}">${l.level_name}</option>`).join('');
+                
+                if (filterGrade) filterGrade.innerHTML = '<option value="">All Grades</option>' + options;
+                if (periodGrade) periodGrade.innerHTML = '<option value="">-- Select Grade --</option>' + options;
+                if (sectionLevel) sectionLevel.innerHTML = '<option value="">-- Choose Grade --</option>' + options;
+
+                renderLevelsList();
+                
+                // Re-apply filter highlight if active
+                if (currentLevelFilter) {
+                    filterSectionsByLevel(currentLevelFilter);
+                }
+                
+                fetchOrgConfig();
+            }
         });
+}
+
+function fetchOrgConfig() {
+    fetch('/api/hierarchical-timetable/organization/config')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const orgType = data.data.organization_type;
+                const badge = document.getElementById('orgTypeBadge');
+                if (badge) {
+                    badge.textContent = orgType.charAt(0).toUpperCase() + orgType.slice(1);
+                    badge.className = orgType === 'school' ? 'badge bg-primary shadow-sm' : 'badge bg-info text-dark shadow-sm';
+                }
+                const radio = document.querySelector(`input[name="orgType"][value="${orgType}"]`);
+                if (radio) radio.checked = true;
+            }
+        });
+}
+
+function renderLevelsList() {
+    const container = document.getElementById('levelsListContainer');
+    if (!container) return;
+
+    if (allLevels.length === 0) {
+        container.innerHTML = '<div class="p-4 text-center text-muted">No levels generated. Set Org Type first.</div>';
+        return;
+    }
+
+    container.innerHTML = allLevels.map(level => `
+        <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center level-item border-start-0 border-end-0" 
+             style="cursor: pointer; padding: 1rem;" onclick="filterSectionsByLevel(${level.id}, this)">
+            <div>
+                <span class="fw-600">${level.level_name}</span>
+                <small class="text-muted d-block" style="font-size: 0.75rem;">${level.description || ''}</small>
+            </div>
+            <i class="bi bi-chevron-right text-muted small"></i>
+        </div>
+    `).join('');
+}
+
+function loadAllSections() {
+    console.log('🔄 Loading all sections...');
+    fetch('/api/hierarchical-timetable/sections/all')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                allSections = data.data;
+                console.log(`✅ Loaded ${allSections.length} sections`);
+                
+                // Update filter dropdowns for Periods Management
+                const filterSection = document.getElementById('filterSection');
+                if (filterSection) {
+                    const options = allSections.map(s => `<option value="${s.id}" data-level="${s.level_id}">${s.section_name}</option>`).join('');
+                    filterSection.innerHTML = '<option value="">All Sections</option>' + options;
+                }
+                
+                // Reload section management table using current filter
+                renderSectionsTable(currentLevelFilter);
+            }
+        })
+        .catch(err => console.error('❌ Error loading sections:', err));
+}
+
+function renderSectionsTable(levelId = null) {
+    const tbody = document.getElementById('sectionsManagementBody');
+    if (!tbody) return;
+
+    let sectionsToShow = allSections;
+    if (levelId) {
+        sectionsToShow = allSections.filter(s => s.level_id == levelId);
+    }
+
+    if (sectionsToShow.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="4" class="text-center p-4 text-muted">
+            <div class="py-2">
+                <i class="bi bi-info-circle fs-4 d-block mb-2"></i>
+                No sections ${levelId ? 'found for this grade' : 'added yet'}.
+            </div>
+        </td></tr>`;
+        return;
+    }
+
+    tbody.innerHTML = sectionsToShow.map(s => {
+        const level = allLevels.find(l => l.id == s.level_id);
+        return `
+            <tr>
+                <td style="padding: 0.75rem 1rem;">
+                    <span class="badge bg-light text-dark border">${level ? level.level_name : 'Unknown'}</span>
+                </td>
+                <td style="padding: 0.75rem 1rem; font-weight: 600;">${s.section_name}</td>
+                <td style="padding: 0.75rem 1rem;">${s.capacity} Students</td>
+                <td style="padding: 0.75rem 1rem; text-align: center;">
+                    <button class="btn btn-sm text-danger hover-grow" onclick="deleteSection(${s.id})" title="Delete Section">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+function filterSectionsByLevel(levelId, element) {
+    console.log('🎯 Filtering sections by level:', levelId);
+    currentLevelFilter = levelId;
+    
+    // Basic highlight
+    document.querySelectorAll('.level-item').forEach(el => el.classList.remove('active', 'bg-light'));
+    if (element) {
+        element.classList.add('bg-light');
+    } else {
+        // Find element if not passed (useful for re-applying highlight after reload)
+        const items = document.querySelectorAll('.level-item');
+        allLevels.forEach((l, idx) => {
+            if (l.id == levelId && items[idx]) items[idx].classList.add('bg-light');
+        });
+    }
+    
+    renderSectionsTable(levelId);
+}
+
+function showOrgConfigModal() {
+    new bootstrap.Modal(document.getElementById('orgConfigModal')).show();
+}
+
+function saveOrgType() {
+    const orgType = document.querySelector('input[name="orgType"]:checked').value;
+    
+    fetch('/api/hierarchical-timetable/organization/set-type', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify({ organization_type: orgType })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showAlert(`Successfully configured as ${orgType}`, 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('orgConfigModal'));
+            if (modal) modal.hide();
+            loadAcademicLevels();
+        } else {
+            showAlert(data.error || 'Failed to save configuration', 'error');
+        }
+    });
+}
+
+function showAddSectionModal() {
+    const form = document.getElementById('sectionForm');
+    if (form) form.reset();
+    
+    // Auto-populate level if one is selected on the left
+    if (currentLevelFilter) {
+        const levelSelect = document.getElementById('sectionLevelId');
+        if (levelSelect) levelSelect.value = currentLevelFilter;
+    }
+    
+    const modalEl = document.getElementById('sectionModal');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    modal.show();
+}
+
+function saveSection() {
+    const levelId = document.getElementById('sectionLevelId').value;
+    const sectionName = document.getElementById('sectionName').value;
+    const capacity = document.getElementById('sectionCapacity').value;
+
+    if (!levelId || !sectionName) {
+        showAlert('Please select a grade and enter a section name', 'error');
+        return;
+    }
+
+    fetch('/api/hierarchical-timetable/sections/create', {
+        method: 'POST',
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify({
+            level_id: parseInt(levelId),
+            section_name: sectionName,
+            capacity: parseInt(capacity)
+        })
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Section created successfully', 'success');
+            const modal = bootstrap.Modal.getInstance(document.getElementById('sectionModal'));
+            if (modal) modal.hide();
+            loadAllSections();
+        } else {
+            showAlert(data.error || 'Failed to create section', 'error');
+        }
+    });
+}
+
+function deleteSection(sectionId) {
+    if (!confirm('Are you sure you want to delete this section? This will not work if there are active assignments.')) return;
+
+    fetch(`/api/hierarchical-timetable/sections/${sectionId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showAlert('Section deleted successfully', 'success');
+            loadAllSections();
+        } else {
+            showAlert(data.error || 'Failed to delete section', 'error');
+        }
+    });
+}
+
+function onPeriodGradeChange(selectedSectionId = null) {
+    const levelId = document.getElementById('periodGrade').value;
+    const sectionSelect = document.getElementById('periodSection');
+
+    sectionSelect.innerHTML = '<option value="">-- Select Section --</option>';
+
+    if (levelId) {
+        const filtered = allSections.filter(s => s.level_id == levelId);
+        sectionSelect.innerHTML += filtered.map(s => `<option value="${s.id}">${s.section_name}</option>`).join('');
+        if (selectedSectionId) sectionSelect.value = selectedSectionId;
+    }
+
+    fetchNextPeriodNumber();
+}
+
+function onPeriodSectionChange() {
+    fetchNextPeriodNumber();
+    checkDuplicatePeriodName();
+}
+
+function fetchNextPeriodNumber() {
+    const levelId = document.getElementById('periodGrade').value;
+    const sectionId = document.getElementById('periodSection').value;
+
+    if (!levelId || !sectionId) {
+        document.getElementById('periodNumber').value = '';
+        return;
+    }
+
+    fetch(`/api/timetable/next-period-number?level_id=${levelId}&section_id=${sectionId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('periodNumber').value = data.next_period_number;
+            }
+        });
+}
+
+let duplicateCheckTimer = null;
+function checkDuplicatePeriodName() {
+    if (duplicateCheckTimer) clearTimeout(duplicateCheckTimer);
+
+    duplicateCheckTimer = setTimeout(() => {
+        const name = document.getElementById('periodName').value;
+        const levelId = document.getElementById('periodGrade').value;
+        const sectionId = document.getElementById('periodSection').value;
+
+        if (name.length < 2) {
+            document.getElementById('duplicateAlert').classList.add('d-none');
+            document.getElementById('quickFillContainer').classList.add('d-none');
+            return;
+        }
+
+        // Check duplicates
+        fetch(`/api/timetable/period/check-duplicate?level_id=${levelId}&section_id=${sectionId}&period_name=${encodeURIComponent(name)}`)
+            .then(r => r.json())
+            .then(data => {
+                const alert = document.getElementById('duplicateAlert');
+                if (data.success && data.is_duplicate) {
+                    alert.classList.remove('d-none');
+                    alert.dataset.existingPeriod = JSON.stringify(data.period);
+                } else {
+                    alert.classList.add('d-none');
+                    fetchSimilarPeriods(name);
+                }
+            });
+    }, 500);
+}
+
+function fetchSimilarPeriods(name) {
+    fetch(`/api/timetable/similar-periods?period_name=${encodeURIComponent(name)}`)
+        .then(r => r.json())
+        .then(data => {
+            const container = document.getElementById('quickFillContainer');
+            const chips = document.getElementById('suggestionChips');
+
+            if (data.success && data.suggestions.length > 0) {
+                container.classList.remove('d-none');
+                chips.innerHTML = data.suggestions.map(s => `
+                    <div class="suggestion-chip" onclick="applySuggestion('${s.start_time}', '${s.end_time}')" 
+                         style="cursor: pointer; background: #e9ecef; padding: 4px 12px; border-radius: 16px; font-size: 0.8rem;">
+                        <i class="bi bi-magic"></i> ${s.start_time}-${s.end_time} (${s.source})
+                    </div>
+                `).join('');
+            } else {
+                container.classList.add('d-none');
+            }
+        });
+}
+
+function applySuggestion(start, end) {
+    document.getElementById('startTime').value = start;
+    document.getElementById('endTime').value = end;
+    showAlert('Timings applied from suggestion', 'success');
+}
+
+function cloneExistingPeriod() {
+    const alert = document.getElementById('duplicateAlert');
+    const existing = JSON.parse(alert.dataset.existingPeriod);
+
+    document.getElementById('startTime').value = existing.start_time;
+    document.getElementById('endTime').value = existing.end_time;
+    alert.classList.add('d-none');
+    showAlert('Timings cloned from existing period', 'success');
+}
+
+function editExistingPeriod() {
+    const alert = document.getElementById('duplicateAlert');
+    const existing = JSON.parse(alert.dataset.existingPeriod);
+
+    document.getElementById('periodModal').dataset.editId = existing.id;
+    document.getElementById('periodNumber').value = existing.period_number;
+    document.getElementById('startTime').value = existing.start_time;
+    document.getElementById('endTime').value = existing.end_time;
+    document.getElementById('periodModalTitle').textContent = 'Edit Period';
+
+    alert.classList.add('d-none');
+    showAlert('Now editing the existing period', 'info');
 }
 
 function deletePeriod(periodId) {
@@ -159,7 +556,10 @@ function deletePeriod(periodId) {
 
     fetch('/api/timetable/period/delete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
         body: JSON.stringify({ school_id: schoolId, period_id: periodId })
     })
         .then(r => r.json())
@@ -257,7 +657,10 @@ function saveDepartmentPermission(department) {
 
     fetch('/api/timetable/department/permission', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
         body: JSON.stringify(data)
     })
         .then(r => r.json())
@@ -410,7 +813,10 @@ function performAdminOverride() {
 
     fetch('/api/timetable/assignment/override', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
         body: JSON.stringify(data)
     })
         .then(r => r.json())

@@ -138,6 +138,19 @@ def get_all_sections():
         logger.error(f"Error fetching all sections: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@hierarchical_bp.route('/sections/<int:section_id>', methods=['DELETE'])
+@check_admin_auth
+def delete_section(section_id):
+    """Delete a section"""
+    try:
+        school_id = session.get('school_id')
+        result = HierarchicalTimetableManager.delete_section(school_id, section_id)
+        return jsonify(result), 200 if result['success'] else 400
+    
+    except Exception as e:
+        logger.error(f"Error deleting section: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # ==================== AVAILABILITY & CONFLICT CHECK ====================
 
 @hierarchical_bp.route('/check-staff-availability', methods=['POST'])

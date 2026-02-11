@@ -340,6 +340,8 @@ def init_db(app):
         CREATE TABLE IF NOT EXISTS timetable_periods (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             school_id INTEGER NOT NULL,
+            level_id INTEGER,
+            section_id INTEGER,
             period_number INTEGER NOT NULL,
             period_name TEXT,
             start_time TIME NOT NULL,
@@ -349,7 +351,9 @@ def init_db(app):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (school_id) REFERENCES schools(id),
-            UNIQUE(school_id, period_number)
+            FOREIGN KEY (level_id) REFERENCES timetable_academic_levels(id),
+            FOREIGN KEY (section_id) REFERENCES timetable_sections(id),
+            UNIQUE(school_id, level_id, section_id, period_number)
         )
         ''')
 
@@ -593,6 +597,10 @@ def init_db(app):
         ensure_column_exists('timetable_assignments', 'subject_name TEXT', 'subject_name')
         ensure_column_exists('timetable_assignments', 'room_number TEXT', 'room_number')
         ensure_column_exists('timetable_assignments', 'assignment_type TEXT CHECK(assignment_type IN ("admin_assigned", "staff_self_allocated", "substitute")) DEFAULT "admin_assigned"', 'assignment_type')
+
+        # Add level_id and section_id to timetable_periods
+        ensure_column_exists('timetable_periods', 'level_id INTEGER', 'level_id')
+        ensure_column_exists('timetable_periods', 'section_id INTEGER', 'section_id')
 
         # Create cloud-related tables
         cursor.execute('''
