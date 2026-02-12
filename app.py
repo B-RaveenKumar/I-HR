@@ -390,7 +390,7 @@ def iclock_cdata():
                         update_values.append(platform)
                     
                     update_fields.append('last_handshake = ?')
-                    update_values.append(datetime.now())
+                    update_values.append(datetime.datetime.now())
                     
                     # Store raw options for debugging
                     if options:
@@ -1540,6 +1540,42 @@ def process_attendance_advanced():
 
     except ValueError:
         return jsonify({'success': False, 'error': 'Invalid timestamp format'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/admin/manage_shifts')
+def manage_shifts():
+    # Redirect to work time assignment as shift management has been moved there
+    return redirect(url_for('work_time_assignment'))
+
+@app.route('/admin/update_shift', methods=['POST'])
+def update_shift():
+    if 'user_id' not in session or session['user_type'] != 'admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+        
+    shift_id = request.form.get('shift_id')
+    start_time = request.form.get('start_time')
+    end_time = request.form.get('end_time')
+    grace_period = request.form.get('grace_period_minutes')
+    description = request.form.get('description')
+    
+    if not all([shift_id, start_time, end_time]):
+        return jsonify({'success': False, 'error': 'Missing required fields'})
+        
+    try:
+        db = get_db()
+        db.execute('''
+            UPDATE shift_definitions 
+            SET start_time = ?, end_time = ?, grace_period_minutes = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+        ''', (start_time, end_time, grace_period, description, shift_id))
+        db.commit()
+        
+        # Reload shift manager
+        if hasattr(app, 'shift_manager'):
+            app.shift_manager.reload_shift_definitions()
+            
+        return jsonify({'success': True, 'message': 'Shift updated successfully'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -5257,7 +5293,23 @@ def work_time_assignment():
         SELECT COUNT(*) as count FROM staff WHERE school_id = ?
     ''', (school_id,)).fetchone()['count']
 
-    return render_template('work_time_assignment.html', total_staff_count=total_staff_count)
+    # Get defined shifts
+    shifts = db.execute('''
+        SELECT * FROM shift_definitions 
+        WHERE is_active = 1
+        ORDER BY id ASC
+    ''').fetchall()
+    
+    # Get institution info for branding
+    institution = db.execute(
+        'SELECT * FROM schools WHERE id = ?',
+        (school_id,)
+    ).fetchone()
+
+    return render_template('work_time_assignment.html', 
+                          total_staff_count=total_staff_count, 
+                          shifts=shifts,
+                          institution=institution)
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
@@ -5991,10 +6043,10 @@ def check_device_verification():
             else:
                 db.execute('''
                     INSERT INTO attendance (staff_id, school_id, date, time_in, status,
-                                          late_duration_minutes, shift_start_time, shift_end_time)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                          late_duration_minutes, shift_type, shift_start_time, shift_end_time)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (staff_id, school_id, today, current_time, attendance_result['status'],
-                      attendance_result['late_duration_minutes'],
+                      attendance_result['late_duration_minutes'], staff_shift_type,
                       attendance_result['shift_start_time'].strftime('%H:%M:%S'),
                       attendance_result['shift_end_time'].strftime('%H:%M:%S')))
 
@@ -6753,11 +6805,33 @@ def calculate_daily_attendance_data(date, attendance_record, shift_def, shift_ty
         day_data['on_duty_type'] = attendance_record['on_duty_type'] if attendance_record['on_duty_type'] else 'Official Work'
         day_data['on_duty_location'] = attendance_record['on_duty_location'] if attendance_record['on_duty_location'] else 'Not specified'
         day_data['on_duty_purpose'] = attendance_record['on_duty_purpose'] if attendance_record['on_duty_purpose'] else 'Official duty'
+    
+    # Handle Holiday status
+    elif attendance_status == 'holiday':
+        day_data['present_status'] = 'Holiday'
+        day_data['holiday_info'] = attendance_record['notes'] if attendance_record['notes'] else 'General Holiday'
+
+    # Handle Present status with Shift Prefix
+    elif attendance_status in ['present', 'late', 'left_soon']:
+        shift_prefix = shift_type.replace('_', ' ').title() + ' Shift'
+        
+        if attendance_status == 'late':
+            day_data['present_status'] = f"{shift_prefix} - Late"
+        elif attendance_status == 'left_soon':
+            day_data['present_status'] = f"{shift_prefix} - Left Early"
+        else:
+            day_data['present_status'] = f"{shift_prefix} - Present"
+    
+    else:
+        day_data['present_status'] = attendance_status.title() if attendance_status else 'Absent'
         return day_data  # Return early for on-duty status
 
     # Staff was present if there's a time_in record
     if attendance_record['time_in']:
-        day_data['present_status'] = 'Present'
+        # Only set to 'Present' if it wasn't already set with shift details
+        if day_data['present_status'] in ['Absent', 'On Duty', 'Holiday']:
+             day_data['present_status'] = 'Present'
+             
         day_data['morning_thumb'] = format_time_to_12hr(attendance_record['time_in'])
 
         # Calculate arrival timing relative to shift start
@@ -9952,7 +10026,8 @@ def get_staff_profile_async_data():
 
         # Get recent detailed attendance records
         attendance_records = db.execute('''
-            SELECT date, time_in, time_out, status, late_minutes, 
+            SELECT date, time_in, time_out, status, late_duration_minutes, 
+                   shift_type, shift_start_time, shift_end_time,
                    work_hours, overtime_hours
             FROM attendance
             WHERE staff_id = ? AND date >= DATE('now', '-30 days')
@@ -12069,8 +12144,12 @@ def update_institution_timings():
                 active_shifts = cursor.fetchall()
                 
                 if active_shifts:
-                    # Update all active shifts to match institution timings
+                    # Update ONLY 'general' shift to match institution timings
+                    # Other shifts (morning, afternoon, etc.) should remain configurable
                     for shift_type, description in active_shifts:
+                        if shift_type != 'general':
+                            continue
+                            
                         # Preserve original description if it exists
                         updated_description = description if description else f"{shift_type.title()} Shift (Institution Timing)"
                         
@@ -12080,10 +12159,8 @@ def update_institution_timings():
                                 description = ?
                             WHERE shift_type = ? AND is_active = 1
                         """, (checkin_time + ':00', checkout_time + ':00', updated_description, shift_type))
-                    
-                    print(f"✅ Synced {len(active_shifts)} active shifts to institution timing: {checkin_time} - {checkout_time}")
-                    for shift_type, _ in active_shifts:
-                        print(f"   - {shift_type} shift updated")
+                        
+                        print(f"✅ Synced 'general' shift to institution timing: {checkin_time} - {checkout_time}")
                 else:
                     # No active shifts found, create general shift
                     db.execute("""

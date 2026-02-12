@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift Management - VishnoRex</title>
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+</head>
+<body>
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Reuse existing sidebar structure or similar -->
+            <!-- For brevity in this tool call, I'll focus on the main content -->
+            <main class="col-12 px-md-4 py-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Shift Management</h1>
+                    <div class="btn-toolbar mb-2 mb-md-0">
+                        <a href="/admin/dashboard" class="btn btn-sm btn-outline-secondary">
+                            <i class="bi bi-arrow-left"></i> Back to Dashboard
+                        </a>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <i class="bi bi-info-circle"></i> 
+                    Manage the four primary shifts: <strong>Morning, Afternoon, Evening, and Night</strong>. 
+                    Setting the Grace Period allows staff to clock in slightly late without being marked "Late".
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header bg-white">
+                        <h5 class="mb-0">Defined Shifts</h5>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-hover mb-0">
+                                <thead class="table-light">
+                                    <tr>
+                                        <th>Shift Name</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
+                                        <th>Grace Period (min)</th>
+                                        <th>Description</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for shift in shifts %}
+                                    <tr id="shift-row-{{ shift.id }}">
+                                        <td><strong>{{ shift.shift_type.title() }}</strong></td>
+                                        <td>{{ shift.start_time }}</td>
+                                        <td>{{ shift.end_time }}</td>
+                                        <td>{{ shift.grace_period_minutes }}</td>
+                                        <td class="text-muted small">{{ shift.description }}</td>
+                                        <td>
+                                            <button class="btn btn-sm btn-outline-primary edit-shift-btn" 
+                                                    data-id="{{ shift.id }}"
+                                                    data-type="{{ shift.shift_type }}"
+                                                    data-start="{{ shift.start_time }}"
+                                                    data-end="{{ shift.end_time }}"
+                                                    data-grace="{{ shift.grace_period_minutes }}"
+                                                    data-desc="{{ shift.description }}"
+                                                    data-bs-toggle="modal" 
+                                                    data-bs-target="#editShiftModal">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Edit Shift Modal -->
+    <div class="modal fade" id="editShiftModal" tabindex="-1" aria-labelledby="editShiftModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <form id="editShiftForm">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="editShiftModalLabel">Edit Shift: <span id="modalShiftName"></span></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <input type="hidden" id="edit_shift_id" name="shift_id">
+                        
+                        <div class="mb-3">
+                            <label for="edit_start_time" class="form-label">Start Time</label>
+                            <input type="time" class="form-control" id="edit_start_time" name="start_time" required step="1">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="edit_end_time" class="form-label">End Time</label>
+                            <input type="time" class="form-control" id="edit_end_time" name="end_time" required step="1">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="edit_grace_period" class="form-label">Grace Period (Minutes)</label>
+                            <input type="number" class="form-control" id="edit_grace_period" name="grace_period_minutes" min="0" max="60" required>
+                            <div class="form-text">Staff can clock in up to this many minutes after start time and still be marked "Present".</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="edit_description" class="form-label">Description</label>
+                            <textarea class="form-control" id="edit_description" name="description" rows="2"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Save Changes</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.querySelectorAll('.edit-shift-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const id = this.dataset.id;
+                const type = this.dataset.type;
+                const start = this.dataset.start;
+                const end = this.dataset.end;
+                const grace = this.dataset.grace;
+                const desc = this.dataset.desc;
+                
+                document.getElementById('edit_shift_id').value = id;
+                document.getElementById('modalShiftName').textContent = type.charAt(0).toUpperCase() + type.slice(1);
+                document.getElementById('edit_start_time').value = start;
+                document.getElementById('edit_end_time').value = end;
+                document.getElementById('edit_grace_period').value = grace;
+                document.getElementById('edit_description').value = desc;
+            });
+        });
+
+        document.getElementById('editShiftForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            
+            fetch('/admin/update_shift', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('Shift updated successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating the shift.');
+            });
+        });
+    </script>
+</body>
+</html>

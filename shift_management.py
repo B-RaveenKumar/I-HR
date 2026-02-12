@@ -131,7 +131,7 @@ class ShiftManager:
         
         start_time = shift_info['start_time']
         end_time = shift_info['end_time']
-        # Note: grace_period is ignored for strict timing rules
+        grace_period_minutes = shift_info.get('grace_period_minutes', 0)
 
         result = {
             'status': 'present',
@@ -142,34 +142,60 @@ class ShiftManager:
             'shift_end_time': end_time
         }
         
-        # STRICT TIMING: Check for late arrival (any time after start_time is late)
-        if check_in_time > start_time:
+        # Calculate late arrival status considering grace period
+        # Convert times to datetime for easier calculation
+        today = datetime.date.today()
+        check_in_dt = datetime.datetime.combine(today, check_in_time)
+        start_dt = datetime.datetime.combine(today, start_time)
+        
+        # Grace cutoff time
+        grace_cutoff_dt = start_dt + datetime.timedelta(minutes=grace_period_minutes)
+        
+        if check_in_dt > grace_cutoff_dt:
+            # LATE: Check-in is after start_time + grace_period
             result['status'] = 'late'
-            # Calculate late duration from shift start time (not grace cutoff)
-            check_in_dt = datetime.datetime.combine(datetime.date.today(), check_in_time)
-            start_dt = datetime.datetime.combine(datetime.date.today(), start_time)
             late_duration = check_in_dt - start_dt
             result['late_duration_minutes'] = int(late_duration.total_seconds() / 60)
             result['requires_regularization'] = True
-
-            print(f"🔍 SHIFT DEBUG: {check_in_time} > {start_time} = LATE ({result['late_duration_minutes']} min)")
+            print(f"🔍 SHIFT DEBUG: {check_in_time} > {grace_cutoff_dt.time()} (Start + {grace_period_minutes}m Grace) = LATE ({result['late_duration_minutes']} min)")
+        elif check_in_dt > start_dt:
+            # PRESENT (within grace period)
+            result['status'] = 'present'
+            late_duration = check_in_dt - start_dt
+            result['late_duration_minutes'] = int(late_duration.total_seconds() / 60)
+            print(f"🔍 SHIFT DEBUG: {check_in_time} is within Grace Period ({grace_period_minutes}m) = PRESENT")
         else:
+            # PRESENT (on time)
             print(f"🔍 SHIFT DEBUG: {check_in_time} <= {start_time} = PRESENT")
 
         # Check for early departure (if check_out_time is provided)
-        if check_out_time and check_out_time < end_time:
-            if result['status'] == 'late':
-                # If already late, don't change status but note early departure
-                pass
-            else:
-                result['status'] = 'left_soon'
+        if check_out_time:
+            check_out_dt = datetime.datetime.combine(today, check_out_time)
+            end_time_dt = datetime.datetime.combine(today, end_time)
+            
+            # Handle Overnight Shift (e.g., 22:00 to 06:00)
+            if end_time < start_time:
+                # If end_time is earlier than start_time, it's on the next day
+                end_time_dt = end_time_dt + datetime.timedelta(days=1)
+                
+                # If check_out is also early in the morning (e.g. 5:00 AM) 
+                # and it was counted as "today" in the combination, we might need to adjust it
+                # Logic: If check_in was late at night (e.g. 23:00) and check_out is 05:00
+                if check_out_time < start_time:
+                    check_out_dt = check_out_dt + datetime.timedelta(days=1)
 
-            # Calculate early departure duration in minutes
-            check_out_dt = datetime.datetime.combine(datetime.date.today(), check_out_time)
-            end_time_dt = datetime.datetime.combine(datetime.date.today(), end_time)
-            early_duration = end_time_dt - check_out_dt
-            result['early_departure_minutes'] = int(early_duration.total_seconds() / 60)
-            result['requires_regularization'] = True
+            if check_out_dt < end_time_dt:
+                if result['status'] == 'late':
+                    # If already late, don't change status but note early departure
+                    pass
+                else:
+                    result['status'] = 'left_soon'
+
+                # Calculate early departure duration in minutes
+                early_duration = end_time_dt - check_out_dt
+                result['early_departure_minutes'] = int(early_duration.total_seconds() / 60)
+                result['requires_regularization'] = True
+                print(f"🔍 SHIFT DEBUG: Early departure detected: {result['early_departure_minutes']} min")
         
         return result
     

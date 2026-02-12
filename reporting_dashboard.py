@@ -64,7 +64,7 @@ class ReportingDashboard:
         
         # Late arrivals details
         late_arrivals = db.execute('''
-            SELECT s.staff_id, s.full_name, s.department, a.time_in, a.late_duration_minutes
+            SELECT s.staff_id, s.full_name, s.department, a.time_in, a.late_duration_minutes, a.shift_type
             FROM staff s
             JOIN attendance a ON s.id = a.staff_id
             WHERE s.school_id = ? AND a.date = ? AND a.status = 'late'

@@ -607,6 +607,7 @@ function populateEditForm(staff) {
                     <select class="form-select" id="editShiftType" name="shift_type">
                         <option value="general" ${staff.shift_type === 'general' ? 'selected' : ''}>General</option>
                         <option value="morning" ${staff.shift_type === 'morning' ? 'selected' : ''}>Morning</option>
+                        <option value="afternoon" ${staff.shift_type === 'afternoon' ? 'selected' : ''}>Afternoon</option>
                         <option value="evening" ${staff.shift_type === 'evening' ? 'selected' : ''}>Evening</option>
                         <option value="night" ${staff.shift_type === 'night' ? 'selected' : ''}>Night</option>
                     </select>

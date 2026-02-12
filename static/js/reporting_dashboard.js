@@ -344,7 +344,7 @@ function displayDailyReport(data, container) {
                         <thead>
                             <tr>
                                 <th>Staff</th>
-                                <th>Department</th>
+                                <th>Shift</th>
                                 <th>Time In</th>
                                 <th>Late By</th>
                             </tr>
@@ -352,10 +352,13 @@ function displayDailyReport(data, container) {
                         <tbody>
                             ${data.late_arrivals.map(late => `
                                 <tr>
-                                    <td>${late.full_name}</td>
-                                    <td>${late.department}</td>
-                                    <td>${late.time_in}</td>
-                                    <td>${late.late_duration_minutes} min</td>
+                                    <td>
+                                        <div class="fw-bold">${late.full_name}</div>
+                                        <small class="text-muted">${late.department}</small>
+                                    </td>
+                                    <td><span class="badge bg-outline-secondary text-dark border">${late.shift_type ? late.shift_type.charAt(0).toUpperCase() + late.shift_type.slice(1) : 'General'}</span></td>
+                                    <td>${late.time_in} <span class="badge bg-warning text-dark">LATE</span></td>
+                                    <td><span class="text-danger fw-bold">${late.late_duration_minutes} min</span></td>
                                 </tr>
                             `).join('')}
                         </tbody>

@@ -299,8 +299,12 @@ class WeeklyAttendanceCalendar {
         let statusClass = 'text-danger'; // Default for absent
         let statusText = dayData.present_status;
 
-        if (dayData.present_status === 'Present') {
+        if (dayData.present_status.includes('Present')) {
             statusClass = 'text-success';
+        } else if (dayData.present_status.includes('Late')) {
+            statusClass = 'text-warning';
+        } else if (dayData.present_status.includes('Left Early')) {
+            statusClass = 'text-info';
         } else if (dayData.present_status === 'On Duty') {
             statusClass = 'text-info';
         } else if (dayData.present_status === 'Holiday') {
@@ -401,8 +405,10 @@ class WeeklyAttendanceCalendar {
             html += `</div>`;
         }
 
-        // Show attendance details only if present (regardless of holiday status)
-        if (dayData.present_status === 'Present') {
+        // Show attendance details only if the status indicates they were present (including late/left early)
+        if (dayData.present_status.includes('Present') || 
+            dayData.present_status.includes('Late') || 
+            dayData.present_status.includes('Left Early')) {
             // Morning thumb timing
             if (dayData.morning_thumb) {
                 html += `<div class="timing-section">`;

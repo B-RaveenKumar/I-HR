@@ -80,12 +80,13 @@ class AdvancedAttendanceManager:
             db.execute('''
                 UPDATE attendance SET 
                     time_in = ?, status = ?, late_duration_minutes = ?,
-                    shift_start_time = ?, shift_end_time = ?
+                    shift_type = ?, shift_start_time = ?, shift_end_time = ?
                 WHERE staff_id = ? AND date = ?
             ''', (
                 time_in.strftime('%H:%M:%S'),
                 attendance_result['status'],
                 attendance_result['late_duration_minutes'],
+                shift_type,
                 attendance_result['shift_start_time'].strftime('%H:%M:%S'),
                 attendance_result['shift_end_time'].strftime('%H:%M:%S'),
                 staff_id, date
@@ -95,13 +96,14 @@ class AdvancedAttendanceManager:
             db.execute('''
                 INSERT INTO attendance (
                     staff_id, school_id, date, time_in, status,
-                    late_duration_minutes, shift_start_time, shift_end_time
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    late_duration_minutes, shift_type, shift_start_time, shift_end_time
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 staff_id, school_id, date,
                 time_in.strftime('%H:%M:%S'),
                 attendance_result['status'],
                 attendance_result['late_duration_minutes'],
+                shift_type,
                 attendance_result['shift_start_time'].strftime('%H:%M:%S'),
                 attendance_result['shift_end_time'].strftime('%H:%M:%S')
             ))
@@ -143,17 +145,17 @@ class AdvancedAttendanceManager:
             work_hours = self._calculate_work_hours(time_in, time_out)
             overtime_hours = max(0, work_hours - self.overtime_threshold_hours)
             
-            # Determine final status
-            shift_end_time = datetime.strptime(existing['shift_end_time'], '%H:%M:%S').time() if existing['shift_end_time'] else time(17, 0)
-            early_departure_minutes = 0
-            
-            if time_out < shift_end_time:
-                early_departure_minutes = int((datetime.combine(date, shift_end_time) - 
-                                             datetime.combine(date, time_out)).total_seconds() / 60)
+            # Determine final status using shift manager for better crossover support
+            attendance_result = self.shift_manager.calculate_attendance_status(
+                shift_type, time_in, time_out
+            )
             
             final_status = existing['status']
-            if early_departure_minutes > 30:  # Left more than 30 minutes early
-                final_status = 'left_soon'
+            if attendance_result['status'] == 'left_soon':
+                if final_status != 'late':  # Don't override late status
+                    final_status = 'left_soon'
+            
+            early_departure_minutes = attendance_result['early_departure_minutes']
         else:
             work_hours = 0
             overtime_hours = 0

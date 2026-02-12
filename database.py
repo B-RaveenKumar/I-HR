@@ -96,6 +96,7 @@ def init_db(app):
             on_duty_purpose TEXT,
             late_duration_minutes INTEGER DEFAULT 0,
             early_departure_minutes INTEGER DEFAULT 0,
+            shift_type TEXT,
             shift_start_time TIME,
             shift_end_time TIME,
             regularization_requested BOOLEAN DEFAULT 0,
@@ -701,8 +702,11 @@ def init_db(app):
             cursor.execute('''
                 INSERT INTO shift_definitions (shift_type, start_time, end_time, grace_period_minutes, description)
                 VALUES
-                ('general', '09:20:00', '16:30:00', 10, 'General Shift: 9:20 AM - 4:30 PM'),
-                ('overtime', '09:20:00', '17:30:00', 10, 'Overtime Shift: 9:20 AM - 5:30 PM')
+                ('general', '09:00:00', '17:00:00', 15, 'General Institution Shift'),
+                ('morning', '06:00:00', '14:00:00', 15, 'Morning Shift: 6:00 AM - 2:00 PM'),
+                ('afternoon', '14:00:00', '22:00:00', 15, 'Afternoon Shift: 2:00 PM - 10:00 PM'),
+                ('evening', '16:00:00', '00:00:00', 15, 'Evening Shift: 4:00 PM - 12:00 AM'),
+                ('night', '22:00:00', '06:00:00', 15, 'Night Shift: 10:00 PM - 6:00 AM')
             ''')
 
         db.commit()

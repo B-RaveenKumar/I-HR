@@ -408,10 +408,11 @@ class ZKBiometricDevice:
                 if not existing_attendance['time_in']:
                     db.execute('''
                         UPDATE attendance SET time_in = ?, status = ?, late_duration_minutes = ?,
-                            shift_start_time = ?, shift_end_time = ?
+                            shift_type = ?, shift_start_time = ?, shift_end_time = ?
                         WHERE staff_id = ? AND date = ?
                     ''', (
                         current_time, status, late_minutes,
+                        shift_type,
                         shift_start.strftime('%H:%M:%S') if shift_start else None,
                         shift_end.strftime('%H:%M:%S') if shift_end else None,
                         staff_db_id, today
@@ -420,11 +421,12 @@ class ZKBiometricDevice:
                 # Create new record including late minutes and shift bounds
                 db.execute('''
                     INSERT INTO attendance (staff_id, school_id, date, time_in, status,
-                                            late_duration_minutes, shift_start_time, shift_end_time)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                                            late_duration_minutes, shift_type, shift_start_time, shift_end_time)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''', (
                     staff_db_id, school_id, today, current_time, status,
                     late_minutes,
+                    shift_type,
                     shift_start.strftime('%H:%M:%S') if shift_start else None,
                     shift_end.strftime('%H:%M:%S') if shift_end else None
                 ))
