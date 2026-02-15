@@ -840,8 +840,8 @@
 
         /* Common leave holidays - Blue/Purple gradient (general leave days) */
         .fc-event.common-leave {
-            background: #0cc6ff;
-            border-color: #ffffff;
+            background: #221e66;
+            border-color: #221e66;
             color: white;
         }
 
@@ -1335,24 +1335,6 @@
                         <div class="row mb-4">
                             <div class="col-md-12">
                                 <div class="holiday-controls">
-                                    <div class="row align-items-center">
-                                        <div class="col-md-6">
-                                            <h6 class="control-title mb-0">
-                                                <i class="bi bi-gear text-primary"></i> Sunday Configuration
-                                            </h6>
-                                            <small class="text-muted">Toggle whether Sundays are treated as working
-                                                days</small>
-                                        </div>
-                                        <div class="col-md-6 text-end">
-                                            <div class="form-check form-switch d-inline-block">
-                                                <input class="form-check-input" type="checkbox" id="sundayWorkingMode"
-                                                    style="width: 3em; height: 1.5em; cursor: pointer;">
-                                                <label class="form-check-label ms-2 fw-bold" for="sundayWorkingMode"
-                                                    id="sundayStatusLabel" style="cursor: pointer;">Sunday: Weekly
-                                                    Off</label>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -2541,17 +2523,6 @@
                 confirmDeleteHoliday();
             });
 
-            // Sunday Working Mode toggle
-            document.getElementById('sundayWorkingMode')?.addEventListener('change', function () {
-                const isWorking = this.checked;
-                const label = document.getElementById('sundayStatusLabel');
-                if (label) {
-                    label.textContent = isWorking ? 'Sunday: Working Mode (ON)' : 'Sunday: Weekly Off (OFF)';
-                    label.className = isWorking ? 'form-check-label ms-2 fw-bold text-success' : 'form-check-label ms-2 fw-bold text-muted';
-                }
-                updateWeeklyOffConfiguration();
-            });
-
             // Month navigation event listeners
             document.getElementById('prevMonthBtn')?.addEventListener('click', function () {
                 navigateMonth(-1);
@@ -3172,18 +3143,10 @@
                         console.log('✅ Weekly off configuration loaded:', weeklyOffDays);
 
                         // Update UI elements
-                        const sundayWorkingMode = document.getElementById('sundayWorkingMode');
-                        const statusLabel = document.getElementById('sundayStatusLabel');
+                        const sundayOffEnabled = document.getElementById('sundayOffEnabled');
 
-                        if (sundayWorkingMode) {
-                            // If 'sunday' is in weekly_off_days, Working Mode is OFF
-                            const isSundayOff = weeklyOffDays.includes('sunday');
-                            sundayWorkingMode.checked = !isSundayOff;
-
-                            if (statusLabel) {
-                                statusLabel.textContent = !isSundayOff ? 'Sunday: Working Mode (ON)' : 'Sunday: Weekly Off (OFF)';
-                                statusLabel.className = !isSundayOff ? 'form-check-label ms-2 fw-bold text-success' : 'form-check-label ms-2 fw-bold text-muted';
-                            }
+                        if (sundayOffEnabled) {
+                            sundayOffEnabled.checked = weeklyOffDays.includes('sunday');
                         }
 
                         // Update global variable
@@ -3210,14 +3173,9 @@
 
         // Set default weekly off configuration
         function setDefaultWeeklyOffConfiguration() {
-            const sundayWorkingMode = document.getElementById('sundayWorkingMode');
-            const statusLabel = document.getElementById('sundayStatusLabel');
-            if (sundayWorkingMode) {
-                sundayWorkingMode.checked = false;  // Default: Sunday is Weekly Off
-                if (statusLabel) {
-                    statusLabel.textContent = 'Sunday: Weekly Off (OFF)';
-                    statusLabel.className = 'form-check-label ms-2 fw-bold text-muted';
-                }
+            const sundayOffEnabled = document.getElementById('sundayOffEnabled');
+            if (sundayOffEnabled) {
+                sundayOffEnabled.checked = false;  // Weekly off disabled
             }
             window.weeklyOffDays = [];
         }
@@ -3225,10 +3183,7 @@
         // Update Weekly Off Configuration
         async function updateWeeklyOffConfiguration() {
             try {
-                const sundayWorkingMode = document.getElementById('sundayWorkingMode')?.checked;
-
-                // If Working Mode is ON, Sunday is NOT a Weekly Off
-                const sundayOffEnabled = !sundayWorkingMode;
+                const sundayOffEnabled = document.getElementById('sundayOffEnabled')?.checked;
 
                 const weeklyOffDays = [];
                 if (sundayOffEnabled) {
