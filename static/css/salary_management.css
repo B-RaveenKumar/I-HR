@@ -2146,7 +2146,7 @@
     margin: 0;
     font-size: 1.1rem;
     font-weight: 600;
-    color: var(--salary-dark);
+    color: #060339(--salary-dark);
 }
 
 .section-title small {
