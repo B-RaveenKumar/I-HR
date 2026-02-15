@@ -611,10 +611,17 @@ function populateEditForm(staff) {
                         <option value="evening" ${staff.shift_type === 'evening' ? 'selected' : ''}>Evening</option>
                         <option value="night" ${staff.shift_type === 'night' ? 'selected' : ''}>Night</option>
                     </select>
-                    <small class="form-text text-muted">
-                        <i class="bi bi-info-circle"></i>
-                        Department default: ${getDepartmentDefaultShift(staff.department) || 'Not set'}
-                    </small>
+                    <div class="mt-1">
+                        <small class="text-info">
+                            <i class="bi bi-info-circle"></i> Note: Shift changes will take effect from tomorrow.
+                        </small>
+                    </div>
+                    <div class="mt-1">
+                        <small class="form-text text-muted">
+                            <i class="bi bi-info-circle"></i>
+                            Department default: ${getDepartmentDefaultShift(staff.department) || 'Not set'}
+                        </small>
+                    </div>
                 </div>
             </div>
             <div class="col-md-6">

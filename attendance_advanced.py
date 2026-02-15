@@ -35,9 +35,26 @@ class AdvancedAttendanceManager:
             today = timestamp.date()
             current_time = timestamp.time()
             
-            # Get staff shift information
-            staff = db.execute('SELECT shift_type FROM staff WHERE id = ?', (staff_id,)).fetchone()
-            shift_type = staff['shift_type'] if staff else 'general'
+            # Get staff shift information with delayed effective date logic
+            staff = db.execute('''
+                SELECT shift_type, next_shift_type, next_shift_effective_date 
+                FROM staff WHERE id = ?
+            ''', (staff_id,)).fetchone()
+            
+            shift_type = 'general'
+            if staff:
+                shift_type = staff['shift_type']
+                
+                # Apply delayed shift change if effective date has arrived
+                if staff['next_shift_type'] and staff['next_shift_effective_date']:
+                    try:
+                        effective_date = datetime.strptime(staff['next_shift_effective_date'], '%Y-%m-%d').date()
+                        if today >= effective_date:
+                            shift_type = staff['next_shift_type']
+                            # Update staff table to permanent change if needed
+                            # Note: We'll handle migration separately or here
+                    except:
+                        pass
             
             # Get existing attendance record
             existing = db.execute('''

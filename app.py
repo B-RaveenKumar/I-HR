@@ -4799,50 +4799,55 @@ def staff_dashboard():
     db = get_db()
     staff_db_id = session['user_id']
 
-    # Get staff information including staff_id
+    # Get staff information including scheduled shift changes
     staff_info = db.execute('''
-        SELECT staff_id, full_name, shift_type FROM staff WHERE id = ?
+        SELECT id, staff_id, full_name, shift_type, next_shift_type, next_shift_effective_date 
+        FROM staff WHERE id = ?
     ''', (staff_db_id,)).fetchone()
 
     if not staff_info:
         return redirect(url_for('index'))
-
-    # Get attendance records for the current month, include entry time and shift type
+    
+    # Resolve current active shift type for TODAY
     today = datetime.date.today()
+    today_str = today.strftime('%Y-%m-%d')
+    active_shift_type = staff_info['shift_type'] or 'general'
+    if (staff_info['next_shift_type'] and 
+        staff_info['next_shift_effective_date'] and 
+        today_str >= staff_info['next_shift_effective_date']):
+        active_shift_type = staff_info['next_shift_type']
+
+    # Get attendance records for the current month
     first_day = today.replace(day=1)
     last_day = (today.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) - datetime.timedelta(days=1)
 
     attendance_records = db.execute('''
-        SELECT a.date, a.time_in, a.time_out, a.status, s.shift_type
+        SELECT a.date, a.time_in, a.time_out, a.status, 
+               COALESCE(a.shift_type, ?) as record_shift_type,
+               a.shift_start_time, a.shift_end_time
         FROM attendance a
-        JOIN staff s ON a.staff_id = s.id
         WHERE a.staff_id = ? AND a.date BETWEEN ? AND ?
         ORDER BY a.date DESC
-    ''', (staff_db_id, first_day, last_day)).fetchall()
+    ''', (active_shift_type, staff_db_id, first_day, last_day)).fetchall()
 
-    # For each record, determine present/late based on shift type
+    # For each record, determine display status
     attendance = []
     for record in attendance_records:
         entry_time = record['time_in']
-        shift_type = record['shift_type']
+        shift_type_name = record['record_shift_type']
         status = record['status']
-        # Attendance logic based on shift type
+        
+        # Display logic
         if entry_time:
-            entry_dt = datetime.datetime.strptime(entry_time, '%H:%M:%S')
-            if shift_type == 'general':
-                cutoff = datetime.time(9, 0)
-            elif shift_type == 'over':
-                cutoff = datetime.time(9, 0)
-            else:
-                cutoff = datetime.time(9, 0)
-            present = entry_dt.time() <= cutoff
-            status_display = 'Present' if present else 'Late'
+            # We trust the status already stored in the database by AdvancedAttendanceManager
+            status_display = status.capitalize() if status else 'Present'
         else:
             status_display = status.capitalize() if status else 'Absent'
+            
         attendance.append({
             'date': record['date'],
             'entry_time': entry_time or '--:--:--',
-            'shift_type': shift_type.capitalize() if shift_type else 'General',
+            'shift_type': shift_type_name.capitalize() if shift_type_name else 'General',
             'status': status_display
         })
 
@@ -6609,9 +6614,9 @@ def get_weekly_attendance():
 
         db = get_db()
 
-        # Get staff information including shift type
+        # Get staff information including shift type and scheduled changes
         staff_info = db.execute('''
-            SELECT id, staff_id, full_name, shift_type
+            SELECT id, staff_id, full_name, shift_type, next_shift_type, next_shift_effective_date
             FROM staff
             WHERE id = ?
         ''', (target_staff_id,)).fetchone()
@@ -6619,21 +6624,14 @@ def get_weekly_attendance():
         if not staff_info:
             return jsonify({'success': False, 'error': 'Staff not found'})
 
-        # Get shift definition for this staff member
-        shift_type = staff_info['shift_type'] or 'general'
-        shift_def = db.execute('''
-            SELECT start_time, end_time, grace_period_minutes
+        # Get all active shift definitions for easier lookup
+        shift_defs_raw = db.execute('''
+            SELECT shift_type, start_time, end_time, grace_period_minutes
             FROM shift_definitions
-            WHERE shift_type = ? AND is_active = 1
-        ''', (shift_type,)).fetchone()
-
-        if not shift_def:
-            # Fallback to general shift
-            shift_def = db.execute('''
-                SELECT start_time, end_time, grace_period_minutes
-                FROM shift_definitions
-                WHERE shift_type = 'general' AND is_active = 1
-            ''').fetchone()
+            WHERE is_active = 1
+        ''').fetchall()
+        
+        all_shift_defs = {sd['shift_type']: sd for sd in shift_defs_raw}
 
         # Get attendance records for the week
         attendance_records = db.execute('''
@@ -6692,6 +6690,18 @@ def get_weekly_attendance():
             date_str = current_date.strftime('%Y-%m-%d')
             day_name = current_date.strftime('%A')
 
+            # Resolve actual shift type for this specific date
+            actual_shift_type = staff_info['shift_type'] or 'general'
+            if (staff_info['next_shift_type'] and 
+                staff_info['next_shift_effective_date'] and 
+                date_str >= staff_info['next_shift_effective_date']):
+                actual_shift_type = staff_info['next_shift_type']
+                
+            # Use defined shift or fallback to general
+            current_shift_def = all_shift_defs.get(actual_shift_type)
+            if not current_shift_def:
+                current_shift_def = all_shift_defs.get('general')
+
             # Find attendance record for this date
             attendance_record = None
             for record in attendance_records:
@@ -6701,7 +6711,7 @@ def get_weekly_attendance():
 
             # Calculate day data
             day_data = calculate_daily_attendance_data(
-                current_date, attendance_record, shift_def, shift_type
+                current_date, attendance_record, current_shift_def, actual_shift_type
             )
             day_data['day_name'] = day_name
             day_data['date'] = date_str
@@ -6757,7 +6767,9 @@ def get_weekly_attendance():
                 'id': staff_info['id'],
                 'staff_id': staff_info['staff_id'],
                 'full_name': staff_info['full_name'],
-                'shift_type': shift_type
+                'shift_type': staff_info['shift_type'] or 'general',
+                'next_shift_type': staff_info['next_shift_type'],
+                'next_shift_effective_date': staff_info['next_shift_effective_date']
             },
             'week_start': week_start,
             'week_end': week_end_date.strftime('%Y-%m-%d'),
@@ -7330,6 +7342,9 @@ def update_staff_enhanced():
         columns = db.execute("PRAGMA table_info(staff)").fetchall()
         column_names = [col['name'] for col in columns]
 
+        # Special handling for shift_type to apply from next day
+        current_staff = db.execute("SELECT shift_type, next_shift_type FROM staff WHERE id = ?", (staff_db_id,)).fetchone()
+        
         update_parts = ['staff_id = ?', 'full_name = ?']
         update_values = [staff_id, full_name]
 
@@ -7363,9 +7378,30 @@ def update_staff_enhanced():
         if 'email' in column_names:
             update_parts.append('email = ?')
             update_values.append(email)
+        
+        # Shift type delayed logic
         if 'shift_type' in column_names:
-            update_parts.append('shift_type = ?')
-            update_values.append(shift_type)
+            if current_staff and current_staff['shift_type'] != shift_type:
+                # If shift is being changed, don't update current shift_type immediately
+                # Instead, set next_shift_type and next_shift_effective_date
+                if 'next_shift_type' in column_names:
+                    update_parts.append('next_shift_type = ?')
+                    update_values.append(shift_type)
+                if 'next_shift_effective_date' in column_names:
+                    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+                    update_parts.append('next_shift_effective_date = ?')
+                    update_values.append(tomorrow)
+                
+                print(f"Shift change detected for staff {staff_db_id}: Scheduled {shift_type} for tomorrow")
+            else:
+                # If it's the same shift, or we don't have current data, update normally (or clear next shift)
+                update_parts.append('shift_type = ?')
+                update_values.append(shift_type)
+                if 'next_shift_type' in column_names:
+                    update_parts.append('next_shift_type = NULL')
+                if 'next_shift_effective_date' in column_names:
+                    update_parts.append('next_shift_effective_date = NULL')
+
         if 'photo_url' in column_names and photo_url:
             update_parts.append('photo_url = ?')
             update_values.append(photo_url)
