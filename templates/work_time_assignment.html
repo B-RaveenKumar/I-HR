@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,7 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
-    
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -21,7 +22,7 @@
             padding: 0;
             margin: 0;
         }
-        
+
         .row {
             margin: 0;
             height: fit-content !important;
@@ -29,35 +30,40 @@
             display: flex;
             flex-wrap: nowrap;
         }
-        
+
         /* Sidebar positioning - Match staff management exactly */
         .enhanced-sidebar {
             position: fixed !important;
             top: 0;
             left: 0;
-            width: 250px; /* Fixed width instead of percentage */
+            width: 250px;
+            /* Fixed width instead of percentage */
             height: 100vh;
             overflow-y: auto;
             overflow-x: hidden;
             z-index: 1000;
-            display: block !important; /* Override inline style */
+            display: block !important;
+            /* Override inline style */
         }
-        
+
         /* Main content positioning - Match staff management */
         .salary-main-content {
-            margin-left: 250px !important; /* Match sidebar width exactly */
-            width: calc(100% - 250px) !important; /* Fill remaining space */
+            margin-left: 250px !important;
+            /* Match sidebar width exactly */
+            width: calc(100% - 250px) !important;
+            /* Fill remaining space */
             min-height: 100vh;
             padding: 2rem 1rem;
             overflow-x: hidden;
         }
-        
+
         /* Remove Bootstrap default spacing that causes issues */
-        .col-md-2, .col-md-10 {
+        .col-md-2,
+        .col-md-10 {
             padding-left: 0;
             padding-right: 0;
         }
-        
+
         /* Mobile responsive fixes - Match staff management */
         @media (max-width: 767.98px) {
             .enhanced-sidebar {
@@ -69,28 +75,30 @@
                 overflow: hidden !important;
                 transition: left 0.3s ease;
                 z-index: 1050;
-                display: none !important; /* Hidden by default on mobile */
+                display: none !important;
+                /* Hidden by default on mobile */
             }
-            
+
             .enhanced-sidebar.show {
                 left: 0;
                 display: block !important;
             }
-            
+
             .salary-main-content {
                 margin-left: 0 !important;
                 width: 100% !important;
                 padding: 1rem 0.5rem;
-                padding-top: 4rem; /* Account for mobile toggle button */
+                padding-top: 4rem;
+                /* Account for mobile toggle button */
             }
-            
+
             .sidebar-toggle {
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
             }
         }
-        
+
         /* Enhanced sidebar toggle styling with intelligent behavior */
         .sidebar-toggle {
             position: fixed;
@@ -106,18 +114,18 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             transition: all 0.3s ease, opacity 0.2s ease-in-out;
             cursor: pointer;
             opacity: 1;
         }
-        
+
         .sidebar-toggle:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
             background: #221e66;
         }
-        
+
         /* Show toggle button on mobile AND tablet/laptop views */
         @media (max-width: 1024px) {
             .sidebar-toggle {
@@ -126,7 +134,7 @@
                 justify-content: center;
             }
         }
-        
+
         /* Hide toggle only on large desktop screens */
         @media (min-width: 1025px) {
             .sidebar-toggle {
@@ -153,7 +161,7 @@
 
         .timing-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
         }
 
         .check-out-card {
@@ -182,7 +190,7 @@
             background: white;
             padding: 2rem;
             border-radius: 0.5rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .form-actions {
@@ -217,11 +225,11 @@
             .timing-cards {
                 flex-direction: column;
             }
-            
+
             .form-actions {
                 flex-direction: column;
             }
-            
+
             .form-actions .btn {
                 width: 100%;
             }
@@ -231,12 +239,12 @@
         .card {
             border: none;
             border-radius: 12px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
             transition: all 0.3s ease;
         }
 
         .card:hover {
-            box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
             transform: translateY(-2px);
         }
 
@@ -256,7 +264,7 @@
             border-radius: 12px;
             padding: 1.5rem;
             margin-bottom: 2rem;
-            border: 1px solid rgba(0,0,0,0.08);
+            border: 1px solid rgba(0, 0, 0, 0.08);
         }
 
         .control-title {
@@ -289,7 +297,7 @@
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
             border-radius: 12px;
             padding: 1.5rem;
-            border: 1px solid rgba(0,0,0,0.08);
+            border: 1px solid rgba(0, 0, 0, 0.08);
         }
 
         .quota-category-title {
@@ -312,14 +320,14 @@
             background: white;
             border-radius: 10px;
             padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             border-left: 4px solid #007bff;
             transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .quota-status-card:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
         }
 
         .quota-card-header {
@@ -383,14 +391,30 @@
         }
 
         /* Quota progress bar colors */
-        .progress-bar-success { background: #221e66; }
-        .progress-bar-warning { background: #221e66; }
-        .progress-bar-danger { background: #221e66; }
+        .progress-bar-success {
+            background: #221e66;
+        }
+
+        .progress-bar-warning {
+            background: #221e66;
+        }
+
+        .progress-bar-danger {
+            background: #221e66;
+        }
 
         /* Card border colors by quota type */
-        .quota-status-card.leave-card { border-left-color: #17a2b8; }
-        .quota-status-card.od-card { border-left-color: #007bff; }
-        .quota-status-card.permission-card { border-left-color: white; }
+        .quota-status-card.leave-card {
+            border-left-color: #17a2b8;
+        }
+
+        .quota-status-card.od-card {
+            border-left-color: #007bff;
+        }
+
+        .quota-status-card.permission-card {
+            border-left-color: white;
+        }
 
         /* Quota Status Container Scrolling */
         .quota-status-container {
@@ -484,14 +508,14 @@
             background: white;
             border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .calendar-container {
             margin-top: 1rem;
             border-radius: 8px;
             overflow: hidden;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
             /* Enable horizontal scrolling */
             overflow-x: auto;
             overflow-y: hidden;
@@ -534,7 +558,7 @@
             right: 0;
             width: 20px;
             height: 100%;
-            background: linear-gradient(to left, rgba(255,255,255,0.8), transparent);
+            background: linear-gradient(to left, rgba(255, 255, 255, 0.8), transparent);
             pointer-events: none;
             z-index: 1;
             opacity: 0;
@@ -576,7 +600,7 @@
             border-radius: 12px;
             margin-top: 1rem;
             border: 1px solid #dee2e6;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
         }
 
         .legend-item {
@@ -589,13 +613,13 @@
             padding: 0.5rem 1rem;
             background: white;
             border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
         }
 
         .legend-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
         }
 
         .legend-color {
@@ -603,7 +627,7 @@
             height: 24px;
             border-radius: 6px;
             border: 2px solid transparent;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
         }
 
         /* Institution-wide holidays - Enhanced Green gradient */
@@ -631,7 +655,7 @@
             background: white;
             border-radius: 12px;
             padding: 1.5rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             height: fit-content;
         }
 
@@ -646,14 +670,14 @@
             border-radius: 8px;
             padding: 1rem;
             margin-bottom: 0.75rem;
-            border: 1px solid rgba(0,0,0,0.08);
+            border: 1px solid rgba(0, 0, 0, 0.08);
             transition: all 0.3s ease;
             position: relative;
         }
 
         .holiday-item:hover {
             transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
         }
 
         .holiday-item.institution-wide {
@@ -724,7 +748,7 @@
         /* Past Holiday Blackout Styles */
         .holiday-item.past-holiday {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            border-color: rgba(0,0,0,0.05);
+            border-color: rgba(0, 0, 0, 0.05);
             opacity: 0.6;
             position: relative;
         }
@@ -780,21 +804,21 @@
             font-weight: 600;
             font-size: 0.85rem;
             border-width: 2px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
             transition: all 0.3s ease;
         }
 
         /* Institution-wide holidays - Green gradient (applies to all staff) */
         .fc-event.institution-wide {
-            background: #221e66;
-            border-color: #221e66;
+            background: #11e257;
+            border-color: #ffffff;
             color: white;
         }
 
         /* Department-specific holidays - Orange gradient (applies to specific departments) */
         .fc-event.department-specific {
-            background: #221e66;
-            border-color: #221e66;
+            background: #eb8909;
+            border-color: #ffffff;
             color: white;
         }
 
@@ -803,12 +827,12 @@
             background-color: rgba(13, 110, 253, 0.05);
             cursor: pointer;
         }
-        
+
         .fc-daygrid-day:hover .fc-daygrid-day-number {
             color: #0d6efd;
             font-weight: 600;
         }
-        
+
         /* Add subtle animation for better UX */
         .fc-daygrid-day {
             transition: background-color 0.2s ease;
@@ -816,8 +840,8 @@
 
         /* Common leave holidays - Blue/Purple gradient (general leave days) */
         .fc-event.common-leave {
-            background: #221e66;
-            border-color: #221e66;
+            background: #0cc6ff;
+            border-color: #ffffff;
             color: white;
         }
 
@@ -826,7 +850,7 @@
         /* Enhanced hover effects with type-specific styling */
         .fc-event.holiday-event:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0,0,0,0.2);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.2);
             transition: all 0.3s ease;
             z-index: 10;
         }
@@ -849,7 +873,7 @@
         #holidayModal .modal-content {
             border-radius: 15px;
             border: none;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
         }
 
         #holidayModal .modal-header {
@@ -864,14 +888,16 @@
             color: #374151;
         }
 
-        #holidayModal .form-control, #holidayModal .form-select {
+        #holidayModal .form-control,
+        #holidayModal .form-select {
             border-radius: 8px;
             border: 1px solid #d1d5db;
             padding: 0.75rem;
             transition: all 0.3s ease;
         }
 
-        #holidayModal .form-control:focus, #holidayModal .form-select:focus {
+        #holidayModal .form-control:focus,
+        #holidayModal .form-select:focus {
             border-color: #6366f1;
             box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
         }
@@ -888,16 +914,17 @@
             .holiday-controls {
                 padding: 1rem;
             }
-            
-            .row .col-md-8, .row .col-md-4 {
+
+            .row .col-md-8,
+            .row .col-md-4 {
                 margin-bottom: 2rem;
             }
-            
+
             .calendar-legend {
                 flex-direction: column;
                 align-items: flex-start;
             }
-            
+
             #holidayCalendar {
                 height: 400px;
                 /* Maintain minimum width on mobile for horizontal scrolling */
@@ -926,6 +953,7 @@
                 opacity: 0;
                 transform: translateY(20px);
             }
+
             to {
                 opacity: 1;
                 transform: translateY(0);
@@ -941,6 +969,7 @@
             from {
                 transform: rotate(0deg);
             }
+
             to {
                 transform: rotate(360deg);
             }
@@ -959,11 +988,13 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
     <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
-    
+
 </head>
+
 <body>
     <!-- Mobile Sidebar Toggle -->
-    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false"
+        aria-controls="enhanced-sidebar">
         <i class="bi bi-list"></i>
     </button>
 
@@ -974,19 +1005,19 @@
                 <div class="sidebar-header">
                     <div class="brand-logo">
                         {% if institution.branding_enabled and institution.logo_path %}
-                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
                         {% else %}
-                            <div class="logo-icon">
-                                <i class="bi bi-clock-history"></i>
-                            </div>
+                        <div class="logo-icon">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
                         {% endif %}
                         <div class="brand-text">
                             {% if institution.branding_enabled and institution.name %}
-                                <h6 class="brand-title">{{ institution.name }}</h6>
-                                <small class="brand-subtitle">Admin Panel</small>
+                            <h6 class="brand-title">{{ institution.name }}</h6>
+                            <small class="brand-subtitle">Admin Panel</small>
                             {% else %}
-                                <h6 class="brand-title">VishnoRex</h6>
-                                <small class="brand-subtitle">Admin Panel</small>
+                            <h6 class="brand-title">VishnoRex</h6>
+                            <small class="brand-subtitle">Admin Panel</small>
                             {% endif %}
                         </div>
                     </div>
@@ -1072,7 +1103,8 @@
                             <span id="currentDate">-</span>
                         </div>
                     </div>
-                    <button type="button" class="logout-btn" onclick="logout()" title="Logout" aria-label="Logout from work time assignment">
+                    <button type="button" class="logout-btn" onclick="logout()" title="Logout"
+                        aria-label="Logout from work time assignment">
                         <i class="bi bi-box-arrow-right"></i>
                         <span>Logout</span>
                     </button>
@@ -1081,7 +1113,7 @@
             <!-- Main content -->
             <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
                 <!-- CSRF Token for AJAX requests -->
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
                 <!-- Enhanced Header -->
                 <div class="salary-header">
@@ -1092,14 +1124,17 @@
                             </div>
                             <div class="title-text">
                                 <h1 class="main-title">Work Time Assignment</h1>
-                                <p class="subtitle">Set and manage default check-in and check-out times for the institution</p>
+                                <p class="subtitle">Set and manage default check-in and check-out times for the
+                                    institution</p>
                             </div>
                         </div>
                         <div class="header-actions">
-                            <button type="button" class="btn btn-outline-primary" id="refreshTimingBtn" title="Refresh timing data">
+                            <button type="button" class="btn btn-outline-primary" id="refreshTimingBtn"
+                                title="Refresh timing data">
                                 <i class="bi bi-arrow-clockwise"></i> Refresh
                             </button>
-                            <button type="button" class="btn btn-success" id="exportTimingBtn" title="Export timing configuration">
+                            <button type="button" class="btn btn-success" id="exportTimingBtn"
+                                title="Export timing configuration">
                                 <i class="bi bi-download"></i> Export
                             </button>
                         </div>
@@ -1154,7 +1189,7 @@
                                     </div>
                                 </div>
                             </div>
-                            
+
                             <!-- Time Configuration Form -->
                             <div class="col-md-6">
                                 <div class="time-config-section">
@@ -1166,30 +1201,38 @@
                                             <label for="institutionCheckinTime" class="form-label">
                                                 <i class="bi bi-sunrise"></i> Institution Check-in Time
                                             </label>
-                                            <input type="time" class="form-control time-picker" id="institutionCheckinTime" name="checkin_time" required>
+                                            <input type="time" class="form-control time-picker"
+                                                id="institutionCheckinTime" name="checkin_time" required>
                                             <div class="form-text">
-                                                <i class="bi bi-info-circle"></i> Default time when staff should check in
+                                                <i class="bi bi-info-circle"></i> Default time when staff should check
+                                                in
                                             </div>
                                         </div>
                                         <div class="mb-4">
                                             <label for="institutionCheckoutTime" class="form-label">
                                                 <i class="bi bi-sunset"></i> Institution Check-out Time
                                             </label>
-                                            <input type="time" class="form-control time-picker" id="institutionCheckoutTime" name="checkout_time" required>
+                                            <input type="time" class="form-control time-picker"
+                                                id="institutionCheckoutTime" name="checkout_time" required>
                                             <div class="form-text">
-                                                <i class="bi bi-info-circle"></i> Default time when staff should check out
+                                                <i class="bi bi-info-circle"></i> Default time when staff should check
+                                                out
                                             </div>
                                         </div>
-                                        <div class="validation-message" id="timeValidationMessage" style="display: none;">
+                                        <div class="validation-message" id="timeValidationMessage"
+                                            style="display: none;">
                                             <div class="alert alert-danger">
-                                                <i class="bi bi-exclamation-triangle"></i> Check-out time must be later than check-in time!
+                                                <i class="bi bi-exclamation-triangle"></i> Check-out time must be later
+                                                than check-in time!
                                             </div>
                                         </div>
                                         <div class="form-actions">
-                                            <button type="submit" class="btn btn-primary btn-save-timing" id="saveTimingBtn">
+                                            <button type="submit" class="btn btn-primary btn-save-timing"
+                                                id="saveTimingBtn">
                                                 <i class="bi bi-check-circle"></i> Save & Update Timings
                                             </button>
-                                            <button type="button" class="btn btn-outline-secondary btn-reset-timing" id="resetTimingBtn">
+                                            <button type="button" class="btn btn-outline-secondary btn-reset-timing"
+                                                id="resetTimingBtn">
                                                 <i class="bi bi-arrow-clockwise"></i> Reset to Default
                                             </button>
                                         </div>
@@ -1204,7 +1247,8 @@
                                 <i class="bi bi-check-circle-fill"></i> Institution timings updated successfully!
                             </div>
                             <div class="alert alert-danger" id="timingErrorMessage" style="display: none;">
-                                <i class="bi bi-exclamation-triangle-fill"></i> <span id="errorMessageText">Failed to update timings. Please try again.</span>
+                                <i class="bi bi-exclamation-triangle-fill"></i> <span id="errorMessageText">Failed to
+                                    update timings. Please try again.</span>
                             </div>
                         </div>
                     </div>
@@ -1218,7 +1262,8 @@
                         </div>
                         <div class="header-content">
                             <h5 class="card-title">Shift Management</h5>
-                            <p class="card-subtitle">Manage the four primary shifts: Morning, Afternoon, Evening, and Night</p>
+                            <p class="card-subtitle">Manage the four primary shifts: Morning, Afternoon, Evening, and
+                                Night</p>
                         </div>
                     </div>
                     <div class="card-body p-0">
@@ -1236,34 +1281,31 @@
                                 </thead>
                                 <tbody>
                                     {% if shifts %}
-                                        {% for shift in shifts %}
-                                        <tr id="shift-row-{{ shift.id }}">
-                                            <td class="ps-4"><strong>{{ shift.shift_type.title() }}</strong></td>
-                                            <td>{{ shift.start_time }}</td>
-                                            <td>{{ shift.end_time }}</td>
-                                            <td>{{ shift.grace_period_minutes }}</td>
-                                            <td class="text-muted small">{{ shift.description }}</td>
-                                            <td class="pe-4">
-                                                <button class="btn btn-sm btn-outline-primary edit-shift-btn" 
-                                                        data-id="{{ shift.id }}"
-                                                        data-type="{{ shift.shift_type }}"
-                                                        data-start="{{ shift.start_time }}"
-                                                        data-end="{{ shift.end_time }}"
-                                                        data-grace="{{ shift.grace_period_minutes }}"
-                                                        data-desc="{{ shift.description }}"
-                                                        data-bs-toggle="modal" 
-                                                        data-bs-target="#editShiftModal">
-                                                    <i class="bi bi-pencil"></i> Edit
-                                                </button>
-                                            </td>
-                                        </tr>
-                                        {% endfor %}
+                                    {% for shift in shifts %}
+                                    <tr id="shift-row-{{ shift.id }}">
+                                        <td class="ps-4"><strong>{{ shift.shift_type.title() }}</strong></td>
+                                        <td>{{ shift.start_time }}</td>
+                                        <td>{{ shift.end_time }}</td>
+                                        <td>{{ shift.grace_period_minutes }}</td>
+                                        <td class="text-muted small">{{ shift.description }}</td>
+                                        <td class="pe-4">
+                                            <button class="btn btn-sm btn-outline-primary edit-shift-btn"
+                                                data-id="{{ shift.id }}" data-type="{{ shift.shift_type }}"
+                                                data-start="{{ shift.start_time }}" data-end="{{ shift.end_time }}"
+                                                data-grace="{{ shift.grace_period_minutes }}"
+                                                data-desc="{{ shift.description }}" data-bs-toggle="modal"
+                                                data-bs-target="#editShiftModal">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </button>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
                                     {% else %}
-                                        <tr>
-                                            <td colspan="6" class="text-center py-4">
-                                                <div class="text-muted">No shifts defined in the database.</div>
-                                            </td>
-                                        </tr>
+                                    <tr>
+                                        <td colspan="6" class="text-center py-4">
+                                            <div class="text-muted">No shifts defined in the database.</div>
+                                        </td>
+                                    </tr>
                                     {% endif %}
                                 </tbody>
                             </table>
@@ -1279,7 +1321,8 @@
                         </div>
                         <div class="header-content">
                             <h5 class="card-title">Holiday Management System</h5>
-                            <p class="card-subtitle">Manage institutional holidays, common leaves, and weekly offs • <i class="bi bi-hand-index"></i> Double-click calendar dates to add holidays</p>
+                            <p class="card-subtitle">Manage institutional holidays, common leaves, and weekly offs • <i
+                                    class="bi bi-hand-index"></i> Double-click calendar dates to add holidays</p>
                         </div>
                         <div class="header-actions">
                             <button type="button" class="btn btn-primary" id="addHolidayBtn">
@@ -1292,6 +1335,24 @@
                         <div class="row mb-4">
                             <div class="col-md-12">
                                 <div class="holiday-controls">
+                                    <div class="row align-items-center">
+                                        <div class="col-md-6">
+                                            <h6 class="control-title mb-0">
+                                                <i class="bi bi-gear text-primary"></i> Sunday Configuration
+                                            </h6>
+                                            <small class="text-muted">Toggle whether Sundays are treated as working
+                                                days</small>
+                                        </div>
+                                        <div class="col-md-6 text-end">
+                                            <div class="form-check form-switch d-inline-block">
+                                                <input class="form-check-input" type="checkbox" id="sundayWorkingMode"
+                                                    style="width: 3em; height: 1.5em; cursor: pointer;">
+                                                <label class="form-check-label ms-2 fw-bold" for="sundayWorkingMode"
+                                                    id="sundayStatusLabel" style="cursor: pointer;">Sunday: Weekly
+                                                    Off</label>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -1332,19 +1393,21 @@
                                         <h6 class="section-title mb-0">
                                             <i class="bi bi-list-check text-success"></i> Holiday List
                                         </h6>
-                                        
+
                                         <!-- Month Navigation Controls -->
                                         <div class="holiday-month-navigation">
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="prevMonthBtn" title="Previous Month">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                id="prevMonthBtn" title="Previous Month">
                                                 <i class="bi bi-chevron-left"></i>
                                             </button>
                                             <span class="mx-2 text-nowrap" id="currentMonthDisplay">Current Month</span>
-                                            <button type="button" class="btn btn-sm btn-outline-secondary" id="nextMonthBtn" title="Next Month">
+                                            <button type="button" class="btn btn-sm btn-outline-secondary"
+                                                id="nextMonthBtn" title="Next Month">
                                                 <i class="bi bi-chevron-right"></i>
                                             </button>
                                         </div>
                                     </div>
-                                    
+
                                     <!-- Loading and Messages -->
                                     <div class="text-center py-3" id="holidaysLoading" style="display: none;">
                                         <div class="spinner-border text-primary" role="status">
@@ -1352,9 +1415,10 @@
                                         </div>
                                         <div class="mt-2">Loading holidays...</div>
                                     </div>
-                                    
+
                                     <div class="alert alert-info" id="noHolidaysMessage" style="display: none;">
-                                        <i class="bi bi-info-circle"></i> No holidays configured for this month. Click "Add Holiday" to get started.
+                                        <i class="bi bi-info-circle"></i> No holidays configured for this month. Click
+                                        "Add Holiday" to get started.
                                     </div>
 
                                     <!-- Holiday Items Container -->
@@ -1368,10 +1432,12 @@
                         <!-- Holiday Success/Error Messages -->
                         <div class="mt-3">
                             <div class="alert alert-success" id="holidaySuccessMessage" style="display: none;">
-                                <i class="bi bi-check-circle-fill"></i> <span id="holidaySuccessText">Holiday operation completed successfully!</span>
+                                <i class="bi bi-check-circle-fill"></i> <span id="holidaySuccessText">Holiday operation
+                                    completed successfully!</span>
                             </div>
                             <div class="alert alert-danger" id="holidayErrorMessage" style="display: none;">
-                                <i class="bi bi-exclamation-triangle-fill"></i> <span id="holidayErrorText">Holiday operation failed. Please try again.</span>
+                                <i class="bi bi-exclamation-triangle-fill"></i> <span id="holidayErrorText">Holiday
+                                    operation failed. Please try again.</span>
                             </div>
                         </div>
                     </div>
@@ -1385,10 +1451,12 @@
                         </div>
                         <div class="header-content">
                             <h5 class="card-title">Leave & Permission Quota Management</h5>
-                            <p class="card-subtitle">Assign and manage leave, on-duty, and permission quotas for staff members</p>
+                            <p class="card-subtitle">Assign and manage leave, on-duty, and permission quotas for staff
+                                members</p>
                         </div>
                         <div class="header-actions">
-                            <select class="form-select me-2" id="quotaYearSelect" style="width: auto; display: inline-block;">
+                            <select class="form-select me-2" id="quotaYearSelect"
+                                style="width: auto; display: inline-block;">
                                 <option value="2024">2024</option>
                                 <option value="2025" selected>2025</option>
                                 <option value="2026">2026</option>
@@ -1414,7 +1482,8 @@
                                     <input type="number" id="bulkQuotaYear" class="form-control" value="2025">
                                 </div>
                                 <div class="col-md-6 text-end">
-                                    <button type="button" class="btn btn-outline-secondary" id="loadDeptCountBtn">Load Dept Count</button>
+                                    <button type="button" class="btn btn-outline-secondary" id="loadDeptCountBtn">Load
+                                        Dept Count</button>
                                     <span id="bulkDeptCount" class="ms-3 text-muted"></span>
                                 </div>
                             </div>
@@ -1442,7 +1511,8 @@
                                 </div>
                                 <div class="col-md-2">
                                     <label class="form-label">Permission Hours</label>
-                                    <input type="number" id="bulkPermissionQuota" class="form-control" min="0" step="0.5" value="0">
+                                    <input type="number" id="bulkPermissionQuota" class="form-control" min="0"
+                                        step="0.5" value="0">
                                 </div>
                             </div>
 
@@ -1450,7 +1520,8 @@
                                 <button type="button" class="btn btn-warning" id="applyBulkQuotaBtn">
                                     <i class="bi bi-upload"></i> Apply to Department
                                 </button>
-                                <small class="text-muted ms-3">This will overwrite quotas for all staff in the selected department for the chosen year.</small>
+                                <small class="text-muted ms-3">This will overwrite quotas for all staff in the selected
+                                    department for the chosen year.</small>
                             </div>
                         </div>
 
@@ -1477,7 +1548,7 @@
                             <h6 class="section-title mb-3">
                                 <i class="bi bi-gear text-primary"></i> Quota Configuration
                             </h6>
-                            
+
                             <!-- Leave Quotas -->
                             <div class="quota-section mb-4">
                                 <h6 class="quota-category-title">
@@ -1489,7 +1560,8 @@
                                             <label for="clQuota" class="form-label">
                                                 Casual Leave (CL) <span class="text-muted">days</span>
                                             </label>
-                                            <input type="number" class="form-control" id="clQuota" min="0" max="365" value="12">
+                                            <input type="number" class="form-control" id="clQuota" min="0" max="365"
+                                                value="12">
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -1497,7 +1569,8 @@
                                             <label for="slQuota" class="form-label">
                                                 Sick Leave (SL) <span class="text-muted">days</span>
                                             </label>
-                                            <input type="number" class="form-control" id="slQuota" min="0" max="365" value="7">
+                                            <input type="number" class="form-control" id="slQuota" min="0" max="365"
+                                                value="7">
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -1505,7 +1578,8 @@
                                             <label for="elQuota" class="form-label">
                                                 Earned Leave (EL) <span class="text-muted">days</span>
                                             </label>
-                                            <input type="number" class="form-control" id="elQuota" min="0" max="365" value="21">
+                                            <input type="number" class="form-control" id="elQuota" min="0" max="365"
+                                                value="21">
                                         </div>
                                     </div>
                                     <div class="col-md-3">
@@ -1513,7 +1587,8 @@
                                             <label for="mlQuota" class="form-label">
                                                 Maternity Leave (ML) <span class="text-muted">days</span>
                                             </label>
-                                            <input type="number" class="form-control" id="mlQuota" min="0" max="365" value="180">
+                                            <input type="number" class="form-control" id="mlQuota" min="0" max="365"
+                                                value="180">
                                         </div>
                                     </div>
                                 </div>
@@ -1530,7 +1605,8 @@
                                             <label for="odQuota" class="form-label">
                                                 On Duty Days <span class="text-muted">days</span>
                                             </label>
-                                            <input type="number" class="form-control" id="odQuota" min="0" max="365" value="10">
+                                            <input type="number" class="form-control" id="odQuota" min="0" max="365"
+                                                value="10">
                                         </div>
                                     </div>
                                 </div>
@@ -1547,7 +1623,8 @@
                                             <label for="permissionQuota" class="form-label">
                                                 Permission Hours <span class="text-muted">hours</span>
                                             </label>
-                                            <input type="number" class="form-control" id="permissionQuota" min="0" max="500" step="0.5" value="15">
+                                            <input type="number" class="form-control" id="permissionQuota" min="0"
+                                                max="500" step="0.5" value="15">
                                         </div>
                                     </div>
                                 </div>
@@ -1582,29 +1659,34 @@
                         <!-- Messages -->
                         <div class="quota-messages mt-3">
                             <div class="alert alert-success" id="quotaSuccessMessage" style="display: none;">
-                                <i class="bi bi-check-circle-fill"></i> <span id="quotaSuccessText">Quota operation completed successfully!</span>
+                                <i class="bi bi-check-circle-fill"></i> <span id="quotaSuccessText">Quota operation
+                                    completed successfully!</span>
                             </div>
                             <div class="alert alert-danger" id="quotaErrorMessage" style="display: none;">
-                                <i class="bi bi-exclamation-triangle-fill"></i> <span id="quotaErrorText">Quota operation failed. Please try again.</span>
+                                <i class="bi bi-exclamation-triangle-fill"></i> <span id="quotaErrorText">Quota
+                                    operation failed. Please try again.</span>
                             </div>
                             <div class="alert alert-info" id="quotaInfoMessage" style="display: none;">
-                                <i class="bi bi-info-circle-fill"></i> <span id="quotaInfoText">Please select a staff member to manage their quotas.</span>
+                                <i class="bi bi-info-circle-fill"></i> <span id="quotaInfoText">Please select a staff
+                                    member to manage their quotas.</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Holiday Management Modals -->
-                
+
                 <!-- Add/Edit Holiday Modal -->
-                <div class="modal fade" id="holidayModal" tabindex="-1" aria-labelledby="holidayModalLabel" aria-hidden="true">
+                <div class="modal fade" id="holidayModal" tabindex="-1" aria-labelledby="holidayModalLabel"
+                    aria-hidden="true">
                     <div class="modal-dialog modal-lg">
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title" id="holidayModalLabel">
                                     <i class="bi bi-calendar-plus"></i> Add Holiday
                                 </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
                                 <form id="holidayForm">
@@ -1612,32 +1694,37 @@
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="holidayName" class="form-label">Holiday Name *</label>
-                                                <input type="text" class="form-control" id="holidayName" name="holiday_name" required>
+                                                <input type="text" class="form-control" id="holidayName"
+                                                    name="holiday_name" required>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="holidayType" class="form-label">Holiday Type *</label>
-                                                <select class="form-select" id="holidayType" name="holiday_type" required>
+                                                <select class="form-select" id="holidayType" name="holiday_type"
+                                                    required>
                                                     <option value="institution_wide">Institution-wide Holiday</option>
-                                                    <option value="department_specific">Department-specific Holiday</option>
+                                                    <option value="department_specific">Department-specific Holiday
+                                                    </option>
                                                     <option value="common_leave">Common Leave Day</option>
                                                 </select>
                                             </div>
                                         </div>
                                     </div>
-                                    
+
                                     <div class="row">
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="startDate" class="form-label">Start Date *</label>
-                                                <input type="date" class="form-control" id="startDate" name="start_date" required>
+                                                <input type="date" class="form-control" id="startDate" name="start_date"
+                                                    required>
                                             </div>
                                         </div>
                                         <div class="col-md-6">
                                             <div class="mb-3">
                                                 <label for="endDate" class="form-label">End Date *</label>
-                                                <input type="date" class="form-control" id="endDate" name="end_date" required>
+                                                <input type="date" class="form-control" id="endDate" name="end_date"
+                                                    required>
                                             </div>
                                         </div>
                                     </div>
@@ -1645,21 +1732,25 @@
                                     <!-- Department Selection (for department-specific holidays) -->
                                     <div class="mb-3" id="departmentsSection" style="display: none;">
                                         <label for="departments" class="form-label">Select Departments *</label>
-                                        <select class="form-select" id="departments" name="departments" multiple size="4">
+                                        <select class="form-select" id="departments" name="departments" multiple
+                                            size="4">
                                             <!-- Department options will be populated via JavaScript -->
                                         </select>
-                                        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple departments</small>
+                                        <small class="form-text text-muted">Hold Ctrl/Cmd to select multiple
+                                            departments</small>
                                     </div>
 
                                     <div class="mb-3">
                                         <label for="description" class="form-label">Description</label>
-                                        <textarea class="form-control" id="description" name="description" rows="3" placeholder="Optional description for this holiday"></textarea>
+                                        <textarea class="form-control" id="description" name="description" rows="3"
+                                            placeholder="Optional description for this holiday"></textarea>
                                     </div>
 
                                     <!-- Recurring Holiday Options -->
                                     <div class="mb-3">
                                         <div class="form-check">
-                                            <input class="form-check-input" type="checkbox" id="isRecurring" name="is_recurring">
+                                            <input class="form-check-input" type="checkbox" id="isRecurring"
+                                                name="is_recurring">
                                             <label class="form-check-label" for="isRecurring">
                                                 Recurring Holiday (appears every year)
                                             </label>
@@ -1678,7 +1769,8 @@
                                     <!-- Salary Impact Notice -->
                                     <div class="alert alert-info">
                                         <i class="bi bi-info-circle"></i>
-                                        <strong>Salary Impact:</strong> Staff salaries will NOT be deducted for days marked as holidays or common leave.
+                                        <strong>Salary Impact:</strong> Staff salaries will NOT be deducted for days
+                                        marked as holidays or common leave.
                                     </div>
                                 </form>
                             </div>
@@ -1693,20 +1785,24 @@
                 </div>
 
                 <!-- Delete Holiday Confirmation Modal -->
-                <div class="modal fade" id="deleteHolidayModal" tabindex="-1" aria-labelledby="deleteHolidayModalLabel" aria-hidden="true">
+                <div class="modal fade" id="deleteHolidayModal" tabindex="-1" aria-labelledby="deleteHolidayModalLabel"
+                    aria-hidden="true">
                     <div class="modal-dialog">
                         <div class="modal-content">
                             <div class="modal-header">
                                 <h5 class="modal-title" id="deleteHolidayModalLabel">
                                     <i class="bi bi-exclamation-triangle text-danger"></i> Delete Holiday
                                 </h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
                             </div>
                             <div class="modal-body">
-                                <p>Are you sure you want to delete the holiday "<strong id="deleteHolidayName"></strong>"?</p>
+                                <p>Are you sure you want to delete the holiday "<strong
+                                        id="deleteHolidayName"></strong>"?</p>
                                 <div class="alert alert-warning">
                                     <i class="bi bi-exclamation-triangle"></i>
-                                    <strong>Warning:</strong> This action cannot be undone. The holiday will be removed from all staff calendars and attendance calculations.
+                                    <strong>Warning:</strong> This action cannot be undone. The holiday will be removed
+                                    from all staff calendars and attendance calculations.
                                 </div>
                             </div>
                             <div class="modal-footer">
@@ -1720,48 +1816,61 @@
                 </div>
 
                 <!-- Edit Shift Modal -->
-                <div class="modal fade" id="editShiftModal" tabindex="-1" aria-labelledby="editShiftModalLabel" aria-hidden="true">
+                <div class="modal fade" id="editShiftModal" tabindex="-1" aria-labelledby="editShiftModalLabel"
+                    aria-hidden="true">
                     <div class="modal-dialog modal-dialog-centered">
                         <div class="modal-content border-0 shadow-lg">
                             <form id="editShiftForm">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                 <div class="modal-header bg-primary text-white border-0">
                                     <h5 class="modal-title" id="editShiftModalLabel">
-                                        <i class="bi bi-clock-fill me-2"></i> Edit Shift: <span id="modalShiftName"></span>
+                                        <i class="bi bi-clock-fill me-2"></i> Edit Shift: <span
+                                            id="modalShiftName"></span>
                                     </h5>
-                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
                                 </div>
                                 <div class="modal-body p-4">
                                     <input type="hidden" id="edit_shift_id" name="shift_id">
-                                    
+
                                     <div class="mb-3">
-                                        <label for="edit_start_time" class="form-label font-weight-bold">Start Time</label>
-                                        <input type="time" class="form-control form-control-lg" id="edit_start_time" name="start_time" required step="1">
+                                        <label for="edit_start_time" class="form-label font-weight-bold">Start
+                                            Time</label>
+                                        <input type="time" class="form-control form-control-lg" id="edit_start_time"
+                                            name="start_time" required step="1">
                                     </div>
-                                    
+
                                     <div class="mb-3">
                                         <label for="edit_end_time" class="form-label font-weight-bold">End Time</label>
-                                        <input type="time" class="form-control form-control-lg" id="edit_end_time" name="end_time" required step="1">
+                                        <input type="time" class="form-control form-control-lg" id="edit_end_time"
+                                            name="end_time" required step="1">
                                     </div>
-                                    
+
                                     <div class="mb-3">
-                                        <label for="edit_grace_period" class="form-label font-weight-bold">Grace Period (Minutes)</label>
+                                        <label for="edit_grace_period" class="form-label font-weight-bold">Grace Period
+                                            (Minutes)</label>
                                         <div class="input-group">
-                                            <input type="number" class="form-control form-control-lg" id="edit_grace_period" name="grace_period_minutes" min="0" max="60" required>
+                                            <input type="number" class="form-control form-control-lg"
+                                                id="edit_grace_period" name="grace_period_minutes" min="0" max="60"
+                                                required>
                                             <span class="input-group-text">min</span>
                                         </div>
                                         <div class="form-text mt-2">
-                                            <i class="bi bi-info-circle-fill text-info me-1"></i> Staff can clock in up to this many minutes after start time and still be marked "Present".
+                                            <i class="bi bi-info-circle-fill text-info me-1"></i> Staff can clock in up
+                                            to this many minutes after start time and still be marked "Present".
                                         </div>
                                     </div>
-                                    
+
                                     <div class="mb-0">
-                                        <label for="edit_description" class="form-label font-weight-bold">Description</label>
-                                        <textarea class="form-control" id="edit_description" name="description" rows="2" placeholder="e.g., Standard Morning Shift timing"></textarea>
+                                        <label for="edit_description"
+                                            class="form-label font-weight-bold">Description</label>
+                                        <textarea class="form-control" id="edit_description" name="description" rows="2"
+                                            placeholder="e.g., Standard Morning Shift timing"></textarea>
                                     </div>
                                 </div>
                                 <div class="modal-footer border-0 bg-light p-3">
-                                    <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancel</button>
+                                    <button type="button" class="btn btn-outline-secondary px-4"
+                                        data-bs-dismiss="modal">Cancel</button>
                                     <button type="submit" class="btn btn-primary px-4">
                                         <i class="bi bi-check-circle me-2"></i> Save Changes
                                     </button>
@@ -1780,43 +1889,43 @@
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@5.11.3/main.min.js"></script>
     <script>
         // Enhanced sidebar functionality matching staff management
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             console.log('🔧 WORK TIME ASSIGNMENT: Fixed sidebar initialization...');
-            
+
             // Enhanced sidebar toggle functionality with intelligent hiding
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidebar = document.getElementById('enhanced-sidebar');
             let sidebarVisible = false;
-            
+
             // Intelligent toggle sidebar function
             function toggleSidebar() {
                 if (sidebarVisible) {
                     // Hide sidebar
                     sidebar.classList.remove('show');
                     sidebarVisible = false;
-                    
+
                     // Update toggle button icon and make it reappear
                     sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
                     sidebarToggle.setAttribute('aria-expanded', 'false');
                     sidebarToggle.setAttribute('title', 'Show sidebar menu');
-                    
+
                     // Intelligent button reappearing - show toggle button when sidebar closes
                     setTimeout(() => {
                         sidebarToggle.style.display = 'flex';
                         sidebarToggle.style.opacity = '1';
                     }, 100);
-                    
+
                     console.log('✅ Work Time Assignment - Sidebar hidden with intelligent toggle');
                 } else {
                     // Show sidebar
                     sidebar.classList.add('show');
                     sidebarVisible = true;
-                    
+
                     // Update toggle button icon
                     sidebarToggle.innerHTML = '<i class="bi bi-x"></i>';
                     sidebarToggle.setAttribute('aria-expanded', 'true');
                     sidebarToggle.setAttribute('title', 'Hide sidebar menu');
-                    
+
                     // Intelligent button hiding - hide toggle button when sidebar opens for clean UI
                     setTimeout(() => {
                         sidebarToggle.style.opacity = '0';
@@ -1824,49 +1933,49 @@
                             sidebarToggle.style.display = 'none';
                         }, 200);
                     }, 500);
-                    
+
                     console.log('✅ Work Time Assignment - Sidebar shown with intelligent toggle');
                 }
             }
-            
+
             if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function() {
+                sidebarToggle.addEventListener('click', function () {
                     console.log('🔄 WORK TIME ASSIGNMENT - Intelligent toggle clicked!');
-                    
+
                     if (window.innerWidth <= 1024) {
                         toggleSidebar();
                     }
                 });
 
                 // Close sidebar when clicking outside on mobile/tablet/laptop
-                document.addEventListener('click', function(event) {
+                document.addEventListener('click', function (event) {
                     if (window.innerWidth <= 1024 && sidebarVisible) {
                         const isClickInsideSidebar = sidebar.contains(event.target);
                         const isClickOnToggle = sidebarToggle.contains(event.target);
-                        
+
                         if (!isClickInsideSidebar && !isClickOnToggle) {
                             // Close sidebar and intelligently show toggle button
                             sidebar.classList.remove('show');
                             sidebarVisible = false;
-                            
+
                             // Update toggle button and make it reappear
                             sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
                             sidebarToggle.setAttribute('aria-expanded', 'false');
                             sidebarToggle.setAttribute('title', 'Show sidebar menu');
-                            
+
                             // Intelligent button reappearing
                             setTimeout(() => {
                                 sidebarToggle.style.display = 'flex';
                                 sidebarToggle.style.opacity = '1';
                             }, 100);
-                            
+
                             console.log('Work Time Assignment - Sidebar closed by outside click with intelligent toggle');
                         }
                     }
                 });
 
                 // Handle window resize
-                window.addEventListener('resize', function() {
+                window.addEventListener('resize', function () {
                     if (window.innerWidth > 1024) {
                         // Desktop: reset sidebar and toggle button state
                         sidebar.classList.remove('show');
@@ -1874,11 +1983,11 @@
                         sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
                         sidebarToggle.setAttribute('aria-expanded', 'false');
                         sidebarToggle.setAttribute('title', 'Toggle sidebar menu');
-                        
+
                         // Reset toggle button visibility for desktop
                         sidebarToggle.style.display = 'none';
                         sidebarToggle.style.opacity = '0';
-                        
+
                         console.log('Work Time Assignment - Desktop mode: sidebar fixed, toggle hidden');
                     } else {
                         // Mobile/Tablet/Laptop: ensure toggle button is visible when sidebar is closed
@@ -1886,11 +1995,11 @@
                             sidebarToggle.style.display = 'flex';
                             sidebarToggle.style.opacity = '1';
                         }
-                        
+
                         console.log('Work Time Assignment - Mobile/Tablet mode: toggle visible');
                     }
                 });
-                
+
                 // Initial state based on screen size
                 if (window.innerWidth <= 1024) {
                     sidebarVisible = false;
@@ -1909,10 +2018,10 @@
             const currentDateElement = document.getElementById('currentDate');
             if (currentDateElement) {
                 const today = new Date();
-                const dateStr = today.toLocaleDateString('en-GB', { 
-                    day: '2-digit', 
-                    month: 'short', 
-                    year: 'numeric' 
+                const dateStr = today.toLocaleDateString('en-GB', {
+                    day: '2-digit',
+                    month: 'short',
+                    year: 'numeric'
                 });
                 currentDateElement.textContent = dateStr;
             }
@@ -1932,9 +2041,9 @@
                         console.error('Error fetching staff count:', error);
                     });
             }
-            
+
             console.log('✅ WORK TIME ASSIGNMENT fixed sidebar initialized successfully');
-            
+
             // Load current institution timings on page load
             loadCurrentTimings();
         });
@@ -1984,15 +2093,15 @@
                 method: 'GET',
                 credentials: 'same-origin'
             })
-            .then(response => response.json())
-            .then(data => {
-                console.log('Session status:', data);
-                return data.success && data.session_data.has_session;
-            })
-            .catch(error => {
-                console.error('Error checking session:', error);
-                return false;
-            });
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Session status:', data);
+                    return data.success && data.session_data.has_session;
+                })
+                .catch(error => {
+                    console.error('Error checking session:', error);
+                    return false;
+                });
         }
 
         // Helper function to test timing synchronization
@@ -2001,22 +2110,22 @@
                 method: 'GET',
                 credentials: 'same-origin'
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    console.log('✅ Timing Sync Test Results:', data.sync_check);
-                    if (data.sync_check.systems_synced) {
-                        console.log('✅ All systems are synchronized with institution timings');
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        console.log('✅ Timing Sync Test Results:', data.sync_check);
+                        if (data.sync_check.systems_synced) {
+                            console.log('✅ All systems are synchronized with institution timings');
+                        } else {
+                            console.warn('⚠️ Systems may not be fully synchronized');
+                        }
                     } else {
-                        console.warn('⚠️ Systems may not be fully synchronized');
+                        console.error('❌ Sync test failed:', data.error);
                     }
-                } else {
-                    console.error('❌ Sync test failed:', data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error testing sync:', error);
-            });
+                })
+                .catch(error => {
+                    console.error('Error testing sync:', error);
+                });
         }
 
         // Function to load current timings from API
@@ -2028,33 +2137,33 @@
                 },
                 credentials: 'same-origin'  // Include session cookies
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error('Network response was not ok');
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    const checkinTime = data.checkin_time || '09:00';
-                    const checkoutTime = data.checkout_time || '17:00';
-                    
-                    // Update form inputs
-                    document.getElementById('institutionCheckinTime').value = checkinTime;
-                    document.getElementById('institutionCheckoutTime').value = checkoutTime;
-                    
-                    // Update display cards
-                    document.getElementById('currentCheckinTime').textContent = convertTo12Hour(checkinTime);
-                    document.getElementById('currentCheckoutTime').textContent = convertTo12Hour(checkoutTime);
-                } else {
-                    console.error('API returned error:', data.message);
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        const checkinTime = data.checkin_time || '09:00';
+                        const checkoutTime = data.checkout_time || '17:00';
+
+                        // Update form inputs
+                        document.getElementById('institutionCheckinTime').value = checkinTime;
+                        document.getElementById('institutionCheckoutTime').value = checkoutTime;
+
+                        // Update display cards
+                        document.getElementById('currentCheckinTime').textContent = convertTo12Hour(checkinTime);
+                        document.getElementById('currentCheckoutTime').textContent = convertTo12Hour(checkoutTime);
+                    } else {
+                        console.error('API returned error:', data.message);
+                        setDefaultTimings();
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading timings:', error);
                     setDefaultTimings();
-                }
-            })
-            .catch(error => {
-                console.error('Error loading timings:', error);
-                setDefaultTimings();
-            });
+                });
         }
 
         // Helper function to set default timings
@@ -2066,12 +2175,12 @@
         }
 
         // Work time form functionality
-        document.getElementById('workTimeForm').addEventListener('submit', async function(e) {
+        document.getElementById('workTimeForm').addEventListener('submit', async function (e) {
             e.preventDefault();
-            
+
             const checkinTime = document.getElementById('institutionCheckinTime').value;
             const checkoutTime = document.getElementById('institutionCheckoutTime').value;
-            
+
             // Validate times
             if (checkinTime >= checkoutTime) {
                 document.getElementById('timeValidationMessage').style.display = 'block';
@@ -2079,7 +2188,7 @@
             } else {
                 document.getElementById('timeValidationMessage').style.display = 'none';
             }
-            
+
             // Show loading state
             const saveBtn = document.getElementById('saveTimingBtn');
             const originalText = saveBtn.innerHTML;
@@ -2100,7 +2209,7 @@
                 const formData = new FormData();
                 formData.append('checkin_time', checkinTime);
                 formData.append('checkout_time', checkoutTime);
-                
+
                 // Add CSRF token if available
                 const csrfToken = getCSRFToken();
                 if (csrfToken) {
@@ -2116,7 +2225,7 @@
 
                 console.log('Response status:', response.status);
                 console.log('Response headers:', response.headers);
-                
+
                 if (!response.ok) {
                     if (response.status === 403) {
                         throw new Error('Unauthorized: Please log in as admin');
@@ -2135,10 +2244,10 @@
                     // Update display times
                     const checkinDisplay = convertTo12Hour(checkinTime);
                     const checkoutDisplay = convertTo12Hour(checkoutTime);
-                    
+
                     document.getElementById('currentCheckinTime').textContent = checkinDisplay;
                     document.getElementById('currentCheckoutTime').textContent = checkoutDisplay;
-                    
+
                     // Show enhanced success message with sync confirmation
                     const successMsg = document.getElementById('timingSuccessMessage');
                     successMsg.innerHTML = `
@@ -2157,12 +2266,12 @@
                         </div>
                     `;
                     successMsg.style.display = 'block';
-                    
+
                     // Auto-hide success message after 8 seconds
                     setTimeout(() => {
                         successMsg.style.display = 'none';
                     }, 8000);
-                    
+
                     // Test sync after a short delay
                     setTimeout(() => {
                         testTimingSync();
@@ -2173,14 +2282,14 @@
                     alert('Failed to update timings: ' + errorMsg);
                     console.error('API Error:', data);
                 }
-                
+
             } catch (error) {
                 console.error('Error updating timings:', error);
-                
+
                 // More specific error handling with debugging info
                 let errorMessage = 'Network error. Please try again.';
                 console.log('Full error details:', error);
-                
+
                 if (error.message.includes('Unauthorized')) {
                     errorMessage = 'Please log in as admin to update institution timings.';
                 } else if (error.message.includes('Bad request')) {
@@ -2192,7 +2301,7 @@
                 } else if (error.name === 'TypeError') {
                     errorMessage = 'Request failed. Please ensure you are logged in as admin.';
                 }
-                
+
                 alert(errorMessage + '\n\nTechnical details: ' + error.message);
             } finally {
                 // Reset button
@@ -2200,9 +2309,9 @@
                 saveBtn.disabled = false;
             }
         });
-        
+
         // Reset form
-        document.getElementById('resetTimingBtn').addEventListener('click', function() {
+        document.getElementById('resetTimingBtn').addEventListener('click', function () {
             if (confirm('Are you sure you want to reset to current saved timings?')) {
                 loadCurrentTimings();
                 document.getElementById('timeValidationMessage').style.display = 'none';
@@ -2210,18 +2319,18 @@
         });
 
         // Header action buttons
-        document.getElementById('refreshTimingBtn').addEventListener('click', function() {
+        document.getElementById('refreshTimingBtn').addEventListener('click', function () {
             loadCurrentTimings();
         });
 
-        document.getElementById('exportTimingBtn').addEventListener('click', function() {
+        document.getElementById('exportTimingBtn').addEventListener('click', function () {
             // Simulate export functionality
             const data = {
                 checkin_time: document.getElementById('currentCheckinTime').textContent,
                 checkout_time: document.getElementById('currentCheckoutTime').textContent,
                 export_date: new Date().toISOString()
             };
-            
+
             const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -2232,7 +2341,7 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
         });
-        
+
         // Convert 24-hour to 12-hour format
         function convertTo12Hour(time24) {
             const [hour, minute] = time24.split(':');
@@ -2240,7 +2349,7 @@
             const ampm = hour < 12 ? 'AM' : 'PM';
             return `${hour12}:${minute} ${ampm}`;
         }
-        
+
         // Logout function
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
@@ -2259,7 +2368,7 @@
         let currentViewMonth = new Date(); // Current month being viewed
         let editingHolidayId = null;
         let weeklyOffDays = []; // Weekly off disabled
-        
+
         // Double-click detection variables
         let lastClickedDate = null;
         let lastClickTime = 0;
@@ -2272,21 +2381,21 @@
             try {
                 // Initialize holiday calendar
                 initializeHolidayCalendar();
-                
+
                 // Setup event listeners
                 setupHolidayEventListeners();
-                
+
                 // Initialize month navigation
                 initializeMonthNavigation();
-                
+
                 // Load existing holidays
                 loadHolidays();
-                
+
                 // Load departments for dropdown
                 loadDepartments();
-                
+
                 // Weekly off configuration disabled per requirements
-                
+
                 console.log('✅ Holiday Management System initialized successfully');
             } catch (error) {
                 console.error('❌ Error initializing Holiday Management:', error);
@@ -2297,7 +2406,7 @@
         // Initialize FullCalendar for Holiday Management
         function initializeHolidayCalendar() {
             const calendarEl = document.getElementById('holidayCalendar');
-            
+
             if (!calendarEl) {
                 console.warn('⚠️ Holiday calendar element not found');
                 return;
@@ -2317,7 +2426,7 @@
                 aspectRatio: 1.35,
                 // Handle window resize for better scrolling experience
                 windowResizeDelay: 100,
-                events: function(fetchInfo, successCallback, failureCallback) {
+                events: function (fetchInfo, successCallback, failureCallback) {
                     try {
                         // Convert ALL holidays to calendar events (not just current month filter)
                         const holidayEvents = allHolidays.map(holiday => ({
@@ -2347,14 +2456,14 @@
                         failureCallback(error);
                     }
                 },
-                eventClick: function(info) {
+                eventClick: function (info) {
                     showHolidayDetails(info.event);
                 },
-                dateClick: function(info) {
+                dateClick: function (info) {
                     // Handle double-click to add holiday
                     handleCalendarDateClick(info);
                 },
-                eventDidMount: function(info) {
+                eventDidMount: function (info) {
                     // Enhanced tooltips with color coding information
                     const eventType = info.event.extendedProps.event_type;
                     let tooltip = `${info.event.title}\n`;
@@ -2363,7 +2472,7 @@
                         const holidayType = info.event.extendedProps.holiday_type;
                         let typeDescription = '';
 
-                        switch(holidayType) {
+                        switch (holidayType) {
                             case 'institution_wide':
                                 typeDescription = 'Institution-wide Holiday (Green) - Applies to all staff';
                                 break;
@@ -2406,38 +2515,49 @@
         // Setup Holiday Management Event Listeners
         function setupHolidayEventListeners() {
             // Add Holiday button
-            document.getElementById('addHolidayBtn')?.addEventListener('click', function() {
+            document.getElementById('addHolidayBtn')?.addEventListener('click', function () {
                 openHolidayModal();
             });
 
             // Holiday type change event
-            document.getElementById('holidayType')?.addEventListener('change', function() {
+            document.getElementById('holidayType')?.addEventListener('change', function () {
                 toggleDepartmentsSection();
             });
 
             // Recurring checkbox event
-            document.getElementById('isRecurring')?.addEventListener('change', function() {
+            document.getElementById('isRecurring')?.addEventListener('change', function () {
                 toggleRecurringSection();
             });
 
             // Save Holiday button
-            document.getElementById('saveHolidayBtn')?.addEventListener('click', function() {
+            document.getElementById('saveHolidayBtn')?.addEventListener('click', function () {
                 saveHoliday();
             });
 
 
 
             // Delete Holiday confirmation
-            document.getElementById('confirmDeleteHolidayBtn')?.addEventListener('click', function() {
+            document.getElementById('confirmDeleteHolidayBtn')?.addEventListener('click', function () {
                 confirmDeleteHoliday();
             });
 
+            // Sunday Working Mode toggle
+            document.getElementById('sundayWorkingMode')?.addEventListener('change', function () {
+                const isWorking = this.checked;
+                const label = document.getElementById('sundayStatusLabel');
+                if (label) {
+                    label.textContent = isWorking ? 'Sunday: Working Mode (ON)' : 'Sunday: Weekly Off (OFF)';
+                    label.className = isWorking ? 'form-check-label ms-2 fw-bold text-success' : 'form-check-label ms-2 fw-bold text-muted';
+                }
+                updateWeeklyOffConfiguration();
+            });
+
             // Month navigation event listeners
-            document.getElementById('prevMonthBtn')?.addEventListener('click', function() {
+            document.getElementById('prevMonthBtn')?.addEventListener('click', function () {
                 navigateMonth(-1);
             });
 
-            document.getElementById('nextMonthBtn')?.addEventListener('click', function() {
+            document.getElementById('nextMonthBtn')?.addEventListener('click', function () {
                 navigateMonth(1);
             });
         }
@@ -2461,7 +2581,7 @@
                 'January', 'February', 'March', 'April', 'May', 'June',
                 'July', 'August', 'September', 'October', 'November', 'December'
             ];
-            
+
             const displayText = `${monthNames[currentViewMonth.getMonth()]} ${currentViewMonth.getFullYear()}`;
             const displayEl = document.getElementById('currentMonthDisplay');
             if (displayEl) {
@@ -2473,19 +2593,19 @@
         function filterHolidaysByMonth() {
             const currentMonth = currentViewMonth.getMonth();
             const currentYear = currentViewMonth.getFullYear();
-            
+
             // Filter holidays that fall within the current viewing month
             currentHolidays = allHolidays.filter(holiday => {
                 const startDate = new Date(holiday.start_date);
                 const endDate = new Date(holiday.end_date);
-                
+
                 // Check if holiday overlaps with current month
                 const monthStart = new Date(currentYear, currentMonth, 1);
                 const monthEnd = new Date(currentYear, currentMonth + 1, 0);
-                
+
                 return (startDate <= monthEnd && endDate >= monthStart);
             });
-            
+
             console.log(`📅 Filtered ${currentHolidays.length} holidays for ${currentViewMonth.toLocaleDateString()}`);
             displayHolidaysList();
             updateHolidayCalendar();
@@ -2495,15 +2615,15 @@
         function handleCalendarDateClick(info) {
             const clickedDate = info.dateStr;
             const currentTime = new Date().getTime();
-            
+
             // Check if this is a double-click
-            if (lastClickedDate === clickedDate && 
+            if (lastClickedDate === clickedDate &&
                 (currentTime - lastClickTime) < doubleClickDelay) {
-                
+
                 // This is a double-click - open add holiday modal with pre-filled date
                 console.log('📅 Double-click detected on date:', clickedDate);
                 openHolidayModalWithDate(clickedDate);
-                
+
                 // Reset click tracking
                 lastClickedDate = null;
                 lastClickTime = 0;
@@ -2522,42 +2642,42 @@
                 console.log('⚠️ Modal already open, ignoring double-click');
                 return;
             }
-            
+
             console.log('🎯 Opening holiday modal for date:', dateStr);
-            
+
             // Show a brief success message to confirm double-click was detected
             const dateObj = new Date(dateStr);
-            const formattedDate = dateObj.toLocaleDateString('en-US', { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
+            const formattedDate = dateObj.toLocaleDateString('en-US', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
             });
-            
+
             // Optional: Show a brief notification (you can uncomment this if you want visual feedback)
             // showHolidaySuccess(`Adding holiday for ${formattedDate}...`);
-            
+
             // Open the modal in add mode
             openHolidayModal();
-            
+
             // Pre-fill the date fields after modal is shown
             setTimeout(() => {
                 const startDateInput = document.getElementById('startDate');
                 const endDateInput = document.getElementById('endDate');
-                
+
                 if (startDateInput) {
                     startDateInput.value = dateStr;
                 }
                 if (endDateInput) {
                     endDateInput.value = dateStr;
                 }
-                
+
                 // Focus on holiday name field for immediate input
                 const holidayNameInput = document.getElementById('holidayName');
                 if (holidayNameInput) {
                     holidayNameInput.focus();
                 }
-                
+
                 console.log(`✅ Holiday modal opened with pre-filled date: ${dateStr} (${formattedDate})`);
             }, 100); // Small delay to ensure modal is fully rendered
         }
@@ -2576,38 +2696,38 @@
                 method: 'GET',
                 credentials: 'same-origin'
             })
-            .then(response => {
-                console.log('📋 Holidays API response status:', response.status);
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                console.log('📋 Holidays API response data:', data);
-                if (data.success) {
-                    allHolidays = data.holidays || [];
-                    console.log(`📋 Loaded ${allHolidays.length} total holidays`);
-                    
-                    // Filter holidays for current month
-                    filterHolidaysByMonth();
-                } else {
-                    const message = data.message || 'Unknown error';
-                    console.error('❌ API returned error:', message);
-                    showHolidayError('Failed to load holidays: ' + message);
+                .then(response => {
+                    console.log('📋 Holidays API response status:', response.status);
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('📋 Holidays API response data:', data);
+                    if (data.success) {
+                        allHolidays = data.holidays || [];
+                        console.log(`📋 Loaded ${allHolidays.length} total holidays`);
+
+                        // Filter holidays for current month
+                        filterHolidaysByMonth();
+                    } else {
+                        const message = data.message || 'Unknown error';
+                        console.error('❌ API returned error:', message);
+                        showHolidayError('Failed to load holidays: ' + message);
+                        currentHolidays = [];
+                        displayHolidaysList();
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error loading holidays:', error);
+                    showHolidayError('Failed to load holidays. Please check your connection and try again.');
                     currentHolidays = [];
                     displayHolidaysList();
-                }
-            })
-            .catch(error => {
-                console.error('❌ Error loading holidays:', error);
-                showHolidayError('Failed to load holidays. Please check your connection and try again.');
-                currentHolidays = [];
-                displayHolidaysList();
-            })
-            .finally(() => {
-                if (loadingEl) loadingEl.style.display = 'none';
-            });
+                })
+                .finally(() => {
+                    if (loadingEl) loadingEl.style.display = 'none';
+                });
         }
 
         // Display Holidays List
@@ -2638,9 +2758,9 @@
 
                 const typeClass = holiday.holiday_type.replace('_', '-');
                 const pastClass = isPastHoliday ? 'past-holiday' : '';
-                
+
                 let typeBadge = '';
-                
+
                 switch (holiday.holiday_type) {
                     case 'institution_wide':
                         typeBadge = '<span class="badge bg-success holiday-type-badge">Institution-wide</span>';
@@ -2659,12 +2779,12 @@
                     ? `<div class="text-muted small mt-1"><i class="bi bi-people"></i> ${holiday.departments.join(', ')}</div>`
                     : '';
 
-                const description = holiday.description 
+                const description = holiday.description
                     ? `<div class="text-muted small mt-1"><i class="bi bi-info-circle"></i> ${holiday.description}</div>`
                     : '';
 
                 // Add past holiday indicator
-                const pastIndicator = isPastHoliday 
+                const pastIndicator = isPastHoliday
                     ? `<div class="text-muted small mt-1"><i class="bi bi-clock-history"></i> Past Holiday</div>`
                     : '';
 
@@ -2706,28 +2826,28 @@
                 method: 'GET',
                 credentials: 'same-origin'
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    const departmentsSelect = document.getElementById('departments');
-                    if (departmentsSelect) {
-                        departmentsSelect.innerHTML = data.departments.map(dept =>
-                            `<option value="${dept}">${dept}</option>`
-                        ).join('');
-                    }
-                    // Also populate bulk quota department selector
-                    const bulkDeptSelect = document.getElementById('bulkDeptSelect');
-                    if (bulkDeptSelect) {
-                        bulkDeptSelect.innerHTML = '<option value="">Select department...</option>' +
-                            data.departments.map(dept =>
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const departmentsSelect = document.getElementById('departments');
+                        if (departmentsSelect) {
+                            departmentsSelect.innerHTML = data.departments.map(dept =>
                                 `<option value="${dept}">${dept}</option>`
                             ).join('');
+                        }
+                        // Also populate bulk quota department selector
+                        const bulkDeptSelect = document.getElementById('bulkDeptSelect');
+                        if (bulkDeptSelect) {
+                            bulkDeptSelect.innerHTML = '<option value="">Select department...</option>' +
+                                data.departments.map(dept =>
+                                    `<option value="${dept}">${dept}</option>`
+                                ).join('');
+                        }
                     }
-                }
-            })
-            .catch(error => {
-                console.error('❌ Error loading departments:', error);
-            });
+                })
+                .catch(error => {
+                    console.error('❌ Error loading departments:', error);
+                });
         }
 
         // Open Holiday Modal (Add/Edit)
@@ -2735,7 +2855,7 @@
             const modal = new bootstrap.Modal(document.getElementById('holidayModal'));
             const modalTitle = document.getElementById('holidayModalLabel');
             const saveBtn = document.getElementById('saveHolidayBtn');
-            
+
             // Reset form
             document.getElementById('holidayForm').reset();
             editingHolidayId = holiday ? holiday.id : null;
@@ -2772,7 +2892,7 @@
             // Show/hide relevant sections
             toggleDepartmentsSection();
             toggleRecurringSection();
-            
+
             modal.show();
         }
 
@@ -2780,7 +2900,7 @@
         function toggleDepartmentsSection() {
             const holidayType = document.getElementById('holidayType')?.value;
             const departmentsSection = document.getElementById('departmentsSection');
-            
+
             if (departmentsSection) {
                 departmentsSection.style.display = holidayType === 'department_specific' ? 'block' : 'none';
             }
@@ -2790,7 +2910,7 @@
         function toggleRecurringSection() {
             const isRecurring = document.getElementById('isRecurring')?.checked;
             const recurringTypeSection = document.getElementById('recurringTypeSection');
-            
+
             if (recurringTypeSection) {
                 recurringTypeSection.style.display = isRecurring ? 'block' : 'none';
             }
@@ -2866,36 +2986,36 @@
                 body: formData,
                 credentials: 'same-origin'
             })
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success) {
-                    const message = data.message || 'Holiday saved successfully';
-                    showHolidaySuccess(message);
-                    loadHolidays();
-
-                    // Close modal
-                    const modal = bootstrap.Modal.getInstance(document.getElementById('holidayModal'));
-                    if (modal) {
-                        modal.hide();
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                     }
-                } else {
-                    const errorMessage = data.message || data.error || 'Failed to save holiday';
-                    showHolidayError(errorMessage);
-                }
-            })
-            .catch(error => {
-                console.error('❌ Error saving holiday:', error);
-                showHolidayError(`Failed to save holiday: ${error.message}`);
-            })
-            .finally(() => {
-                saveBtn.innerHTML = originalText;
-                saveBtn.disabled = false;
-            });
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.success) {
+                        const message = data.message || 'Holiday saved successfully';
+                        showHolidaySuccess(message);
+                        loadHolidays();
+
+                        // Close modal
+                        const modal = bootstrap.Modal.getInstance(document.getElementById('holidayModal'));
+                        if (modal) {
+                            modal.hide();
+                        }
+                    } else {
+                        const errorMessage = data.message || data.error || 'Failed to save holiday';
+                        showHolidayError(errorMessage);
+                    }
+                })
+                .catch(error => {
+                    console.error('❌ Error saving holiday:', error);
+                    showHolidayError(`Failed to save holiday: ${error.message}`);
+                })
+                .finally(() => {
+                    saveBtn.innerHTML = originalText;
+                    saveBtn.disabled = false;
+                });
         }
 
         // Edit Holiday
@@ -2910,7 +3030,7 @@
         function deleteHoliday(holidayId, holidayName) {
             document.getElementById('deleteHolidayName').textContent = holidayName;
             editingHolidayId = holidayId;
-            
+
             const modal = new bootstrap.Modal(document.getElementById('deleteHolidayModal'));
             modal.show();
         }
@@ -3005,7 +3125,7 @@
                 const startDate = new Date(holiday.start_date).toLocaleDateString();
                 const endDate = new Date(holiday.end_date).toLocaleDateString();
                 const dateRange = startDate === endDate ? startDate : `${startDate} - ${endDate}`;
-                
+
                 let typeText = '';
                 switch (holiday.holiday_type) {
                     case 'institution_wide':
@@ -3022,11 +3142,11 @@
                 }
 
                 let details = `${holiday.holiday_name}\n${typeText}\n${dateRange}`;
-                
+
                 if (holiday.description) {
                     details += `\n\nDescription: ${holiday.description}`;
                 }
-                
+
                 if (holiday.holiday_type === 'department_specific' && holiday.departments && holiday.departments.length > 0) {
                     details += `\n\nDepartments: ${holiday.departments.join(', ')}`;
                 }
@@ -3052,10 +3172,18 @@
                         console.log('✅ Weekly off configuration loaded:', weeklyOffDays);
 
                         // Update UI elements
-                        const sundayOffEnabled = document.getElementById('sundayOffEnabled');
+                        const sundayWorkingMode = document.getElementById('sundayWorkingMode');
+                        const statusLabel = document.getElementById('sundayStatusLabel');
 
-                        if (sundayOffEnabled) {
-                            sundayOffEnabled.checked = weeklyOffDays.includes('sunday');
+                        if (sundayWorkingMode) {
+                            // If 'sunday' is in weekly_off_days, Working Mode is OFF
+                            const isSundayOff = weeklyOffDays.includes('sunday');
+                            sundayWorkingMode.checked = !isSundayOff;
+
+                            if (statusLabel) {
+                                statusLabel.textContent = !isSundayOff ? 'Sunday: Working Mode (ON)' : 'Sunday: Weekly Off (OFF)';
+                                statusLabel.className = !isSundayOff ? 'form-check-label ms-2 fw-bold text-success' : 'form-check-label ms-2 fw-bold text-muted';
+                            }
                         }
 
                         // Update global variable
@@ -3082,9 +3210,14 @@
 
         // Set default weekly off configuration
         function setDefaultWeeklyOffConfiguration() {
-            const sundayOffEnabled = document.getElementById('sundayOffEnabled');
-            if (sundayOffEnabled) {
-                sundayOffEnabled.checked = false;  // Weekly off disabled
+            const sundayWorkingMode = document.getElementById('sundayWorkingMode');
+            const statusLabel = document.getElementById('sundayStatusLabel');
+            if (sundayWorkingMode) {
+                sundayWorkingMode.checked = false;  // Default: Sunday is Weekly Off
+                if (statusLabel) {
+                    statusLabel.textContent = 'Sunday: Weekly Off (OFF)';
+                    statusLabel.className = 'form-check-label ms-2 fw-bold text-muted';
+                }
             }
             window.weeklyOffDays = [];
         }
@@ -3092,7 +3225,10 @@
         // Update Weekly Off Configuration
         async function updateWeeklyOffConfiguration() {
             try {
-                const sundayOffEnabled = document.getElementById('sundayOffEnabled')?.checked;
+                const sundayWorkingMode = document.getElementById('sundayWorkingMode')?.checked;
+
+                // If Working Mode is ON, Sunday is NOT a Weekly Off
+                const sundayOffEnabled = !sundayWorkingMode;
 
                 const weeklyOffDays = [];
                 if (sundayOffEnabled) {
@@ -3151,15 +3287,15 @@
         function showHolidaySuccess(message) {
             const successEl = document.getElementById('holidaySuccessMessage');
             const successText = document.getElementById('holidaySuccessText');
-            
+
             if (successEl && successText) {
                 successText.textContent = message;
                 successEl.style.display = 'block';
-                
+
                 // Hide error message
                 const errorEl = document.getElementById('holidayErrorMessage');
                 if (errorEl) errorEl.style.display = 'none';
-                
+
                 setTimeout(() => {
                     successEl.style.display = 'none';
                 }, 5000);
@@ -3170,15 +3306,15 @@
         function showHolidayError(message) {
             const errorEl = document.getElementById('holidayErrorMessage');
             const errorText = document.getElementById('holidayErrorText');
-            
+
             if (errorEl && errorText) {
                 errorText.textContent = message;
                 errorEl.style.display = 'block';
-                
+
                 // Hide success message
                 const successEl = document.getElementById('holidaySuccessMessage');
                 if (successEl) successEl.style.display = 'none';
-                
+
                 setTimeout(() => {
                     errorEl.style.display = 'none';
                 }, 8000);
@@ -3186,7 +3322,7 @@
         }
 
         // Initialize Holiday Management when DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             // Initialize both work time assignment and holiday management
             setTimeout(() => {
                 initializeHolidayManagement();
@@ -3206,21 +3342,21 @@
         // Initialize Quota Management System
         function initializeQuotaManagement() {
             console.log('📊 Initializing Quota Management System...');
-            
+
             try {
                 // Load staff list
                 loadStaffList();
-                
+
                 // Setup event listeners
                 setupQuotaEventListeners();
-                
+
                 // Set initial year
                 document.getElementById('quotaYear').value = currentQuotaYear;
                 document.getElementById('quotaYearSelect').value = currentQuotaYear;
-                
+
                 // Show info message initially
                 showQuotaMessage('Please select a staff member to manage their quotas.', 'info');
-                
+
                 console.log('✅ Quota Management System initialized successfully');
             } catch (error) {
                 console.error('❌ Error initializing Quota Management:', error);
@@ -3233,7 +3369,7 @@
             // Staff selection change
             const staffSelect = document.getElementById('quotaStaffSelect');
             if (staffSelect) {
-                staffSelect.addEventListener('change', function() {
+                staffSelect.addEventListener('change', function () {
                     selectedStaffId = this.value;
                     if (selectedStaffId) {
                         loadStaffQuotas(selectedStaffId);
@@ -3251,7 +3387,7 @@
             // Year selection change
             const yearSelect = document.getElementById('quotaYearSelect');
             if (yearSelect) {
-                yearSelect.addEventListener('change', function() {
+                yearSelect.addEventListener('change', function () {
                     currentQuotaYear = parseInt(this.value);
                     document.getElementById('quotaYear').value = currentQuotaYear;
                     if (selectedStaffId) {
@@ -3281,14 +3417,14 @@
             // Bulk quota buttons
             const loadDeptCountBtn = document.getElementById('loadDeptCountBtn');
             if (loadDeptCountBtn) {
-                loadDeptCountBtn.addEventListener('click', async function() {
+                loadDeptCountBtn.addEventListener('click', async function () {
                     const dept = document.getElementById('bulkDeptSelect').value;
                     if (!dept) {
                         alert('Please select a department first');
                         return;
                     }
                     try {
-                        const res = await fetch(`/api/department_staff_count?department=${encodeURIComponent(dept)}`, {credentials: 'same-origin'});
+                        const res = await fetch(`/api/department_staff_count?department=${encodeURIComponent(dept)}`, { credentials: 'same-origin' });
                         if (res.ok) {
                             const d = await res.json();
                             if (d.success) {
@@ -3306,7 +3442,7 @@
 
             const applyBulkBtn = document.getElementById('applyBulkQuotaBtn');
             if (applyBulkBtn) {
-                applyBulkBtn.addEventListener('click', async function() {
+                applyBulkBtn.addEventListener('click', async function () {
                     const dept = document.getElementById('bulkDeptSelect').value;
                     const year = document.getElementById('bulkQuotaYear').value;
                     if (!dept) { alert('Please select a department'); return; }
@@ -3472,7 +3608,7 @@
 
             const leaveTypeNames = {
                 'CL': 'Casual Leave',
-                'SL': 'Sick Leave', 
+                'SL': 'Sick Leave',
                 'EL': 'Earned Leave',
                 'ML': 'Maternity Leave'
             };
@@ -3592,7 +3728,7 @@
                         document.getElementById('mlQuota').value = data.defaults.leave.ML || 180;
                         document.getElementById('odQuota').value = data.defaults.od || 10;
                         document.getElementById('permissionQuota').value = data.defaults.permission || 15;
-                        
+
                         showQuotaMessage('Reset to default values', 'success');
                     }
                 }
@@ -3605,7 +3741,7 @@
                 document.getElementById('mlQuota').value = 180;
                 document.getElementById('odQuota').value = 10;
                 document.getElementById('permissionQuota').value = 15;
-                
+
                 showQuotaMessage('Reset to default values', 'success');
             }
         }
@@ -3672,11 +3808,11 @@
             // Show the appropriate message
             const messageElement = document.getElementById(`quota${type.charAt(0).toUpperCase() + type.slice(1)}Message`);
             const textElement = document.getElementById(`quota${type.charAt(0).toUpperCase() + type.slice(1)}Text`);
-            
+
             if (messageElement && textElement) {
                 textElement.textContent = message;
                 messageElement.style.display = 'block';
-                
+
                 // Auto-hide success messages after 5 seconds
                 if (type === 'success') {
                     setTimeout(() => hideQuotaMessage('success'), 5000);
@@ -3725,19 +3861,19 @@
 
             document.body.appendChild(modal);
             const bsModal = new bootstrap.Modal(modal);
-            
+
             // Clean up modal when closed
             modal.addEventListener('hidden.bs.modal', () => {
                 modal.remove();
             });
-            
+
             bsModal.show();
         }
 
         // Generate usage summary content
         function generateUsageSummaryContent(data) {
             const { staff_name, year, quota_types, usage_records, summary_stats } = data;
-            
+
             let content = `
                 <div class="row mb-4">
                     <div class="col-md-6">
@@ -3772,7 +3908,7 @@
             quota_types.forEach(quota => {
                 const usagePercentage = quota.total_quota > 0 ? (quota.used / quota.total_quota * 100).toFixed(1) : 0;
                 const progressClass = usagePercentage >= 90 ? 'bg-danger' : usagePercentage >= 70 ? 'bg-warning' : 'bg-success';
-                
+
                 content += `
                     <div class="col-md-6 col-lg-4 mb-3">
                         <div class="card">
@@ -3812,11 +3948,11 @@
                             </thead>
                             <tbody>
                 `;
-                
+
                 usage_records.forEach(record => {
-                    const statusBadge = record.status === 'approved' ? 'success' : 
-                                      record.status === 'pending' ? 'warning' : 'danger';
-                    
+                    const statusBadge = record.status === 'approved' ? 'success' :
+                        record.status === 'pending' ? 'warning' : 'danger';
+
                     content += `
                         <tr>
                             <td>
@@ -3832,7 +3968,7 @@
                         </tr>
                     `;
                 });
-                
+
                 content += `
                             </tbody>
                         </table>
@@ -3853,8 +3989,8 @@
         // Format date helper
         function formatDate(dateString) {
             const date = new Date(dateString);
-            return date.toLocaleDateString('en-US', { 
-                month: 'short', 
+            return date.toLocaleDateString('en-US', {
+                month: 'short',
                 day: 'numeric',
                 year: 'numeric'
             });
@@ -3864,37 +4000,37 @@
         async function generateUsageReport(staffId) {
             try {
                 const year = document.getElementById('quotaYearSelect').value;
-                
+
                 // Create a form and submit it to download the report
                 const form = document.createElement('form');
                 form.method = 'POST';
                 form.action = '/generate_usage_report';
                 form.target = '_blank';
-                
+
                 const staffInput = document.createElement('input');
                 staffInput.type = 'hidden';
                 staffInput.name = 'staff_id';
                 staffInput.value = staffId;
                 form.appendChild(staffInput);
-                
+
                 const yearInput = document.createElement('input');
                 yearInput.type = 'hidden';
                 yearInput.name = 'year';
                 yearInput.value = year;
                 form.appendChild(yearInput);
-                
+
                 const csrfInput = document.createElement('input');
                 csrfInput.type = 'hidden';
                 csrfInput.name = 'csrf_token';
                 csrfInput.value = document.querySelector('input[name="csrf_token"]')?.value || '';
                 form.appendChild(csrfInput);
-                
+
                 document.body.appendChild(form);
                 form.submit();
                 document.body.removeChild(form);
-                
+
                 showQuotaMessage('Report generation started. Check your downloads folder.', 'success');
-                
+
             } catch (error) {
                 console.error('Error generating usage report:', error);
                 showQuotaMessage('Failed to generate usage report. Please try again.', 'error');
@@ -3913,7 +4049,7 @@
                 od_quota: { allocated_days: 20, used_days: 8, remaining_days: 12 },
                 permission_quota: { allocated_hours: 40, used_hours: 15, remaining_hours: 25 }
             };
-            
+
             displayQuotaStatus(sampleQuotas);
             document.getElementById('currentQuotaDisplay').style.display = 'block';
         }
@@ -3923,14 +4059,14 @@
 
         // Shift Management Scripts
         document.querySelectorAll('.edit-shift-btn').forEach(btn => {
-            btn.addEventListener('click', function() {
+            btn.addEventListener('click', function () {
                 const id = this.dataset.id;
                 const type = this.dataset.type;
                 const start = this.dataset.start;
                 const end = this.dataset.end;
                 const grace = this.dataset.grace;
                 const desc = this.dataset.desc;
-                
+
                 document.getElementById('edit_shift_id').value = id;
                 document.getElementById('modalShiftName').textContent = type.charAt(0).toUpperCase() + type.slice(1);
                 document.getElementById('edit_start_time').value = start;
@@ -3940,38 +4076,38 @@
             });
         });
 
-        document.getElementById('editShiftForm').addEventListener('submit', function(e) {
+        document.getElementById('editShiftForm').addEventListener('submit', function (e) {
             e.preventDefault();
             const formData = new FormData(this);
-            
+
             // Show loading state
             const submitBtn = this.querySelector('button[type="submit"]');
             const originalText = submitBtn.innerHTML;
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
-            
+
             fetch('/admin/update_shift', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success notification instead of alert if possible
-                    alert('Shift updated successfully!');
-                    location.reload();
-                } else {
-                    alert('Error: ' + data.error);
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                alert('An error occurred while updating the shift.');
-            })
-            .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show success notification instead of alert if possible
+                        alert('Shift updated successfully!');
+                        location.reload();
+                    } else {
+                        alert('Error: ' + data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while updating the shift.');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                });
         });
 
 
@@ -3988,4 +4124,5 @@
         }
     </script>
 </body>
+
 </html>
