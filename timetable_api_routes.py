@@ -241,6 +241,7 @@ def get_periods():
         school_id = request.args.get('school_id') or session.get('school_id')
         level_id = request.args.get('level_id')
         section_id = request.args.get('section_id')
+        day_of_week = request.args.get('day_of_week')
         
         if not school_id:
             return jsonify({'success': False, 'error': 'School ID required'}), 400
@@ -249,7 +250,7 @@ def get_periods():
         cursor = db.cursor()
         
         query = '''
-            SELECT id, period_number, period_name, start_time, end_time, duration_minutes, level_id, section_id
+            SELECT id, period_number, period_name, start_time, end_time, duration_minutes, level_id, section_id, day_of_week
             FROM timetable_periods 
             WHERE school_id = ?
         '''
@@ -261,8 +262,11 @@ def get_periods():
         if section_id and section_id != 'null':
             query += ' AND section_id = ?'
             params.append(section_id)
+        if day_of_week and day_of_week != 'null':
+            query += ' AND day_of_week = ?'
+            params.append(day_of_week)
             
-        query += ' ORDER BY period_number'
+        query += ' ORDER BY day_of_week, period_number'
         
         cursor.execute(query, params)
         
@@ -276,7 +280,8 @@ def get_periods():
                 'end_time': row['end_time'],
                 'duration_minutes': row['duration_minutes'],
                 'level_id': row['level_id'],
-                'section_id': row['section_id']
+                'section_id': row['section_id'],
+                'day_of_week': row['day_of_week']
             })
             
         return jsonify({'success': True, 'periods': periods, 'data': periods})
@@ -297,9 +302,24 @@ def save_period():
         end_time = data.get('end_time')
         level_id = data.get('level_id')
         section_id = data.get('section_id')
+        day_of_week = data.get('day_of_week')
         
-        if not all([school_id, period_number, start_time, end_time]):
-            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        if not all([school_id, start_time, end_time]):
+            return jsonify({'success': False, 'error': 'Missing required fields: start_time, end_time'}), 400
+
+        db = get_db()
+        cursor = db.cursor()
+
+        if not period_number:
+            # Auto-generate next period number
+            cursor.execute('''
+                SELECT MAX(period_number) FROM timetable_periods
+                WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0)
+                AND COALESCE(section_id, 0) = COALESCE(?, 0)
+                AND COALESCE(day_of_week, -1) = COALESCE(?, -1)
+            ''', (school_id, level_id, section_id, day_of_week))
+            max_val = cursor.fetchone()[0]
+            period_number = (max_val or 0) + 1
             
         # Calculate duration
         try:
@@ -309,16 +329,15 @@ def save_period():
         except ValueError:
             return jsonify({'success': False, 'error': 'Invalid time format. Use HH:MM'}), 400
 
-        db = get_db()
-        cursor = db.cursor()
-        
         # Check if exists (UPSERT-like behavior)
-        # Unique constraint is on (school_id, level_id, section_id, period_number)
+        # Note: If day_of_week is provided, we check for match including day
         cursor.execute('''
             SELECT id FROM timetable_periods 
             WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0) 
-            AND COALESCE(section_id, 0) = COALESCE(?, 0) AND period_number = ?
-        ''', (school_id, level_id, section_id, period_number))
+            AND COALESCE(section_id, 0) = COALESCE(?, 0) 
+            AND COALESCE(day_of_week, -1) = COALESCE(?, -1)
+            AND period_number = ?
+        ''', (school_id, level_id, section_id, day_of_week, period_number))
         
         existing = cursor.fetchone()
         
@@ -332,9 +351,9 @@ def save_period():
         else:
             cursor.execute('''
                 INSERT INTO timetable_periods 
-                (school_id, level_id, section_id, period_number, period_name, start_time, end_time, duration_minutes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (school_id, level_id, section_id, period_number, period_name, start_time, end_time, duration))
+                (school_id, level_id, section_id, day_of_week, period_number, period_name, start_time, end_time, duration_minutes)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (school_id, level_id, section_id, day_of_week, period_number, period_name, start_time, end_time, duration))
             
         db.commit()
         return jsonify({'success': True, 'message': 'Period saved successfully'})

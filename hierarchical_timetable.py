@@ -142,6 +142,31 @@ class HierarchicalTimetableManager:
         except Exception as e:
             logger.error(f"Error fetching academic levels: {e}")
             return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def update_academic_level(school_id, level_id, level_name, description=None):
+        """Update academic level name and description"""
+        try:
+            db = get_db()
+            cursor = db.cursor()
+            
+            # Verify ownership
+            cursor.execute('SELECT id FROM timetable_academic_levels WHERE id = ? AND school_id = ?', (level_id, school_id))
+            if not cursor.fetchone():
+                return {'success': False, 'error': 'Level not found or permission denied'}
+            
+            cursor.execute('''
+                UPDATE timetable_academic_levels
+                SET level_name = ?, description = ?
+                WHERE id = ? AND school_id = ?
+            ''', (level_name, description, level_id, school_id))
+            
+            db.commit()
+            return {'success': True, 'message': 'Level updated successfully'}
+            
+        except Exception as e:
+            logger.error(f"Error updating academic level: {e}")
+            return {'success': False, 'error': str(e)}
     
     # ==================== SECTIONS MANAGEMENT ====================
     
@@ -519,6 +544,8 @@ class HierarchicalTimetableManager:
                 JOIN timetable_academic_levels tal ON taa.level_id = tal.id
                 JOIN timetable_periods tp ON taa.period_number = tp.period_number 
                     AND tp.school_id = taa.school_id
+                    AND tp.level_id = taa.level_id
+                    AND tp.section_id = taa.section_id
                 WHERE taa.school_id = ? AND taa.staff_id = ?
                 ORDER BY taa.day_of_week, taa.period_number
             ''', (school_id, staff_id))
@@ -609,6 +636,8 @@ class HierarchicalTimetableManager:
                 JOIN staff s ON taa.staff_id = s.id
                 JOIN timetable_periods tp ON taa.period_number = tp.period_number 
                     AND tp.school_id = taa.school_id
+                    AND tp.level_id = taa.level_id
+                    AND tp.section_id = taa.section_id
                 WHERE taa.school_id = ? AND taa.section_id = ?
                 ORDER BY taa.day_of_week, taa.period_number
             ''', (school_id, section_id))
@@ -711,6 +740,127 @@ class HierarchicalTimetableManager:
             logger.error(f"Error generating color-coded grid: {e}")
             return {'success': False, 'error': str(e)}
     
+    @staticmethod
+    def get_all_assignments(school_id, day_of_week=None):
+        """
+        Get all hierarchical timetable assignments for a school
+        """
+        try:
+            db = get_db()
+            cursor = db.cursor()
+            
+            query = '''
+                SELECT taa.id, taa.day_of_week, taa.period_number, 
+                       ts.section_name, tal.level_name, taa.subject_name,
+                       s.full_name, s.department,
+                       tp.start_time, tp.end_time, taa.room_number, taa.is_locked
+                FROM timetable_hierarchical_assignments taa
+                JOIN timetable_sections ts ON taa.section_id = ts.id
+                JOIN timetable_academic_levels tal ON taa.level_id = tal.id
+                JOIN staff s ON taa.staff_id = s.id
+                JOIN timetable_periods tp ON taa.period_number = tp.period_number 
+                    AND tp.school_id = taa.school_id
+                    AND tp.level_id = taa.level_id
+                    AND tp.section_id = taa.section_id
+                WHERE taa.school_id = ?
+            '''
+            params = [school_id]
+            
+            if day_of_week is not None:
+                query += ' AND taa.day_of_week = ?'
+                params.append(day_of_week)
+            
+            query += ' ORDER BY taa.day_of_week, taa.period_number'
+            
+            cursor.execute(query, params)
+            
+            assignments = []
+            for row in cursor.fetchall():
+                assignments.append({
+                    'id': row[0],
+                    'day_of_week': row[1],
+                    'period_number': row[2],
+                    'section_name': row[3],
+                    'level_name': row[4],
+                    'subject_name': row[5],
+                    'full_name': row[6],
+                    'department': row[7],
+                    'start_time': row[8],
+                    'end_time': row[9],
+                    'room_number': row[10],
+                    'is_locked': row[11]
+                })
+            
+            return {'success': True, 'data': assignments}
+            
+        except Exception as e:
+            logger.error(f"Error fetching all assignments: {e}")
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def get_all_staff_availability(school_id, day_of_week=None):
+        """
+        Get availability summary for all staff (Assigned vs Free periods)
+        """
+        try:
+            db = get_db()
+            cursor = db.cursor()
+            
+            # 1. Get all active staff
+            cursor.execute("SELECT id, full_name, department FROM staff WHERE school_id = ? ORDER BY full_name", (school_id,))
+            staff_list = [{'id': row[0], 'name': row[1], 'department': row[2]} for row in cursor.fetchall()]
+            
+            # 2. Get max periods (to define what "free" means)
+            cursor.execute("SELECT MAX(period_number) FROM timetable_periods WHERE school_id = ?", (school_id,))
+            row = cursor.fetchone()
+            max_periods = (row[0] or 8) if row else 8
+            
+            # 3. Get all assignments
+            query = "SELECT staff_id, day_of_week, period_number FROM timetable_hierarchical_assignments WHERE school_id = ?"
+            params = [school_id]
+            if day_of_week is not None:
+                query += " AND day_of_week = ?"
+                params.append(day_of_week)
+            
+            cursor.execute(query, params)
+            assignments = cursor.fetchall()
+            
+            # Map: staff_id -> day -> set(periods)
+            busy_map = {s['id']: {} for s in staff_list}
+            for row in assignments:
+                sid, day, pnum = row
+                if sid in busy_map:
+                    if day not in busy_map[sid]:
+                        busy_map[sid][day] = set()
+                    busy_map[sid][day].add(pnum)
+            
+            # 4. Build result
+            result = []
+            # logical days: if day_of_week specified, use it. Else use 1-6 (Mon-Sat)
+            days_to_check = [int(day_of_week)] if day_of_week is not None else range(1, 7)
+            
+            for staff in staff_list:
+                sid = staff['id']
+                for day in days_to_check:
+                    busy = busy_map[sid].get(day, set())
+                    free = [p for p in range(1, max_periods + 1) if p not in busy]
+                    
+                    result.append({
+                        'staff_id': sid,
+                        'staff_name': staff['name'],
+                        'department': staff['department'],
+                        'day': day,
+                        'total_assigned': len(busy),
+                        'assigned_periods': sorted(list(busy)),
+                        'free_periods': free
+                    })
+            
+            return {'success': True, 'data': result}
+            
+        except Exception as e:
+            logger.error(f"Error fetching staff availability: {e}")
+            return {'success': False, 'error': str(e)}
+
     @staticmethod
     def delete_assignment(school_id, assignment_id):
         """Delete a hierarchical timetable assignment"""

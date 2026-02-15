@@ -191,6 +191,18 @@
                 display: none !important;
             }
         }
+
+        .opacity-50 {
+            opacity: 0.5;
+        }
+
+        .hover-opacity-100:hover {
+            opacity: 1 !important;
+        }
+
+        .level-item:hover {
+            background-color: #f1f3f5 !important;
+        }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
     <!-- PWA Meta Tags -->
@@ -446,8 +458,19 @@
                             <p class="card-subtitle">Define daily periods for timetable scheduling</p>
                         </div>
                         <div class="header-actions d-flex gap-2">
-                            <select id="filterGrade" class="form-select form-select-sm" style="width: 150px;"
+                            <select id="filterDay" class="form-select form-select-sm" style="width: 150px;"
                                 onchange="loadPeriods()">
+                                <option value="">All Days</option>
+                                <option value="0">Sunday</option>
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                            </select>
+                            <select id="filterGrade" class="form-select form-select-sm" style="width: 150px;"
+                                onchange="onFilterGradeChange()">
                                 <option value="">All Grades</option>
                             </select>
                             <select id="filterSection" class="form-select form-select-sm" style="width: 150px;"
@@ -569,10 +592,11 @@
                             <table class="table salary-results-table">
                                 <thead>
                                     <tr>
-                                        <th>Staff Name</th>
-                                        <th>Period</th>
-                                        <th>Time</th>
-                                        <th>Room/Subject</th>
+                                        <th>Staff Member</th>
+                                        <th>Grade / Section</th>
+                                        <th>Period / Subject</th>
+                                        <th>Time Slot</th>
+                                        <th>Room</th>
                                         <th>Status</th>
                                         <th class="text-center">Actions</th>
                                     </tr>
@@ -634,13 +658,13 @@
                             <h6 class="section-title">
                                 <span class="badge bg-primary">Step 2</span> Allocate Periods
                             </h6>
-                            <div class="filters-grid">
-                                <div class="filter-group">
+                            <div class="row g-3">
+                                <div class="col-md-3">
                                     <label for="daySelectAssign" class="form-label">
                                         <i class="bi bi-calendar"></i> Select Day
                                     </label>
                                     <select id="daySelectAssign" class="form-control enhanced-select"
-                                        title="Choose a day">
+                                        onchange="onAssignDayChange()" title="Choose a day">
                                         <option value="">-- Choose Day --</option>
                                         <option value="0">Sunday</option>
                                         <option value="1">Monday</option>
@@ -651,7 +675,25 @@
                                         <option value="6">Saturday</option>
                                     </select>
                                 </div>
-                                <div class="filter-group">
+                                <div class="col-md-3">
+                                    <label for="gradeSelectAssign" class="form-label">
+                                        <i class="bi bi-building"></i> Select Grade
+                                    </label>
+                                    <select id="gradeSelectAssign" class="form-control enhanced-select"
+                                        onchange="onAssignGradeChange()" title="Choose a grade">
+                                        <option value="">-- Choose Grade --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="sectionSelectAssign" class="form-label">
+                                        <i class="bi bi-grid-3x3"></i> Select Section
+                                    </label>
+                                    <select id="sectionSelectAssign" class="form-control enhanced-select"
+                                        onchange="onAssignSectionChange()" title="Choose a section">
+                                        <option value="">-- Choose Section --</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
                                     <label for="periodSelectAssign" class="form-label">
                                         <i class="bi bi-clock"></i> Select Period
                                     </label>
@@ -660,11 +702,35 @@
                                         <option value="">-- Choose Period --</option>
                                     </select>
                                 </div>
-                                <div class="filter-group">
-                                    <label class="form-label">&nbsp;</label>
+                            </div>
+                            <div class="row mt-3">
+                                <div class="col-md-9">
+                                    <div id="assignmentSubjectContainer" class="row">
+                                        <div class="col-md-6">
+                                            <label for="subjectNameAssign" class="form-label">Subject Name</label>
+                                            <input type="text" id="subjectNameAssign" class="form-control"
+                                                placeholder="e.g. Mathematics">
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label for="roomNumberAssign" class="form-label">Room Number</label>
+                                            <input type="text" id="roomNumberAssign" class="form-control"
+                                                placeholder="e.g. A-101">
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end">
                                     <button type="button" class="btn btn-success w-100" onclick="assignStaffPeriod()">
                                         <i class="bi bi-plus-circle"></i> Add Period
                                     </button>
+                                </div>
+                            </div>
+
+                            <!-- Staff Availability Summary -->
+                            <div class="row mt-3">
+                                <div class="col-12">
+                                    <div id="staffAvailabilitySummary" class="alert alert-light border d-none">
+                                        <!-- Content populated by JS -->
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -681,9 +747,9 @@
                                     <thead>
                                         <tr>
                                             <th>Day</th>
-                                            <th>Period</th>
-                                            <th>Time</th>
-                                            <th>Allocated On</th>
+                                            <th>Grade / Section / Period</th>
+                                            <th>Subject / Time / Location</th>
+                                            <th>Status</th>
                                             <th class="text-center">Actions</th>
                                         </tr>
                                     </thead>
@@ -702,32 +768,49 @@
 
                 <!-- Staff Assignments List Card -->
                 <div class="salary-results-card">
-                    <div class="card-header">
-                        <div class="header-icon">
-                            <i class="bi bi-list-check"></i>
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="header-icon me-3">
+                                <i class="bi bi-list-check"></i>
+                            </div>
+                            <div class="header-content">
+                                <h5 class="card-title mb-0">Staff Period Assignments & Availability</h5>
+                                <p class="card-subtitle mb-0">View assigned and free periods for all staff</p>
+                            </div>
                         </div>
-                        <div class="header-content">
-                            <h5 class="card-title">Staff Period Assignments</h5>
-                            <p class="card-subtitle">View all individual staff period allocations</p>
+                        <div class="filter-action d-flex gap-2">
+                            <select id="staffAssignmentStaffFilter" class="form-select form-select-sm"
+                                style="width: 200px;" onchange="loadStaffAssignmentsSummary()">
+                                <option value="">All Staff</option>
+                            </select>
+                            <select id="staffAssignmentDayFilter" class="form-select form-select-sm"
+                                onchange="loadStaffAssignmentsSummary()">
+                                <option value="">All Days</option>
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                            </select>
                         </div>
                     </div>
                     <div class="card-body">
                         <div class="table-responsive">
-                            <table class="table salary-results-table">
+                            <table class="table salary-results-table table-hover">
                                 <thead>
                                     <tr>
                                         <th>Staff Name</th>
                                         <th>Day</th>
-                                        <th>Period</th>
-                                        <th>Time</th>
-                                        <th>Status</th>
-                                        <th class="text-center">Actions</th>
+                                        <th>Assigned Periods</th>
+                                        <th>Free Periods</th>
+                                        <th class="text-center">Status</th>
                                     </tr>
                                 </thead>
                                 <tbody id="staffAssignmentsTableBody">
                                     <tr style="background: #f8f9fa;">
-                                        <td colspan="6" style="padding: 2rem; text-align: center; color: white;">
-                                            <i class="bi bi-inbox"></i> No staff assignments yet
+                                        <td colspan="5" style="padding: 2rem; text-align: center; color: #6c757d;">
+                                            <i class="bi bi-inbox me-2"></i> Loading data...
                                         </td>
                                     </tr>
                                 </tbody>
@@ -764,18 +847,33 @@
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
+                            <label class="form-label">Day of the Week</label>
+                            <select id="periodDay" class="form-select">
+                                <option value="">All Days</option>
+                                <option value="0">Sunday</option>
+                                <option value="1">Monday</option>
+                                <option value="2">Tuesday</option>
+                                <option value="3">Wednesday</option>
+                                <option value="4">Thursday</option>
+                                <option value="5">Friday</option>
+                                <option value="6">Saturday</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
                             <label class="form-label">Period Name</label>
                             <input type="text" id="periodName" class="form-control" placeholder="e.g., Mathematics"
                                 oninput="checkDuplicatePeriodName()">
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label">Period Sequence</label>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12 mb-3">
+                            <label class="form-label">Period Number / Sequence</label>
                             <div class="input-group">
                                 <span class="input-group-text">#</span>
-                                <input type="number" id="periodNumber" class="form-control" readonly
-                                    style="background-color: #f8f9fa;">
+                                <input type="number" id="periodNumber" class="form-control"
+                                    placeholder="Enter period number (e.g. 1, 2, 3...)">
                             </div>
-                            <small class="text-muted">Auto-generated sequence</small>
+                            <small class="text-muted">Customizable period sequence</small>
                         </div>
                     </div>
 
@@ -930,6 +1028,37 @@
                     <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary px-4 shadow-sm" onclick="saveSection()">Create
                         Section</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Grade Modal -->
+    <div class="modal fade" id="editLevelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Edit Grade / Level Name</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="editLevelForm">
+                        <input type="hidden" id="editLevelId">
+                        <div class="mb-3">
+                            <label class="form-label fw-600">Grade Name</label>
+                            <input type="text" id="editLevelName" class="form-control enhanced-select" required>
+                            <small class="text-muted">e.g., 1st Standard, Nursery, or 1st Year</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-600">Description (Optional)</label>
+                            <input type="text" id="editLevelDescription" class="form-control enhanced-select">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary px-4 shadow-sm" onclick="updateLevel()">Update
+                        Grade</button>
                 </div>
             </div>
         </div>

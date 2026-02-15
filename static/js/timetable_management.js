@@ -25,6 +25,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadPeriods();
     loadDepartments();
     loadStaffList();
+    loadStaffAssignmentsSummary();
 });
 
 // ==========================================================================
@@ -35,10 +36,12 @@ function loadPeriods() {
     console.log('Loading periods for school_id:', schoolId);
     const levelId = document.getElementById('filterGrade')?.value;
     const sectionId = document.getElementById('filterSection')?.value;
+    const dayOfWeek = document.getElementById('filterDay')?.value;
 
     let url = `/api/timetable/periods?school_id=${schoolId}`;
     if (levelId) url += `&level_id=${levelId}`;
     if (sectionId) url += `&section_id=${sectionId}`;
+    if (dayOfWeek) url += `&day_of_week=${dayOfWeek}`;
 
     fetch(url)
         .then(r => {
@@ -60,6 +63,32 @@ function loadPeriods() {
         });
 }
 
+function onFilterGradeChange() {
+    const levelId = document.getElementById('filterGrade').value;
+    const sectionSelect = document.getElementById('filterSection');
+
+    // Remember currently selected section if any
+    const currentSectionId = sectionSelect.value;
+
+    sectionSelect.innerHTML = '<option value="">All Sections</option>';
+
+    let sectionsToShow = allSections;
+    if (levelId) {
+        sectionsToShow = allSections.filter(s => s.level_id == levelId);
+    }
+
+    sectionSelect.innerHTML += sectionsToShow.map(s =>
+        `<option value="${s.id}">${s.section_name}</option>`
+    ).join('');
+
+    // If the previously selected section is still in the list, keep it
+    if (currentSectionId && sectionsToShow.find(s => s.id == currentSectionId)) {
+        sectionSelect.value = currentSectionId;
+    }
+
+    loadPeriods();
+}
+
 function renderPeriodsTable() {
     const tbody = document.getElementById('periodsTableBody');
 
@@ -73,9 +102,15 @@ function renderPeriodsTable() {
         const section = allSections.find(s => s.id == p.section_id);
         const gsLabel = level ? `${level.level_name} - ${section ? section.section_name : 'All'}` : 'Global';
 
+        const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const dayLabel = p.day_of_week !== null && p.day_of_week !== undefined ? DAYS[p.day_of_week] : 'All Days';
+
         return `
             <tr>
-                <td style="padding: 1rem;">${gsLabel}</td>
+                <td style="padding: 1rem;">
+                    <div>${gsLabel}</div>
+                    <small class="text-muted"><i class="bi bi-calendar2-week"></i> ${dayLabel}</small>
+                </td>
                 <td style="padding: 1rem; font-weight: 600;">${p.period_number}</td>
                 <td style="padding: 1rem;">${p.period_name || '-'}</td>
                 <td style="padding: 1rem;"><span class="time-display">${p.start_time}</span></td>
@@ -99,6 +134,7 @@ function renderPeriodsTable() {
 function showAddPeriodModal() {
     document.getElementById('periodGrade').value = '';
     document.getElementById('periodSection').innerHTML = '<option value="">-- Select Section --</option>';
+    document.getElementById('periodDay').value = '';
     document.getElementById('periodNumber').value = '';
     document.getElementById('periodName').value = '';
     document.getElementById('startTime').value = '';
@@ -119,6 +155,7 @@ function editPeriod(periodId) {
     document.getElementById('periodGrade').value = period.level_id || '';
     onPeriodGradeChange(period.section_id);
 
+    document.getElementById('periodDay').value = period.day_of_week === null || period.day_of_week === undefined ? '' : period.day_of_week;
     document.getElementById('periodNumber').value = period.period_number;
     document.getElementById('periodName').value = period.period_name || '';
     document.getElementById('startTime').value = period.start_time;
@@ -135,6 +172,7 @@ function editPeriod(periodId) {
 function savePeriod() {
     const levelId = document.getElementById('periodGrade').value;
     const sectionId = document.getElementById('periodSection').value;
+    const dayOfWeek = document.getElementById('periodDay').value;
     const periodNumber = document.getElementById('periodNumber').value;
     const periodName = document.getElementById('periodName').value;
     const startTime = document.getElementById('startTime').value;
@@ -149,7 +187,8 @@ function savePeriod() {
         school_id: schoolId,
         level_id: levelId || null,
         section_id: sectionId || null,
-        period_number: periodNumber,
+        day_of_week: dayOfWeek === '' ? null : parseInt(dayOfWeek),
+        period_number: parseInt(periodNumber),
         period_name: periodName,
         start_time: startTime,
         end_time: endTime
@@ -157,7 +196,7 @@ function savePeriod() {
 
     fetch('/api/timetable/period/save', {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         },
@@ -193,20 +232,22 @@ function loadAcademicLevels() {
                 const filterGrade = document.getElementById('filterGrade');
                 const periodGrade = document.getElementById('periodGrade');
                 const sectionLevel = document.getElementById('sectionLevelId');
+                const gradeSelectAssign = document.getElementById('gradeSelectAssign');
 
                 const options = allLevels.map(l => `<option value="${l.id}">${l.level_name}</option>`).join('');
-                
+
                 if (filterGrade) filterGrade.innerHTML = '<option value="">All Grades</option>' + options;
                 if (periodGrade) periodGrade.innerHTML = '<option value="">-- Select Grade --</option>' + options;
                 if (sectionLevel) sectionLevel.innerHTML = '<option value="">-- Choose Grade --</option>' + options;
+                if (gradeSelectAssign) gradeSelectAssign.innerHTML = '<option value="">-- Choose Grade --</option>' + options;
 
                 renderLevelsList();
-                
+
                 // Re-apply filter highlight if active
                 if (currentLevelFilter) {
                     filterSectionsByLevel(currentLevelFilter);
                 }
-                
+
                 fetchOrgConfig();
             }
         });
@@ -241,13 +282,65 @@ function renderLevelsList() {
     container.innerHTML = allLevels.map(level => `
         <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center level-item border-start-0 border-end-0" 
              style="cursor: pointer; padding: 1rem;" onclick="filterSectionsByLevel(${level.id}, this)">
-            <div>
-                <span class="fw-600">${level.level_name}</span>
-                <small class="text-muted d-block" style="font-size: 0.75rem;">${level.description || ''}</small>
+            <div class="d-flex align-items-center flex-grow-1">
+                <div class="me-3">
+                   <span class="fw-600 d-block">${level.level_name}</span>
+                   <small class="text-muted" style="font-size: 0.75rem;">${level.description || ''}</small>
+                </div>
+                <button class="btn btn-sm btn-outline-secondary ms-auto me-2 border-0 opacity-50 hover-opacity-100" 
+                        onclick="event.stopPropagation(); editLevel(${level.id})" title="Edit Grade Name">
+                    <i class="bi bi-pencil-square"></i>
+                </button>
             </div>
             <i class="bi bi-chevron-right text-muted small"></i>
         </div>
     `).join('');
+}
+
+function editLevel(levelId) {
+    const level = allLevels.find(l => l.id == levelId);
+    if (!level) return;
+
+    document.getElementById('editLevelId').value = level.id;
+    document.getElementById('editLevelName').value = level.level_name;
+    document.getElementById('editLevelDescription').value = level.description || '';
+
+    new bootstrap.Modal(document.getElementById('editLevelModal')).show();
+}
+
+function updateLevel() {
+    const levelId = document.getElementById('editLevelId').value;
+    const levelName = document.getElementById('editLevelName').value;
+    const description = document.getElementById('editLevelDescription').value;
+
+    if (!levelName) {
+        showAlert('Grade name is required', 'error');
+        return;
+    }
+
+    fetch(`/api/hierarchical-timetable/levels/update/${levelId}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify({
+            level_name: levelName,
+            description: description
+        })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Grade updated successfully', 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editLevelModal'));
+                if (modal) modal.hide();
+                loadAcademicLevels(); // Refresh lists
+            } else {
+                showAlert(data.error || 'Failed to update grade', 'error');
+            }
+        })
+        .catch(err => console.error('Error updating level:', err));
 }
 
 function loadAllSections() {
@@ -258,14 +351,14 @@ function loadAllSections() {
             if (data.success) {
                 allSections = data.data;
                 console.log(`✅ Loaded ${allSections.length} sections`);
-                
+
                 // Update filter dropdowns for Periods Management
                 const filterSection = document.getElementById('filterSection');
                 if (filterSection) {
                     const options = allSections.map(s => `<option value="${s.id}" data-level="${s.level_id}">${s.section_name}</option>`).join('');
                     filterSection.innerHTML = '<option value="">All Sections</option>' + options;
                 }
-                
+
                 // Reload section management table using current filter
                 renderSectionsTable(currentLevelFilter);
             }
@@ -314,7 +407,7 @@ function renderSectionsTable(levelId = null) {
 function filterSectionsByLevel(levelId, element) {
     console.log('🎯 Filtering sections by level:', levelId);
     currentLevelFilter = levelId;
-    
+
     // Basic highlight
     document.querySelectorAll('.level-item').forEach(el => el.classList.remove('active', 'bg-light'));
     if (element) {
@@ -326,7 +419,7 @@ function filterSectionsByLevel(levelId, element) {
             if (l.id == levelId && items[idx]) items[idx].classList.add('bg-light');
         });
     }
-    
+
     renderSectionsTable(levelId);
 }
 
@@ -336,38 +429,38 @@ function showOrgConfigModal() {
 
 function saveOrgType() {
     const orgType = document.querySelector('input[name="orgType"]:checked').value;
-    
+
     fetch('/api/hierarchical-timetable/organization/set-type', {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         },
         body: JSON.stringify({ organization_type: orgType })
     })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showAlert(`Successfully configured as ${orgType}`, 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('orgConfigModal'));
-            if (modal) modal.hide();
-            loadAcademicLevels();
-        } else {
-            showAlert(data.error || 'Failed to save configuration', 'error');
-        }
-    });
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(`Successfully configured as ${orgType}`, 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('orgConfigModal'));
+                if (modal) modal.hide();
+                loadAcademicLevels();
+            } else {
+                showAlert(data.error || 'Failed to save configuration', 'error');
+            }
+        });
 }
 
 function showAddSectionModal() {
     const form = document.getElementById('sectionForm');
     if (form) form.reset();
-    
+
     // Auto-populate level if one is selected on the left
     if (currentLevelFilter) {
         const levelSelect = document.getElementById('sectionLevelId');
         if (levelSelect) levelSelect.value = currentLevelFilter;
     }
-    
+
     const modalEl = document.getElementById('sectionModal');
     let modal = bootstrap.Modal.getInstance(modalEl);
     if (!modal) {
@@ -388,7 +481,7 @@ function saveSection() {
 
     fetch('/api/hierarchical-timetable/sections/create', {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         },
@@ -398,17 +491,17 @@ function saveSection() {
             capacity: parseInt(capacity)
         })
     })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('Section created successfully', 'success');
-            const modal = bootstrap.Modal.getInstance(document.getElementById('sectionModal'));
-            if (modal) modal.hide();
-            loadAllSections();
-        } else {
-            showAlert(data.error || 'Failed to create section', 'error');
-        }
-    });
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Section created successfully', 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('sectionModal'));
+                if (modal) modal.hide();
+                loadAllSections();
+            } else {
+                showAlert(data.error || 'Failed to create section', 'error');
+            }
+        });
 }
 
 function deleteSection(sectionId) {
@@ -420,15 +513,15 @@ function deleteSection(sectionId) {
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         }
     })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showAlert('Section deleted successfully', 'success');
-            loadAllSections();
-        } else {
-            showAlert(data.error || 'Failed to delete section', 'error');
-        }
-    });
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Section deleted successfully', 'success');
+                loadAllSections();
+            } else {
+                showAlert(data.error || 'Failed to delete section', 'error');
+            }
+        });
 }
 
 function onPeriodGradeChange(selectedSectionId = null) {
@@ -449,6 +542,145 @@ function onPeriodGradeChange(selectedSectionId = null) {
 function onPeriodSectionChange() {
     fetchNextPeriodNumber();
     checkDuplicatePeriodName();
+}
+
+/**
+ * Handle Grade change in Staff Assignment section (Step 2)
+ */
+/**
+ * Handle Grade change in Staff Assignment section (Step 2)
+ */
+function onAssignGradeChange() {
+    const levelId = document.getElementById('gradeSelectAssign').value;
+    const sectionSelect = document.getElementById('sectionSelectAssign');
+
+    // Reset subsequent dropdowns
+    sectionSelect.innerHTML = '<option value="">-- Choose Section --</option>';
+    document.getElementById('periodSelectAssign').innerHTML = '<option value="">-- Choose Period --</option>';
+
+    if (levelId) {
+        const filtered = allSections.filter(s => s.level_id == levelId);
+        sectionSelect.innerHTML += filtered.map(s => `<option value="${s.id}">${s.section_name}</option>`).join('');
+    }
+}
+
+/**
+ * Handle Section change in Staff Assignment section (Step 2)
+ */
+function onAssignSectionChange() {
+    refreshAssignablePeriods();
+}
+
+/**
+ * Handle Day change in Staff Assignment section (Step 2)
+ */
+function onAssignDayChange() {
+    refreshAssignablePeriods();
+}
+
+/**
+ * intelligently fetch and display periods based on selected filters
+ * Shows: Defined periods for Day/Grade/Section
+ * Filters: Marks as "Busy" if Section has class or Staff has class
+ */
+function refreshAssignablePeriods() {
+    const staffId = document.getElementById('staffSelectAssign')?.value;
+    const dayOfWeek = document.getElementById('daySelectAssign')?.value;
+    const levelId = document.getElementById('gradeSelectAssign')?.value;
+    const sectionId = document.getElementById('sectionSelectAssign')?.value;
+    const periodSelect = document.getElementById('periodSelectAssign');
+
+    periodSelect.innerHTML = '<option value="">-- Choose Period --</option>';
+
+    if (!staffId || !dayOfWeek || !levelId || !sectionId) {
+        return; // Wait for all selections
+    }
+
+    periodSelect.innerHTML = '<option value="">Loading...</option>';
+
+    // Fetch necessary data in parallel
+    Promise.all([
+        // 1. Get defined periods for this specific scenario
+        fetch(`/api/timetable/periods?school_id=${schoolId}&level_id=${levelId}&section_id=${sectionId}&day_of_week=${dayOfWeek}`).then(r => r.json()),
+
+        // 2. Get schedule for this section (to see if section is busy)
+        fetch(`/api/hierarchical-timetable/section-schedule/${sectionId}`).then(r => r.json()),
+
+        // 3. Get schedule for this staff (to see if staff is busy)
+        fetch(`/api/hierarchical-timetable/staff-schedule/${staffId}`).then(r => r.json())
+    ])
+        .then(([periodsData, sectionData, staffData]) => {
+            periodSelect.innerHTML = '<option value="">-- Choose Period --</option>';
+
+            const periods = periodsData.periods || [];
+            const sectionSchedule = sectionData.success ? sectionData.data.schedule : [];
+            const staffSchedule = staffData.success ? staffData.data.schedule : [];
+
+            // Convert dayOfWeek to integer for comparison
+            const dayInt = parseInt(dayOfWeek);
+
+            if (periods.length === 0) {
+                periodSelect.innerHTML = '<option value="">No periods defined for this day</option>';
+                document.getElementById('staffAvailabilitySummary').classList.add('d-none');
+                return;
+            }
+
+            // Filter schedules for the selected day
+            const sectionBusyPeriods = sectionSchedule
+                .filter(s => s.day_of_week === dayInt)
+                .map(s => s.period_number);
+
+            const staffBusyPeriods = staffSchedule
+                .filter(s => s.day_of_week === dayInt)
+                .map(s => s.period_number);
+
+            // Calculate free periods for summary
+            const allDayPeriods = periods.map(p => p.period_number);
+            const freePeriods = allDayPeriods.filter(pNum => !staffBusyPeriods.includes(pNum));
+
+            // Update Summary Display
+            const summaryDiv = document.getElementById('staffAvailabilitySummary');
+            if (summaryDiv) {
+                summaryDiv.classList.remove('d-none');
+                if (freePeriods.length > 0) {
+                    summaryDiv.className = 'alert alert-info border';
+                    summaryDiv.innerHTML = `<strong><i class="bi bi-calendar-check"></i> Staff Free Periods:</strong> ${freePeriods.join(', ')}`;
+                } else {
+                    summaryDiv.className = 'alert alert-warning border';
+                    summaryDiv.innerHTML = `<strong><i class="bi bi-exclamation-triangle"></i> Staff is fully booked on this day!</strong>`;
+                }
+            }
+
+            // Build options
+            const options = periods.map(p => {
+                let status = '';
+                let isDisabled = false;
+                let statusClass = '';
+
+                if (sectionBusyPeriods.includes(p.period_number)) {
+                    status = '(Section Busy)';
+                    isDisabled = true;
+                    statusClass = 'text-danger';
+                } else if (staffBusyPeriods.includes(p.period_number)) {
+                    status = '(Staff Busy)';
+                    isDisabled = true;
+                    statusClass = 'text-warning';
+                } else {
+                    status = '(Available)';
+                    statusClass = 'text-success';
+                }
+
+                return `<option value="${p.period_number}" ${isDisabled ? 'disabled' : ''} class="${statusClass}">
+                        Period ${p.period_number} (${p.start_time} - ${p.end_time}) ${status}
+                    </option>`;
+            }).join('');
+
+            periodSelect.innerHTML += options;
+        })
+        .catch(err => {
+            console.error('Error refreshing periods:', err);
+            periodSelect.innerHTML = '<option value="">Error loading periods</option>';
+        });
 }
 
 function fetchNextPeriodNumber() {
@@ -556,7 +788,7 @@ function deletePeriod(periodId) {
 
     fetch('/api/timetable/period/delete', {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         },
@@ -657,7 +889,7 @@ function saveDepartmentPermission(department) {
 
     fetch('/api/timetable/department/permission', {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         },
@@ -717,17 +949,25 @@ function populateStaffSelect() {
             allStaff.map(s => `<option value="${s.id}">${s.full_name} (${s.department})</option>`).join('');
         console.log(`✅ Populated overrideStaffSelect with ${allStaff.length} staff`);
     }
+
+    // Populate the staff filter dropdown in assignments summary
+    const filterSelect = document.getElementById('staffAssignmentStaffFilter');
+    if (filterSelect) {
+        filterSelect.innerHTML = '<option value="">All Staff</option>' +
+            allStaff.map(s => `<option value="${s.id}">${s.full_name} (${s.department})</option>`).join('');
+    }
 }
 
 function loadDayAssignments() {
     const dayValue = document.getElementById('daySelector').value;
     if (!dayValue) {
         document.getElementById('assignmentsTableBody').innerHTML =
-            '<tr><td colspan="6" style="padding: 2rem; text-align: center;">Select a day to view</td></tr>';
+            '<tr><td colspan="7" style="padding: 2rem; text-align: center;">Select a day to view</td></tr>';
         return;
     }
 
-    fetch(`/api/timetable/assignments/all?school_id=${schoolId}`)
+    // Use hierarchical API
+    fetch(`/api/hierarchical-timetable/assignments/all?day_of_week=${dayValue}`)
         .then(response => {
             if (!response.ok) {
                 throw new Error('Failed to load assignments: ' + response.statusText);
@@ -752,16 +992,25 @@ function renderAssignmentsTable() {
     const tbody = document.getElementById('assignmentsTableBody');
 
     if (currentAssignments.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="6" style="padding: 2rem; text-align: center; color: white;">No assignments for this day</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="7" style="padding: 2rem; text-align: center; color: white;">No assignments for this day</td></tr>';
         return;
     }
 
     tbody.innerHTML = currentAssignments.map(a => `
         <tr>
-            <td style="padding: 1rem;">${a.full_name}</td>
-            <td style="padding: 1rem;">${a.period_name || `Period ${a.period_number}`}</td>
+            <td style="padding: 1rem;">
+                <div class="fw-bold text-white">${a.full_name}</div>
+                <small class="opacity-75">${a.department}</small>
+            </td>
+            <td style="padding: 1rem;">
+                <span class="badge bg-light text-dark border">${a.level_name} - ${a.section_name}</span>
+            </td>
+            <td style="padding: 1rem;">
+                 <div class="text-white">${a.subject_name || '-'}</div>
+                 <small class="opacity-75">Period ${a.period_number}</small>
+            </td>
             <td style="padding: 1rem; font-family: monospace;">${a.start_time} - ${a.end_time}</td>
-            <td style="padding: 1rem;">${a.class_subject || '-'}</td>
+            <td style="padding: 1rem;">${a.room_number || '-'}</td>
             <td style="padding: 1rem;">
                 ${a.is_locked
             ? '<span class="status-badge status-locked"><i class="bi bi-lock"></i> Locked</span>'
@@ -813,7 +1062,7 @@ function performAdminOverride() {
 
     fetch('/api/timetable/assignment/override', {
         method: 'POST',
-        headers: { 
+        headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         },
@@ -880,6 +1129,10 @@ function saveAllSettings() {
  * Called when a staff member is selected
  * Shows the allocation interface and loads their current allocations
  */
+/**
+ * Called when a staff member is selected
+ * Shows the allocation interface and loads their current allocations
+ */
 function onStaffSelected() {
     const staffSelect = document.getElementById('staffSelectAssign');
     const staffId = staffSelect.value;
@@ -908,8 +1161,66 @@ function onStaffSelected() {
     staffInfoDisplay.classList.remove('d-none');
     staffInfoText.textContent = `Currently managing allocations for: ${staffName}`;
 
+    // Populate Grade selection for assignment
+    populateAssignGrades();
+
     // Load current allocations for this staff
     loadStaffCurrentAllocations(staffId);
+}
+
+function populateAssignGrades() {
+    const gradeSelect = document.getElementById('gradeSelectAssign');
+    if (!gradeSelect) return;
+
+    gradeSelect.innerHTML = '<option value="">-- Choose Grade --</option>';
+    allLevels.forEach(level => {
+        gradeSelect.innerHTML += `<option value="${level.id}">${level.level_name}</option>`;
+    });
+}
+
+function onAssignGradeChange() {
+    const levelId = document.getElementById('gradeSelectAssign').value;
+    const sectionSelect = document.getElementById('sectionSelectAssign');
+    const periodSelect = document.getElementById('periodSelectAssign');
+
+    sectionSelect.innerHTML = '<option value="">-- Choose Section --</option>';
+    periodSelect.innerHTML = '<option value="">-- Choose Period --</option>';
+
+    if (levelId) {
+        const filtered = allSections.filter(s => s.level_id == levelId);
+        sectionSelect.innerHTML += filtered.map(s => `<option value="${s.id}">${s.section_name}</option>`).join('');
+    }
+}
+
+function onAssignSectionChange() {
+    const levelId = document.getElementById('gradeSelectAssign').value;
+    const sectionId = document.getElementById('sectionSelectAssign').value;
+    const periodSelect = document.getElementById('periodSelectAssign');
+
+    periodSelect.innerHTML = '<option value="">-- Loading... --</option>';
+
+    if (!levelId || !sectionId) {
+        periodSelect.innerHTML = '<option value="">-- Choose Period --</option>';
+        return;
+    }
+
+    // Fetch periods for this specific section
+    fetch(`/api/timetable/periods?school_id=${schoolId}&level_id=${levelId}&section_id=${sectionId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.periods) {
+                periodSelect.innerHTML = '<option value="">-- Choose Period --</option>';
+                data.periods.forEach(p => {
+                    periodSelect.innerHTML += `<option value="${p.period_number}" data-id="${p.id}">${p.period_name || `Period ${p.period_number}`} (${p.start_time}-${p.end_time})</option>`;
+                });
+            } else {
+                periodSelect.innerHTML = '<option value="">No periods defined for this section</option>';
+            }
+        })
+        .catch(err => {
+            console.error('Error loading periods for assignment:', err);
+            periodSelect.innerHTML = '<option value="">Error loading periods</option>';
+        });
 }
 
 /**
@@ -919,30 +1230,39 @@ function loadStaffCurrentAllocations(staffId) {
     const tbody = document.getElementById('staffCurrentAllocationsBody');
     const section = document.getElementById('currentAllocationsSection');
 
-    fetch(`/api/timetable/staff-period/list/${staffId}`)
+    // Use hierarchical API
+    fetch(`/api/hierarchical-timetable/staff-schedule/${staffId}`)
         .then(response => {
             if (!response.ok) throw new Error('Failed to load allocations');
             return response.json();
         })
         .then(data => {
-            if (data.status === 'success' && data.data && data.data.length > 0) {
+            if (data.success && data.data && data.data.schedule && data.data.schedule.length > 0) {
                 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
-                tbody.innerHTML = data.data.map(allocation => {
+                tbody.innerHTML = data.data.schedule.map(allocation => {
                     const day = DAYS[allocation.day_of_week] || 'Unknown';
-                    const periodName = allocation.period_name || `Period ${allocation.period_id}`;
-                    const timeSlot = allocation.time_slot || '--:-- to --:--';
-                    const createdDate = new Date(allocation.created_at).toLocaleDateString() || 'Unknown';
+                    const periodName = `Period ${allocation.period_number}`;
+                    const timeSlot = `${allocation.start_time} to ${allocation.end_time}`;
+                    const subject = allocation.subject_name || 'No Subject';
+                    const location = allocation.room_number ? `<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${allocation.room_number}</small>` : '';
 
                     return `
                         <tr>
                             <td><strong>${day}</strong></td>
-                            <td>${periodName}</td>
-                            <td><code>${timeSlot}</code></td>
-                            <td><small>${createdDate}</small></td>
+                            <td>
+                                <div>${allocation.level_name} - ${allocation.section_name}</div>
+                                <small class="text-primary fw-600">${periodName}</small>
+                            </td>
+                            <td>
+                                <div class="fw-bold">${subject}</div>
+                                <code>${timeSlot}</code>
+                                ${location}
+                            </td>
+                            <td><span class="badge ${allocation.is_locked ? 'bg-danger' : 'bg-success'}">${allocation.is_locked ? 'Locked' : 'Active'}</span></td>
                             <td class="text-center">
-                                <button class="btn btn-sm btn-danger" onclick="deleteStaffAllocation(${allocation.id}, ${staffId})">
-                                    <i class="bi bi-trash"></i> Delete
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteStaffAllocation(${allocation.assignment_id}, ${staffId})">
+                                    <i class="bi bi-trash"></i>
                                 </button>
                             </td>
                         </tr>
@@ -953,8 +1273,9 @@ function loadStaffCurrentAllocations(staffId) {
             } else {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="5" class="text-center text-muted py-3">
-                            <i class="bi bi-inbox"></i> No periods allocated yet. Add one above!
+                        <td colspan="5" class="text-center text-muted py-5">
+                            <div class="mb-2"><i class="bi bi-inbox fs-2 opacity-25"></i></div>
+                            No periods allocated yet. Add one above!
                         </td>
                     </tr>
                 `;
@@ -980,103 +1301,103 @@ function loadStaffCurrentAllocations(staffId) {
 function assignStaffPeriod() {
     const staffSelect = document.getElementById('staffSelectAssign');
     const daySelect = document.getElementById('daySelectAssign');
+    const gradeSelect = document.getElementById('gradeSelectAssign');
+    const sectionSelect = document.getElementById('sectionSelectAssign');
     const periodSelect = document.getElementById('periodSelectAssign');
+    const subjectInput = document.getElementById('subjectNameAssign');
+    const roomInput = document.getElementById('roomNumberAssign');
 
     const staffId = staffSelect.value;
     const day = daySelect.value;
-    const periodId = periodSelect.value;
-    const staffName = staffSelect.options[staffSelect.selectedIndex].text;
-    const dayName = daySelect.options[daySelect.selectedIndex].text;
-    const periodName = periodSelect.options[periodSelect.selectedIndex].text;
+    const levelId = gradeSelect.value;
+    const sectionId = sectionSelect.value;
+    const periodNumber = periodSelect.value;
 
     // Validation
-    if (!staffId) {
-        showAlert('Please select a staff member', 'error');
-        return;
-    }
-    if (!day && day !== '0') {
-        showAlert('Please select a day', 'error');
-        return;
-    }
-    if (!periodId) {
-        showAlert('Please select a period', 'error');
+    if (!staffId || !day || !levelId || !sectionId || !periodNumber) {
+        showAlert('Please fill all required fields: Staff, Day, Grade, Section, and Period', 'error');
         return;
     }
 
-    // Check for duplicate allocation
-    const tbody = document.getElementById('staffCurrentAllocationsBody');
-    const isDuplicate = Array.from(tbody.querySelectorAll('tr')).some(row => {
-        const rowDay = row.cells[0].textContent.trim();
-        const rowPeriod = row.cells[1].textContent.trim();
-        return rowDay === dayName && rowPeriod === periodName;
-    });
+    const data = {
+        staff_id: parseInt(staffId),
+        day_of_week: parseInt(day),
+        level_id: parseInt(levelId),
+        section_id: parseInt(sectionId),
+        period_number: parseInt(periodNumber),
+        subject_name: subjectInput.value,
+        room_number: roomInput.value
+    };
 
-    if (isDuplicate) {
-        showAlert(`Period already allocated for this day!`, 'warning');
-        return;
-    }
+    console.log('Sending assignment data:', data);
 
-    // Make API call to assign period
-    fetch('/api/timetable/staff-period/assign', {
+    // Make API call to assign period using hierarchical API
+    fetch('/api/hierarchical-timetable/assign-staff', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         },
-        body: JSON.stringify({
-            staff_id: parseInt(staffId),
-            day_of_week: parseInt(day),
-            period_id: parseInt(periodId)
-        })
+        body: JSON.stringify(data)
     })
         .then(response => response.json())
         .then(data => {
-            if (data.status === 'success' || data.success) {
-                showAlert(`Period "${periodName}" successfully allocated to ${staffName} on ${dayName}`, 'success');
+            if (data.success) {
+                showAlert(`Successfully assigned staff to the selected period`, 'success');
 
-                // Reset form
-                daySelect.value = '';
+                // Reset inputs but keep staff/day for convenience
                 periodSelect.value = '';
+                subjectInput.value = '';
+                roomInput.value = '';
 
                 // Reload allocations
                 loadStaffCurrentAllocations(staffId);
+
+                // Refresh the summary table as well
+                loadStaffAssignmentsSummary();
             } else {
-                showAlert(`Error: ${data.message || 'Failed to allocate period'}`, 'error');
+                let errorMsg = data.error || 'Failed to allocate period';
+                if (data.conflicts && data.conflicts.length > 0) {
+                    errorMsg += `\nConflicts with: ${data.conflicts.join(', ')}`;
+                }
+                showAlert(`Error: ${errorMsg}`, 'error');
             }
         })
         .catch(err => {
             console.error('Error assigning period:', err);
-            showAlert('Error assigning period. Please try again.', 'error');
+            showAlert('Error assigning period. Please check network/auth.', 'error');
         });
 }
 
 /**
  * Delete a period allocation for a staff member
  */
-function deleteStaffAllocation(allocationId, staffId) {
-    if (!confirm('Are you sure you want to delete this allocation?')) {
+function deleteStaffAllocation(assignmentId, staffId) {
+    if (!confirm('Are you sure you want to remove this assignment?')) {
         return;
     }
 
-    fetch(`/api/timetable/staff-period/remove/${allocationId}`, {
-        method: 'POST',
+    fetch(`/api/hierarchical-timetable/assignment/${assignmentId}`, {
+        method: 'DELETE',
         headers: {
-            'Content-Type': 'application/json',
             'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
         }
     })
         .then(response => response.json())
         .then(data => {
-            if (data.status === 'success' || data.success) {
-                showAlert('Allocation deleted successfully', 'success');
+            if (data.success) {
+                showAlert('Assignment removed successfully', 'success');
                 loadStaffCurrentAllocations(staffId);
+
+                // Refresh the summary table as well
+                loadStaffAssignmentsSummary();
             } else {
-                showAlert(`Error: ${data.message || 'Failed to delete allocation'}`, 'error');
+                showAlert(`Error: ${data.error || 'Failed to delete assignment'}`, 'error');
             }
         })
         .catch(err => {
-            console.error('Error deleting allocation:', err);
-            showAlert('Error deleting allocation. Please try again.', 'error');
+            console.error('Error deleting assignment:', err);
+            showAlert('Error deleting assignment. Please try again.', 'error');
         });
 }
 
@@ -1133,4 +1454,88 @@ function generateAllocationScheduleGrid(allocations) {
     gridHTML += '</div>';
 
     return gridHTML;
+}
+
+// ===================================
+// STAFF ASSIGNMENTS SUMMARY & AVAILABILITY
+// ===================================
+
+const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function getDayName(idx) {
+    return dayNames[idx] || 'Unknown';
+}
+
+function loadStaffAssignmentsSummary() {
+    const dayFilter = document.getElementById('staffAssignmentDayFilter')?.value || '';
+    const tbody = document.getElementById('staffAssignmentsTableBody');
+
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted">Loading staff availability...</div></td></tr>';
+
+    let url = `/api/hierarchical-timetable/assignments/availability`;
+    if (dayFilter !== "") {
+        url += `?day_of_week=${dayFilter}`;
+    }
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.data) {
+                renderStaffAssignmentsSummary(data.data);
+            } else {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading data: ${data.error || 'Unknown error'}</td></tr>`;
+            }
+        })
+        .catch(err => {
+            console.error('Error:', err);
+            tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Error loading data. Please try again.</td></tr>`;
+        });
+}
+
+function renderStaffAssignmentsSummary(data) {
+    const tbody = document.getElementById('staffAssignmentsTableBody');
+    tbody.innerHTML = '';
+
+    // Filter by staff if selected
+    const staffFilterId = document.getElementById('staffAssignmentStaffFilter')?.value;
+    let filteredData = data;
+    if (staffFilterId) {
+        filteredData = data.filter(item => item.staff_id == staffFilterId);
+    }
+
+    if (filteredData.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center p-4 text-muted"><i class="bi bi-inbox me-2"></i>No data found for the selected criteria.</td></tr>';
+        return;
+    }
+
+    filteredData.forEach(item => {
+        const assignedBadges = item.assigned_periods.length > 0
+            ? item.assigned_periods.map(p => `<span class="badge bg-primary me-1">${p}</span>`).join('')
+            : '<span class="text-muted small">None</span>';
+
+        const freeBadges = item.free_periods.length > 0
+            ? item.free_periods.map(p => `<span class="badge bg-success me-1">${p}</span>`).join('')
+            : '<span class="badge bg-danger">Fully Booked</span>';
+
+        // Status logic
+        let statusBadge = '<span class="badge bg-success">Available</span>';
+        if (item.free_periods.length === 0) statusBadge = '<span class="badge bg-danger">Full</span>';
+        else if (item.assigned_periods.length === 0) statusBadge = '<span class="badge bg-secondary">Free</span>';
+
+        const row = `
+            <tr>
+                <td>
+                    <div class="fw-bold">${item.staff_name}</div>
+                    <small class="text-muted">${item.department || ''}</small>
+                </td>
+                <td>${getDayName(item.day)}</td>
+                <td>${assignedBadges}</td>
+                <td>${freeBadges}</td>
+                <td class="text-center">${statusBadge}</td>
+            </tr>
+        `;
+        tbody.innerHTML += row;
+    });
 }

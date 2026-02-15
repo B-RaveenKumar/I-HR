@@ -89,6 +89,26 @@ def get_academic_levels():
         logger.error(f"Error fetching academic levels: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@hierarchical_bp.route('/levels/update/<int:level_id>', methods=['POST'])
+@check_admin_auth
+def update_academic_level(level_id):
+    """Update name of an academic level"""
+    try:
+        school_id = session.get('school_id')
+        data = request.json or {}
+        level_name = data.get('level_name')
+        description = data.get('description')
+        
+        if not level_name:
+            return jsonify({'success': False, 'error': 'Level name is required'}), 400
+            
+        result = HierarchicalTimetableManager.update_academic_level(school_id, level_id, level_name, description)
+        return jsonify(result), 200 if result['success'] else 400
+        
+    except Exception as e:
+        logger.error(f"Error updating academic level: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # ==================== SECTIONS MANAGEMENT ====================
 
 @hierarchical_bp.route('/sections/create', methods=['POST'])
@@ -232,9 +252,16 @@ def assign_staff_to_period():
         room_number = data.get('room_number')
         
         if None in [staff_id, section_id, level_id, day_of_week, period_number]:
+            missing = []
+            if staff_id is None: missing.append('staff_id')
+            if section_id is None: missing.append('section_id')
+            if level_id is None: missing.append('level_id')
+            if day_of_week is None: missing.append('day_of_week')
+            if period_number is None: missing.append('period_number')
+            logger.error(f"Assign Staff Missing Fields: {missing}. Data: {data}")
             return jsonify({
                 'success': False,
-                'error': 'Missing required fields: staff_id, section_id, level_id, day_of_week, period_number'
+                'error': f'Missing required fields: {", ".join(missing)}'
             }), 400
         
         result = HierarchicalTimetableManager.assign_staff_to_period(
@@ -259,6 +286,42 @@ def delete_assignment(assignment_id):
     
     except Exception as e:
         logger.error(f"Error deleting assignment: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@hierarchical_bp.route('/assignments/availability', methods=['GET'])
+@check_auth_either
+def get_all_staff_availability():
+    """Get summarized availability (free/busy) for all staff"""
+    try:
+        school_id = session.get('school_id')
+        day_of_week = request.args.get('day_of_week')
+        if day_of_week is not None and day_of_week != '':
+            day_of_week = int(day_of_week)
+        else:
+            day_of_week = None
+            
+        result = HierarchicalTimetableManager.get_all_staff_availability(school_id, day_of_week)
+        return jsonify(result), 200 if result['success'] else 400
+    
+    except Exception as e:
+        logger.error(f"Error fetching availability summary: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@hierarchical_bp.route('/assignments/all', methods=['GET'])
+@check_auth_either
+def get_all_assignments():
+    """Get all timetable assignments for school"""
+    try:
+        school_id = session.get('school_id')
+        day_of_week = request.args.get('day_of_week')
+        if day_of_week is not None:
+            day_of_week = int(day_of_week)
+            
+        result = HierarchicalTimetableManager.get_all_assignments(school_id, day_of_week)
+        return jsonify(result), 200 if result['success'] else 400
+    
+    except Exception as e:
+        logger.error(f"Error fetching all assignments: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 # ==================== SCHEDULE VIEWS ====================
