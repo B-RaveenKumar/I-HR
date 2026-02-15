@@ -9,7 +9,7 @@
 
 .salary-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
 }
 
 .salary-summary-card {
@@ -36,7 +36,7 @@
     border-spacing: 0;
     border-radius: 10px;
     overflow: hidden;
-    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
 }
 
 .salary-table th {
@@ -408,7 +408,7 @@
 .section-title {
     font-size: 1.1rem;
     font-weight: 600;
-    color: var(--salary-dark);
+    color: #080095;
     margin-bottom: 1.5rem;
     padding-bottom: 0.5rem;
     border-bottom: 2px solid #e9ecef;
@@ -446,7 +446,7 @@
 
 .rule-item .form-label {
     font-weight: 500;
-    color: var(--salary-dark);
+    color: #000000;
     margin-bottom: 0.75rem;
     display: flex;
     align-items: center;
@@ -621,7 +621,8 @@
 
 .table-responsive .salary-results-table {
     margin-bottom: 0;
-    min-width: 800px; /* Ensure minimum width for proper column alignment */
+    min-width: 800px;
+    /* Ensure minimum width for proper column alignment */
 }
 
 /* Column width constraints for consistent alignment */
@@ -748,7 +749,7 @@
 
 /* Prevent content jumping during filter operations */
 .salary-results-card .card-body {
-    height:fit-content;
+    height: fit-content;
     position: relative;
 }
 
@@ -861,7 +862,8 @@
     /* Mobile table adjustments */
     .salary-results-table {
         font-size: 0.8rem;
-        min-width: 600px; /* Maintain minimum width on mobile */
+        min-width: 600px;
+        /* Maintain minimum width on mobile */
     }
 
     .salary-results-table th,
@@ -1256,7 +1258,8 @@
 /* Responsive Sidebar */
 @media (max-width: 768px) {
     .enhanced-sidebar {
-        display: block !important; /* Override inline style */
+        display: block !important;
+        /* Override inline style */
         transform: translateX(-100%);
         position: fixed;
         top: 0;
@@ -1294,7 +1297,7 @@
         box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         transition: all 0.3s ease;
     }
-    
+
     .sidebar-toggle:hover {
         background: var(--salary-secondary, #0056b3);
         transform: translateY(-2px);
@@ -1304,8 +1307,10 @@
 
 @media (min-width: 769px) {
     .enhanced-sidebar {
-        display: block !important; /* Show on desktop */
-        transform: translateX(0) !important; /* Always visible on desktop */
+        display: block !important;
+        /* Show on desktop */
+        transform: translateX(0) !important;
+        /* Always visible on desktop */
         position: relative !important;
         height: auto !important;
         width: auto !important;
@@ -1638,7 +1643,7 @@
 .category-title {
     font-size: 1.5rem;
     font-weight: 600;
-    color: var(--salary-dark);
+    color: #000000;
     margin-bottom: 1.5rem;
     padding-bottom: 0.75rem;
     border-bottom: 2px solid #e9ecef;
@@ -1696,13 +1701,13 @@
 .report-content h6 {
     font-size: 1rem;
     font-weight: 600;
-    color: var(--salary-dark);
+    color: #000000;
     margin-bottom: 0.5rem;
 }
 
 .report-content p {
     font-size: 0.85rem;
-    color: white;
+    color: rgb(0, 0, 0);
     margin-bottom: 1rem;
     line-height: 1.4;
 }
@@ -1942,7 +1947,7 @@
     border-radius: 8px;
     padding: 15px;
     margin-bottom: 10px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
 }
 
 .rule-label {
@@ -2003,26 +2008,26 @@
     .salary-amount {
         font-size: 1.5rem;
     }
-    
+
     .salary-table {
         font-size: 0.875rem;
     }
-    
+
     .salary-table th,
     .salary-table td {
         padding: 8px 6px;
     }
-    
+
     .summary-stats {
         grid-template-columns: repeat(2, 1fr);
         gap: 15px;
     }
-    
+
     .action-buttons {
         flex-direction: column;
         width: 100%;
     }
-    
+
     .action-buttons .btn {
         width: 100%;
         margin-bottom: 5px;
@@ -2033,21 +2038,21 @@
     .salary-summary-card {
         padding: 20px 15px;
     }
-    
+
     .salary-amount {
         font-size: 1.3rem;
     }
-    
+
     .attendance-summary {
         padding: 12px;
     }
-    
+
     .breakdown-item {
         flex-direction: column;
         align-items: flex-start;
         gap: 5px;
     }
-    
+
     .summary-stats {
         grid-template-columns: 1fr;
     }
@@ -2175,17 +2180,17 @@
     .search-container {
         width: 250px;
     }
-    
+
     .salary-header .header-actions {
         flex-direction: column;
         gap: 0.5rem;
         width: 100%;
     }
-    
+
     .search-container {
         width: 100%;
     }
-    
+
     .section-header {
         flex-direction: column;
         text-align: center;
@@ -2286,19 +2291,19 @@
         justify-content: center;
         margin-top: 1rem;
     }
-    
+
     .stat-card {
         margin-bottom: 1rem;
     }
-    
+
     .stat-card .stat-icon {
         font-size: 2rem;
     }
-    
+
     .stat-card .stat-value {
         font-size: 1.5rem;
     }
-    
+
     .info-value {
         margin-left: 0;
         margin-top: 0.25rem;
@@ -2307,23 +2312,24 @@
 
 /* Print Styles */
 @media print {
+
     .sidebar,
     .btn-toolbar,
     .action-buttons,
     .modal-footer {
         display: none !important;
     }
-    
+
     .salary-table {
         box-shadow: none;
         border: 1px solid #dee2e6;
     }
-    
+
     .salary-card {
         box-shadow: none;
         border: 1px solid #dee2e6;
     }
-    
+
     .main {
         margin-left: 0 !important;
     }
@@ -2339,7 +2345,7 @@
 
 .dept-shift-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
     border-color: #007bff;
 }
 
@@ -2392,7 +2398,7 @@
     font-size: 0.9rem;
 }
 
-.breadcrumb-item + .breadcrumb-item::before {
+.breadcrumb-item+.breadcrumb-item::before {
     content: "›";
     color: white;
     font-weight: bold;
@@ -2431,4 +2437,3 @@
     color: #adb5bd;
     margin-bottom: 1.5rem;
 }
-
