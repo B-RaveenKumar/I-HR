@@ -9,6 +9,7 @@ let timetableData = [];
 let allocationsData = [];
 let requestsData = [];
 let periodsConfig = [];
+let swapRequestsPollingInterval = null;
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -40,6 +41,14 @@ document.addEventListener('DOMContentLoaded', function() {
     loadTimetable();
     loadSwapRequests();
     loadAllocations();
+    
+    // Start auto-refresh for swap requests (every 10 seconds)
+    startSwapRequestsAutoRefresh();
+});
+
+// Cleanup polling when page is unloaded
+window.addEventListener('beforeunload', function() {
+    stopSwapRequestsAutoRefresh();
 });
 
 // ==========================================================================
@@ -244,6 +253,31 @@ function renderWeeklyGrid() {
 // ==========================================================================
 // SWAP REQUESTS
 // ==========================================================================
+
+// Auto-refresh swap requests every 10 seconds
+function startSwapRequestsAutoRefresh() {
+    // Clear any existing interval
+    if (swapRequestsPollingInterval) {
+        clearInterval(swapRequestsPollingInterval);
+    }
+    
+    // Set up polling every 10 seconds
+    swapRequestsPollingInterval = setInterval(() => {
+        console.log('[AUTO-REFRESH] Checking for new swap requests...');
+        loadSwapRequests();
+    }, 10000); // 10 seconds
+    
+    console.log('[AUTO-REFRESH] Swap requests polling started (10s interval)');
+}
+
+// Stop auto-refresh (useful for cleanup)
+function stopSwapRequestsAutoRefresh() {
+    if (swapRequestsPollingInterval) {
+        clearInterval(swapRequestsPollingInterval);
+        swapRequestsPollingInterval = null;
+        console.log('[AUTO-REFRESH] Swap requests polling stopped');
+    }
+}
 
 function loadSwapRequests() {
     fetch(`/api/timetable/requests?school_id=${schoolId}&staff_id=${staffId}`)
