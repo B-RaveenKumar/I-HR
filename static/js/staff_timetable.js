@@ -16,6 +16,13 @@ document.addEventListener('DOMContentLoaded', function() {
     staffId = sessionStorage.getItem('staff_id') || new URLSearchParams(window.location.search).get('staff_id');
     schoolId = sessionStorage.getItem('school_id') || new URLSearchParams(window.location.search).get('school_id');
     
+    console.log('Initializing staff timetable - staffId:', staffId, 'schoolId:', schoolId);
+    
+    if (!staffId || !schoolId) {
+        showAlert('Missing staff or school information. Please log in again.', 'error');
+        return;
+    }
+    
     loadTimetable();
     loadSwapRequests();
     loadAllocations();
@@ -26,86 +33,106 @@ document.addEventListener('DOMContentLoaded', function() {
 // ==========================================================================
 
 function loadTimetable() {
-    fetch(`/api/timetable/staff?school_id=${schoolId}&staff_id=${staffId}`)
-        .then(r => r.json())
+    const url = `/api/timetable/staff?school_id=${schoolId}&staff_id=${staffId}`;
+    console.log('Loading timetable from:', url);
+    
+    fetch(url)
+        .then(r => {
+            if (!r.ok) {
+                throw new Error(`HTTP error! status: ${r.status}`);
+            }
+            return r.json();
+        })
         .then(data => {
-            timetableData = data.timetable || [];
-            renderWeeklyGrid();
+            console.log('Timetable data received:', data);
+            if (data.success) {
+                timetableData = data.timetable || data.data || [];
+                renderWeeklyGrid();
+            } else {
+                throw new Error(data.error || 'Failed to load timetable');
+            }
         })
         .catch(err => {
             console.error('Error loading timetable:', err);
-            showAlert('Failed to load timetable', 'error');
+            showAlert('Failed to load timetable: ' + err.message, 'error');
+            // Show error in table
+            const tbody = document.getElementById('timetableTableBody');
+            if (tbody) {
+                tbody.innerHTML = `<tr><td colspan="6" style="padding: 2rem; text-align: center; color: #dc3545;">
+                    <i class="bi bi-exclamation-triangle" style="font-size: 2rem;"></i>
+                    <p style="margin-top: 1rem;">Failed to load timetable</p>
+                    <small>${err.message}</small>
+                </td></tr>`;
+            }
         });
 }
 
 function renderWeeklyGrid() {
-    const container = document.getElementById('weeklyGrid');
-    
-    // Create day columns
-    let html = '';
-    for (let dayNum = 0; dayNum < 7; dayNum++) {
-        const dayAssignments = timetableData.filter(t => t.day_of_week === dayNum);
-        const dayAllocations = allocationsData.filter(a => a.day_of_week === dayNum);
-        
-        html += `
-            <div class="day-column">
-                <div class="day-header">${DAYS[dayNum]}</div>
-        `;
-        
-        // Get all periods for this day
-        const periods = [...new Set([...dayAssignments.map(t => t.period_number), ...dayAllocations.map(a => a.period_number)])];
-        
-        if (periods.length === 0) {
-            html += '<div style="color: white; text-align: center; padding: 1rem; font-size: 0.85rem;">No assignments</div>';
-        } else {
-            periods.forEach(periodNum => {
-                const assignment = dayAssignments.find(t => t.period_number === periodNum);
-                const allocation = dayAllocations.find(a => a.period_number === periodNum);
-                
-                if (assignment) {
-                    // Assigned slot
-                    html += `
-                        <div class="period-slot assigned" onclick="showSwapModal(${assignment.id}, '${assignment.period_name}')">
-                            <div class="slot-time">${assignment.start_time} - ${assignment.end_time}</div>
-                            <div class="slot-content">${assignment.period_name || `Period ${assignment.period_number}`}</div>
-                            ${assignment.class_subject ? `<div class="slot-content" style="font-size: 0.8rem; color: white;">${assignment.class_subject}</div>` : ''}
-                            ${assignment.is_locked 
-                                ? '<span class="slot-badge" style="background: #dc3545;">LOCKED</span>' 
-                                : '<span class="slot-badge" style="background: #007bff;">REQUEST SWAP</span>'
-                            }
-                        </div>
-                    `;
-                } else if (allocation) {
-                    // Self-allocated slot
-                    html += `
-                        <div class="period-slot allocated" style="background: #e8f5e9; border-color: #28a745;">
-                            <div class="slot-time">${allocation.start_time} - ${allocation.end_time}</div>
-                            <div class="slot-content">${allocation.period_name || `Period ${allocation.period_number}`}</div>
-                            <div class="slot-content" style="font-size: 0.8rem; color: #1b5e20;">${allocation.class_subject}</div>
-                            ${allocation.is_admin_locked 
-                                ? '<span class="slot-badge" style="background: #ff6f00;">ADMIN LOCKED</span>'
-                                : ''
-                            }
-                        </div>
-                    `;
-                } else {
-                    // Empty slot - can self-allocate
-                    html += `
-                        <div class="period-slot empty" style="cursor: pointer;" onclick="showAllocateModal(${dayNum}, ${periodNum}, '${DAYS[dayNum]}')">
-                            <div style="color: white; text-align: center;">
-                                <i class="bi bi-plus-circle"></i>
-                                <div style="font-size: 0.8rem; margin-top: 0.25rem;">Available</div>
-                            </div>
-                        </div>
-                    `;
-                }
-            });
-        }
-        
-        html += '</div>';
+    const tbody = document.getElementById('timetableTableBody');
+    if (!tbody) {
+        console.error('timetableTableBody container not found');
+        return;
     }
     
-    container.innerHTML = html;
+    // Get max period number to determine rows needed (default to 9 periods)
+    const maxPeriod = Math.max(9, ...timetableData.map(t => t.period_number), ...allocationsData.map(a => a.period_number));
+    
+    let html = '';
+    
+    // Generate rows for each period (1 to maxPeriod)
+    for (let period = 1; period <= maxPeriod; period++) {
+        html += '<tr>';
+        
+        // First column: Period number
+        html += `<td class="period-number">${period}</td>`;
+        
+        // Columns for Monday (1) to Friday (5) only
+        for (let day = 1; day <= 5; day++) {
+            const assignment = timetableData.find(t => t.day_of_week === day && t.period_number === period);
+            const allocation = allocationsData.find(a => a.day_of_week === day && a.period_number === period);
+            
+            if (assignment) {
+                // Admin-assigned period
+                const cellClass = assignment.is_locked ? 'timetable-cell assigned locked' : 'timetable-cell assigned';
+                html += `
+                    <td class="${cellClass}" onclick="${assignment.is_locked ? '' : `showSwapModal(${assignment.id}, '${assignment.period_name || 'Period ' + assignment.period_number}')`}">
+                        <div class="cell-content">
+                            <div class="cell-subject">${assignment.class_subject || assignment.period_name || 'Period ' + assignment.period_number}</div>
+                            ${assignment.start_time && assignment.end_time ? `<div class="cell-time">${assignment.start_time} - ${assignment.end_time}</div>` : ''}
+                            ${assignment.is_locked 
+                                ? '<span class="cell-badge badge-locked">LOCKED</span>' 
+                                : '<span class="cell-badge badge-swap">REQUEST SWAP</span>'
+                            }
+                        </div>
+                    </td>
+                `;
+            } else if (allocation) {
+                // Self-allocated period
+                html += `
+                    <td class="timetable-cell allocated">
+                        <div class="cell-content">
+                            <div class="cell-subject">${allocation.class_subject || 'Allocated'}</div>
+                            ${allocation.start_time && allocation.end_time ? `<div class="cell-time">${allocation.start_time} - ${allocation.end_time}</div>` : ''}
+                            ${allocation.is_admin_locked ? '<span class="cell-badge badge-locked">ADMIN LOCKED</span>' : ''}
+                        </div>
+                    </td>
+                `;
+            } else {
+                // Empty cell
+                html += `
+                    <td class="timetable-cell empty">
+                        <div style="text-align: center; color: #ccc; font-size: 0.85rem;">
+                            No assignments
+                        </div>
+                    </td>
+                `;
+            }
+        }
+        
+        html += '</tr>';
+    }
+    
+    tbody.innerHTML = html;
 }
 
 // ==========================================================================
