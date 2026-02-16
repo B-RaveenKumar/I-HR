@@ -10,6 +10,7 @@ let allocationsData = [];
 let requestsData = [];
 let periodsConfig = [];
 let swapRequestsPollingInterval = null;
+let timetablePollingInterval = null;
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -42,18 +43,45 @@ document.addEventListener('DOMContentLoaded', function() {
     loadSwapRequests();
     loadAllocations();
     
-    // Start auto-refresh for swap requests (every 10 seconds)
+    // Start auto-refresh for swap requests and timetable (every 10 seconds)
     startSwapRequestsAutoRefresh();
+    startTimetableAutoRefresh();
 });
 
 // Cleanup polling when page is unloaded
 window.addEventListener('beforeunload', function() {
     stopSwapRequestsAutoRefresh();
+    stopTimetableAutoRefresh();
 });
 
 // ==========================================================================
 // TIMETABLE LOADING & RENDERING
 // ==========================================================================
+
+// Auto-refresh timetable every 10 seconds to show accepted swaps
+function startTimetableAutoRefresh() {
+    // Clear any existing interval
+    if (timetablePollingInterval) {
+        clearInterval(timetablePollingInterval);
+    }
+    
+    // Set up polling every 10 seconds
+    timetablePollingInterval = setInterval(() => {
+        console.log('[AUTO-REFRESH] Checking for timetable updates...');
+        loadTimetable();
+    }, 10000); // 10 seconds
+    
+    console.log('[AUTO-REFRESH] Timetable polling started (10s interval)');
+}
+
+// Stop timetable auto-refresh
+function stopTimetableAutoRefresh() {
+    if (timetablePollingInterval) {
+        clearInterval(timetablePollingInterval);
+        timetablePollingInterval = null;
+        console.log('[AUTO-REFRESH] Timetable polling stopped');
+    }
+}
 
 function loadPeriodsConfig() {
     const url = `/api/timetable/periods?school_id=${schoolId}`;
