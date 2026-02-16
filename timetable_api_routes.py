@@ -300,6 +300,7 @@ def save_period():
     """Create or update a period with hierarchical support"""
     try:
         data = request.get_json()
+        period_id = data.get('id')  # Check if this is an edit
         school_id = data.get('school_id') or session.get('school_id')
         period_number = data.get('period_number')
         period_name = data.get('period_name')
@@ -334,26 +335,36 @@ def save_period():
         except ValueError:
             return jsonify({'success': False, 'error': 'Invalid time format. Use HH:MM'}), 400
 
-        # Check if exists (UPSERT-like behavior)
-        # Note: If day_of_week is provided, we check for match including day
-        cursor.execute('''
-            SELECT id FROM timetable_periods 
-            WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0) 
-            AND COALESCE(section_id, 0) = COALESCE(?, 0) 
-            AND COALESCE(day_of_week, -1) = COALESCE(?, -1)
-            AND period_number = ?
-        ''', (school_id, level_id, section_id, day_of_week, period_number))
-        
-        existing = cursor.fetchone()
-        
-        if existing:
+        # If period_id is provided, update existing record
+        if period_id:
+            # Update existing period by ID
             cursor.execute('''
                 UPDATE timetable_periods SET
                 period_name = ?, start_time = ?, end_time = ?, 
-                duration_minutes = ?, updated_at = CURRENT_TIMESTAMP
-                WHERE id = ?
-            ''', (period_name, start_time, end_time, duration, existing['id']))
+                duration_minutes = ?, period_number = ?, 
+                level_id = ?, section_id = ?, day_of_week = ?,
+                updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND school_id = ?
+            ''', (period_name, start_time, end_time, duration, period_number,
+                  level_id, section_id, day_of_week, period_id, school_id))
+            
+            if cursor.rowcount == 0:
+                return jsonify({'success': False, 'error': 'Period not found or access denied'}), 404
         else:
+            # Check if a period with this combination already exists (for INSERT)
+            cursor.execute('''
+                SELECT id FROM timetable_periods 
+                WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0) 
+                AND COALESCE(section_id, 0) = COALESCE(?, 0) 
+                AND period_number = ?
+            ''', (school_id, level_id, section_id, period_number))
+            
+            existing = cursor.fetchone()
+            
+            if existing:
+                return jsonify({'success': False, 'error': 'A period with this number already exists for this grade/section'}), 400
+            
+            # Insert new period
             cursor.execute('''
                 INSERT INTO timetable_periods 
                 (school_id, level_id, section_id, day_of_week, period_number, period_name, start_time, end_time, duration_minutes)

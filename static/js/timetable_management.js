@@ -177,6 +177,7 @@ function savePeriod() {
     const periodName = document.getElementById('periodName').value;
     const startTime = document.getElementById('startTime').value;
     const endTime = document.getElementById('endTime').value;
+    const editId = document.getElementById('periodModal').dataset.editId;
 
     if (!periodNumber || !startTime || !endTime) {
         showAlert('Please fill all required fields', 'error');
@@ -194,6 +195,11 @@ function savePeriod() {
         end_time: endTime
     };
 
+    // Include ID if editing
+    if (editId && editId !== '') {
+        data.id = parseInt(editId);
+    }
+
     fetch('/api/timetable/period/save', {
         method: 'POST',
         headers: {
@@ -206,7 +212,10 @@ function savePeriod() {
         .then(result => {
             if (result.success) {
                 showAlert('Period saved successfully', 'success');
-                bootstrap.Modal.getInstance(document.getElementById('periodModal')).hide();
+                const modal = bootstrap.Modal.getInstance(document.getElementById('periodModal'));
+                modal.hide();
+                // Clear the editId after successful save
+                delete document.getElementById('periodModal').dataset.editId;
                 loadPeriods();
             } else {
                 showAlert(result.error || 'Failed to save period', 'error');
