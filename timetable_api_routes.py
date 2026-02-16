@@ -243,6 +243,8 @@ def get_periods():
         section_id = request.args.get('section_id')
         day_of_week = request.args.get('day_of_week')
         
+        print(f"[DEBUG] get_periods - school_id: {school_id}, level_id: {level_id}, section_id: {section_id}, day_of_week: {day_of_week}")
+        
         if not school_id:
             return jsonify({'success': False, 'error': 'School ID required'}), 400
             
@@ -283,9 +285,12 @@ def get_periods():
                 'section_id': row['section_id'],
                 'day_of_week': row['day_of_week']
             })
+        
+        print(f"[DEBUG] Returning {len(periods)} periods for school {school_id}")
             
         return jsonify({'success': True, 'periods': periods, 'data': periods})
     except Exception as e:
+        print(f"[ERROR] get_periods: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -820,24 +825,36 @@ def get_personal_timetable(target_staff_id=None):
             
         school_id = request.args.get('school_id') or session.get('school_id')
         
+        print(f"[DEBUG] get_personal_timetable - staff_id: {staff_id}, school_id: {school_id}")
+        
         if not staff_id or not school_id:
             return jsonify({'success': False, 'error': 'Unauthorized or missing params'}), 401
             
         db = get_db()
         cursor = db.cursor()
         
-        # Get regular assignments
+        # Get hierarchical assignments
         cursor.execute('''
-            SELECT ta.id, ta.day_of_week, ta.period_number, ta.class_subject, ta.is_locked,
-                   tp.period_name, tp.start_time, tp.end_time
-            FROM timetable_assignments ta
-            LEFT JOIN timetable_periods tp ON ta.school_id = tp.school_id AND ta.period_number = tp.period_number
-            WHERE ta.staff_id = ? AND ta.school_id = ?
-            ORDER BY ta.day_of_week, ta.period_number
+            SELECT ha.id, ha.day_of_week, ha.period_number, ha.subject_name, ha.room_number,
+                   ha.level_id, ha.section_id, ha.is_locked,
+                   tp.period_name, tp.start_time, tp.end_time,
+                   l.level_name, s.section_name
+            FROM timetable_hierarchical_assignments ha
+            LEFT JOIN timetable_periods tp ON ha.school_id = tp.school_id AND ha.period_number = tp.period_number
+            LEFT JOIN timetable_academic_levels l ON ha.level_id = l.id
+            LEFT JOIN timetable_sections s ON ha.section_id = s.id
+            WHERE ha.staff_id = ? AND ha.school_id = ?
+            ORDER BY ha.day_of_week, ha.period_number
         ''', (staff_id, school_id))
         
         timetable = []
         for row in cursor.fetchall():
+            # Format class_subject as "Level Name - Section Name - Subject"
+            level_name = row['level_name'] or f"Level {row['level_id']}"
+            section_name = row['section_name'] or f"Section {row['section_id']}"
+            subject = row['subject_name'] or 'Unknown Subject'
+            class_subject = f"{level_name} - {section_name} - {subject}"
+            
             timetable.append({
                 'id': row['id'],
                 'day_of_week': row['day_of_week'],
@@ -845,13 +862,17 @@ def get_personal_timetable(target_staff_id=None):
                 'period_name': row['period_name'],
                 'start_time': row['start_time'],
                 'end_time': row['end_time'],
-                'class_subject': row['class_subject'],
+                'class_subject': class_subject,
+                'room_number': row['room_number'],
                 'is_locked': bool(row['is_locked']),
                 'type': 'assigned'
             })
+        
+        print(f"[DEBUG] Found {len(timetable)} hierarchical assignments for staff {staff_id}")
             
         return jsonify({'success': True, 'timetable': timetable, 'data': timetable})
     except Exception as e:
+        print(f"[ERROR] get_personal_timetable: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -859,30 +880,41 @@ def get_personal_timetable(target_staff_id=None):
 def get_swap_requests():
     """Get pending swap requests for the staff member"""
     try:
-        staff_id = session.get('user_id')
-        school_id = session.get('school_id')
+        staff_id = request.args.get('staff_id') or session.get('user_id')
+        school_id = request.args.get('school_id') or session.get('school_id')
         
-        if not staff_id:
-            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        print(f"[DEBUG] get_swap_requests - staff_id: {staff_id}, school_id: {school_id}")
+        
+        if not staff_id or not school_id:
+            return jsonify({'success': False, 'error': 'Unauthorized or missing params'}), 401
             
         db = get_db()
         cursor = db.cursor()
         
-        # Get received requests
+        # Get received requests (updated to use hierarchical_assignments)
         cursor.execute('''
             SELECT tar.id, tar.requester_staff_id, s.full_name as requester_name, s.department as requester_dept,
                    tar.assignment_id, tar.reason, tar.status, tar.created_at,
-                   tp.period_name, tp.start_time, tp.end_time, ta.period_number
+                   tp.period_name, tp.start_time, tp.end_time, ha.period_number, ha.day_of_week,
+                   ha.subject_name, l.level_name, sec.section_name
             FROM timetable_alteration_requests tar
             JOIN staff s ON tar.requester_staff_id = s.id
-            JOIN timetable_assignments ta ON tar.assignment_id = ta.id
-            LEFT JOIN timetable_periods tp ON ta.school_id = tp.school_id AND ta.period_number = tp.period_number
+            JOIN timetable_hierarchical_assignments ha ON tar.assignment_id = ha.id
+            LEFT JOIN timetable_periods tp ON ha.school_id = tp.school_id AND ha.period_number = tp.period_number
+            LEFT JOIN timetable_academic_levels l ON ha.level_id = l.id
+            LEFT JOIN timetable_sections sec ON ha.section_id = sec.id
             WHERE tar.target_staff_id = ? AND tar.school_id = ? AND tar.status = 'pending'
             ORDER BY tar.created_at DESC
         ''', (staff_id, school_id))
         
         requests = []
         for row in cursor.fetchall():
+            # Format class_subject for display
+            level_name = row['level_name'] or 'Unknown Level'
+            section_name = row['section_name'] or 'Unknown Section'
+            subject = row['subject_name'] or 'Unknown Subject'
+            class_subject = f"{level_name} - {section_name} - {subject}"
+            
             requests.append({
                 'id': row['id'],
                 'requester_id': row['requester_staff_id'],
@@ -891,13 +923,16 @@ def get_swap_requests():
                 'assignment_id': row['assignment_id'],
                 'period_name': row['period_name'],
                 'period_number': row['period_number'],
+                'day_of_week': row['day_of_week'],
                 'start_time': row['start_time'],
                 'end_time': row['end_time'],
+                'class_subject': class_subject,
                 'reason': row['reason'],
                 'status': row['status'],
                 'created_at': row['created_at']
             })
             
+        print(f"[DEBUG] Returning {len(requests)} swap requests for staff {staff_id}")
         return jsonify({'success': True, 'requests': requests})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -920,8 +955,8 @@ def request_swap():
         db = get_db()
         cursor = db.cursor()
         
-        # Check if requester owns the assignment
-        cursor.execute('SELECT staff_id FROM timetable_assignments WHERE id = ? AND school_id = ?', (assignment_id, school_id))
+        # Check if requester owns the assignment (check hierarchical_assignments table)
+        cursor.execute('SELECT staff_id FROM timetable_hierarchical_assignments WHERE id = ? AND school_id = ?', (assignment_id, school_id))
         assignment = cursor.fetchone()
         if not assignment or int(assignment['staff_id']) != int(requester_id):
             return jsonify({'success': False, 'error': 'Invalid assignment'}), 400
@@ -968,9 +1003,9 @@ def respond_swap():
         ''', (status, reason, staff_id, request_id))
         
         if accept:
-            # Swap the staff on the assignment
+            # Swap the staff on the assignment (use hierarchical_assignments table)
             cursor.execute('''
-                UPDATE timetable_assignments 
+                UPDATE timetable_hierarchical_assignments 
                 SET staff_id = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
             ''', (staff_id, req_row['assignment_id']))
@@ -985,11 +1020,11 @@ def respond_swap():
 def get_personal_allocations():
     """Get all self-allocations for the logged-in staff member"""
     try:
-        staff_id = session.get('user_id')
-        school_id = session.get('school_id')
+        staff_id = request.args.get('staff_id') or session.get('user_id')
+        school_id = request.args.get('school_id') or session.get('school_id')
         
         if not staff_id or not school_id:
-            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+            return jsonify({'success': False, 'error': 'Unauthorized or missing params'}), 401
             
         db = get_db()
         cursor = db.cursor()
@@ -1152,3 +1187,92 @@ def get_available_staff():
         return jsonify({'success': True, 'staff': staff})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/staff/available-for-period', methods=['GET'])
+def get_available_staff_for_period():
+    """Get staff members who are free at a specific day/period and in the same department"""
+    try:
+        school_id = request.args.get('school_id') or session.get('school_id')
+        day_of_week = request.args.get('day_of_week', type=int)
+        period_number = request.args.get('period_number', type=int)
+        department = request.args.get('department')
+        current_user_id = request.args.get('staff_id', type=int) or session.get('user_id')
+        
+        if not all([school_id, day_of_week, period_number, current_user_id]):
+            return jsonify({'success': False, 'error': 'Missing required parameters'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
+        
+        # If no department specified, use current user's department
+        if not department:
+            cursor.execute('SELECT department FROM staff WHERE id = ?', (current_user_id,))
+            user_row = cursor.fetchone()
+            if not user_row:
+                return jsonify({'success': False, 'error': 'Staff member not found'}), 404
+            department = user_row['department']
+        
+        # Get staff in specified department who are free at this period
+        cursor.execute('''
+            SELECT s.id, s.full_name, s.department
+            FROM staff s
+            WHERE s.school_id = ? 
+                AND s.department = ?
+                AND s.id != ?
+                AND s.id NOT IN (
+                    -- Staff who have an assignment at this time
+                    SELECT staff_id FROM timetable_assignments 
+                    WHERE school_id = ? 
+                        AND day_of_week = ? 
+                        AND period_number = ?
+                    UNION
+                    -- Staff who have a self-allocation at this time
+                    SELECT staff_id FROM timetable_self_allocations
+                    WHERE school_id = ? 
+                        AND day_of_week = ? 
+                        AND period_number = ?
+                )
+            ORDER BY s.full_name
+        ''', (school_id, department, current_user_id, 
+              school_id, day_of_week, period_number,
+              school_id, day_of_week, period_number))
+        
+        staff = []
+        for row in cursor.fetchall():
+            staff.append({
+                'id': row['id'],
+                'full_name': row['full_name'],
+                'department': row['department']
+            })
+            
+        return jsonify({'success': True, 'staff': staff, 'count': len(staff)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/departments', methods=['GET'])
+def get_departments_for_school():
+    """Get all unique departments in a school"""
+    try:
+        school_id = request.args.get('school_id') or session.get('school_id')
+        
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+            
+        db = get_db()
+        cursor = db.cursor()
+        
+        cursor.execute('''
+            SELECT DISTINCT department 
+            FROM staff 
+            WHERE school_id = ? AND department IS NOT NULL AND department != ''
+            ORDER BY department
+        ''', (school_id,))
+        
+        departments = [row['department'] for row in cursor.fetchall()]
+        
+        return jsonify({'success': True, 'departments': departments, 'count': len(departments)})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
