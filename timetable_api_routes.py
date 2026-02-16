@@ -900,7 +900,10 @@ def get_swap_requests():
             FROM timetable_alteration_requests tar
             JOIN staff s ON tar.requester_staff_id = s.id
             JOIN timetable_hierarchical_assignments ha ON tar.assignment_id = ha.id
-            LEFT JOIN timetable_periods tp ON ha.school_id = tp.school_id AND ha.period_number = tp.period_number
+            LEFT JOIN timetable_periods tp ON ha.school_id = tp.school_id 
+                AND ha.period_number = tp.period_number
+                AND ha.level_id = tp.level_id
+                AND ha.section_id = tp.section_id
             LEFT JOIN timetable_academic_levels l ON ha.level_id = l.id
             LEFT JOIN timetable_sections sec ON ha.section_id = sec.id
             WHERE tar.target_staff_id = ? AND tar.school_id = ? AND tar.status = 'pending'
@@ -1221,8 +1224,8 @@ def get_available_staff_for_period():
                 AND s.department = ?
                 AND s.id != ?
                 AND s.id NOT IN (
-                    -- Staff who have an assignment at this time
-                    SELECT staff_id FROM timetable_assignments 
+                    -- Staff who have an assignment at this time (check hierarchical_assignments)
+                    SELECT staff_id FROM timetable_hierarchical_assignments 
                     WHERE school_id = ? 
                         AND day_of_week = ? 
                         AND period_number = ?
