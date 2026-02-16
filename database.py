@@ -354,7 +354,7 @@ def init_db(app):
             FOREIGN KEY (school_id) REFERENCES schools(id),
             FOREIGN KEY (level_id) REFERENCES timetable_academic_levels(id),
             FOREIGN KEY (section_id) REFERENCES timetable_sections(id),
-            UNIQUE(school_id, level_id, section_id, day_of_week, period_number)
+            UNIQUE(school_id, level_id, section_id, period_number)
         )
         ''')
 
