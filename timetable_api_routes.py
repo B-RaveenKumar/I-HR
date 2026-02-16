@@ -413,7 +413,7 @@ def check_duplicate_period():
             SELECT id, period_number, start_time, end_time FROM timetable_periods
             WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0) 
             AND COALESCE(section_id, 0) = COALESCE(?, 0) AND LOWER(period_name) = LOWER(?)
-        ''', (school_id, level_id, section_id, period_name.strip()))
+        ''', (school_id, level_id, section_id, period_name.strip() if period_name else ''))
         
         existing = cursor.fetchone()
         
@@ -456,7 +456,7 @@ def get_similar_periods():
             WHERE tp.school_id = ? AND LOWER(tp.period_name) = LOWER(?)
             AND (tp.level_id IS NOT NULL OR tp.section_id IS NOT NULL)
             LIMIT 5
-        ''', (school_id, period_name.strip()))
+        ''', (school_id, period_name.strip() if period_name else ''))
         
         suggestions = []
         for row in cursor.fetchall():
@@ -961,7 +961,7 @@ def request_swap():
         # Check if requester owns the assignment (check hierarchical_assignments table)
         cursor.execute('SELECT staff_id FROM timetable_hierarchical_assignments WHERE id = ? AND school_id = ?', (assignment_id, school_id))
         assignment = cursor.fetchone()
-        if not assignment or int(assignment['staff_id']) != int(requester_id):
+        if not assignment or (assignment['staff_id'] is not None and int(assignment['staff_id']) != int(requester_id)):
             return jsonify({'success': False, 'error': 'Invalid assignment'}), 400
             
         cursor.execute('''
@@ -995,7 +995,7 @@ def respond_swap():
         # Verify target is the logged in user
         cursor.execute('SELECT * FROM timetable_alteration_requests WHERE id = ?', (request_id,))
         req_row = cursor.fetchone()
-        if not req_row or int(req_row['target_staff_id']) != int(staff_id):
+        if not req_row or (req_row['target_staff_id'] is not None and int(req_row['target_staff_id']) != int(staff_id)):
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
             
         status = 'accepted' if accept else 'rejected'
@@ -1111,7 +1111,7 @@ def update_allocation():
         # Verify ownership and lock status
         cursor.execute('SELECT * FROM timetable_self_allocations WHERE id = ?', (allocation_id,))
         row = cursor.fetchone()
-        if not row or int(row['staff_id']) != int(staff_id):
+        if not row or (row['staff_id'] is not None and int(row['staff_id']) != int(staff_id)):
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
         if row['is_admin_locked']:
             return jsonify({'success': False, 'error': 'Allocation is locked by admin'}), 403
@@ -1144,7 +1144,7 @@ def delete_personal_allocation():
         # Verify ownership and lock status
         cursor.execute('SELECT * FROM timetable_self_allocations WHERE id = ?', (allocation_id,))
         row = cursor.fetchone()
-        if not row or int(row['staff_id']) != int(staff_id):
+        if not row or (row['staff_id'] is not None and int(row['staff_id']) != int(staff_id)):
             return jsonify({'success': False, 'error': 'Unauthorized'}), 403
         if row['is_admin_locked']:
             return jsonify({'success': False, 'error': 'Cannot delete admin-locked allocation'}), 403
