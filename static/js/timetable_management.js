@@ -1270,7 +1270,10 @@ function loadStaffCurrentAllocations(staffId) {
                             </td>
                             <td><span class="badge ${allocation.is_locked ? 'bg-danger' : 'bg-success'}">${allocation.is_locked ? 'Locked' : 'Active'}</span></td>
                             <td class="text-center">
-                                <button class="btn btn-sm btn-outline-danger" onclick="deleteStaffAllocation(${allocation.assignment_id}, ${staffId})">
+                                <button class="btn btn-sm btn-outline-primary me-1" onclick="editStaffAllocation(${allocation.assignment_id}, ${staffId}, '${subject.replace(/'/g, "\\'")}', '${allocation.room_number || ''}')" title="Edit Assignment">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteStaffAllocation(${allocation.assignment_id}, ${staffId})" title="Delete Assignment">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>
@@ -1407,6 +1410,90 @@ function deleteStaffAllocation(assignmentId, staffId) {
         .catch(err => {
             console.error('Error deleting assignment:', err);
             showAlert('Error deleting assignment. Please try again.', 'error');
+        });
+}
+
+/**
+ * Edit a period allocation for a staff member
+ */
+function editStaffAllocation(assignmentId, staffId, currentSubject, currentRoom) {
+    // Get the modal
+    const modal = document.getElementById('editAllocationModal');
+    if (!modal) {
+        console.error('Edit modal not found');
+        return;
+    }
+
+    // Populate the form
+    document.getElementById('editAssignmentId').value = assignmentId;
+    document.getElementById('editStaffId').value = staffId;
+    document.getElementById('editSubjectName').value = currentSubject;
+    document.getElementById('editRoomNumber').value = currentRoom;
+
+    // Show the modal
+    const editModal = new bootstrap.Modal(modal);
+    editModal.show();
+}
+
+/**
+ * Save edited allocation
+ */
+function saveEditedAllocation() {
+    const assignmentId = document.getElementById('editAssignmentId').value;
+    const staffId = document.getElementById('editStaffId').value;
+    const subjectName = document.getElementById('editSubjectName').value;
+    const roomNumber = document.getElementById('editRoomNumber').value;
+
+    if (!assignmentId || !staffId) {
+        showAlert('Missing assignment or staff information', 'error');
+        return;
+    }
+
+    // Show loading state
+    const saveBtn = document.getElementById('saveEditedAllocationBtn');
+    const originalText = saveBtn.innerHTML;
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
+
+    // Make API call to update
+    fetch(`/api/hierarchical-timetable/assignment/${assignmentId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify({
+            subject_name: subjectName,
+            room_number: roomNumber
+        })
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Assignment updated successfully', 'success');
+                
+                // Close modal
+                const modal = bootstrap.Modal.getInstance(document.getElementById('editAllocationModal'));
+                if (modal) {
+                    modal.hide();
+                }
+
+                // Reload allocations
+                loadStaffCurrentAllocations(staffId);
+
+                // Refresh the summary table as well
+                loadStaffAssignmentsSummary();
+            } else {
+                showAlert(`Error: ${data.error || 'Failed to update assignment'}`, 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error updating assignment:', err);
+            showAlert('Error updating assignment. Please try again.', 'error');
+        })
+        .finally(() => {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = originalText;
         });
 }
 

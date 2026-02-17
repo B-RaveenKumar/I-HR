@@ -1064,6 +1064,56 @@
         </div>
     </div>
 
+    <!-- Edit Allocation Modal -->
+    <div class="modal fade" id="editAllocationModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header bg-gradient-primary text-white border-0">
+                    <h5 class="modal-title fw-bold">
+                        <i class="bi bi-pencil-square me-2"></i>Edit Period Allocation
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="editAllocationForm">
+                        <input type="hidden" id="editAssignmentId">
+                        <input type="hidden" id="editStaffId">
+                        
+                        <div class="alert alert-info border-0 mb-3">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <small>You can update the subject name and room number for this allocation.</small>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-600">
+                                <i class="bi bi-book me-1"></i> Subject Name
+                            </label>
+                            <input type="text" id="editSubjectName" class="form-control" 
+                                   placeholder="e.g., Mathematics, English, Physics" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-600">
+                                <i class="bi bi-geo-alt me-1"></i> Room Number
+                            </label>
+                            <input type="text" id="editRoomNumber" class="form-control" 
+                                   placeholder="e.g., Room 101, Lab A">
+                            <small class="text-muted">Optional - Leave blank if not applicable</small>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">
+                        <i class="bi bi-x-circle me-1"></i> Cancel
+                    </button>
+                    <button type="button" class="btn btn-primary px-4 shadow-sm" id="saveEditedAllocationBtn" onclick="saveEditedAllocation()">
+                        <i class="bi bi-check-circle me-1"></i> Save Changes
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/timetable_management.js') }}"></script>
 
     <script>

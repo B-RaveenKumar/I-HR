@@ -288,6 +288,26 @@ def delete_assignment(assignment_id):
         logger.error(f"Error deleting assignment: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@hierarchical_bp.route('/assignment/<int:assignment_id>', methods=['PUT', 'PATCH'])
+@check_admin_auth
+def update_assignment(assignment_id):
+    """Update a timetable assignment"""
+    try:
+        school_id = session.get('school_id')
+        data = request.json or {}
+        
+        subject_name = data.get('subject_name')
+        room_number = data.get('room_number')
+        
+        result = HierarchicalTimetableManager.update_assignment(
+            school_id, assignment_id, subject_name, room_number
+        )
+        return jsonify(result), 200 if result['success'] else 400
+    
+    except Exception as e:
+        logger.error(f"Error updating assignment: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @hierarchical_bp.route('/assignments/availability', methods=['GET'])
 @check_auth_either
 def get_all_staff_availability():

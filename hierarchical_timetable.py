@@ -883,3 +883,55 @@ class HierarchicalTimetableManager:
         except Exception as e:
             logger.error(f"Error deleting assignment: {e}")
             return {'success': False, 'error': str(e)}
+    
+    @staticmethod
+    def update_assignment(school_id, assignment_id, subject_name=None, room_number=None):
+        """Update a hierarchical timetable assignment"""
+        try:
+            db = get_db()
+            cursor = db.cursor()
+            
+            # First check if assignment exists
+            cursor.execute('''
+                SELECT id FROM timetable_hierarchical_assignments
+                WHERE id = ? AND school_id = ?
+            ''', (assignment_id, school_id))
+            
+            if not cursor.fetchone():
+                return {'success': False, 'error': 'Assignment not found'}
+            
+            # Update fields
+            updates = []
+            params = []
+            
+            if subject_name is not None:
+                updates.append('subject_name = ?')
+                params.append(subject_name)
+            
+            if room_number is not None:
+                updates.append('room_number = ?')
+                params.append(room_number)
+            
+            if not updates:
+                return {'success': False, 'error': 'No fields to update'}
+            
+            # Add assignment_id and school_id to params
+            params.extend([assignment_id, school_id])
+            
+            query = f'''
+                UPDATE timetable_hierarchical_assignments
+                SET {', '.join(updates)}
+                WHERE id = ? AND school_id = ?
+            '''
+            
+            cursor.execute(query, params)
+            db.commit()
+            
+            return {
+                'success': True,
+                'message': 'Assignment updated successfully'
+            }
+        
+        except Exception as e:
+            logger.error(f"Error updating assignment: {e}")
+            return {'success': False, 'error': str(e)}
