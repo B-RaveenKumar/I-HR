@@ -552,7 +552,7 @@
 
 .stat-value {
     font-weight: 600;
-    color: var(--salary-primary);
+    color: #ffffff(--salary-primary);
 }
 
 /* Enhanced Table Styles */
