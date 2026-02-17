@@ -2028,6 +2028,26 @@
 
             // Load current institution timings on page load
             loadCurrentTimings();
+
+            // Initialize Holiday Management System after a short delay to ensure DOM is fully ready
+            setTimeout(() => {
+                console.log('🎄 Starting Holiday Management System initialization...');
+                try {
+                    initializeHolidayManagement();
+                } catch (error) {
+                    console.error('❌ Failed to initialize Holiday Management System:', error);
+                }
+            }, 100);
+
+            // Initialize Quota Management System after a short delay
+            setTimeout(() => {
+                console.log('📊 Starting Quota Management System initialization...');
+                try {
+                    initializeQuotaManagement();
+                } catch (error) {
+                    console.error('❌ Failed to initialize Quota Management System:', error);
+                }
+            }, 100);
         });
 
         // Helper function to get CSRF token (similar to admin dashboard)
@@ -3277,13 +3297,7 @@
         }
 
         // Initialize Holiday Management when DOM is loaded
-        document.addEventListener('DOMContentLoaded', function () {
-            // Initialize both work time assignment and holiday management
-            setTimeout(() => {
-                initializeHolidayManagement();
-                initializeQuotaManagement();
-            }, 500);
-        });
+        // NOTE: This initialization is now integrated into the main DOMContentLoaded event at the top of the script
 
         /*
          * QUOTA MANAGEMENT SYSTEM
