@@ -11,6 +11,7 @@ let requestsData = [];
 let periodsConfig = [];
 let swapRequestsPollingInterval = null;
 let timetablePollingInterval = null;
+let staffDepartmentPermissions = { allow_sending: true, allow_receiving: true, department: '' };
 
 const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
@@ -39,6 +40,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
     
     loadPeriodsConfig();
+    loadStaffPermissions();
     loadTimetable();
     loadSwapRequests();
     loadAllocations();
@@ -103,6 +105,36 @@ function loadPeriodsConfig() {
         .catch(err => {
             console.error('Error loading periods config:', err);
             // Continue with default - will use data from assignments
+        });
+}
+
+function loadStaffPermissions() {
+    const url = `/api/timetable/staff/permissions`;
+    console.log('Loading staff department permissions from:', url);
+    
+    fetch(url)
+        .then(r => {
+            if (!r.ok) {
+                throw new Error(`HTTP error! status: ${r.status}`);
+            }
+            return r.json();
+        })
+        .then(data => {
+            console.log('Staff permissions received:', data);
+            if (data.success) {
+                staffDepartmentPermissions = {
+                    allow_sending: data.allow_sending,
+                    allow_receiving: data.allow_receiving,
+                    department: data.department
+                };
+                console.log('Department:', data.department, 
+                           '| Can Send:', data.allow_sending, 
+                           '| Can Receive:', data.allow_receiving);
+            }
+        })
+        .catch(err => {
+            console.error('Error loading staff permissions:', err);
+            // Continue with defaults (allow all)
         });
 }
 
@@ -215,15 +247,21 @@ function renderWeeklyGrid() {
                 // Admin-assigned period
                 const cellClass = assignment.is_locked ? 'timetable-cell assigned locked' : 'timetable-cell assigned';
                 const periodDisplay = assignment.period_name || 'Period ' + assignment.period_number;
+                
+                // Check if staff can send swap requests based on department permissions
+                const canSendSwap = !assignment.is_locked && staffDepartmentPermissions.allow_sending;
+                
                 html += `
                     <td class="${cellClass}" 
-                        ${!assignment.is_locked ? `onclick="showSwapModal(${assignment.id})" style="cursor: pointer;"` : ''}>
+                        ${canSendSwap ? `onclick="showSwapModal(${assignment.id})" style="cursor: pointer;"` : ''}>
                         <div class="cell-content">
                             <div class="cell-subject">${assignment.class_subject || periodDisplay}</div>
                             ${assignment.start_time && assignment.end_time ? `<div class="cell-time">${assignment.start_time} - ${assignment.end_time}</div>` : ''}
                             ${assignment.is_locked 
                                 ? '<span class="cell-badge badge-locked">LOCKED</span>' 
-                                : '<span class="cell-badge badge-swap">REQUEST SWAP</span>'
+                                : staffDepartmentPermissions.allow_sending
+                                    ? '<span class="cell-badge badge-swap">REQUEST SWAP</span>'
+                                    : '<span class="cell-badge" style="background: #6c757d; color: white;">SWAP DISABLED</span>'
                             }
                         </div>
                     </td>
@@ -390,6 +428,12 @@ function showSwapModal(assignmentId) {
         return;
     }
     
+    // Check department permissions
+    if (!staffDepartmentPermissions.allow_sending) {
+        showAlert('Your department is not allowed to send swap requests', 'error');
+        return;
+    }
+    
     const modal = document.getElementById('swapModal');
     modal.dataset.assignmentId = assignmentId;
     modal.dataset.dayOfWeek = assignment.day_of_week;
@@ -415,14 +459,15 @@ function loadDepartments() {
     const select = document.getElementById('swapDepartmentSelect');
     select.innerHTML = '<option value="">Loading departments...</option>';
     
-    fetch(`/api/departments?school_id=${schoolId}`)
+    // Fetch only departments that allow receiving swap requests
+    fetch(`/api/timetable/departments/allowed-receivers?school_id=${schoolId}`)
         .then(r => r.json())
         .then(data => {
             if (data.success && data.departments && data.departments.length > 0) {
                 select.innerHTML = '<option value="">-- Choose a department --</option>' +
                     data.departments.map(d => `<option value="${d}">${d}</option>`).join('');
             } else {
-                select.innerHTML = '<option value="">No departments found</option>';
+                select.innerHTML = '<option value="">No departments available for swap requests</option>';
             }
         })
         .catch(err => {

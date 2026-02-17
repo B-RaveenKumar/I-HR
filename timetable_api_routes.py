@@ -574,6 +574,87 @@ def update_department_permission():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@timetable_api.route('/api/timetable/staff/permissions', methods=['GET'])
+def get_staff_department_permissions():
+    """Get the current staff's department permissions"""
+    try:
+        staff_id = session.get('user_id')
+        school_id = session.get('school_id')
+        
+        if not staff_id or not school_id:
+            return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+        
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Get staff's department
+        cursor.execute('SELECT department FROM staff WHERE id = ? AND school_id = ?', (staff_id, school_id))
+        staff = cursor.fetchone()
+        
+        if not staff:
+            return jsonify({'success': False, 'error': 'Staff not found'}), 404
+        
+        department = staff['department']
+        
+        # Get department permissions
+        cursor.execute('''
+            SELECT allow_alterations, allow_inbound 
+            FROM timetable_department_permissions 
+            WHERE school_id = ? AND department = ?
+        ''', (school_id, department))
+        
+        perm = cursor.fetchone()
+        
+        # Default to allowing both if no specific permissions set
+        return jsonify({
+            'success': True,
+            'department': department,
+            'allow_sending': perm['allow_alterations'] if perm else True,
+            'allow_receiving': perm['allow_inbound'] if perm else True
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/departments/allowed-receivers', methods=['GET'])
+def get_departments_allowing_receiving():
+    """Get departments that allow receiving swap requests"""
+    try:
+        school_id = request.args.get('school_id') or session.get('school_id')
+        
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+        
+        db = get_db()
+        cursor = db.cursor()
+        
+        # Get all departments from staff table
+        cursor.execute('SELECT DISTINCT department FROM staff WHERE school_id = ?', (school_id,))
+        all_departments = [row['department'] for row in cursor.fetchall() if row['department']]
+        
+        # Get departments with restrictions
+        cursor.execute('''
+            SELECT department, allow_inbound 
+            FROM timetable_department_permissions 
+            WHERE school_id = ?
+        ''', (school_id,))
+        
+        restrictions = {row['department']: row['allow_inbound'] for row in cursor.fetchall()}
+        
+        # Filter departments: include if no restriction OR allow_inbound is True
+        allowed_departments = [
+            dept for dept in all_departments 
+            if dept not in restrictions or restrictions[dept]
+        ]
+        
+        return jsonify({
+            'success': True,
+            'departments': allowed_departments
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @timetable_api.route('/api/timetable/staff/list', methods=['GET'])
 def get_staff_list():
     """Get list of staff for a school"""
