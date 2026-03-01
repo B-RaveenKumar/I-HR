@@ -149,6 +149,9 @@ class SalaryCalculator:
             # Get leave data for the month
             leave_data = self._get_monthly_leaves(staff_id, year, month)
             
+            # Get permission data for the month
+            permission_data = self._get_monthly_permissions(staff_id, year, month)
+            
             # Calculate working days in month (excluding holidays)  
             # Get staff department for department-specific holidays
             staff_department = staff_info.get('department')
@@ -156,7 +159,7 @@ class SalaryCalculator:
             
             # Perform salary calculations
             salary_breakdown = self._calculate_salary_breakdown(
-                staff_info, attendance_data, leave_data, working_days, year, month
+                staff_info, attendance_data, leave_data, permission_data, working_days, year, month
             )
             
             return {
@@ -199,6 +202,9 @@ class SalaryCalculator:
             # Get leave data for the month
             leave_data = self._get_monthly_leaves(staff_id, year, month)
 
+            # Get permission data for the month
+            permission_data = self._get_monthly_permissions(staff_id, year, month)
+
             # Calculate working days in month (excluding holidays)
             # Get staff department for department-specific holidays
             staff_department = staff_info.get('department')
@@ -206,7 +212,7 @@ class SalaryCalculator:
 
             # Perform enhanced salary calculations
             salary_breakdown = self._calculate_enhanced_salary_breakdown(
-                staff_info, attendance_data, leave_data, working_days,
+                staff_info, attendance_data, leave_data, permission_data, working_days,
                 actual_hours_worked, standard_monthly_hours, hourly_rate, year, month
             )
 
@@ -262,7 +268,7 @@ class SalaryCalculator:
         return round(total_hours, 2)
 
     def _calculate_enhanced_salary_breakdown(self, staff_info: Dict, attendance_data: List[Dict],
-                                           leave_data: List[Dict], working_days: int,
+                                           leave_data: List[Dict], permission_data: List[Dict], working_days: int,
                                            actual_hours_worked: float, standard_monthly_hours: float,
                                            hourly_rate: float, year: int, month: int) -> Dict:
         """Calculate enhanced salary breakdown with hours-based logic"""
@@ -308,8 +314,11 @@ class SalaryCalculator:
 
                 # Calculate early departure penalty
                 if record.get('early_departure_minutes') and record['early_departure_minutes'] > 0:
-                    early_dep_hours = record['early_departure_minutes'] / 60
-                    early_departure_penalty += early_dep_hours * self.salary_rules['early_departure_penalty_per_hour']
+                    # Check if there's an approved permission for this date
+                    has_permission = any(p['permission_date'] == record['date'] for p in permission_data)
+                    if not has_permission:
+                        early_dep_hours = record['early_departure_minutes'] / 60
+                        early_departure_penalty += early_dep_hours * self.salary_rules['early_departure_penalty_per_hour']
 
                 # Calculate late arrival penalty
                 if record.get('late_duration_minutes') and record['late_duration_minutes'] > 0:
@@ -434,6 +443,22 @@ class SalaryCalculator:
         ''', (staff_id, start_date, end_date, start_date, end_date, start_date, end_date)).fetchall()
         
         return [dict(row) for row in leaves]
+    
+    def _get_monthly_permissions(self, staff_id: int, year: int, month: int) -> List[Dict]:
+        """Get approved permission applications for the month"""
+        start_date = f"{year}-{month:02d}-01"
+        end_date = f"{year}-{month:02d}-{calendar.monthrange(year, month)[1]}"
+
+        db = self._get_db_connection()
+        permissions = db.execute('''
+            SELECT permission_type, permission_date, start_time, end_time, duration_hours, reason, status
+            FROM permission_applications
+            WHERE staff_id = ? AND status = 'approved'
+            AND permission_date BETWEEN ? AND ?
+            ORDER BY permission_date
+        ''', (staff_id, start_date, end_date)).fetchall()
+        
+        return [dict(row) for row in permissions]
     
     def _get_working_days_in_month(self, year: int, month: int) -> int:
         """Calculate working days in month (excluding weekends)"""
@@ -603,7 +628,7 @@ class SalaryCalculator:
         }
     
     def _calculate_salary_breakdown(self, staff_info: Dict, attendance_data: List[Dict], 
-                                  leave_data: List[Dict], working_days: int, 
+                                  leave_data: List[Dict], permission_data: List[Dict], working_days: int, 
                                   year: int, month: int) -> Dict:
         """Calculate detailed salary breakdown"""
         
@@ -633,7 +658,7 @@ class SalaryCalculator:
         
         # Process attendance data
         attendance_summary = self._process_attendance_data(
-            attendance_data, per_hour_salary, staff_info
+            attendance_data, per_hour_salary, staff_info, permission_data
         )
         
         present_days = attendance_summary['present_days']
@@ -742,7 +767,8 @@ class SalaryCalculator:
         }
     
     def _process_attendance_data(self, attendance_data: List[Dict], 
-                               per_hour_salary: float, staff_info: Dict) -> Dict:
+                               per_hour_salary: float, staff_info: Dict,
+                               permission_data: List[Dict]) -> Dict:
         """Process attendance data for salary calculations"""
         present_days = 0
         absent_days = 0
@@ -779,8 +805,10 @@ class SalaryCalculator:
                         record['time_out'], shift_info['end_time']
                     )
                     if early_departure_minutes > 0:
-                        early_hours = early_departure_minutes / 60
-                        early_departure_penalty += early_hours * self.salary_rules['early_departure_penalty_per_hour']
+                        has_permission = any(p['permission_date'] == record['date'] for p in permission_data)
+                        if not has_permission:
+                            early_hours = early_departure_minutes / 60
+                            early_departure_penalty += early_hours * self.salary_rules['early_departure_penalty_per_hour']
                 
                 # Calculate late arrival penalty
                 if record['late_duration_minutes'] and record['late_duration_minutes'] > 0:
