@@ -329,18 +329,24 @@
                                 </div>
                                 <div class="stat-item">
                                     <i class="bi bi-briefcase text-primary"></i>
-                                    <span class="stat-value">{{ attendance_summary.on_duty }}</span>
+                                    <span class="stat-value" data-stat="on-duty">{{ attendance_summary.on_duty }}</span>
                                     <span>On Duty</span>
                                 </div>
                                 <div class="stat-item">
                                     <i class="bi bi-shield-check text-secondary"></i>
-                                    <span class="stat-value">{{ attendance_summary.on_permission }}</span>
+                                    <span class="stat-value" data-stat="on-permission">{{
+                                        attendance_summary.on_permission }}</span>
                                     <span>On Permission</span>
                                 </div>
                                 <div class="stat-item">
                                     <i class="bi bi-calendar-event text-dark"></i>
-                                    <span class="stat-value">{{ attendance_summary.holiday }}</span>
+                                    <span class="stat-value" data-stat="holiday">{{ attendance_summary.holiday }}</span>
                                     <span>Holiday</span>
+                                </div>
+                                <!-- Graph Icon -->
+                                <div class="stat-item ms-2" style="cursor: pointer;" data-bs-toggle="modal"
+                                    data-bs-target="#attendanceGraphModal" title="View Graphical Overview">
+                                    <i class="bi bi-graph-up text-primary fs-5"></i>
                                 </div>
                             </div>
                         </div>
@@ -807,6 +813,38 @@
     </div>
 
 
+    <!-- Attendance Graph Modal -->
+    <div class="modal fade" id="attendanceGraphModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-pie-chart-fill me-2"></i> Today's Attendance Overview</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <select id="attendanceChartType" class="form-select w-auto">
+                            <option value="pie">Pie Chart</option>
+                            <option value="bar">Bar Chart</option>
+                            <option value="doughnut">Doughnut Chart</option>
+                        </select>
+                        <button id="downloadChartPdfBtn" class="btn btn-outline-primary btn-sm">
+                            <i class="bi bi-file-earmark-pdf"></i> Download PDF
+                        </button>
+                    </div>
+                    <div id="captureChartArea"
+                        style="position: relative; height: 400px; width: 100%; background-color: white; padding: 10px;">
+                        <canvas id="attendancePieChart"></canvas>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Biometric Enrollment Modal -->
     <div class="modal fade" id="biometricModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog">
@@ -1136,6 +1174,132 @@
         // Then refresh every 30 seconds
         setInterval(refreshDashboardData, 30000);
         console.log('✓ Auto-refresh enabled: Dashboard will update every 30 seconds');
+    </script>
+
+    <!-- Chart.js for Attendance Graph Modal -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            let attendanceChart = null;
+            const graphModal = document.getElementById('attendanceGraphModal');
+            const chartTypeSelect = document.getElementById('attendanceChartType');
+            const downloadPdfBtn = document.getElementById('downloadChartPdfBtn');
+            const captureArea = document.getElementById('captureChartArea');
+
+            function renderChart(type) {
+                const ctx = document.getElementById('attendancePieChart').getContext('2d');
+
+                const getStat = (id) => parseInt(document.querySelector(`[data-stat="${id}"]`)?.textContent || "0");
+
+                const data = {
+                    labels: ['Present', 'Absent', 'Late', 'On Leave', 'On Duty', 'On Permission', 'Holiday'],
+                    datasets: [{
+                        label: 'Attendance Count',
+                        data: [
+                            getStat('present'),
+                            getStat('absent'),
+                            getStat('late'),
+                            getStat('on-leave'),
+                            getStat('on-duty'),
+                            getStat('on-permission'),
+                            getStat('holiday')
+                        ],
+                        backgroundColor: [
+                            'rgba(25, 135, 84, 0.8)', // success
+                            'rgba(220, 53, 69, 0.8)', // danger
+                            'rgba(255, 193, 7, 0.8)', // warning
+                            'rgba(13, 202, 240, 0.8)', // info
+                            'rgba(13, 110, 253, 0.8)', // primary
+                            'rgba(108, 117, 125, 0.8)', // secondary
+                            'rgba(33, 37, 41, 0.8)'  // dark
+                        ],
+                        borderColor: [
+                            '#198754', '#dc3545', '#ffc107', '#0dcaf0', '#0d6efd', '#6c757d', '#212529'
+                        ],
+                        borderWidth: 1
+                    }]
+                };
+
+                const options = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: type === 'bar' ? 'top' : 'right',
+                            labels: {
+                                font: { size: 14 }
+                            }
+                        },
+                        title: {
+                            display: true,
+                            text: 'Today\'s Attendance Overview',
+                            font: { size: 16 }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    const label = context.dataset.label || '';
+                                    if (type === 'bar') {
+                                        return `${label}: ${context.raw}`;
+                                    }
+                                    const value = context.raw || 0;
+                                    const total = context.chart.data.datasets[0].data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? Math.round((value / total) * 100) : 0;
+                                    return `${context.label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    scales: type === 'bar' ? {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    } : {}
+                };
+
+                if (attendanceChart) {
+                    attendanceChart.destroy();
+                }
+
+                attendanceChart = new Chart(ctx, {
+                    type: type,
+                    data: data,
+                    options: options
+                });
+            }
+
+            if (graphModal) {
+                graphModal.addEventListener('shown.bs.modal', function () {
+                    renderChart(chartTypeSelect.value);
+                });
+            }
+
+            if (chartTypeSelect) {
+                chartTypeSelect.addEventListener('change', function () {
+                    renderChart(this.value);
+                });
+            }
+
+            if (downloadPdfBtn) {
+                downloadPdfBtn.addEventListener('click', function () {
+                    if (attendanceChart) {
+                        const opt = {
+                            margin: 10,
+                            filename: 'attendance-chart-' + new Date().toISOString().split('T')[0] + '.pdf',
+                            image: { type: 'jpeg', quality: 0.98 },
+                            html2canvas: { scale: 2, backgroundColor: '#ffffff' },
+                            jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+                        };
+
+                        html2pdf().set(opt).from(captureArea).save();
+                    }
+                });
+            }
+        });
     </script>
 
     <script>
