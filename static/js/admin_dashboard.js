@@ -381,8 +381,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="weekly-calendar-tab" data-bs-toggle="tab"
                             data-bs-target="#weekly-calendar-pane" type="button" role="tab"
-                            style="color: #495057; background-color: transparent; border: 1px solid #dee2e6; border-bottom-color: #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                            style="color: #495057; background-color: transparent; border: 1px solid #dee2e6; border-bottom-color: #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-right: 2px;">
                         <i class="bi bi-calendar-week"></i> Weekly Calendar
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="timetable-tab" data-bs-toggle="tab"
+                            data-bs-target="#timetable-pane" type="button" role="tab"
+                            onclick="loadStaffProfileTimetable(${staffId})"
+                            style="color: #495057; background-color: transparent; border: 1px solid #dee2e6; border-bottom-color: #dee2e6; box-shadow: 0 2px 4px rgba(0,0,0,0.08);">
+                        <i class="bi bi-table"></i> Timetable
                     </button>
                 </li>
             </ul>
@@ -641,6 +649,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 <div class="tab-pane fade" id="weekly-calendar-pane" role="tabpanel">
                     <div id="adminStaffWeeklyCalendar"></div>
                 </div>
+
+                <!-- Timetable Tab -->
+                <div class="tab-pane fade" id="timetable-pane" role="tabpanel">
+                    <div id="adminStaffTimetableContent">
+                        <div class="text-center py-4 text-muted">
+                            <i class="bi bi-table fs-2 opacity-25"></i>
+                            <p class="mt-2">Click the Timetable tab to load the schedule</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         `;
 
@@ -652,6 +670,172 @@ document.addEventListener('DOMContentLoaded', function () {
                 console.warn('Staff ID not available for calendar initialization');
             }
         }, 100);
+    }
+
+    // Load and render timetable for staff profile modal
+    window.loadStaffProfileTimetable = function(staffId) {
+        const container = document.getElementById('adminStaffTimetableContent');
+        if (!container) return;
+
+        container.innerHTML = `
+            <div class="text-center py-4">
+                <div class="spinner-border text-primary spinner-border-sm" role="status"></div>
+                <p class="mt-2 text-muted">Loading timetable...</p>
+            </div>
+        `;
+
+        // Fetch both schedule and periods config in parallel
+        const schoolId = typeof window.schoolId !== 'undefined' ? window.schoolId : '';
+        Promise.all([
+            fetch(`/api/hierarchical-timetable/staff-schedule/${staffId}`).then(r => r.json()),
+            fetch(`/api/timetable/periods?school_id=${schoolId}`).then(r => r.json())
+        ])
+            .then(([scheduleData, periodsData]) => {
+                const schedule = (scheduleData.success && scheduleData.data) ? scheduleData.data.schedule || [] : [];
+                const periodsConfig = (periodsData.success) ? periodsData.periods || [] : [];
+                renderStaffProfileTimetable(container, schedule, periodsConfig);
+            })
+            .catch(err => {
+                console.error('Error loading staff timetable:', err);
+                container.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="bi bi-exclamation-triangle"></i> Failed to load timetable
+                    </div>
+                `;
+            });
+    };
+
+    function renderStaffProfileTimetable(container, schedule, periodsConfig) {
+        const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+        const DAY_SHORT = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+        // Full week: Monday(1) through Saturday(6)
+        const fullWeekDays = [1, 2, 3, 4, 5, 6];
+
+        // Determine total periods from config or schedule
+        let maxPeriod = 8; // default
+        if (periodsConfig && periodsConfig.length > 0) {
+            const configMax = Math.max(...periodsConfig.map(p => p.period_number));
+            if (configMax > 0) maxPeriod = configMax;
+        }
+        if (schedule.length > 0) {
+            const schedMax = Math.max(...schedule.map(s => s.period_number));
+            if (schedMax > maxPeriod) maxPeriod = schedMax;
+        }
+        const allPeriods = Array.from({length: maxPeriod}, (_, i) => i + 1);
+
+        // Build period time lookup from config
+        const periodTimeMap = {};
+        if (periodsConfig && periodsConfig.length > 0) {
+            periodsConfig.forEach(p => {
+                if (!periodTimeMap[p.period_number]) {
+                    periodTimeMap[p.period_number] = {
+                        start_time: p.start_time,
+                        end_time: p.end_time,
+                        period_name: p.period_name
+                    };
+                }
+            });
+        }
+        // Also fill from schedule data
+        schedule.forEach(s => {
+            if (!periodTimeMap[s.period_number] && s.start_time) {
+                periodTimeMap[s.period_number] = {
+                    start_time: s.start_time,
+                    end_time: s.end_time
+                };
+            }
+        });
+
+        // Build a lookup map: day_period -> assignment
+        const scheduleMap = {};
+        schedule.forEach(s => {
+            const key = `${s.day_of_week}_${s.period_number}`;
+            scheduleMap[key] = s;
+        });
+
+        // Generate colors for subjects
+        const subjects = [...new Set(schedule.map(s => s.subject_name).filter(Boolean))];
+        const subjectColors = {};
+        const colorPalette = [
+            '#e3f2fd', '#e8f5e9', '#fff3e0', '#fce4ec', '#f3e5f5',
+            '#e0f2f1', '#fff8e1', '#e8eaf6', '#fbe9e7', '#e0f7fa'
+        ];
+        const borderPalette = [
+            '#1976d2', '#388e3c', '#f57c00', '#c62828', '#7b1fa2',
+            '#00796b', '#f9a825', '#283593', '#d84315', '#00838f'
+        ];
+        subjects.forEach((subj, i) => {
+            subjectColors[subj] = {
+                bg: colorPalette[i % colorPalette.length],
+                border: borderPalette[i % borderPalette.length]
+            };
+        });
+
+        let html = `
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm mb-0" style="font-size: 0.85rem;">
+                    <thead>
+                        <tr style="background: linear-gradient(135deg, #1a237e, #283593); color: #fff;">
+                            <th class="text-center" style="min-width: 60px; vertical-align: middle;">Day</th>
+                            ${allPeriods.map(p => {
+                                return `<th class="text-center" style="min-width: 120px; vertical-align: middle;">Period ${p}</th>`;
+                            }).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+        `;
+
+        fullWeekDays.forEach(dayIdx => {
+            const isToday = new Date().getDay() === dayIdx;
+            const rowStyle = isToday ? 'background-color: #fffde7;' : '';
+            html += `<tr style="${rowStyle}">`;
+            html += `<td class="text-center fw-bold align-middle" style="background: ${isToday ? '#fff9c4' : '#f5f5f5'};">
+                ${DAY_SHORT[dayIdx]}
+                ${isToday ? '<br><span class="badge bg-warning text-dark" style="font-size:0.6rem;">Today</span>' : ''}
+            </td>`;
+
+            allPeriods.forEach(periodNum => {
+                const key = `${dayIdx}_${periodNum}`;
+                const assignment = scheduleMap[key];
+
+                if (assignment) {
+                    const colors = subjectColors[assignment.subject_name] || { bg: '#f5f5f5', border: '#9e9e9e' };
+                    html += `
+                        <td class="text-center align-middle p-1" 
+                            style="background: ${colors.bg}; border-left: 3px solid ${colors.border};">
+                            <div class="fw-bold" style="color: ${colors.border}; font-size: 0.8rem;">${assignment.subject_name || 'N/A'}</div>
+                            <div style="font-size: 0.7rem; color: #555;">
+                                <i class="bi bi-mortarboard" style="font-size:0.65rem;"></i> ${assignment.level_name} - ${assignment.section_name}
+                            </div>
+                            ${assignment.room_number ? `<div style="font-size: 0.65rem; color: #888;"><i class="bi bi-geo-alt"></i> ${assignment.room_number}</div>` : ''}
+                        </td>
+                    `;
+                } else {
+                    html += `<td class="text-center align-middle text-muted" style="background: #fafafa; font-size: 0.75rem;">
+                        <i class="bi bi-dash"></i> Free
+                    </td>`;
+                }
+            });
+
+            html += `</tr>`;
+        });
+
+        html += `
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-2 d-flex flex-wrap gap-2 px-1">
+                ${subjects.length > 0 ? subjects.map(subj => {
+                    const c = subjectColors[subj];
+                    return `<span class="badge" style="background:${c.bg}; color:${c.border}; border:1px solid ${c.border}; font-size:0.7rem;">
+                        <i class="bi bi-circle-fill" style="font-size:0.5rem;"></i> ${subj}
+                    </span>`;
+                }).join('') : '<span class="text-muted small">No subjects assigned</span>'}
+            </div>
+        `;
+
+        container.innerHTML = html;
     }
 
     // Month navigation function (make it global)
