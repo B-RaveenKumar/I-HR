@@ -98,8 +98,10 @@ class HierarchicalTimetableManager:
             
             level_type = 'class' if org_type == 'school' else 'year'
             
-            # Clear existing levels
-            cursor.execute('DELETE FROM timetable_academic_levels WHERE school_id = ?', (school_id,))
+            # Instead of deleting, we update existing levels or insert new ones
+            # This preserves the level IDs so sections don't get orphaned
+            cursor.execute('SELECT id, level_number FROM timetable_academic_levels WHERE school_id = ?', (school_id,))
+            existing_levels = {row[1]: row[0] for row in cursor.fetchall()}
             
             for i in range(1, total_levels + 1):
                 if org_type == 'school':
@@ -109,11 +111,29 @@ class HierarchicalTimetableManager:
                     level_name = f"Year {i}"
                     description = f"Year {i} (Year {['I', 'II', 'III', 'IV'][i-1]})"
                 
-                cursor.execute('''
-                    INSERT INTO timetable_academic_levels
-                    (school_id, level_type, level_number, level_name, description)
-                    VALUES (?, ?, ?, ?, ?)
-                ''', (school_id, level_type, i, level_name, description))
+                if i in existing_levels:
+                    # Update existing level to preserve ID and relationships
+                    cursor.execute('''
+                        UPDATE timetable_academic_levels
+                        SET level_type = ?, level_name = ?, description = ?, is_active = 1
+                        WHERE id = ?
+                    ''', (level_type, level_name, description, existing_levels[i]))
+                else:
+                    # Insert new level
+                    cursor.execute('''
+                        INSERT INTO timetable_academic_levels
+                        (school_id, level_type, level_number, level_name, description, is_active)
+                        VALUES (?, ?, ?, ?, ?, 1)
+                    ''', (school_id, level_type, i, level_name, description))
+            
+            # Deactivate any existing levels that are beyond the new total_levels
+            for level_num in existing_levels:
+                if level_num > total_levels:
+                    cursor.execute('''
+                        UPDATE timetable_academic_levels
+                        SET is_active = 0
+                        WHERE id = ?
+                    ''', (existing_levels[level_num],))
             
             db.commit()
             return {'success': True, 'message': f'Generated {total_levels} academic levels'}
