@@ -52,7 +52,7 @@
 /* Staff form enhancements */
 .form-control:focus,
 .form-select:focus {
-    border-color: #0d6efd;
+    border-color: #164e63;
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
 }
 
