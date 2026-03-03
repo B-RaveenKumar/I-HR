@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,7 +9,7 @@
     <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
-    
+
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -20,7 +21,7 @@
             padding: 0 !important;
             margin: 0 !important;
         }
-        
+
         .row {
             margin: 0;
             height: fit-content !important;
@@ -28,7 +29,7 @@
             display: flex;
             flex-wrap: nowrap;
         }
-        
+
         /* FIXED SIDEBAR - Override external CSS */
         nav.enhanced-sidebar,
         .enhanced-sidebar {
@@ -45,7 +46,7 @@
             background: #221e66 !important;
             box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
         }
-        
+
         /* MAIN CONTENT - Match sidebar width exactly */
         main.salary-main-content,
         .salary-main-content {
@@ -55,15 +56,17 @@
             padding: 2rem 1rem !important;
             overflow-x: hidden;
         }
-        
+
         /* Remove Bootstrap default spacing */
-        .col-md-2, .col-md-10 {
+        .col-md-2,
+        .col-md-10 {
             padding-left: 0 !important;
             padding-right: 0 !important;
         }
-        
+
         /* MOBILE RESPONSIVE - Override external CSS */
         @media (max-width: 768px) {
+
             nav.enhanced-sidebar,
             .enhanced-sidebar {
                 position: fixed !important;
@@ -77,12 +80,12 @@
                 z-index: 1050 !important;
                 display: block !important;
             }
-            
+
             nav.enhanced-sidebar.show,
             .enhanced-sidebar.show {
                 transform: translateX(0) !important;
             }
-            
+
             main.salary-main-content,
             .salary-main-content {
                 margin-left: 0 !important;
@@ -90,7 +93,7 @@
                 padding: 1rem 0.5rem !important;
                 padding-top: 4rem !important;
             }
-            
+
             .sidebar-toggle {
                 display: flex !important;
                 align-items: center !important;
@@ -105,19 +108,19 @@
                 border-radius: 0.5rem !important;
                 padding: 0.75rem !important;
                 font-size: 1.25rem !important;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.2) !important;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
                 transition: all 0.3s ease, opacity 0.2s ease-in-out !important;
                 cursor: pointer !important;
                 opacity: 1 !important;
             }
-            
+
             .sidebar-toggle:hover {
                 transform: translateY(-2px) !important;
-                box-shadow: 0 4px 15px rgba(0,0,0,0.3) !important;
+                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
                 background: #221e66 !important;
             }
         }
-        
+
         /* Show toggle button on mobile AND tablet/laptop views */
         @media (max-width: 1024px) {
             .sidebar-toggle {
@@ -126,9 +129,10 @@
                 justify-content: center !important;
             }
         }
-        
+
         /* DESKTOP - Ensure sidebar is always visible and fixed */
         @media (min-width: 1025px) {
+
             nav.enhanced-sidebar,
             .enhanced-sidebar {
                 position: fixed !important;
@@ -137,18 +141,18 @@
                 width: 250px !important;
                 height: 100vh !important;
             }
-            
+
             .sidebar-toggle {
                 display: none !important;
                 opacity: 0 !important;
             }
         }
-        
+
         /* Ensure proper stacking and prevent layout shifts */
         body {
             overflow-x: hidden;
         }
-        
+
         /* Force sidebar content to be properly positioned */
         .enhanced-sidebar .sidebar-header,
         .enhanced-sidebar .sidebar-content,
@@ -156,33 +160,33 @@
             position: relative;
             z-index: 1;
         }
-        
+
         /* FIX: Make Department Shift Assignment cards compact */
         #departmentShiftsCard .card-body {
             padding: 0.75rem !important;
         }
-        
+
         #departmentShiftsCard .alert {
             padding: 0.5rem !important;
             margin-bottom: 0.75rem !important;
             font-size: 0.8rem !important;
         }
-        
+
         #departmentShiftsCard .alert h6 {
             font-size: 0.9rem !important;
             margin-bottom: 0.25rem !important;
         }
-        
+
         #departmentShiftsCard .alert p {
             font-size: 0.75rem !important;
             line-height: 1.3 !important;
             margin-bottom: 0 !important;
         }
-        
+
         #departmentShiftsCard .alert .bi-lightbulb {
             font-size: 1rem !important;
         }
-        
+
         /* Compact department shift mapping cards - Updated for 3 cards per row */
         #departmentShiftMappings .col-xl-4,
         #departmentShiftMappings .col-lg-4,
@@ -190,69 +194,69 @@
         #departmentShiftMappings .col-sm-12 {
             margin-bottom: 0.75rem !important;
         }
-        
+
         #departmentShiftMappings .card {
             font-size: 0.8rem !important;
-            box-shadow: 0 1px 4px rgba(0,0,0,0.1) !important;
+            box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1) !important;
             border-radius: 0.5rem !important;
             height: 100% !important;
             transition: transform 0.2s ease-in-out !important;
         }
-        
+
         #departmentShiftMappings .card:hover {
             transform: translateY(-2px) !important;
-            box-shadow: 0 3px 8px rgba(0,0,0,0.15) !important;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.15) !important;
         }
-        
+
         #departmentShiftMappings .card-header {
             padding: 0.5rem 0.75rem !important;
             font-size: 0.8rem !important;
             font-weight: 600 !important;
         }
-        
+
         #departmentShiftMappings .card-body {
             padding: 0.75rem !important;
             flex-grow: 1 !important;
         }
-        
+
         #departmentShiftMappings .card-footer {
             padding: 0.5rem 0.75rem !important;
             background: transparent !important;
-            border-top: 1px solid rgba(0,0,0,0.1) !important;
+            border-top: 1px solid rgba(0, 0, 0, 0.1) !important;
         }
-        
+
         #departmentShiftMappings .badge {
             font-size: 0.7rem !important;
             padding: 0.2rem 0.4rem !important;
         }
-        
+
         #departmentShiftMappings .btn {
             padding: 0.25rem 0.5rem !important;
             font-size: 0.75rem !important;
         }
-        
+
         /* Ensure consistent card heights */
         #departmentShiftMappings .dept-shift-card {
             min-height: 180px !important;
         }
-        
+
         /* Responsive adjustments */
         @media (max-width: 768px) {
             #departmentShiftMappings .dept-shift-card {
                 min-height: auto !important;
             }
         }
-        
+
         /* Compact loading state */
         #departmentShiftMappings .spinner-border {
             width: 1.5rem !important;
             height: 1.5rem !important;
         }
-        
+
         #departmentShiftMappings .text-center {
             padding: 1.5rem 1rem !important;
         }
-        
+
         #departmentShiftMappings .text-center p {
             font-size: 0.85rem !important;
             margin-top: 0.5rem !important;
@@ -267,11 +271,13 @@
     <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
     <link rel="apple-touch-startup-image" href="{{ url_for('static', filename='images/applogo.png') }}">
-    
+
 </head>
+
 <body>
     <!-- Mobile Sidebar Toggle -->
-    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false"
+        aria-controls="enhanced-sidebar">
         <i class="bi bi-list"></i>
     </button>
 
@@ -282,19 +288,19 @@
                 <div class="sidebar-header">
                     <div class="brand-logo">
                         {% if institution.branding_enabled and institution.logo_path %}
-                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
                         {% else %}
-                            <div class="logo-icon">
-                                <i class="bi bi-building-gear"></i>
-                            </div>
+                        <div class="logo-icon">
+                            <i class="bi bi-building-gear"></i>
+                        </div>
                         {% endif %}
                         <div class="brand-text">
                             {% if institution.branding_enabled and institution.name %}
-                                <h6 class="brand-title">{{ institution.name }}</h6>
-                                <small class="brand-subtitle">Admin Panel</small>
+                            <h6 class="brand-title">{{ institution.name }}</h6>
+                            <small class="brand-subtitle">Admin Panel</small>
                             {% else %}
-                                <h6 class="brand-title">VishnoRex</h6>
-                                <small class="brand-subtitle">Admin Panel</small>
+                            <h6 class="brand-title">VishnoRex</h6>
+                            <small class="brand-subtitle">Admin Panel</small>
                             {% endif %}
                         </div>
                     </div>
@@ -367,28 +373,29 @@
                         </ul>
                     </div>
 
-                <!-- Sidebar Footer -->
-                <div class="sidebar-footer">
-                    <div class="footer-stats">
-                        <div class="stat-item">
-                            <i class="bi bi-people"></i>
-                            <span id="totalStaffCount">-</span>
+                    <!-- Sidebar Footer -->
+                    <div class="sidebar-footer">
+                        <div class="footer-stats">
+                            <div class="stat-item">
+                                <i class="bi bi-people"></i>
+                                <span id="totalStaffCount">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <i class="bi bi-calendar-day"></i>
+                                <span id="currentDate">-</span>
+                            </div>
                         </div>
-                        <div class="stat-item">
-                            <i class="bi bi-calendar-day"></i>
-                            <span id="currentDate">-</span>
-                        </div>
+                        <button type="button" class="logout-btn" onclick="logout()" title="Logout"
+                            aria-label="Logout from staff management">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </button>
                     </div>
-                    <button type="button" class="logout-btn" onclick="logout()" title="Logout" aria-label="Logout from staff management">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Logout</span>
-                    </button>
-                </div>
             </nav>
             <!-- Main content -->
             <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
                 <!-- CSRF Token for AJAX requests -->
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
                 <!-- Enhanced Header -->
                 <div class="salary-header">
@@ -399,21 +406,26 @@
                             </div>
                             <div class="title-text">
                                 <h1 class="main-title">Staff Management</h1>
-                                <p class="subtitle">Manage all staff members and their details with comprehensive tracking</p>
+                                <p class="subtitle">Manage all staff members and their details with comprehensive
+                                    tracking</p>
                             </div>
                         </div>
                         <div class="header-actions">
-                            <button type="button" class="btn btn-outline-primary" id="refreshDataBtn" title="Refresh data">
+                            <button type="button" class="btn btn-outline-primary" id="refreshDataBtn"
+                                title="Refresh data">
                                 <i class="bi bi-arrow-clockwise"></i> Refresh
                             </button>
-                            <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#passwordResetModal" title="Manage password reset requests">
+                            <button type="button" class="btn btn-warning" data-bs-toggle="modal"
+                                data-bs-target="#passwordResetModal" title="Manage password reset requests">
                                 <i class="bi bi-key"></i> Password Reset Requests
                                 <span class="badge bg-danger ms-2 d-none" id="resetRequestCount">0</span>
                             </button>
-                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addStaffModal" title="Add new staff member">
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal"
+                                data-bs-target="#addStaffModal" title="Add new staff member">
                                 <i class="bi bi-person-plus"></i> Add Staff
                             </button>
-                            <button type="button" class="btn btn-info" id="exportStaffExcelBtn" title="Export staff data">
+                            <button type="button" class="btn btn-info" id="exportStaffExcelBtn"
+                                title="Export staff data">
                                 <i class="bi bi-download"></i> Export
                             </button>
                         </div>
@@ -437,18 +449,21 @@
                                 <label for="staffSearchInput" class="form-label">
                                     <i class="bi bi-search"></i> Search
                                 </label>
-                                <input type="text" class="form-control enhanced-select" id="staffSearchInput" placeholder="Search by name, staff ID, department..." title="Search staff members">
+                                <input type="text" class="form-control enhanced-select" id="staffSearchInput"
+                                    placeholder="Search by name, staff ID, department..." title="Search staff members">
                             </div>
                             <div class="filter-group">
                                 <label for="departmentFilter" class="form-label">
                                     <i class="bi bi-building"></i> Department
                                 </label>
-                                <select class="form-select enhanced-select" id="departmentFilter" title="Filter by department">
+                                <select class="form-select enhanced-select" id="departmentFilter"
+                                    title="Filter by department">
                                     <option value="">All Departments</option>
                                     {% if departments %}
-                                        {% for department in departments %}
-                                            <option value="{{ department.department_name }}">{{ department.department_name }}</option>
-                                        {% endfor %}
+                                    {% for department in departments %}
+                                    <option value="{{ department.department_name }}">{{ department.department_name }}
+                                    </option>
+                                    {% endfor %}
                                     {% endif %}
                                 </select>
                             </div>
@@ -456,7 +471,8 @@
                                 <label for="positionFilter" class="form-label">
                                     <i class="bi bi-briefcase"></i> Position
                                 </label>
-                                <select class="form-select enhanced-select" id="positionFilter" title="Filter by position">
+                                <select class="form-select enhanced-select" id="positionFilter"
+                                    title="Filter by position">
                                     <option value="">All Positions</option>
                                     {% for position in positions %}
                                     <option value="{{ position.position_name }}">{{ position.position_name }}</option>
@@ -488,14 +504,16 @@
                             </div> -->
                             <div class="filter-group">
                                 <label class="form-label">&nbsp;</label>
-                                <button type="button" class="btn btn-primary btn-calculate" id="applyFiltersBtn" title="Apply all filters">
+                                <button type="button" class="btn btn-primary btn-calculate" id="applyFiltersBtn"
+                                    title="Apply all filters">
                                     <i class="bi bi-funnel"></i>
                                     <span>Apply Filters</span>
                                 </button>
                             </div>
                             <div class="filter-group">
                                 <label class="form-label">&nbsp;</label>
-                                <button type="button" class="btn btn-outline-secondary btn-calculate" id="clearFiltersBtn" title="Clear all filters">
+                                <button type="button" class="btn btn-outline-secondary btn-calculate"
+                                    id="clearFiltersBtn" title="Clear all filters">
                                     <i class="bi bi-x-circle"></i>
                                     <span>Clear Filters</span>
                                 </button>
@@ -512,7 +530,8 @@
                         </div>
                         <div class="header-content">
                             <h5 class="card-title">Staff Directory</h5>
-                            <p class="card-subtitle" id="resultsSubtitle">Comprehensive staff member management and tracking</p>
+                            <p class="card-subtitle" id="resultsSubtitle">Comprehensive staff member management and
+                                tracking</p>
                         </div>
                         <div class="header-actions">
                             <div class="results-stats" id="resultsStats">
@@ -552,37 +571,42 @@
                                                         <i class="bi bi-person-circle"></i>
                                                     </div>
                                                     <div>
-                                                        <div class="fw-bold">{{ staff_member.first_name }}{% if staff_member.last_name %} {{ staff_member.last_name }}{% endif %}</div>
-                                                        <small class="text-muted">{{ staff_member.destination or 'N/A' }}</small>
+                                                        <div class="fw-bold">{{ staff_member.first_name }}{% if
+                                                            staff_member.last_name %} {{ staff_member.last_name }}{%
+                                                            endif %}</div>
+                                                        <small class="text-muted">{{ staff_member.destination or 'N/A'
+                                                            }}</small>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="badge bg-primary">{{ staff_member.department or 'N/A' }}</span>
+                                                <span class="badge bg-primary">{{ staff_member.department or 'N/A'
+                                                    }}</span>
                                             </td>
                                             <td>{{ staff_member.destination or 'N/A' }}</td>
                                             <td>
                                                 <div>
-                                                    <small class="d-block"><i class="bi bi-telephone"></i> {{ staff_member.phone or 'N/A' }}</small>
-                                                    <small class="d-block"><i class="bi bi-envelope"></i> {{ staff_member.email or 'N/A' }}</small>
+                                                    <small class="d-block"><i class="bi bi-telephone"></i> {{
+                                                        staff_member.phone or 'N/A' }}</small>
+                                                    <small class="d-block"><i class="bi bi-envelope"></i> {{
+                                                        staff_member.email or 'N/A' }}</small>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span class="badge bg-info">{{ staff_member.shift_type or 'General' }}</span>
+                                                <span class="badge bg-info">{{ staff_member.shift_type or 'General'
+                                                    }}</span>
                                             </td>
                                             <td>
                                                 <div class="action-buttons">
                                                     <button class="btn btn-sm btn-view-details edit-staff-btn"
-                                                            data-staff-id="{{ staff_member.id }}"
-                                                            data-bs-toggle="modal"
-                                                            data-bs-target="#editStaffModal"
-                                                            title="Edit staff member">
+                                                        data-staff-id="{{ staff_member.id }}" data-bs-toggle="modal"
+                                                        data-bs-target="#editStaffModal" title="Edit staff member">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
                                                     <button class="btn btn-sm btn-outline-danger delete-staff-btn"
-                                                            data-staff-id="{{ staff_member.id }}"
-                                                            data-staff-name="{{ staff_member.full_name }}"
-                                                            title="Delete staff member">
+                                                        data-staff-id="{{ staff_member.id }}"
+                                                        data-staff-name="{{ staff_member.full_name }}"
+                                                        title="Delete staff member">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
                                                 </div>
@@ -598,7 +622,8 @@
                                     <i class="bi bi-people"></i>
                                 </div>
                                 <h6 class="empty-title">No Staff Members Found</h6>
-                                <p class="empty-text">Click "Add Staff" to add your first staff member and start managing your team</p>
+                                <p class="empty-text">Click "Add Staff" to add your first staff member and start
+                                    managing your team</p>
                             </div>
                             {% endif %}
                         </div>
@@ -613,7 +638,8 @@
                         </div>
                         <div class="header-content">
                             <h5 class="card-title">Department Shift Assignments</h5>
-                            <p class="card-subtitle" id="deptShiftSubtitle">Configure default shift types for departments</p>
+                            <p class="card-subtitle" id="deptShiftSubtitle">Configure default shift types for
+                                departments</p>
                         </div>
                         <div class="header-actions">
                             <div class="mapping-count-badge me-2" id="mappingCountBadge" style="display: none;">
@@ -622,10 +648,12 @@
                                     <span id="mappingCount">0</span> Mappings
                                 </span>
                             </div>
-                            <a href="{{ url_for('department_shifts') }}" class="btn btn-outline-primary" title="Manage department shifts">
+                            <a href="{{ url_for('department_shifts') }}" class="btn btn-outline-primary"
+                                title="Manage department shifts">
                                 <i class="bi bi-gear"></i> Manage Shifts
                             </a>
-                            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addDeptMappingModal" title="Add new department mapping">
+                            <button type="button" class="btn btn-success" data-bs-toggle="modal"
+                                data-bs-target="#addDeptMappingModal" title="Add new department mapping">
                                 <i class="bi bi-plus-circle"></i> Add Mapping
                             </button>
                         </div>
@@ -638,11 +666,13 @@
                                 </div>
                                 <div>
                                     <h6 class="alert-heading text-info">Automatic Shift Assignment</h6>
-                                    <p class="mb-0">Configure default shift types for each department. When creating new staff members, their shift type will be automatically assigned based on their department configuration.</p>
+                                    <p class="mb-0">Configure default shift types for each department. When creating new
+                                        staff members, their shift type will be automatically assigned based on their
+                                        department configuration.</p>
                                 </div>
                             </div>
                         </div>
-                        
+
                         <div class="results-container">
                             <div class="row" id="departmentShiftMappings">
                                 <!-- Department shift mappings will be loaded here -->
@@ -662,14 +692,16 @@
     </div>
 
     <!-- Add Department Mapping Modal -->
-    <div class="modal fade" id="addDeptMappingModal" tabindex="-1" aria-labelledby="addDeptMappingModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addDeptMappingModal" tabindex="-1" aria-labelledby="addDeptMappingModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title" id="addDeptMappingModalLabel">
                         <i class="bi bi-plus-circle"></i> Add Department Shift Mapping
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <form id="addDeptMappingForm">
                     <div class="modal-body">
@@ -683,7 +715,8 @@
                                     <label for="deptAddDepartment" class="form-label">
                                         <i class="bi bi-building"></i> Department *
                                     </label>
-                                    <select class="form-select" id="deptAddDepartment" name="department" required title="Select department">
+                                    <select class="form-select" id="deptAddDepartment" name="department" required
+                                        title="Select department">
                                         <option value="">Select Department</option>
                                         <option value="Teaching">Teaching</option>
                                         <option value="Administration">Administration</option>
@@ -703,7 +736,8 @@
                                     <label for="deptCustomDepartment" class="form-label">
                                         <i class="bi bi-building-add"></i> Custom Department Name *
                                     </label>
-                                    <input type="text" class="form-control" id="deptCustomDepartment" name="custom_department" title="Enter custom department name">
+                                    <input type="text" class="form-control" id="deptCustomDepartment"
+                                        name="custom_department" title="Enter custom department name">
                                     <small class="form-text">Enter the name for the new department</small>
                                 </div>
                             </div>
@@ -719,14 +753,16 @@
                                     <label for="deptAddShiftType" class="form-label">
                                         <i class="bi bi-clock"></i> Default Shift Type *
                                     </label>
-                                    <select class="form-select" id="deptAddShiftType" name="shift_type" required title="Select shift type">
+                                    <select class="form-select" id="deptAddShiftType" name="shift_type" required
+                                        title="Select shift type">
                                         <option value="">Select Shift Type</option>
                                         <option value="general">General</option>
                                         <option value="morning">Morning</option>
                                         <option value="evening">Evening</option>
                                         <option value="night">Night</option>
                                     </select>
-                                    <small class="form-text">This shift type will be automatically assigned to new staff in this department</small>
+                                    <small class="form-text">This shift type will be automatically assigned to new staff
+                                        in this department</small>
                                 </div>
                             </div>
                         </div>
@@ -738,7 +774,8 @@
                                 </div>
                                 <div>
                                     <h6 class="alert-heading text-warning">Important Note</h6>
-                                    <p class="mb-0">This will set the default shift type for new staff members in this department. Existing staff shifts will not be changed automatically.</p>
+                                    <p class="mb-0">This will set the default shift type for new staff members in this
+                                        department. Existing staff shifts will not be changed automatically.</p>
                                 </div>
                             </div>
                         </div>
@@ -762,7 +799,8 @@
                     <h5 class="modal-title" id="addStaffModalLabel">
                         <i class="bi bi-person-plus"></i> Add New Staff Member
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <form id="addStaffForm">
                     <div class="modal-body">
@@ -776,35 +814,40 @@
                                     <label for="addStaffId" class="form-label">
                                         <i class="bi bi-card-text"></i> Staff ID *
                                     </label>
-                                    <input type="text" class="form-control" id="addStaffId" name="staff_id" required title="Enter unique staff ID">
+                                    <input type="text" class="form-control" id="addStaffId" name="staff_id" required
+                                        title="Enter unique staff ID">
                                     <small class="form-text">Unique identifier for the staff member</small>
                                 </div>
                                 <div class="rule-item">
                                     <label for="addFirstName" class="form-label">
                                         <i class="bi bi-person"></i> First Name *
                                     </label>
-                                    <input type="text" class="form-control" id="addFirstName" name="first_name" required title="Enter first name">
+                                    <input type="text" class="form-control" id="addFirstName" name="first_name" required
+                                        title="Enter first name">
                                     <small class="form-text">Staff member's first name</small>
                                 </div>
                                 <div class="rule-item">
                                     <label for="addLastName" class="form-label">
                                         <i class="bi bi-person"></i> Last Name *
                                     </label>
-                                    <input type="text" class="form-control" id="addLastName" name="last_name" required title="Enter last name">
+                                    <input type="text" class="form-control" id="addLastName" name="last_name" required
+                                        title="Enter last name">
                                     <small class="form-text">Staff member's last name</small>
                                 </div>
                                 <div class="rule-item">
                                     <label for="addDateOfBirth" class="form-label">
                                         <i class="bi bi-calendar-event"></i> Date of Birth
                                     </label>
-                                    <input type="date" class="form-control" id="addDateOfBirth" name="date_of_birth" title="Select date of birth">
+                                    <input type="date" class="form-control" id="addDateOfBirth" name="date_of_birth"
+                                        title="Select date of birth">
                                     <small class="form-text">Staff member's date of birth</small>
                                 </div>
                                 <div class="rule-item">
                                     <label for="addDateOfJoining" class="form-label">
                                         <i class="bi bi-calendar-plus"></i> Date of Joining
                                     </label>
-                                    <input type="date" class="form-control" id="addDateOfJoining" name="date_of_joining" title="Select joining date">
+                                    <input type="date" class="form-control" id="addDateOfJoining" name="date_of_joining"
+                                        title="Select joining date">
                                     <small class="form-text">Date when staff member joined</small>
                                 </div>
                                 <div class="rule-item">
@@ -833,15 +876,18 @@
                                         <i class="bi bi-building"></i> Department
                                     </label>
                                     <div class="input-group">
-                                        <select class="form-select" id="addDepartment" name="department" title="Select department">
+                                        <select class="form-select" id="addDepartment" name="department"
+                                            title="Select department">
                                             <option value="">Select Department</option>
                                             {% if departments %}
-                                                {% for department in departments %}
-                                                    <option value="{{ department.department_name }}">{{ department.department_name }}</option>
-                                                {% endfor %}
+                                            {% for department in departments %}
+                                            <option value="{{ department.department_name }}">{{
+                                                department.department_name }}</option>
+                                            {% endfor %}
                                             {% endif %}
                                         </select>
-                                        <button class="btn btn-outline-primary" type="button" id="addNewDepartmentBtn" title="Add New Department">
+                                        <button class="btn btn-outline-primary" type="button" id="addNewDepartmentBtn"
+                                            title="Add New Department">
                                             <i class="bi bi-plus-circle"></i> Add New
                                         </button>
                                     </div>
@@ -852,15 +898,18 @@
                                         <i class="bi bi-briefcase"></i> Position *
                                     </label>
                                     <div class="input-group">
-                                        <select class="form-select" id="addDestination" name="destination" title="Select position" required>
+                                        <select class="form-select" id="addDestination" name="destination"
+                                            title="Select position" required>
                                             <option value="">Select Position</option>
                                             {% if positions %}
-                                                {% for position in positions %}
-                                                    <option value="{{ position.position_name }}">{{ position.position_name }}</option>
-                                                {% endfor %}
+                                            {% for position in positions %}
+                                            <option value="{{ position.position_name }}">{{ position.position_name }}
+                                            </option>
+                                            {% endfor %}
                                             {% endif %}
                                         </select>
-                                        <button class="btn btn-outline-primary" type="button" id="addNewPositionBtn" title="Add New Position">
+                                        <button class="btn btn-outline-primary" type="button" id="addNewPositionBtn"
+                                            title="Add New Position">
                                             <i class="bi bi-plus-circle"></i> Add New
                                         </button>
                                     </div>
@@ -870,7 +919,8 @@
                                     <label for="addShiftType" class="form-label">
                                         <i class="bi bi-clock"></i> Shift Type
                                     </label>
-                                    <select class="form-select" id="addShiftType" name="shift_type" title="Select shift type">
+                                    <select class="form-select" id="addShiftType" name="shift_type"
+                                        title="Select shift type">
                                         <option value="general">General</option>
                                         <option value="morning">Morning</option>
                                         <option value="afternoon">Afternoon</option>
@@ -883,7 +933,8 @@
                                     <label for="addPassword" class="form-label">
                                         <i class="bi bi-key"></i> Password *
                                     </label>
-                                    <input type="password" class="form-control" id="addPassword" name="password" required title="Enter login password">
+                                    <input type="password" class="form-control" id="addPassword" name="password"
+                                        required title="Enter login password">
                                     <small class="form-text">Login password for staff member</small>
                                 </div>
                             </div>
@@ -899,14 +950,16 @@
                                     <label for="addPhone" class="form-label">
                                         <i class="bi bi-telephone"></i> Phone Number
                                     </label>
-                                    <input type="tel" class="form-control" id="addPhone" name="phone" title="Enter phone number">
+                                    <input type="tel" class="form-control" id="addPhone" name="phone"
+                                        title="Enter phone number">
                                     <small class="form-text">Primary contact number</small>
                                 </div>
                                 <div class="rule-item">
                                     <label for="addEmail" class="form-label">
                                         <i class="bi bi-envelope"></i> Email ID
                                     </label>
-                                    <input type="email" class="form-control" id="addEmail" name="email" title="Enter email address">
+                                    <input type="email" class="form-control" id="addEmail" name="email"
+                                        title="Enter email address">
                                     <small class="form-text">Primary email address</small>
                                 </div>
                             </div>
@@ -924,7 +977,9 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="addBasicSalary" name="basic_salary" step="0.01" min="0" required title="Enter base monthly salary">
+                                        <input type="number" class="form-control" id="addBasicSalary"
+                                            name="basic_salary" step="0.01" min="0" required
+                                            title="Enter base monthly salary">
                                     </div>
                                     <small class="form-text">Base monthly salary for standard working hours</small>
                                 </div>
@@ -934,7 +989,8 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="addHRA" name="hra" step="0.01" min="0" value="0" title="Enter HRA amount">
+                                        <input type="number" class="form-control" id="addHRA" name="hra" step="0.01"
+                                            min="0" value="0" title="Enter HRA amount">
                                     </div>
                                     <small class="form-text">House Rent Allowance</small>
                                 </div>
@@ -944,7 +1000,9 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="addTransportAllowance" name="transport_allowance" step="0.01" min="0" value="0" title="Enter transport allowance">
+                                        <input type="number" class="form-control" id="addTransportAllowance"
+                                            name="transport_allowance" step="0.01" min="0" value="0"
+                                            title="Enter transport allowance">
                                     </div>
                                     <small class="form-text">Monthly transport allowance</small>
                                 </div>
@@ -954,7 +1012,9 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="addOtherAllowances" name="other_allowances" step="0.01" min="0" value="0" title="Enter other allowances">
+                                        <input type="number" class="form-control" id="addOtherAllowances"
+                                            name="other_allowances" step="0.01" min="0" value="0"
+                                            title="Enter other allowances">
                                     </div>
                                     <small class="form-text">Other monthly allowances</small>
                                 </div>
@@ -973,7 +1033,9 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="addPFDeduction" name="pf_deduction" step="0.01" min="0" value="0" title="Enter PF deduction amount">
+                                        <input type="number" class="form-control" id="addPFDeduction"
+                                            name="pf_deduction" step="0.01" min="0" value="0"
+                                            title="Enter PF deduction amount">
                                     </div>
                                     <small class="form-text">Provident Fund deduction</small>
                                 </div>
@@ -983,7 +1045,9 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="addESIDeduction" name="esi_deduction" step="0.01" min="0" value="0" title="Enter ESI deduction amount">
+                                        <input type="number" class="form-control" id="addESIDeduction"
+                                            name="esi_deduction" step="0.01" min="0" value="0"
+                                            title="Enter ESI deduction amount">
                                     </div>
                                     <small class="form-text">Employee State Insurance deduction</small>
                                 </div>
@@ -993,7 +1057,9 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="addProfessionalTax" name="professional_tax" step="0.01" min="0" value="0" title="Enter professional tax amount">
+                                        <input type="number" class="form-control" id="addProfessionalTax"
+                                            name="professional_tax" step="0.01" min="0" value="0"
+                                            title="Enter professional tax amount">
                                     </div>
                                     <small class="form-text">Monthly professional tax</small>
                                 </div>
@@ -1003,7 +1069,9 @@
                                     </label>
                                     <div class="input-group">
                                         <span class="input-group-text">₹</span>
-                                        <input type="number" class="form-control" id="addOtherDeductions" name="other_deductions" step="0.01" min="0" value="0" title="Enter other deductions">
+                                        <input type="number" class="form-control" id="addOtherDeductions"
+                                            name="other_deductions" step="0.01" min="0" value="0"
+                                            title="Enter other deductions">
                                     </div>
                                     <small class="form-text">Other monthly deductions</small>
                                 </div>
@@ -1029,7 +1097,8 @@
                     <h5 class="modal-title" id="editStaffModalLabel">
                         <i class="bi bi-pencil-square"></i> Edit Staff Member
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <form id="editStaffForm">
                     <input type="hidden" id="editStaffDbId" name="staff_db_id">
@@ -1054,14 +1123,16 @@
     </div>
 
     <!-- Manage Departments Modal (Add & Delete) -->
-    <div class="modal fade" id="addDepartmentModal" tabindex="-1" aria-labelledby="addDepartmentModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addDepartmentModal" tabindex="-1" aria-labelledby="addDepartmentModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-success text-white">
                     <h5 class="modal-title" id="addDepartmentModalLabel">
                         <i class="bi bi-building-gear"></i> Manage Departments
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
@@ -1080,25 +1151,27 @@
                                 </div>
                                 <div class="mb-3">
                                     <label for="newDepartmentName" class="form-label">
-                                        <i class="bi bi-building"></i> Department Name <span class="text-danger">*</span>
+                                        <i class="bi bi-building"></i> Department Name <span
+                                            class="text-danger">*</span>
                                     </label>
-                                    <input type="text" class="form-control" id="newDepartmentName" name="department_name" 
-                                           placeholder="e.g., Operations, Marketing" required>
+                                    <input type="text" class="form-control" id="newDepartmentName"
+                                        name="department_name" placeholder="e.g., Operations, Marketing" required>
                                     <small class="form-text text-muted">Unique name (case-insensitive)</small>
                                 </div>
                                 <div class="mb-3">
                                     <label for="newDepartmentDescription" class="form-label">
                                         <i class="bi bi-text-paragraph"></i> Description (Optional)
                                     </label>
-                                    <textarea class="form-control" id="newDepartmentDescription" name="department_description" 
-                                              rows="2" placeholder="Brief description"></textarea>
+                                    <textarea class="form-control" id="newDepartmentDescription"
+                                        name="department_description" rows="2"
+                                        placeholder="Brief description"></textarea>
                                 </div>
                                 <button type="submit" class="btn btn-success w-100" id="saveDepartmentBtn">
                                     <i class="bi bi-check-circle"></i> Add Department
                                 </button>
                             </form>
                         </div>
-                        
+
                         <!-- Right Column: Delete Existing Departments -->
                         <div class="col-md-6">
                             <h6 class="mb-3"><i class="bi bi-trash"></i> Delete Departments</h6>
@@ -1135,14 +1208,16 @@
     </div>
 
     <!-- Add Position Modal -->
-    <div class="modal fade" id="addPositionModal" tabindex="-1" aria-labelledby="addPositionModalLabel" aria-hidden="true">
+    <div class="modal fade" id="addPositionModal" tabindex="-1" aria-labelledby="addPositionModalLabel"
+        aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
                     <h5 class="modal-title" id="addPositionModalLabel">
                         <i class="bi bi-briefcase-fill"></i> Manage Positions
                     </h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <div class="row">
@@ -1163,23 +1238,23 @@
                                     <label for="newPositionName" class="form-label">
                                         <i class="bi bi-briefcase"></i> Position Name <span class="text-danger">*</span>
                                     </label>
-                                    <input type="text" class="form-control" id="newPositionName" name="position_name" 
-                                           placeholder="e.g., Data Analyst, HR Manager" required>
+                                    <input type="text" class="form-control" id="newPositionName" name="position_name"
+                                        placeholder="e.g., Data Analyst, HR Manager" required>
                                     <small class="form-text text-muted">Unique name (case-insensitive)</small>
                                 </div>
                                 <div class="mb-3">
                                     <label for="newPositionDescription" class="form-label">
                                         <i class="bi bi-text-paragraph"></i> Description (Optional)
                                     </label>
-                                    <textarea class="form-control" id="newPositionDescription" name="position_description" 
-                                              rows="2" placeholder="Brief description"></textarea>
+                                    <textarea class="form-control" id="newPositionDescription"
+                                        name="position_description" rows="2" placeholder="Brief description"></textarea>
                                 </div>
                                 <button type="submit" class="btn btn-success w-100" id="savePositionBtn">
                                     <i class="bi bi-check-circle"></i> Add Position
                                 </button>
                             </form>
                         </div>
-                        
+
                         <!-- Right Column: Delete Existing Positions -->
                         <div class="col-md-6">
                             <h6 class="mb-3"><i class="bi bi-trash"></i> Delete Positions</h6>
@@ -1227,25 +1302,28 @@
 
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script id="dept-shift-data" type="application/json">
+        {{ dept_shift_map | tojson }}
+    </script>
     <script>
         // Pass department shift mappings to JavaScript
-        window.deptShiftMap = {{ dept_shift_map | tojson }};
-        
+        window.deptShiftMap = JSON.parse(document.getElementById('dept-shift-data').textContent);
+
         // Mobile sidebar toggle functionality
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidebar = document.getElementById('enhanced-sidebar');
-            
+
             console.log('🔧 STAFF MANAGEMENT: Fixed sidebar initialization...');
             console.log('Toggle element found:', !!sidebarToggle);
             console.log('Sidebar element found:', !!sidebar);
-            
+
             // Force sidebar visibility and positioning
             function initializeSidebar() {
                 if (sidebar) {
                     // Remove any conflicting inline styles
                     sidebar.removeAttribute('style');
-                    
+
                     // Force fixed positioning
                     sidebar.style.cssText = `
                         position: fixed !important;
@@ -1259,16 +1337,16 @@
                         background: #164e63!important;
                         box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
                     `;
-                    
+
                     console.log('✅ Fixed sidebar positioning applied');
                 }
             }
-            
+
             // Initialize immediately
             initializeSidebar();
-            
+
             let sidebarVisible = false;
-            
+
             // Intelligent toggle sidebar function
             function toggleSidebar() {
                 if (sidebarVisible) {
@@ -1276,30 +1354,30 @@
                     sidebar.classList.remove('show');
                     sidebar.style.transform = 'translateX(-100%)';
                     sidebarVisible = false;
-                    
+
                     // Update toggle button icon and make it reappear
                     sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
                     sidebarToggle.setAttribute('aria-expanded', 'false');
                     sidebarToggle.setAttribute('title', 'Show sidebar menu');
-                    
+
                     // Intelligent button reappearing - show toggle button when sidebar closes
                     setTimeout(() => {
                         sidebarToggle.style.display = 'flex';
                         sidebarToggle.style.opacity = '1';
                     }, 100);
-                    
+
                     console.log('✅ Sidebar hidden with intelligent toggle');
                 } else {
                     // Show sidebar
                     sidebar.classList.add('show');
                     sidebar.style.transform = 'translateX(0)';
                     sidebarVisible = true;
-                    
+
                     // Update toggle button icon
                     sidebarToggle.innerHTML = '<i class="bi bi-x"></i>';
                     sidebarToggle.setAttribute('aria-expanded', 'true');
                     sidebarToggle.setAttribute('title', 'Hide sidebar menu');
-                    
+
                     // Intelligent button hiding - hide toggle button when sidebar opens for clean UI
                     setTimeout(() => {
                         sidebarToggle.style.opacity = '0';
@@ -1307,57 +1385,57 @@
                             sidebarToggle.style.display = 'none';
                         }, 200);
                     }, 500);
-                    
+
                     console.log('✅ Sidebar shown with intelligent toggle');
                 }
             }
-            
+
             // Mobile/Tablet/Laptop toggle functionality
             if (sidebarToggle && sidebar) {
-                sidebarToggle.addEventListener('click', function(e) {
+                sidebarToggle.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
-                    
+
                     console.log('🔄 STAFF MANAGEMENT - Intelligent toggle clicked!');
-                    
+
                     if (window.innerWidth <= 1024) {
                         toggleSidebar();
                     }
                 });
-                
+
                 // Close sidebar when clicking outside on mobile/tablet/laptop
-                document.addEventListener('click', function(event) {
+                document.addEventListener('click', function (event) {
                     if (window.innerWidth <= 1024 && sidebarVisible) {
                         const isClickInsideSidebar = sidebar.contains(event.target);
                         const isClickOnToggle = sidebarToggle.contains(event.target);
-                        
+
                         if (!isClickInsideSidebar && !isClickOnToggle) {
                             // Close sidebar and intelligently show toggle button
                             sidebar.classList.remove('show');
                             sidebar.style.transform = 'translateX(-100%)';
                             sidebarVisible = false;
-                            
+
                             // Update toggle button and make it reappear
                             sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
                             sidebarToggle.setAttribute('aria-expanded', 'false');
                             sidebarToggle.setAttribute('title', 'Show sidebar menu');
-                            
+
                             // Intelligent button reappearing
                             setTimeout(() => {
                                 sidebarToggle.style.display = 'flex';
                                 sidebarToggle.style.opacity = '1';
                             }, 100);
-                            
+
                             console.log('Sidebar closed by outside click with intelligent toggle');
                         }
                     }
                 });
-                
+
                 // Handle window resize
-                window.addEventListener('resize', function() {
+                window.addEventListener('resize', function () {
                     console.log('Window resized - reinitializing sidebar');
                     initializeSidebar();
-                    
+
                     if (window.innerWidth > 1024) {
                         // Desktop: ensure sidebar is visible and positioned, reset toggle state
                         sidebar.classList.remove('show');
@@ -1366,27 +1444,27 @@
                         sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
                         sidebarToggle.setAttribute('aria-expanded', 'false');
                         sidebarToggle.setAttribute('title', 'Toggle sidebar menu');
-                        
+
                         // Reset toggle button visibility for desktop
                         sidebarToggle.style.display = 'none';
                         sidebarToggle.style.opacity = '0';
-                        
+
                         console.log('Desktop mode - sidebar fixed, toggle hidden');
                     } else {
                         // Mobile/Tablet/Laptop: hide sidebar by default and show toggle
                         sidebar.style.transform = 'translateX(-100%)';
                         sidebarVisible = false;
-                        
+
                         // Ensure toggle button is visible when sidebar is closed
                         if (!sidebarVisible) {
                             sidebarToggle.style.display = 'flex';
                             sidebarToggle.style.opacity = '1';
                         }
-                        
+
                         console.log('Mobile/Tablet mode - sidebar hidden, toggle visible');
                     }
                 });
-                
+
                 // Initial state based on screen size
                 if (window.innerWidth <= 1024) {
                     sidebar.style.transform = 'translateX(-100%)';
@@ -1401,13 +1479,13 @@
                     sidebarToggle.style.opacity = '0';
                     console.log('Initial desktop state - sidebar visible, toggle hidden');
                 }
-                
+
                 console.log('✅ STAFF MANAGEMENT fixed sidebar initialized successfully');
             } else {
                 console.error('❌ Toggle button or sidebar not found!');
             }
         });
-        
+
         // Logout function
         function logout() {
             if (confirm('Are you sure you want to logout?')) {
@@ -1416,7 +1494,7 @@
         }
 
         // Add New Department Modal Functionality
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             const addNewDeptBtn = document.getElementById('addNewDepartmentBtn');
             const addDeptModalEl = document.getElementById('addDepartmentModal');
             const addDeptModal = new bootstrap.Modal(addDeptModalEl);
@@ -1428,13 +1506,13 @@
             const successMessage = document.getElementById('departmentSuccessMessage');
 
             // Load department list for deletion when modal opens
-            addDeptModalEl.addEventListener('shown.bs.modal', function() {
+            addDeptModalEl.addEventListener('shown.bs.modal', function () {
                 loadDepartmentsForDeletion();
             });
 
             // Open modal when "Add New" button is clicked
             if (addNewDeptBtn) {
-                addNewDeptBtn.addEventListener('click', function() {
+                addNewDeptBtn.addEventListener('click', function () {
                     // Clear form
                     addDeptForm.reset();
                     errorAlert.classList.add('d-none');
@@ -1447,17 +1525,17 @@
             // Load departments for deletion list
             async function loadDepartmentsForDeletion() {
                 const listContainer = document.getElementById('departmentDeleteList');
-                
+
                 try {
                     const response = await fetch('/admin/get_departments_list');
                     const result = await response.json();
-                    
+
                     if (result.success && result.departments) {
                         if (result.departments.length === 0) {
                             listContainer.innerHTML = '<div class="text-center text-muted py-3"><p class="small mb-0">No departments found</p></div>';
                             return;
                         }
-                        
+
                         listContainer.innerHTML = '';
                         result.departments.forEach(dept => {
                             const item = document.createElement('div');
@@ -1476,10 +1554,10 @@
                             `;
                             listContainer.appendChild(item);
                         });
-                        
+
                         // Attach delete handlers
                         document.querySelectorAll('.delete-dept-btn').forEach(btn => {
-                            btn.addEventListener('click', function() {
+                            btn.addEventListener('click', function () {
                                 const deptId = this.dataset.deptId;
                                 const deptName = this.dataset.deptName;
                                 deleteDepartment(deptId, deptName);
@@ -1498,16 +1576,16 @@
                 const deleteErrorMessage = document.getElementById('deleteErrorMessage');
                 const deleteSuccessAlert = document.getElementById('deleteSuccessAlert');
                 const deleteSuccessMessage = document.getElementById('deleteSuccessMessage');
-                
+
                 // Confirm deletion
                 if (!confirm(`Are you sure you want to delete the department "${deptName}"?\n\nThis action cannot be undone.`)) {
                     return;
                 }
-                
+
                 // Hide previous alerts
                 deleteErrorAlert.classList.add('d-none');
                 deleteSuccessAlert.classList.add('d-none');
-                
+
                 try {
                     const response = await fetch('/admin/delete_department', {
                         method: 'POST',
@@ -1516,20 +1594,20 @@
                         },
                         body: JSON.stringify({ id: deptId })
                     });
-                    
+
                     const result = await response.json();
-                    
+
                     if (result.success) {
                         // Show success message
                         deleteSuccessMessage.textContent = result.message || 'Department deleted successfully';
                         deleteSuccessAlert.classList.remove('d-none');
-                        
+
                         // Reload department list
                         await loadDepartmentsForDeletion();
-                        
+
                         // Refresh all dropdowns
                         await refreshAllDepartmentDropdowns();
-                        
+
                         // Hide success message after 3 seconds
                         setTimeout(() => {
                             deleteSuccessAlert.classList.add('d-none');
@@ -1548,23 +1626,23 @@
 
             // Handle form submission
             if (addDeptForm) {
-                addDeptForm.addEventListener('submit', async function(e) {
+                addDeptForm.addEventListener('submit', async function (e) {
                     e.preventDefault();
-                    
+
                     const departmentName = document.getElementById('newDepartmentName').value.trim();
                     const departmentDescription = document.getElementById('newDepartmentDescription').value.trim();
-                    
+
                     // Validation
                     if (!departmentName) {
                         showDepartmentError('Department name cannot be empty');
                         return;
                     }
-                    
+
                     // Disable button and show loading
                     saveDeptBtn.disabled = true;
                     saveDeptBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
                     errorAlert.classList.add('d-none');
-                    
+
                     try {
                         const response = await fetch('/admin/add_department', {
                             method: 'POST',
@@ -1576,30 +1654,30 @@
                                 description: departmentDescription
                             })
                         });
-                        
+
                         const result = await response.json();
-                        
+
                         if (result.success) {
                             // Show success message in modal
                             errorAlert.classList.add('d-none');
                             successMessage.textContent = result.message || 'Department added successfully!';
                             successAlert.classList.remove('d-none');
-                            
+
                             // Clear form
                             addDeptForm.reset();
-                            
+
                             // Refresh all department dropdowns
                             await refreshAllDepartmentDropdowns();
-                            
+
                             // Reload department list for deletion
                             await loadDepartmentsForDeletion();
-                            
+
                             // Select the new department in the add staff form
                             const addDeptSelect = document.getElementById('addDepartment');
                             if (addDeptSelect) {
                                 addDeptSelect.value = result.department_name;
                             }
-                            
+
                             // Hide success message after 3 seconds
                             setTimeout(() => {
                                 successAlert.classList.add('d-none');
@@ -1629,20 +1707,20 @@
                 try {
                     const response = await fetch('/admin/get_departments_list');
                     const result = await response.json();
-                    
+
                     if (result.success) {
                         const departments = result.departments;
-                        
+
                         // Update all department dropdowns on the page
                         const departmentSelects = document.querySelectorAll('select[name="department"], #addDepartment, #departmentFilter, #editDepartment');
-                        
+
                         departmentSelects.forEach(select => {
                             const currentValue = select.value;
                             const hasEmptyOption = select.querySelector('option[value=""]');
-                            
+
                             // Clear existing options except empty option
                             select.innerHTML = '';
-                            
+
                             // Add empty option if it existed
                             if (hasEmptyOption) {
                                 const emptyOpt = document.createElement('option');
@@ -1650,7 +1728,7 @@
                                 emptyOpt.textContent = hasEmptyOption.textContent;
                                 select.appendChild(emptyOpt);
                             }
-                            
+
                             // Add department options
                             departments.forEach(dept => {
                                 const option = document.createElement('option');
@@ -1658,7 +1736,7 @@
                                 option.textContent = dept.department_name;
                                 select.appendChild(option);
                             });
-                            
+
                             // Restore selected value if it still exists
                             if (currentValue && [...select.options].some(opt => opt.value === currentValue)) {
                                 select.value = currentValue;
@@ -1680,7 +1758,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 `;
                 document.body.appendChild(alertDiv);
-                
+
                 // Auto-dismiss after 5 seconds
                 setTimeout(() => {
                     alertDiv.remove();
@@ -1699,13 +1777,13 @@
             const positionSuccessMessage = document.getElementById('positionSuccessMessage');
 
             // Load position list for deletion when modal opens
-            addPositionModalEl.addEventListener('shown.bs.modal', function() {
+            addPositionModalEl.addEventListener('shown.bs.modal', function () {
                 loadPositionsForDeletion();
             });
 
             // Open modal when "Add New" button is clicked
             if (addNewPositionBtn) {
-                addNewPositionBtn.addEventListener('click', function() {
+                addNewPositionBtn.addEventListener('click', function () {
                     // Clear form
                     addPositionForm.reset();
                     positionErrorAlert.classList.add('d-none');
@@ -1718,17 +1796,17 @@
             // Load positions for deletion list
             async function loadPositionsForDeletion() {
                 const listContainer = document.getElementById('positionDeleteList');
-                
+
                 try {
                     const response = await fetch('/admin/get_positions_list');
                     const result = await response.json();
-                    
+
                     if (result.success && result.positions) {
                         if (result.positions.length === 0) {
                             listContainer.innerHTML = '<div class="text-center text-muted py-3"><p class="small mb-0">No positions found</p></div>';
                             return;
                         }
-                        
+
                         listContainer.innerHTML = '';
                         result.positions.forEach(pos => {
                             const item = document.createElement('div');
@@ -1747,10 +1825,10 @@
                             `;
                             listContainer.appendChild(item);
                         });
-                        
+
                         // Attach delete handlers
                         document.querySelectorAll('.delete-position-btn').forEach(btn => {
-                            btn.addEventListener('click', function() {
+                            btn.addEventListener('click', function () {
                                 const positionId = this.dataset.positionId;
                                 const positionName = this.dataset.positionName;
                                 deletePosition(positionId, positionName);
@@ -1769,16 +1847,16 @@
                 const deleteErrorMessage = document.getElementById('deletePositionErrorMessage');
                 const deleteSuccessAlert = document.getElementById('deletePositionSuccessAlert');
                 const deleteSuccessMessage = document.getElementById('deletePositionSuccessMessage');
-                
+
                 // Confirm deletion
                 if (!confirm(`Are you sure you want to delete the position "${positionName}"?\n\nThis action cannot be undone.`)) {
                     return;
                 }
-                
+
                 // Hide previous alerts
                 deleteErrorAlert.classList.add('d-none');
                 deleteSuccessAlert.classList.add('d-none');
-                
+
                 try {
                     const response = await fetch('/admin/delete_position', {
                         method: 'POST',
@@ -1787,20 +1865,20 @@
                         },
                         body: JSON.stringify({ id: positionId })
                     });
-                    
+
                     const result = await response.json();
-                    
+
                     if (result.success) {
                         // Show success message
                         deleteSuccessMessage.textContent = result.message || 'Position deleted successfully';
                         deleteSuccessAlert.classList.remove('d-none');
-                        
+
                         // Reload position list
                         await loadPositionsForDeletion();
-                        
+
                         // Refresh all dropdowns
                         await refreshAllPositionDropdowns();
-                        
+
                         // Hide success message after 3 seconds
                         setTimeout(() => {
                             deleteSuccessAlert.classList.add('d-none');
@@ -1819,23 +1897,23 @@
 
             // Handle form submission
             if (addPositionForm) {
-                addPositionForm.addEventListener('submit', async function(e) {
+                addPositionForm.addEventListener('submit', async function (e) {
                     e.preventDefault();
-                    
+
                     const positionName = document.getElementById('newPositionName').value.trim();
                     const positionDescription = document.getElementById('newPositionDescription').value.trim();
-                    
+
                     // Validation
                     if (!positionName) {
                         showPositionError('Position name cannot be empty');
                         return;
                     }
-                    
+
                     // Disable button and show loading
                     savePositionBtn.disabled = true;
                     savePositionBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Saving...';
                     positionErrorAlert.classList.add('d-none');
-                    
+
                     try {
                         const response = await fetch('/admin/add_position', {
                             method: 'POST',
@@ -1847,30 +1925,30 @@
                                 description: positionDescription
                             })
                         });
-                        
+
                         const result = await response.json();
-                        
+
                         if (result.success) {
                             // Show success message in modal
                             positionErrorAlert.classList.add('d-none');
                             positionSuccessMessage.textContent = result.message || 'Position added successfully!';
                             positionSuccessAlert.classList.remove('d-none');
-                            
+
                             // Clear form
                             addPositionForm.reset();
-                            
+
                             // Refresh all position dropdowns
                             await refreshAllPositionDropdowns();
-                            
+
                             // Reload position list for deletion
                             await loadPositionsForDeletion();
-                            
+
                             // Select the new position in the add staff form
                             const addPositionSelect = document.getElementById('addDestination');
                             if (addPositionSelect) {
                                 addPositionSelect.value = result.position_name;
                             }
-                            
+
                             // Hide success message after 3 seconds
                             setTimeout(() => {
                                 positionSuccessAlert.classList.add('d-none');
@@ -1900,20 +1978,20 @@
                 try {
                     const response = await fetch('/admin/get_positions_list');
                     const result = await response.json();
-                    
+
                     if (result.success) {
                         const positions = result.positions;
-                        
+
                         // Update all position dropdowns on the page
                         const positionSelects = document.querySelectorAll('select[name="destination"], #addDestination, #editDestination, #positionFilter');
-                        
+
                         positionSelects.forEach(select => {
                             const currentValue = select.value;
                             const hasEmptyOption = select.querySelector('option[value=""]');
-                            
+
                             // Clear existing options except empty option
                             select.innerHTML = '';
-                            
+
                             // Add empty option if it existed
                             if (hasEmptyOption) {
                                 const emptyOpt = document.createElement('option');
@@ -1921,7 +1999,7 @@
                                 emptyOpt.textContent = hasEmptyOption.textContent;
                                 select.appendChild(emptyOpt);
                             }
-                            
+
                             // Add position options
                             positions.forEach(pos => {
                                 const option = document.createElement('option');
@@ -1929,7 +2007,7 @@
                                 option.textContent = pos.position_name;
                                 select.appendChild(option);
                             });
-                            
+
                             // Restore selected value if it still exists
                             if (currentValue && [...select.options].some(opt => opt.value === currentValue)) {
                                 select.value = currentValue;
@@ -1956,9 +2034,10 @@
                 <div class="modal-body">
                     <div class="alert alert-info">
                         <i class="bi bi-info-circle"></i>
-                        <strong>Password Reset Management:</strong> Review and process staff password reset requests. You can approve requests by setting new temporary passwords or reject them if needed.
+                        <strong>Password Reset Management:</strong> Review and process staff password reset requests.
+                        You can approve requests by setting new temporary passwords or reject them if needed.
                     </div>
-                    
+
                     <!-- Month Filter Controls -->
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -1972,10 +2051,11 @@
                         </div>
                         <div class="col-md-6" id="customMonthContainer" style="display: none;">
                             <label for="customMonth" class="form-label">Select Month & Year:</label>
-                            <input type="month" class="form-control" id="customMonth" onchange="loadPasswordResetRequests()">
+                            <input type="month" class="form-control" id="customMonth"
+                                onchange="loadPasswordResetRequests()">
                         </div>
                     </div>
-                    
+
                     <div id="passwordResetContent">
                         <div class="text-center py-4">
                             <div class="spinner-border text-primary" role="status">
@@ -2012,25 +2092,25 @@
                         You are approving the password reset request for <strong id="approveStaffName"></strong>.
                         Please set a new temporary password that the staff member can use to login.
                     </div>
-                    
+
                     <form id="approveResetForm">
                         <input type="hidden" id="approveRequestId" name="request_id">
                         <input type="hidden" name="action" value="approve">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        
+
                         <div class="mb-3">
                             <label for="newResetPassword" class="form-label">New Temporary Password</label>
-                            <input type="password" class="form-control" id="newResetPassword" name="new_password" 
-                                   placeholder="Enter temporary password" required>
+                            <input type="password" class="form-control" id="newResetPassword" name="new_password"
+                                placeholder="Enter temporary password" required>
                             <div class="form-text">
                                 The staff member should change this password after first login.
                             </div>
                         </div>
-                        
+
                         <div class="mb-3">
                             <label for="confirmResetPassword" class="form-label">Confirm Password</label>
-                            <input type="password" class="form-control" id="confirmResetPassword" 
-                                   placeholder="Confirm the password" required>
+                            <input type="password" class="form-control" id="confirmResetPassword"
+                                placeholder="Confirm the password" required>
                         </div>
                     </form>
                 </div>
@@ -2057,9 +2137,10 @@
                 <div class="modal-body">
                     <div class="alert alert-warning">
                         <i class="bi bi-exclamation-triangle"></i>
-                        Are you sure you want to reject the password reset request for <strong id="rejectStaffName"></strong>?
+                        Are you sure you want to reject the password reset request for <strong
+                            id="rejectStaffName"></strong>?
                     </div>
-                    
+
                     <form id="rejectResetForm">
                         <input type="hidden" id="rejectRequestId" name="request_id">
                         <input type="hidden" name="action" value="reject">
@@ -2083,7 +2164,7 @@
         const rejectResetModal = new bootstrap.Modal(document.getElementById('rejectResetModal'));
 
         // Load password reset requests when modal opens
-        document.getElementById('passwordResetModal').addEventListener('shown.bs.modal', function() {
+        document.getElementById('passwordResetModal').addEventListener('shown.bs.modal', function () {
             // Initialize with current month by default if not already set
             const monthFilter = document.getElementById('monthFilter');
             if (!monthFilter.value) {
@@ -2096,7 +2177,7 @@
             const content = document.getElementById('passwordResetContent');
             const monthFilter = document.getElementById('monthFilter').value;
             const customMonth = document.getElementById('customMonth').value;
-            
+
             // Show/hide custom month input based on selection
             const customMonthContainer = document.getElementById('customMonthContainer');
             if (monthFilter === 'custom') {
@@ -2104,7 +2185,7 @@
             } else {
                 customMonthContainer.style.display = 'none';
             }
-            
+
             content.innerHTML = `
                 <div class="text-center py-4">
                     <div class="spinner-border text-primary" role="status">
@@ -2117,14 +2198,14 @@
             // Build query parameters for filtering
             let url = '/api/password_reset_requests';
             const params = new URLSearchParams();
-            
+
             if (monthFilter && monthFilter !== '') {
                 params.append('month_filter', monthFilter);
                 if (monthFilter === 'custom' && customMonth) {
                     params.append('custom_month', customMonth);
                 }
             }
-            
+
             if (params.toString()) {
                 url += '?' + params.toString();
             }
@@ -2157,7 +2238,7 @@
 
         function displayPasswordResetRequests(requests, monthFilter = '') {
             const content = document.getElementById('passwordResetContent');
-            
+
             // Show filter information
             let filterInfo = '';
             if (monthFilter) {
@@ -2174,12 +2255,12 @@
                     </div>
                 `;
             }
-            
+
             if (!requests || requests.length === 0) {
-                const noDataMessage = monthFilter ? 
+                const noDataMessage = monthFilter ?
                     `No password reset requests found for the selected month period.` :
                     `There are currently no password reset requests from staff members.`;
-                    
+
                 content.innerHTML = filterInfo + `
                     <div class="text-center py-5">
                         <div class="mb-4">
@@ -2210,7 +2291,7 @@
 
             requests.forEach(request => {
                 const statusBadge = getStatusBadge(request.status);
-                const actionButtons = request.status === 'pending' ? 
+                const actionButtons = request.status === 'pending' ?
                     `<div class="btn-group" role="group">
                         <button type="button" class="btn btn-success btn-sm" 
                                 onclick="approvePasswordReset(${request.id}, '${request.staff_name}')">
@@ -2220,7 +2301,7 @@
                                 onclick="rejectPasswordReset(${request.id}, '${request.staff_name}')">
                             <i class="bi bi-x"></i> Reject
                         </button>
-                    </div>` : 
+                    </div>` :
                     `<span class="text-muted"><i class="bi bi-check-square"></i> Processed</span>`;
 
                 tableHTML += `
@@ -2259,7 +2340,7 @@
         }
 
         function getStatusBadge(status) {
-            switch(status) {
+            switch (status) {
                 case 'pending':
                     return '<span class="badge bg-warning text-dark"><i class="bi bi-clock"></i> Pending</span>';
                 case 'approved':
@@ -2286,66 +2367,66 @@
         }
 
         // Handle approve confirmation
-        document.getElementById('confirmApproveReset').addEventListener('click', function() {
+        document.getElementById('confirmApproveReset').addEventListener('click', function () {
             const password = document.getElementById('newResetPassword').value;
             const confirmPassword = document.getElementById('confirmResetPassword').value;
-            
+
             if (!password) {
                 showAlert('Please enter a new password', 'warning');
                 return;
             }
-            
+
             if (password !== confirmPassword) {
                 showAlert('Passwords do not match', 'warning');
                 return;
             }
-            
+
             if (password.length < 6) {
                 showAlert('Password must be at least 6 characters long', 'warning');
                 return;
             }
-            
+
             processPasswordResetRequest('approveResetForm');
         });
 
         // Handle reject confirmation
-        document.getElementById('confirmRejectReset').addEventListener('click', function() {
+        document.getElementById('confirmRejectReset').addEventListener('click', function () {
             processPasswordResetRequest('rejectResetForm');
         });
 
         function processPasswordResetRequest(formId) {
             const form = document.getElementById(formId);
             const formData = new FormData(form);
-            
+
             const submitBtn = document.getElementById(formId === 'approveResetForm' ? 'confirmApproveReset' : 'confirmRejectReset');
             const originalText = submitBtn.innerHTML;
             submitBtn.disabled = true;
             submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Processing...';
-            
+
             fetch('/admin/approve_password_reset', {
                 method: 'POST',
                 body: formData
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    showAlert(data.message, 'success');
-                    approveResetModal.hide();
-                    rejectResetModal.hide();
-                    loadPasswordResetRequests(); // Reload the requests
-                    updateResetRequestCount(); // Update the badge count
-                } else {
-                    showAlert(data.error || 'Operation failed', 'danger');
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                showAlert('Network error. Please try again.', 'danger');
-            })
-            .finally(() => {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showAlert(data.message, 'success');
+                        approveResetModal.hide();
+                        rejectResetModal.hide();
+                        loadPasswordResetRequests(); // Reload the requests
+                        updateResetRequestCount(); // Update the badge count
+                    } else {
+                        showAlert(data.error || 'Operation failed', 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showAlert('Network error. Please try again.', 'danger');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                });
         }
 
         // Update reset request count badge
@@ -2367,7 +2448,7 @@
         }
 
         // Load count on page load
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', function () {
             updateResetRequestCount();
         });
 
@@ -2379,9 +2460,9 @@
                 ${message}
                 <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
             `;
-            
+
             document.body.appendChild(alertDiv);
-            
+
             setTimeout(() => {
                 if (alertDiv.parentNode) {
                     alertDiv.remove();
@@ -2410,4 +2491,5 @@
         }
     </script>
 </body>
+
 </html>
