@@ -1123,8 +1123,126 @@
                                 <i class="bi bi-clock-history"></i>
                             </div>
                             <div class="title-text">
+<<<<<<< HEAD:templates/shift_management.html
                                 <h1 class="main-title">Shift &amp; Time Settings</h1>
                                 <p class="subtitle">Manage shifts, holidays and leave quotas. Edit the General shift row to set the default institution timing.</p>
+=======
+                                <h1 class="main-title">Work Time Assignment</h1>
+                                <p class="subtitle">Set and manage default check-in and check-out times for the
+                                    institution</p>
+                            </div>
+                        </div>
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-outline-primary" id="refreshTimingBtn"
+                                title="Refresh timing data">
+                                <i class="bi bi-arrow-clockwise"></i> Refresh
+                            </button>
+                            <button type="button" class="btn btn-success" id="exportTimingBtn"
+                                title="Export timing configuration">
+                                <i class="bi bi-download"></i> Export
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Work Time Assignment Section -->
+                <div class="salary-results-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-clock-history"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Institution Timing Configuration</h5>
+                            <p class="card-subtitle">Configure default working hours for your institution</p>
+                        </div>
+                        <div class="header-actions">
+                            <div class="results-stats">
+                                <div class="stat-item">
+                                    <i class="bi bi-gear"></i>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            Current Timings Display 
+                            <div class="col-md-6">
+                                <div class="current-timings-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-info-circle text-primary"></i> Current Institution Timings
+                                    </h6>
+                                    <div class="timing-cards">
+                                        <div class="timing-card check-in-card">
+                                            <div class="timing-icon">
+                                                <i class="bi bi-box-arrow-in-right text-success"></i>
+                                            </div>
+                                            <div class="timing-info">
+                                                <div class="timing-label">Institution Check-in Time</div>
+                                                <div class="timing-value" id="currentCheckinTime">09:00 AM</div>
+                                            </div>
+                                        </div>
+                                        <div class="timing-card check-out-card">
+                                            <div class="timing-icon">
+                                                <i class="bi bi-box-arrow-right text-info"></i>
+                                            </div>
+                                            <div class="timing-info">
+                                                <div class="timing-label">Institution Check-out Time</div>
+                                                <div class="timing-value" id="currentCheckoutTime">05:00 PM</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div> 
+
+                            <!-- Time Configuration Form -->
+                            <div class="col-md-6">
+                                <div class="time-config-section">
+                                    <h6 class="section-title">
+                                        <i class="bi bi-pencil-square text-warning"></i> Update Institution Timings
+                                    </h6>
+                                    <form id="workTimeForm" class="time-config-form">
+                                        <div class="mb-4">
+                                            <label for="institutionCheckinTime" class="form-label">
+                                                <i class="bi bi-sunrise"></i> Institution Check-in Time
+                                            </label>
+                                            <input type="time" class="form-control time-picker"
+                                                id="institutionCheckinTime" name="checkin_time" required>
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle"></i> Default time when staff should check
+                                                in
+                                            </div>
+                                        </div>
+                                        <div class="mb-4">
+                                            <label for="institutionCheckoutTime" class="form-label">
+                                                <i class="bi bi-sunset"></i> Institution Check-out Time
+                                            </label>
+                                            <input type="time" class="form-control time-picker"
+                                                id="institutionCheckoutTime" name="checkout_time" required>
+                                            <div class="form-text">
+                                                <i class="bi bi-info-circle"></i> Default time when staff should check
+                                                out
+                                            </div>
+                                        </div>
+                                        <div class="validation-message" id="timeValidationMessage"
+                                            style="display: none;">
+                                            <div class="alert alert-danger">
+                                                <i class="bi bi-exclamation-triangle"></i> Check-out time must be later
+                                                than check-in time!
+                                            </div>
+                                        </div>
+                                        <div class="form-actions">
+                                            <button type="submit" class="btn btn-primary btn-save-timing"
+                                                id="saveTimingBtn">
+                                                <i class="bi bi-check-circle"></i> Save & Update Timings
+                                            </button>
+                                            <button type="button" class="btn btn-outline-secondary btn-reset-timing"
+                                                id="resetTimingBtn">
+                                                <i class="bi bi-arrow-clockwise"></i> Reset to Default
+                                            </button>
+                                        </div>
+                                    </form>
+                                </div>
+>>>>>>> 48af76fb9895b8c8a35cc2fa7a7ded5e2959ba2d:templates/work_time_assignment.html
                             </div>
                         </div>
 
