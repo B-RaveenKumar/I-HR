@@ -717,14 +717,14 @@ def init_db(app):
 
 def get_institution_timings():
     """
-    Get institution-wide check-in and check-out times from database.
-    Returns dynamic timings if set, otherwise returns default times.
+    Get institution-wide check-in and check-out times from shift_definitions (general shift).
+    The 'general' shift in shift_definitions is the single source of truth for default timings.
     
     Returns:
         dict: {
             'checkin_time': datetime.time object,
             'checkout_time': datetime.time object,
-            'is_custom': bool (True if custom timings are set)
+            'is_custom': bool (True if found in shift_definitions)
         }
     """
     import datetime
@@ -732,57 +732,39 @@ def get_institution_timings():
     try:
         db = get_db()
         
-        # Check if institution_settings table exists
-        cursor = db.execute("""
-            SELECT name FROM sqlite_master 
-            WHERE type='table' AND name='institution_settings'
-        """)
+        # Read from shift_definitions (general shift = single source of truth)
+        row = db.execute("""
+            SELECT start_time, end_time FROM shift_definitions
+            WHERE shift_type = 'general' AND is_active = 1
+            LIMIT 1
+        """).fetchone()
         
-        if not cursor.fetchone():
-            # Return default timings if table doesn't exist
+        if row:
+            checkin_str  = (row['start_time']  or '09:00:00')[:5]   # strip seconds
+            checkout_str = (row['end_time']     or '17:00:00')[:5]
+            # Allow HH:MM or HH:MM:SS
+            fmt = '%H:%M:%S' if len(row['start_time']) > 5 else '%H:%M'
+            checkin_time  = datetime.datetime.strptime(row['start_time'],  fmt).time()
+            fmt2 = '%H:%M:%S' if len(row['end_time']) > 5 else '%H:%M'
+            checkout_time = datetime.datetime.strptime(row['end_time'], fmt2).time()
             return {
-                'checkin_time': datetime.time(9, 0),   # 9:00 AM
-                'checkout_time': datetime.time(17, 0), # 5:00 PM
-                'is_custom': False
+                'checkin_time': checkin_time,
+                'checkout_time': checkout_time,
+                'is_custom': True
             }
         
-        # Fetch current institution timings
-        cursor = db.execute("""
-            SELECT setting_name, setting_value 
-            FROM institution_settings 
-            WHERE setting_name IN ('checkin_time', 'checkout_time')
-        """)
-        
-        settings = dict(cursor.fetchall())
-        
-        if not settings or len(settings) < 2:
-            # Return default timings if no custom settings found
-            return {
-                'checkin_time': datetime.time(9, 0),   # 9:00 AM
-                'checkout_time': datetime.time(17, 0), # 5:00 PM
-                'is_custom': False
-            }
-        
-        # Parse time strings and return as time objects
-        checkin_str = settings.get('checkin_time', '09:00')
-        checkout_str = settings.get('checkout_time', '17:00')
-        
-        # Convert string to time object (format: HH:MM)
-        checkin_time = datetime.datetime.strptime(checkin_str, '%H:%M').time()
-        checkout_time = datetime.datetime.strptime(checkout_str, '%H:%M').time()
-        
+        # No general shift found — return defaults
         return {
-            'checkin_time': checkin_time,
-            'checkout_time': checkout_time,
-            'is_custom': True
+            'checkin_time': datetime.time(9, 0),
+            'checkout_time': datetime.time(17, 0),
+            'is_custom': False
         }
         
     except Exception as e:
         print(f"Error getting institution timings: {e}")
-        # Return default timings on error
         return {
-            'checkin_time': datetime.time(9, 0),   # 9:00 AM
-            'checkout_time': datetime.time(17, 0), # 5:00 PM
+            'checkin_time': datetime.time(9, 0),
+            'checkout_time': datetime.time(17, 0),
             'is_custom': False
         }
 

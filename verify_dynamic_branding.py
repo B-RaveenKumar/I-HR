@@ -95,7 +95,7 @@ def check_template_files():
         'admin_settings.html',
         'department_shifts.html',
         'staff_my_profile.html',
-        'work_time_assignment.html'
+        'shift_management.html'
     ]
     
     updated_count = 0

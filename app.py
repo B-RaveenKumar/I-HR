@@ -1545,8 +1545,13 @@ def process_attendance_advanced():
 
 @app.route('/admin/manage_shifts')
 def manage_shifts():
-    # Redirect to work time assignment as shift management has been moved there
-    return redirect(url_for('work_time_assignment'))
+    # Redirect to shift management
+    return redirect(url_for('shift_management'))
+
+@app.route('/admin/work_time_assignment')
+def work_time_assignment_redirect():
+    # Backward-compat redirect — use /admin/shift_management going forward
+    return redirect(url_for('shift_management'))
 
 @app.route('/admin/update_shift', methods=['POST'])
 def update_shift():
@@ -1566,7 +1571,7 @@ def update_shift():
         db = get_db()
         db.execute('''
             UPDATE shift_definitions 
-            SET start_time = ?, end_time = ?, grace_period_minutes = ?, description = ?, updated_at = CURRENT_TIMESTAMP
+            SET start_time = ?, end_time = ?, grace_period_minutes = ?, description = ?
             WHERE id = ?
         ''', (start_time, end_time, grace_period, description, shift_id))
         db.commit()
@@ -5285,8 +5290,8 @@ def delete_position_route():
         print(f"Error in delete_position route: {e}")
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
-@app.route('/admin/work_time_assignment')
-def work_time_assignment():
+@app.route('/admin/shift_management')
+def shift_management():
     if 'user_id' not in session or session['user_type'] != 'admin':
         return redirect(url_for('index'))
 
@@ -5311,7 +5316,7 @@ def work_time_assignment():
         (school_id,)
     ).fetchone()
 
-    return render_template('work_time_assignment.html', 
+    return render_template('shift_management.html', 
                           total_staff_count=total_staff_count, 
                           shifts=shifts,
                           institution=institution)
@@ -12062,47 +12067,28 @@ def admin_settings():
 
 @app.route('/api/get_institution_timings', methods=['GET'])
 def get_institution_timings():
-    """Get current institution check-in and check-out timings"""
+    """Get current institution check-in and check-out timings from the general shift definition."""
     try:
         db = get_db()
 
-        # Check if settings table exists and create if not
-        cursor = db.execute("""
-            SELECT name FROM sqlite_master
-            WHERE type='table' AND name='institution_settings'
-        """)
+        # Read directly from shift_definitions (general shift is the single source of truth)
+        row = db.execute("""
+            SELECT start_time, end_time FROM shift_definitions
+            WHERE shift_type = 'general' AND is_active = 1
+            LIMIT 1
+        """).fetchone()
 
-        if not cursor.fetchone():
-            # Create the settings table
-            db.execute("""
-                CREATE TABLE institution_settings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    setting_name TEXT UNIQUE NOT NULL,
-                    setting_value TEXT NOT NULL,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-
-            # Insert default timings
-            db.execute("""
-                INSERT INTO institution_settings (setting_name, setting_value)
-                VALUES ('checkin_time', '09:00'), ('checkout_time', '17:00')
-            """)
-            db.commit()
-
-        # Fetch current timings
-        cursor = db.execute("""
-            SELECT setting_name, setting_value
-            FROM institution_settings
-            WHERE setting_name IN ('checkin_time', 'checkout_time')
-        """)
-
-        settings = dict(cursor.fetchall())
+        if row:
+            # Strip seconds part if present (HH:MM:SS -> HH:MM)
+            checkin = row['start_time'][:5] if row['start_time'] else '09:00'
+            checkout = row['end_time'][:5] if row['end_time'] else '17:00'
+        else:
+            checkin, checkout = '09:00', '17:00'
 
         return jsonify({
             'success': True,
-            'checkin_time': settings.get('checkin_time', '09:00'),
-            'checkout_time': settings.get('checkout_time', '17:00')
+            'checkin_time': checkin,
+            'checkout_time': checkout
         })
 
     except Exception as e:
@@ -12156,84 +12142,23 @@ def update_institution_timings():
 
         db = get_db()
 
-        # Update or insert the timings
-        for setting_name, setting_value in [('checkin_time', checkin_time), ('checkout_time', checkout_time)]:
+        # Write directly to shift_definitions (general shift) — single source of truth
+        db.execute("""
+            UPDATE shift_definitions
+            SET start_time = ?, end_time = ?
+            WHERE shift_type = 'general' AND is_active = 1
+        """, (checkin_time + ':00', checkout_time + ':00'))
+
+        if db.execute("SELECT changes()").fetchone()[0] == 0:
+            # Row didn't exist yet — insert it
             db.execute("""
-                INSERT OR REPLACE INTO institution_settings (setting_name, setting_value, updated_at)
-                VALUES (?, ?, CURRENT_TIMESTAMP)
-            """, (setting_name, setting_value))
-
-        # Sync with shift definitions - update ALL active shifts to match institution timings
-        try:
-            # Check if shift_definitions table exists
-            cursor = db.execute("""
-                SELECT name FROM sqlite_master
-                WHERE type='table' AND name='shift_definitions'
-            """)
-
-            if cursor.fetchone():
-                # Get all active shift types
-                cursor = db.execute("""
-                    SELECT shift_type, description FROM shift_definitions 
-                    WHERE is_active = 1
-                """)
-                active_shifts = cursor.fetchall()
-                
-                if active_shifts:
-                    # Update ONLY 'general' shift to match institution timings
-                    # Other shifts (morning, afternoon, etc.) should remain configurable
-                    for shift_type, description in active_shifts:
-                        if shift_type != 'general':
-                            continue
-                            
-                        # Preserve original description if it exists
-                        updated_description = description if description else f"{shift_type.title()} Shift (Institution Timing)"
-                        
-                        db.execute("""
-                            UPDATE shift_definitions 
-                            SET start_time = ?, end_time = ?, grace_period_minutes = 0,
-                                description = ?
-                            WHERE shift_type = ? AND is_active = 1
-                        """, (checkin_time + ':00', checkout_time + ':00', updated_description, shift_type))
-                        
-                        print(f"✅ Synced 'general' shift to institution timing: {checkin_time} - {checkout_time}")
-                else:
-                    # No active shifts found, create general shift
-                    db.execute("""
-                        INSERT OR REPLACE INTO shift_definitions
-                        (shift_type, start_time, end_time, grace_period_minutes, description, is_active)
-                        VALUES ('general', ?, ?, 0, 'Institution Default Shift (Strict Timing)', 1)
-                    """, (checkin_time + ':00', checkout_time + ':00'))
-                    print(f"✅ Created default general shift: {checkin_time} - {checkout_time}")
-            else:
-                # Create shift_definitions table and insert general shift
-                db.execute("""
-                    CREATE TABLE IF NOT EXISTS shift_definitions (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        shift_type TEXT UNIQUE NOT NULL,
-                        start_time TEXT NOT NULL,
-                        end_time TEXT NOT NULL,
-                        grace_period_minutes INTEGER DEFAULT 10,
-                        description TEXT,
-                        is_active INTEGER DEFAULT 1,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-
-                db.execute("""
-                    INSERT INTO shift_definitions
-                    (shift_type, start_time, end_time, grace_period_minutes, description, is_active)
-                    VALUES ('general', ?, ?, 0, 'Institution Default Shift (Strict Timing)', 1)
-                """, (checkin_time + ':00', checkout_time + ':00'))
-
-                print(f"✅ Created shift_definitions table and synced general shift: {checkin_time} - {checkout_time}")
-
-        except Exception as sync_error:
-            print(f"⚠️ Warning: Could not sync shift definitions: {sync_error}")
-            # Continue execution even if shift sync fails
+                INSERT INTO shift_definitions
+                (shift_type, start_time, end_time, grace_period_minutes, description, is_active)
+                VALUES ('general', ?, ?, 15, 'General Institution Shift', 1)
+            """, (checkin_time + ':00', checkout_time + ':00'))
 
         db.commit()
+        print(f"General shift timing updated: {checkin_time} - {checkout_time}")
 
         # Notify all systems to refresh their configurations
         try:
