@@ -698,6 +698,20 @@ def init_db(app):
         )
         ''')
 
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS staff_shift_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            staff_id INTEGER NOT NULL,
+            school_id INTEGER NOT NULL,
+            shift_type TEXT NOT NULL,
+            effective_from DATE NOT NULL,
+            effective_to DATE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (staff_id) REFERENCES staff(id),
+            FOREIGN KEY (school_id) REFERENCES schools(id)
+        )
+        ''')
+
         # Initialize default shift definitions
         cursor.execute('SELECT COUNT(*) FROM shift_definitions')
         if cursor.fetchone()[0] == 0:
@@ -838,6 +852,64 @@ def migrate_department_shift_constraint():
 
     except Exception as e:
         print(f'Warning: migrate_department_shift_constraint failed: {e}')
+
+
+def migrate_shift_history():
+    """
+    Migration: create staff_shift_history table and seed initial records for all
+    existing staff using their current shift_type (effective from their join date
+    or 2000-01-01 if unknown). Safe to call multiple times (idempotent).
+    """
+    try:
+        db = get_db()
+
+        # Ensure table exists
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS staff_shift_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                staff_id INTEGER NOT NULL,
+                school_id INTEGER NOT NULL,
+                shift_type TEXT NOT NULL,
+                effective_from DATE NOT NULL,
+                effective_to DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (staff_id) REFERENCES staff(id),
+                FOREIGN KEY (school_id) REFERENCES schools(id)
+            )
+        ''')
+        db.commit()
+
+        # Seed initial history for staff who have no history record yet
+        staff_without_history = db.execute('''
+            SELECT s.id, s.school_id, s.shift_type, s.date_of_joining, s.created_at
+            FROM staff s
+            LEFT JOIN staff_shift_history sh ON sh.staff_id = s.id
+            WHERE sh.id IS NULL
+        ''').fetchall()
+
+        for staff in staff_without_history:
+            effective_from = (
+                staff['date_of_joining']
+                or (staff['created_at'][:10] if staff['created_at'] else None)
+                or '2000-01-01'
+            )
+            db.execute('''
+                INSERT INTO staff_shift_history
+                    (staff_id, school_id, shift_type, effective_from, effective_to)
+                VALUES (?, ?, ?, ?, NULL)
+            ''', (
+                staff['id'],
+                staff['school_id'],
+                staff['shift_type'] or 'general',
+                effective_from
+            ))
+
+        if staff_without_history:
+            db.commit()
+            print(f'Migration: seeded shift history for {len(staff_without_history)} staff member(s)')
+
+    except Exception as e:
+        print(f'Warning: migrate_shift_history failed: {e}')
 
 
 def calculate_attendance_status(check_time, verification_type='check-in', grace_minutes=None, date_obj=None, department=None):

@@ -215,6 +215,12 @@ with app.app_context():
         migrate_department_shift_constraint()
     except Exception as _mig_err:
         print(f'Startup migration warning: {_mig_err}')
+    # Seed shift history table for existing staff
+    try:
+        from database import migrate_shift_history
+        migrate_shift_history()
+    except Exception as _mig_err2:
+        print(f'Startup shift history migration warning: {_mig_err2}')
 
 
 ########################################
@@ -242,6 +248,39 @@ def get_institution_device():
     except Exception as e:
         logger.error(f"Error getting institution device: {e}")
         return None, None
+
+
+def record_shift_history(db, staff_id, school_id, new_shift_type, effective_from):
+    """
+    Record a shift change in staff_shift_history.
+    Closes the previous open record by setting effective_to = effective_from - 1 day,
+    then inserts a new open-ended record.
+    This ensures the calendar can resolve the correct shift for any historical date.
+    """
+    import datetime as _dt
+    try:
+        effective_date = (
+            _dt.datetime.strptime(effective_from, '%Y-%m-%d').date()
+            if isinstance(effective_from, str)
+            else effective_from
+        )
+        day_before = (effective_date - _dt.timedelta(days=1)).strftime('%Y-%m-%d')
+
+        # Close any currently open history record for this staff member
+        db.execute('''
+            UPDATE staff_shift_history
+            SET effective_to = ?
+            WHERE staff_id = ? AND school_id = ? AND effective_to IS NULL
+        ''', (day_before, staff_id, school_id))
+
+        # Insert the new history record (open-ended)
+        db.execute('''
+            INSERT INTO staff_shift_history
+                (staff_id, school_id, shift_type, effective_from, effective_to)
+            VALUES (?, ?, ?, ?, NULL)
+        ''', (staff_id, school_id, new_shift_type, effective_from))
+    except Exception as _e:
+        print(f'Warning: record_shift_history failed for staff_id={staff_id}: {_e}')
 
 
 # Route for admin to process OD permission (ensure only one definition)
@@ -6652,7 +6691,7 @@ def get_weekly_attendance():
 
         # Get staff information including shift type and scheduled changes
         staff_info = db.execute('''
-            SELECT id, staff_id, full_name, shift_type, next_shift_type, next_shift_effective_date
+            SELECT id, school_id, staff_id, full_name, shift_type, next_shift_type, next_shift_effective_date
             FROM staff
             WHERE id = ?
         ''', (target_staff_id,)).fetchone()
@@ -6668,6 +6707,22 @@ def get_weekly_attendance():
         ''').fetchall()
         
         all_shift_defs = {sd['shift_type']: sd for sd in shift_defs_raw}
+
+        # Load full shift history for this staff member (for past-date lookups)
+        shift_history = db.execute('''
+            SELECT shift_type, effective_from, effective_to
+            FROM staff_shift_history
+            WHERE staff_id = ? AND school_id = ?
+            ORDER BY effective_from ASC
+        ''', (target_staff_id, staff_info['school_id'])).fetchall()
+
+        def get_shift_for_date(date_str):
+            """Return the shift_type that was in effect on a given date per history."""
+            for row in reversed(shift_history):  # newest first
+                if row['effective_from'] <= date_str:
+                    if row['effective_to'] is None or row['effective_to'] >= date_str:
+                        return row['shift_type']
+            return None  # no history found, caller falls back to current
 
         # Get attendance records for the week
         attendance_records = db.execute('''
@@ -6718,6 +6773,8 @@ def get_weekly_attendance():
             ORDER BY permission_date
         ''', (target_staff_id, week_start_date, week_end_date)).fetchall()
 
+        today_str = datetime.datetime.now().strftime('%Y-%m-%d')
+
         # Create weekly data structure
         weekly_data = []
         current_date = week_start_date
@@ -6727,11 +6784,17 @@ def get_weekly_attendance():
             day_name = current_date.strftime('%A')
 
             # Resolve actual shift type for this specific date
-            actual_shift_type = staff_info['shift_type'] or 'general'
-            if (staff_info['next_shift_type'] and 
-                staff_info['next_shift_effective_date'] and 
-                date_str >= staff_info['next_shift_effective_date']):
-                actual_shift_type = staff_info['next_shift_type']
+            if date_str < today_str:
+                # Past day: use historical shift record so previous days never
+                # reflect a future/current shift change.
+                actual_shift_type = get_shift_for_date(date_str) or staff_info['shift_type'] or 'general'
+            else:
+                # Today or future: honour any scheduled (next) shift change
+                actual_shift_type = staff_info['shift_type'] or 'general'
+                if (staff_info['next_shift_type'] and 
+                    staff_info['next_shift_effective_date'] and 
+                    date_str >= staff_info['next_shift_effective_date']):
+                    actual_shift_type = staff_info['next_shift_type']
                 
             # Use defined shift or fallback to general
             current_shift_def = all_shift_defs.get(actual_shift_type)
@@ -7415,28 +7478,15 @@ def update_staff_enhanced():
             update_parts.append('email = ?')
             update_values.append(email)
         
-        # Shift type delayed logic
+        # Shift type logic — apply immediately from today
         if 'shift_type' in column_names:
-            if current_staff and current_staff['shift_type'] != shift_type:
-                # If shift is being changed, don't update current shift_type immediately
-                # Instead, set next_shift_type and next_shift_effective_date
-                if 'next_shift_type' in column_names:
-                    update_parts.append('next_shift_type = ?')
-                    update_values.append(shift_type)
-                if 'next_shift_effective_date' in column_names:
-                    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
-                    update_parts.append('next_shift_effective_date = ?')
-                    update_values.append(tomorrow)
-                
-                print(f"Shift change detected for staff {staff_db_id}: Scheduled {shift_type} for tomorrow")
-            else:
-                # If it's the same shift, or we don't have current data, update normally (or clear next shift)
-                update_parts.append('shift_type = ?')
-                update_values.append(shift_type)
-                if 'next_shift_type' in column_names:
-                    update_parts.append('next_shift_type = NULL')
-                if 'next_shift_effective_date' in column_names:
-                    update_parts.append('next_shift_effective_date = NULL')
+            update_parts.append('shift_type = ?')
+            update_values.append(shift_type)
+            # Clear any pending scheduled shift change
+            if 'next_shift_type' in column_names:
+                update_parts.append('next_shift_type = NULL')
+            if 'next_shift_effective_date' in column_names:
+                update_parts.append('next_shift_effective_date = NULL')
 
         if 'photo_url' in column_names and photo_url:
             update_parts.append('photo_url = ?')
@@ -7475,6 +7525,12 @@ def update_staff_enhanced():
         query = f"UPDATE staff SET {', '.join(update_parts)} WHERE id = ? AND school_id = ?"
 
         db.execute(query, update_values)
+
+        # Record shift history so the calendar can preserve past-day shift times
+        if 'shift_type' in column_names and current_staff and current_staff['shift_type'] != shift_type:
+            _today = datetime.datetime.now().strftime('%Y-%m-%d')
+            record_shift_history(db, staff_db_id, school_id, shift_type, _today)
+
         db.commit()
         return jsonify({'success': True})
     except Exception as e:
@@ -7659,6 +7715,12 @@ def update_department_shift():
             ''', (school_id, department, shift_type))
 
         # Update all staff members in this department to the new shift type
+        # First, fetch existing staff IDs so we can record shift history for each
+        affected_staff_rows = db.execute('''
+            SELECT id FROM staff
+            WHERE school_id = ? AND department = ? AND shift_type != ?
+        ''', (school_id, department, shift_type)).fetchall()
+
         staff_updated = db.execute('''
             UPDATE staff
             SET shift_type = ?
@@ -7666,6 +7728,11 @@ def update_department_shift():
         ''', (shift_type, school_id, department))
 
         affected_rows = staff_updated.rowcount
+
+        # Record shift history for each affected staff member (change is immediate)
+        _today = datetime.datetime.now().strftime('%Y-%m-%d')
+        for _row in affected_staff_rows:
+            record_shift_history(db, _row['id'], school_id, shift_type, _today)
 
         db.commit()
 
