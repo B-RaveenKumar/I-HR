@@ -553,6 +553,7 @@
                                 </div>
 
                                 <div class="rules-actions">
+                                    {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Salary Management', {}).get('edit') %}
                                     <button type="button" class="btn btn-success btn-update-rules" id="updateSalaryRulesBtn" title="Update salary calculation rules">
                                         <i class="bi bi-check-circle"></i>
                                         <span>Update Salary Rules</span>
@@ -561,6 +562,11 @@
                                         <i class="bi bi-arrow-clockwise"></i>
                                         <span>Reset to Defaults</span>
                                     </button>
+                                    {% else %}
+                                    <div class="alert alert-info mb-0">
+                                        <i class="bi bi-eye me-2"></i> View Only Access - You cannot modify salary rules
+                                    </div>
+                                    {% endif %}
                                 </div>
                             </form>
                         </div>

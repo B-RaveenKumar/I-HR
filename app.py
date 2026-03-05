@@ -15563,7 +15563,7 @@ def add_sub_admin():
     
     if request.method == 'GET':
         staff_list = db.execute('SELECT id, staff_id, full_name, department FROM staff WHERE school_id = ? ORDER BY full_name', (school_id,)).fetchall()
-        return render_template('add_sub_admin.html', staff_list=staff_list)
+        return render_template('add_sub_admin.html', staff_list=staff_list, existing_permissions=None, edit_staff_id=None)
         
     if request.method == 'POST':
         staff_id = request.form.get('staff_id') # The actual staff username/id string
@@ -15599,6 +15599,41 @@ def add_sub_admin():
         except sqlite3.Error as e:
             db.rollback()
             return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+
+
+@app.route('/edit_sub_admin/<staff_id>', methods=['GET'])
+def edit_sub_admin(staff_id):
+    """Edit an existing sub-admin's permissions"""
+    if 'user_id' not in session or session.get('user_type') != 'admin' or session.get('is_sub_admin'):
+        flash('Unauthorized access.', 'danger')
+        return redirect(url_for('manage_sub_admins'))
+    
+    school_id = session.get('school_id')
+    db = get_db()
+    
+    # Get existing permissions for this staff member
+    permissions = db.execute('''
+        SELECT module_name, can_view, can_edit, can_delete
+        FROM sub_admin_permissions
+        WHERE staff_id = ? AND school_id = ?
+    ''', (staff_id, school_id)).fetchall()
+    
+    # Convert to dictionary for easy lookup in template
+    existing_permissions = {}
+    for perm in permissions:
+        existing_permissions[perm['module_name']] = {
+            'view': bool(perm['can_view']),
+            'edit': bool(perm['can_edit']),
+            'delete': bool(perm['can_delete'])
+        }
+    
+    # Get staff list for the dropdown
+    staff_list = db.execute('SELECT id, staff_id, full_name, department FROM staff WHERE school_id = ? ORDER BY full_name', (school_id,)).fetchall()
+    
+    return render_template('add_sub_admin.html', 
+                         staff_list=staff_list, 
+                         existing_permissions=existing_permissions,
+                         edit_staff_id=staff_id)
 
 
 @app.route('/delete_sub_admin', methods=['POST'])

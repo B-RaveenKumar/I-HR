@@ -352,6 +352,11 @@
                                             </div>
                                         </td>
                                         <td class="text-end">
+                                            <a href="{{ url_for('edit_sub_admin', staff_id=sub_admin.staff_id) }}" 
+                                               class="btn btn-sm btn-outline-primary me-2"
+                                               title="Edit permissions">
+                                                <i class="bi bi-pencil"></i> Edit
+                                            </a>
                                             <form action="{{ url_for('delete_sub_admin') }}" method="POST"
                                                 class="d-inline">
                                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

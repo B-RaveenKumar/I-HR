@@ -459,6 +459,7 @@
                                 title="Refresh data">
                                 <i class="bi bi-arrow-clockwise"></i> Refresh
                             </button>
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Staff Management', {}).get('edit') %}
                             <button type="button" class="btn btn-warning" data-bs-toggle="modal"
                                 data-bs-target="#passwordResetModal" title="Manage password reset requests">
                                 <i class="bi bi-key"></i> Password Reset Requests
@@ -468,6 +469,7 @@
                                 data-bs-target="#addStaffModal" title="Add new staff member">
                                 <i class="bi bi-person-plus"></i> Add Staff
                             </button>
+                            {% endif %}
                             <button type="button" class="btn btn-info" id="exportStaffExcelBtn"
                                 title="Export staff data">
                                 <i class="bi bi-download"></i> Export
@@ -642,17 +644,21 @@
                                             </td>
                                             <td>
                                                 <div class="action-buttons">
+                                                    {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Staff Management', {}).get('edit') %}
                                                     <button class="btn btn-sm btn-view-details edit-staff-btn"
                                                         data-staff-id="{{ staff_member.id }}" data-bs-toggle="modal"
                                                         data-bs-target="#editStaffModal" title="Edit staff member">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
+                                                    {% endif %}
+                                                    {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Staff Management', {}).get('delete') %}
                                                     <button class="btn btn-sm btn-outline-danger delete-staff-btn"
                                                         data-staff-id="{{ staff_member.id }}"
                                                         data-staff-name="{{ staff_member.full_name }}"
                                                         title="Delete staff member">
                                                         <i class="bi bi-trash"></i>
                                                     </button>
+                                                    {% endif %}
                                                 </div>
                                             </td>
                                         </tr>
@@ -696,10 +702,12 @@
                                 title="Manage department shifts">
                                 <i class="bi bi-gear"></i> Manage Shifts
                             </a>
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Staff Management', {}).get('edit') %}
                             <button type="button" class="btn btn-success" data-bs-toggle="modal"
                                 data-bs-target="#addDeptMappingModal" title="Add new department mapping">
                                 <i class="bi bi-plus-circle"></i> Add Mapping
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="card-body">
@@ -1365,6 +1373,11 @@
         {{ dept_shift_map | tojson }}
     </script>
     <script>
+        // Permission flags for sub-admin access control
+        const isSubAdmin = {{ 'true' if session.get('is_sub_admin') else 'false' }};
+        const hasEditPermission = {{ 'true' if not session.get('is_sub_admin') or session.get('permissions', {}).get('Staff Management', {}).get('edit') else 'false' }};
+        const hasDeletePermission = {{ 'true' if not session.get('is_sub_admin') or session.get('permissions', {}).get('Staff Management', {}).get('delete') else 'false' }};
+        
         // Pass department shift mappings to JavaScript
         window.deptShiftMap = JSON.parse(document.getElementById('dept-shift-data').textContent);
 
@@ -1604,12 +1617,15 @@
                                     <strong>${dept.department_name}</strong>
                                     ${dept.description ? `<br><small class="text-muted">${dept.description}</small>` : ''}
                                 </div>
-                                <button class="btn btn-sm btn-outline-danger delete-dept-btn" 
-                                        data-dept-id="${dept.id}" 
-                                        data-dept-name="${dept.department_name}"
-                                        title="Delete ${dept.department_name}">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                ${
+                                    hasDeletePermission ? `
+                                    <button class="btn btn-sm btn-outline-danger delete-dept-btn" 
+                                            data-dept-id="${dept.id}" 
+                                            data-dept-name="${dept.department_name}"
+                                            title="Delete ${dept.department_name}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>` : '<span class="badge bg-secondary"><i class="bi bi-eye"></i> View Only</span>'
+                                }
                             `;
                             listContainer.appendChild(item);
                         });
@@ -1875,12 +1891,15 @@
                                     <strong>${pos.position_name}</strong>
                                     ${pos.description ? `<br><small class="text-muted">${pos.description}</small>` : ''}
                                 </div>
-                                <button class="btn btn-sm btn-outline-danger delete-position-btn" 
-                                        data-position-id="${pos.id}" 
-                                        data-position-name="${pos.position_name}"
-                                        title="Delete ${pos.position_name}">
-                                    <i class="bi bi-trash"></i>
-                                </button>
+                                ${
+                                    hasDeletePermission ? `
+                                    <button class="btn btn-sm btn-outline-danger delete-position-btn" 
+                                            data-position-id="${pos.id}" 
+                                            data-position-name="${pos.position_name}"
+                                            title="Delete ${pos.position_name}">
+                                        <i class="bi bi-trash"></i>
+                                    </button>` : '<span class="badge bg-secondary"><i class="bi bi-eye"></i> View Only</span>'
+                                }
                             `;
                             listContainer.appendChild(item);
                         });

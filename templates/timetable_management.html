@@ -430,9 +430,11 @@
                                     <h6 class="section-title m-0">
                                         <i class="bi bi-grid-3x3 me-2"></i> Sections Management
                                     </h6>
+                                    {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Timetable', {}).get('edit') %}
                                     <button class="btn btn-primary btn-sm shadow-sm" onclick="showAddSectionModal()">
                                         <i class="bi bi-plus-circle"></i> Add New Section
                                     </button>
+                                    {% endif %}
                                 </div>
                                 <div class="table-responsive shadow-sm border rounded"
                                     style="max-height: 350px; overflow-y: auto; background: white;">
@@ -489,9 +491,11 @@
                                 onchange="loadPeriods()">
                                 <option value="">All Sections</option>
                             </select>
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Timetable', {}).get('edit') %}
                             <button type="button" class="btn btn-primary btn-sm" onclick="showAddPeriodModal()">
                                 <i class="bi bi-plus-circle"></i> Add Period
                             </button>
+                            {% endif %}
                         </div>
                     </div>
                     <div class="card-body">
@@ -1129,6 +1133,11 @@
     <script src="{{ url_for('static', filename='js/timetable_management.js') }}"></script>
 
     <script>
+        // Permission flags for sub-admin access control
+        const isSubAdmin = {{ 'true' if session.get('is_sub_admin') else 'false' }};
+        const hasEditPermission = {{ 'true' if not session.get('is_sub_admin') or session.get('permissions', {}).get('Timetable', {}).get('edit') else 'false' }};
+        const hasDeletePermission = {{ 'true' if not session.get('is_sub_admin') or session.get('permissions', {}).get('Timetable', {}).get('delete') else 'false' }};
+        
         // Initialize schoolId from Flask session, URL param, or default
         // This uses Jinja2 to get the school_id from the server-side session
         window.schoolId = {{ session.get('school_id', 1) | int }};
