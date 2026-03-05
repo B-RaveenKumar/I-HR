@@ -121,6 +121,20 @@
     
 </head>
 <body>
+    <!-- Sky Blue Dots Page Loader -->
+    <div id="pageLoader">
+        <div class="loader-dots">
+            <span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span>
+        </div>
+    </div>
+    <script>
+        window.addEventListener('load', function() {
+            var l = document.getElementById('pageLoader');
+            if (l) { l.classList.add('loader-fade-out'); setTimeout(function(){ l.style.display='none'; }, 460); }
+        });
+    </script>
+
     <!-- Mobile Sidebar Toggle -->
     <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
         <i class="bi bi-list"></i>
@@ -215,14 +229,7 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" href="{{ url_for('biometric_devices_page') }}">
-                                    <div class="nav-icon">
-                                        <i class="bi bi-fingerprint"></i>
-                                    </div>
-                                    <span class="nav-text">Biometric Devices</span>
-                                    <div class="nav-indicator"></div>
-                                </a>
+                           
                             </li>
                             <li class="nav-item">
                                 <a class="nav-link active" href="{{ url_for('admin_reports') }}">
@@ -233,6 +240,14 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                             <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('biometric_devices_page') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-fingerprint"></i>
+                                    </div>
+                                    <span class="nav-text">Biometric Devices</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
                         </ul>
                     </div>
                 </div>

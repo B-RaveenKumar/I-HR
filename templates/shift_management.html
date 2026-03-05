@@ -992,6 +992,20 @@
 </head>
 
 <body>
+    <!-- Sky Blue Dots Page Loader -->
+    <div id="pageLoader">
+        <div class="loader-dots">
+            <span></span><span></span><span></span><span></span>
+            <span></span><span></span><span></span><span></span>
+        </div>
+    </div>
+    <script>
+        window.addEventListener('load', function() {
+            var l = document.getElementById('pageLoader');
+            if (l) { l.classList.add('loader-fade-out'); setTimeout(function(){ l.style.display='none'; }, 460); }
+        });
+    </script>
+
     <!-- Mobile Sidebar Toggle -->
     <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false"
         aria-controls="enhanced-sidebar">
