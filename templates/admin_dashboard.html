@@ -140,9 +140,9 @@
         </div>
     </div>
     <script>
-        window.addEventListener('load', function() {
+        window.addEventListener('load', function () {
             var l = document.getElementById('pageLoader');
-            if (l) { l.classList.add('loader-fade-out'); setTimeout(function(){ l.style.display='none'; }, 460); }
+            if (l) { l.classList.add('loader-fade-out'); setTimeout(function () { l.style.display = 'none'; }, 460); }
         });
     </script>
 
@@ -202,6 +202,21 @@
                                     <span class="nav-text">Dashboard</span>
                                 </a>
                             </li>
+
+                            {% if not session.get('is_sub_admin') %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('manage_sub_admins') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-shield-lock"></i>
+                                    </div>
+                                    <span class="nav-text">Sub-Admins</span>
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            {% set perms = session.get('permissions', {}) %}
+
+                            {% if not session.get('is_sub_admin') or perms.get('staff_management', {}).get('view') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('staff_management') }}">
                                     <div class="nav-icon">
@@ -210,6 +225,9 @@
                                     <span class="nav-text">Staff Management</span>
                                 </a>
                             </li>
+                            {% endif %}
+
+                            {% if not session.get('is_sub_admin') or perms.get('shift_management', {}).get('view') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('shift_management') }}">
                                     <div class="nav-icon">
@@ -218,6 +236,9 @@
                                     <span class="nav-text">Shift &amp; Time Settings</span>
                                 </a>
                             </li>
+                            {% endif %}
+
+                            {% if not session.get('is_sub_admin') or perms.get('salary_management', {}).get('view') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('salary_management') }}">
                                     <div class="nav-icon">
@@ -226,7 +247,10 @@
                                     <span class="nav-text">Salary Management</span>
                                 </a>
                             </li>
-                            {% if timetable_enabled %}
+                            {% endif %}
+
+                            {% if timetable_enabled and (not session.get('is_sub_admin') or
+                            perms.get('timetable_management', {}).get('view')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('admin_timetable') }}">
                                     <div class="nav-icon">
@@ -237,24 +261,38 @@
                             </li>
                             {% endif %}
 
+                            {% if not session.get('is_sub_admin') or perms.get('reports', {}).get('view') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="/admin/reports">
                                     <div class="nav-icon">
                                         <i class="bi bi-graph-up"></i>
                                     </div>
                                     <span class="nav-text">Reports & Analytics</span>
-                                    <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
+
+                            {% if not session.get('is_sub_admin') or perms.get('biometric_devices', {}).get('view') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="/biometric_devices">
                                     <div class="nav-icon">
                                         <i class="bi bi-fingerprint"></i>
                                     </div>
                                     <span class="nav-text">Biometric Devices</span>
-                                    <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
+
+                            {% if session.get('is_sub_admin') %}
+                            <li class="nav-item mt-2 pt-2" style="border-top: 1px solid rgba(255,255,255,0.1);">
+                                <a class="nav-link text-info" href="{{ url_for('staff_dashboard') }}">
+                                    <div class="nav-icon text-info">
+                                        <i class="bi bi-person-workspace"></i>
+                                    </div>
+                                    <span class="nav-text">My Staff Profile</span>
+                                </a>
+                            </li>
+                            {% endif %}
                         </ul>
                     </div>
                     <!-- Sidebar Footer -->

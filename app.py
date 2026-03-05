@@ -155,15 +155,95 @@ def capitalize_first_filter(text):
         return ""
     return text[0].upper() + text[1:] if len(text) > 1 else text.upper()
 
+from functools import wraps
+
+@app.before_request
+def refresh_sub_admin_permissions():
+    """
+    Check and update sub-admin permissions on each request.
+    This ensures that if an admin revokes access, it takes effect immediately
+    without requiring the staff member to logout/login.
+    """
+    # Only check for logged-in staff members with potential sub-admin status
+    if 'user_id' in session and session.get('user_type') == 'staff':
+        staff_id = session.get('staff_id')
+        school_id = session.get('school_id')
+        
+        if staff_id and school_id:
+            db = get_db()
+            # Check current permissions in database
+            permissions = db.execute('''
+                SELECT module_name, can_view, can_edit, can_delete 
+                FROM sub_admin_permissions 
+                WHERE staff_id = ? AND school_id = ?
+            ''', (staff_id, school_id)).fetchall()
+            
+            # Update session based on current database state
+            if len(permissions) > 0:
+                # User has sub-admin permissions
+                session['is_sub_admin'] = True
+                session['permissions'] = {
+                    p['module_name']: {
+                        'view': bool(p['can_view']), 
+                        'edit': bool(p['can_edit']), 
+                        'delete': bool(p['can_delete'])
+                    } for p in permissions
+                }
+                session.modified = True
+            else:
+                # No permissions found - remove sub-admin status
+                session['is_sub_admin'] = False
+                session['permissions'] = {}
+                session.modified = True
+
+def requires_permission(module_name, action='view'):
+    """
+    Decorator to protect routes based on sub-admin permissions.
+    Super admin bypasses this check. Sub-Admins (staff with delegated access) are checked.
+    """
+    def decorator(f):
+        @wraps(f)
+        def decorated_function(*args, **kwargs):
+            if 'user_id' not in session:
+                return redirect(url_for('index'))
+                
+            # Company admin can view most things or doesn't use this route normally
+            if session.get('user_type') == 'company_admin':
+                return f(*args, **kwargs)
+                
+            # Standard admin bypass (not a sub-admin)
+            if session.get('user_type') == 'admin' and not session.get('is_sub_admin'):
+                return f(*args, **kwargs)
+                
+            # Sub-Admin check — works for both user_type='admin' and user_type='staff' with is_sub_admin=True
+            if session.get('is_sub_admin'):
+                perms = session.get('permissions', {})
+                # If the module exists and the action is permitted
+                if perms.get(module_name, {}).get(action):
+                    return f(*args, **kwargs)
+                flash(f"Access Denied: You do not have '{action}' permission for {module_name.replace('_', ' ')}.", "danger")
+                # Redirect back to staff dashboard since sub-admins live there
+                return redirect(url_for('staff_dashboard'))
+                
+            # Standard staff member – no access to admin routes
+            if session.get('user_type') == 'staff':
+                return redirect(url_for('staff_dashboard'))
+                
+            return redirect(url_for('index'))
+        return decorated_function
+    return decorator
+
 @app.template_filter('simple_date')
 def simple_date_filter(date_str):
     """Convert YYYY-MM-DD to readable format"""
-    if not date_str or len(date_str) < 10:
-        return date_str
+    if not date_str:
+        return ''
     try:
-        date_obj = datetime.datetime.strptime(date_str[:10], '%Y-%m-%d')
-        return date_obj.strftime('%B %d, %Y')
-    except ValueError:
+        if isinstance(date_str, str):
+            dt = datetime.datetime.strptime(date_str, '%Y-%m-%d')
+            return dt.strftime('%B %d, %Y')
+        return date_str.strftime('%B %d, %Y')
+    except:
         return date_str
 
 # Register cloud API blueprint if available
@@ -286,7 +366,7 @@ def record_shift_history(db, staff_id, school_id, new_shift_type, effective_from
 # Route for admin to process OD permission (ensure only one definition)
 @app.route('/process_on_duty_permission', methods=['POST'])
 def process_on_duty_permission():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     permission_id = request.form.get('permission_id')
@@ -759,15 +839,50 @@ def handle_school_login():
     ''', (school_id, username)).fetchone()
 
     if staff:
-        password_hash = staff['password_hash'] if staff['password_hash'] is not None else ''
+        # Support both 'password_hash' and 'password' column names
+        password_hash = staff['password_hash'] if 'password_hash' in staff.keys() and staff['password_hash'] is not None else (staff['password'] if 'password' in staff.keys() else '')
+        if password_hash is None:
+            password_hash = ''
         print(f"Staff found: {staff['full_name']}, Has password hash: {bool(password_hash)}")  # Debug log
 
         # Check if password hash exists and verify password
         if password_hash and check_password_hash(password_hash, password):
             print("Staff login successful")  # Debug log
+            
+            # Check for Sub-Admin permissions — cast school_id to int to match DB type
+            try:
+                school_id_int = int(school_id)
+            except (ValueError, TypeError):
+                school_id_int = school_id
+            permissions = db.execute('''
+                SELECT module_name, can_view, can_edit, can_delete 
+                FROM sub_admin_permissions 
+                WHERE staff_id = ? AND school_id = ?
+            ''', (username, school_id_int)).fetchall()
+            
+            print(f"Sub-admin permissions found: {len(permissions)} rows for staff_id={username}, school_id={school_id_int}")  # Debug
+            
+            is_sub_admin = len(permissions) > 0
+            
             session['user_id'] = staff['id']
             session['school_id'] = staff['school_id']
+            session['staff_id'] = username  # Store staff_id for all staff (needed for permission checks)
+            # Always keep user_type as 'staff' - Sub-Admins are still staff members
             session['user_type'] = 'staff'
+            if is_sub_admin:
+                session['is_sub_admin'] = True
+                session['permissions'] = {
+                    p['module_name']: {
+                        'view': bool(p['can_view']), 
+                        'edit': bool(p['can_edit']), 
+                        'delete': bool(p['can_delete'])
+                    } for p in permissions
+                }
+                print(f"Staff logged in as Sub-Admin with permissions: {session['permissions']}")
+            else:
+                session['is_sub_admin'] = False
+                session['permissions'] = {}
+                
             session['full_name'] = staff['full_name']
             
             # Load institution branding data
@@ -780,6 +895,7 @@ def handle_school_login():
                 session['institution_logo'] = school['logo_path']
                 session['branding_enabled'] = school['branding_enabled']
             
+            # Both staff and sub-admins go to staff_dashboard
             return jsonify({'redirect': url_for('staff_dashboard')})
         elif not password_hash:
             print("Staff has no password set")  # Debug log
@@ -882,7 +998,7 @@ def get_attendance_summary():
 
 @app.route('/get_staff_details')
 def get_staff_details():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = request.args.get('id')
@@ -909,7 +1025,7 @@ def get_staff_details():
 
 @app.route('/export_staff_data')
 def export_staff_data():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1013,7 +1129,7 @@ def delete_admin():
 @app.route('/get_biometric_verifications')
 def get_biometric_verifications():
     """Get biometric verification history for staff"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -1047,7 +1163,7 @@ def get_biometric_verifications():
 @app.route('/get_today_attendance_status')
 def get_today_attendance_status():
     """Get today's attendance status for staff"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -1318,7 +1434,7 @@ def export_company_report():
 
 @app.route('/export_staff_report')
 def export_staff_report():
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -1341,7 +1457,7 @@ def export_staff_report():
 
 @app.route('/export_monthly_report')
 def export_monthly_report():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1360,7 +1476,7 @@ def export_monthly_report():
 
 @app.route('/export_department_report')
 def export_department_report():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1384,7 +1500,7 @@ def export_department_report():
 
 @app.route('/export_yearly_report')
 def export_yearly_report():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1403,7 +1519,7 @@ def export_yearly_report():
 # Enhanced Staff Management Routes
 @app.route('/bulk_import_staff', methods=['POST'])
 def bulk_import_staff():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1432,7 +1548,7 @@ def bulk_import_staff():
 
 @app.route('/advanced_search_staff')
 def advanced_search_staff():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1457,7 +1573,7 @@ def advanced_search_staff():
 
 @app.route('/upload_staff_photo', methods=['POST'])
 def upload_staff_photo():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = request.form.get('staff_id')
@@ -1478,7 +1594,7 @@ def upload_staff_photo():
 
 @app.route('/get_department_analytics')
 def get_department_analytics():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1489,7 +1605,7 @@ def get_department_analytics():
 
 @app.route('/generate_staff_id')
 def generate_staff_id():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1502,7 +1618,7 @@ def generate_staff_id():
 
 @app.route('/bulk_update_staff', methods=['POST'])
 def bulk_update_staff():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1518,14 +1634,14 @@ def bulk_update_staff():
 
 @app.route('/staff_management_enhanced')
 def staff_management_enhanced():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     return render_template('staff_management_enhanced.html', today=datetime.datetime.now().strftime('%Y-%m-%d'))
 
 @app.route('/download_staff_template')
 def download_staff_template():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     # Create a sample Excel template
@@ -1562,7 +1678,7 @@ def download_staff_template():
 # Advanced Attendance Management Routes
 @app.route('/process_attendance_advanced', methods=['POST'])
 def process_attendance_advanced():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = request.form.get('staff_id')
@@ -1600,7 +1716,7 @@ def work_time_assignment_redirect():
 
 @app.route('/admin/update_shift', methods=['POST'])
 def update_shift():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
         
     shift_id = request.form.get('shift_id')
@@ -1655,7 +1771,7 @@ def get_overtime_summary():
 
 @app.route('/create_regularization_request', methods=['POST'])
 def create_regularization_request():
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -1679,7 +1795,7 @@ def create_regularization_request():
 
 @app.route('/process_regularization_request', methods=['POST'])
 def process_regularization_request():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     request_id = request.form.get('request_id')
@@ -1699,7 +1815,7 @@ def process_regularization_request():
 
 @app.route('/get_attendance_analytics')
 def get_attendance_analytics():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1716,7 +1832,7 @@ def get_attendance_analytics():
 
 @app.route('/auto_mark_leave_attendance', methods=['POST'])
 def auto_mark_leave_attendance():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1730,7 +1846,7 @@ def auto_mark_leave_attendance():
 # Reporting Dashboard Routes
 @app.route('/reporting_dashboard')
 def reporting_dashboard():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     today = datetime.datetime.now()
@@ -1740,6 +1856,7 @@ def reporting_dashboard():
                          current_year=today.year)
 
 @app.route('/salary_management')
+@requires_permission('salary_management', 'view')
 def salary_management():
     if 'user_id' not in session:
         return redirect(url_for('login'))
@@ -1751,7 +1868,7 @@ def salary_management():
 
 @app.route('/get_summary_dashboard')
 def get_summary_dashboard():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1762,7 +1879,7 @@ def get_summary_dashboard():
 
 @app.route('/generate_report')
 def generate_report():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1861,7 +1978,7 @@ def get_departments():
 
 @app.route('/export_report_excel')
 def export_report_excel():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -1900,7 +2017,7 @@ def export_report_excel():
 @app.route('/generate_admin_report')
 def generate_admin_report():
     """Generate and download reports from admin reports page"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     try:
@@ -1953,7 +2070,7 @@ def generate_admin_report():
 @app.route('/test_performance_report_json')
 def test_performance_report_json():
     """Test endpoint for performance report that returns JSON data for validation"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
     
     try:
@@ -4567,7 +4684,7 @@ def generate_overtime_report(school_id, year, month, format_type):
 # Analytics Dashboard Routes
 @app.route('/analytics_dashboard')
 def analytics_dashboard():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     today = datetime.datetime.now()
@@ -4579,7 +4696,7 @@ def analytics_dashboard():
 
 @app.route('/get_analytics_data')
 def get_analytics_data():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -4609,7 +4726,7 @@ def get_analytics_data():
 
 @app.route('/get_performance_metrics')
 def get_performance_metrics():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -4630,7 +4747,7 @@ def get_performance_metrics():
 
 @app.route('/get_heatmap_data')
 def get_heatmap_data():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -4651,7 +4768,7 @@ def get_heatmap_data():
 
 @app.route('/export_analytics_data')
 def export_analytics_data():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -4700,7 +4817,7 @@ def mark_notification_read():
 
 @app.route('/send_system_notification', methods=['POST'])
 def send_system_notification():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     title = request.form.get('title')
@@ -4738,7 +4855,7 @@ def get_notification_count():
 # Integrate notifications with existing attendance processing
 @app.route('/process_attendance_with_notifications', methods=['POST'])
 def process_attendance_with_notifications():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = request.form.get('staff_id', type=int)
@@ -4786,7 +4903,7 @@ def process_attendance_with_notifications():
 # Integrate notifications with leave processing
 @app.route('/process_leave_with_notifications', methods=['POST'])
 def process_leave_with_notifications():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     leave_id = request.form.get('leave_id', type=int)
@@ -4843,7 +4960,7 @@ def process_leave_with_notifications():
 
 @app.route('/staff/dashboard')
 def staff_dashboard():
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     db = get_db()
@@ -4941,7 +5058,7 @@ def staff_dashboard():
 
 @app.route('/admin/department_shifts')
 def department_shifts():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     db = get_db()
@@ -4978,7 +5095,7 @@ def department_shifts():
 
 @app.route('/api/department_shifts', methods=['GET', 'POST', 'DELETE'])
 def api_department_shifts():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'message': 'Unauthorized access'}), 401
 
     db = get_db()
@@ -5149,8 +5266,9 @@ def debug_tables():
         return f"Error checking database: {str(e)}", 500, {'Content-Type': 'text/plain'}
 
 @app.route('/admin/staff_management')
+@requires_permission('staff_management', 'view')
 def staff_management():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     from database import get_all_departments, initialize_default_departments, get_all_positions, initialize_default_positions
@@ -5204,7 +5322,7 @@ def staff_management():
 @csrf.exempt
 def add_department_route():
     """Add a new custom department"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 401
 
     from database import add_department
@@ -5236,7 +5354,7 @@ def add_department_route():
 @csrf.exempt
 def get_departments_list():
     """Get all departments for a school"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 401
 
     from database import get_all_departments
@@ -5253,7 +5371,7 @@ def get_departments_list():
 @csrf.exempt
 def delete_department_route():
     """Delete a department"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 401
 
     from database import delete_department
@@ -5284,7 +5402,7 @@ def delete_department_route():
 @csrf.exempt
 def add_position_route():
     """Add a new custom position"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 401
 
     from database import add_position
@@ -5316,7 +5434,7 @@ def add_position_route():
 @csrf.exempt
 def get_positions_list():
     """Get all positions for a school"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 401
 
     from database import get_all_positions
@@ -5333,7 +5451,7 @@ def get_positions_list():
 @csrf.exempt
 def delete_position_route():
     """Delete a position (soft delete)"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 401
 
     from database import delete_position
@@ -5361,8 +5479,9 @@ def delete_position_route():
         return jsonify({'success': False, 'error': f'Server error: {str(e)}'}), 500
 
 @app.route('/admin/shift_management')
+@requires_permission('shift_management', 'view')
 def shift_management():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     db = get_db()
@@ -5393,7 +5512,7 @@ def shift_management():
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     db = get_db()
@@ -5531,30 +5650,31 @@ def admin_dashboard():
 
 
 @app.route('/admin/timetable')
+@requires_permission('timetable_management', 'view')
 def admin_timetable():
     """Admin Timetable Management page"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
     return render_template('timetable_management.html')
 
 @app.route('/staff/timetable')
 def staff_timetable():
     """Staff Timetable Self-Service page"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
     return render_template('staff_timetable.html')
 
 @app.route('/admin/staff-period-assignment')
 def staff_period_assignment():
     """Admin Staff Period Assignment page"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
     return render_template('staff_period_assignment.html')
 
 @app.route('/staff/my-period-assignment')
 def staff_view_period_assignment():
     """Staff view of their period assignments"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
     return render_template('staff_period_assignment.html', view_mode='staff')
 
@@ -5627,7 +5747,7 @@ def api_dashboard_attendance_stats():
 @app.route('/admin/export_dashboard_data')
 def export_dashboard_data():
     """Comprehensive admin dashboard data export with multiple format support"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     try:
@@ -5964,7 +6084,7 @@ def mark_attendance():
     This route is kept for backward compatibility but should not be used.
     Use /biometric_attendance instead for proper user-controlled verification.
     """
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     # Return error to prevent automatic updates
@@ -6184,7 +6304,7 @@ def check_device_verification():
 
 @app.route('/apply_leave', methods=['POST'])
 def apply_leave():
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -6275,7 +6395,7 @@ def apply_leave():
 
 @app.route('/apply_on_duty', methods=['POST'])
 def apply_on_duty():
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -6352,7 +6472,7 @@ def apply_on_duty():
 
 @app.route('/apply_permission', methods=['POST'])
 def apply_permission():
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -6428,7 +6548,7 @@ def apply_permission():
 @app.route('/process_leave', methods=['POST'])
 def process_leave():
     """Process leave application with enhanced validation and logging"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized access - Admin required'})
 
     leave_id = request.form.get('leave_id')
@@ -6510,7 +6630,7 @@ def process_leave():
 
 @app.route('/process_on_duty', methods=['POST'])
 def process_on_duty():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     application_id = request.form.get('application_id')
@@ -6601,7 +6721,7 @@ def process_on_duty():
 
 @app.route('/process_permission', methods=['POST'])
 def process_permission():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     application_id = request.form.get('application_id')
@@ -7066,7 +7186,7 @@ def format_attendance_times_to_12hr(attendance_record):
 
 @app.route('/add_staff_enhanced', methods=['POST'])
 def add_staff_enhanced():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -7208,7 +7328,7 @@ def add_staff_enhanced():
 
 @app.route('/add_staff', methods=['POST'])
 def add_staff():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -7363,7 +7483,7 @@ def delete_school():
 
 @app.route('/get_staff_details_enhanced')
 def get_staff_details_enhanced():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = request.args.get('id')
@@ -7389,7 +7509,7 @@ def get_staff_details_enhanced():
 
 @app.route('/update_staff_enhanced', methods=['POST'])
 def update_staff_enhanced():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_db_id = request.form.get('staff_db_id')
@@ -7552,7 +7672,7 @@ def update_staff_enhanced():
 
 @app.route('/export_staff_excel')
 def export_staff_excel():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     try:
@@ -7670,7 +7790,7 @@ def export_staff_excel():
 
 @app.route('/admin/add_department_shift', methods=['POST'])
 def add_department_shift():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -7695,7 +7815,7 @@ def add_department_shift():
 
 @app.route('/admin/update_department_shift', methods=['POST'])
 def update_department_shift():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -7757,7 +7877,7 @@ def update_department_shift():
 
 @app.route('/admin/delete_department_shift', methods=['POST'])
 def delete_department_shift():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -7780,7 +7900,7 @@ def delete_department_shift():
 
 @app.route('/admin/bulk_update_staff_shifts', methods=['POST'])
 def bulk_update_staff_shifts():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -7812,7 +7932,7 @@ def bulk_update_staff_shifts():
 
 @app.route('/admin/preview_staff_shift_changes')
 def preview_staff_shift_changes():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -7838,7 +7958,7 @@ def preview_staff_shift_changes():
 
 @app.route('/update_staff', methods=['POST'])
 def update_staff():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = request.form.get('staff_id')
@@ -7899,7 +8019,7 @@ def update_staff():
 
 @app.route('/delete_staff', methods=['POST'])
 def delete_staff():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = request.form.get('staff_id')
@@ -7934,7 +8054,7 @@ def delete_staff():
 @app.route('/reset_staff_password', methods=['POST'])
 def reset_staff_password():
     """Reset staff password (Admin only)"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_db_id = request.form.get('staff_id')  # This is the database ID
@@ -7985,7 +8105,7 @@ def reset_staff_password():
 @app.route('/set_default_passwords', methods=['POST'])
 def set_default_passwords():
     """Set default passwords for all staff without passwords (for testing)"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -8028,7 +8148,7 @@ def set_default_passwords():
 @app.route('/staff/change_password', methods=['GET', 'POST'])
 def staff_change_password():
     """Allow staff to change their own password"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     if request.method == 'GET':
@@ -8223,7 +8343,7 @@ def edit_school(school_id):
 
 @app.route('/admin/staff/<int:id>')
 def staff_profile(id):
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     db = get_db()
@@ -8269,7 +8389,7 @@ def staff_profile(id):
 
 @app.route('/admin/search_staff')
 def search_staff():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     search_term = request.args.get('q', '')
@@ -8347,7 +8467,7 @@ def toggle_school_visibility():
 # ZK Biometric Device Integration Routes
 @app.route('/sync_biometric_attendance', methods=['POST'])
 def sync_biometric_attendance():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -8499,7 +8619,7 @@ def sync_biometric_attendance():
 
 @app.route('/process_device_attendance', methods=['POST'])
 def process_device_attendance():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -8522,7 +8642,7 @@ def process_device_attendance():
 
 @app.route('/verify_staff_biometric', methods=['POST'])
 def verify_staff_biometric_route():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = request.form.get('staff_id')
@@ -8547,7 +8667,7 @@ def verify_staff_biometric_route():
 
 @app.route('/apply_on_duty_permission', methods=['POST'])
 def apply_on_duty_permission():
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -9595,7 +9715,7 @@ def get_comprehensive_staff_profile():
 @app.route('/download_staff_attendance_report')
 def download_staff_attendance_report():
     """Download staff attendance report for a specific month"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = request.args.get('id')
@@ -10019,7 +10139,7 @@ def _calculate_accurate_attendance_summary(staff_id: int, year: int, month: int)
 @app.route('/staff/profile')
 def staff_profile_page():
     """Optimized staff profile page with combined queries and improved performance"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     db = get_db()
@@ -10151,7 +10271,7 @@ def staff_profile_page():
 @app.route('/staff/profile/async_data')
 def get_staff_profile_async_data():
     """Get heavy profile data asynchronously for improved performance"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -10200,7 +10320,7 @@ def get_staff_profile_async_data():
 @app.route('/staff/get_attendance_summary')
 def get_staff_attendance_summary():
     """Get staff attendance summary for current month (dynamic API) - optimized"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -10229,7 +10349,7 @@ def get_staff_attendance_summary():
 @app.route('/staff/update_profile', methods=['POST'])
 def update_staff_profile():
     """Update staff profile information"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -10322,7 +10442,7 @@ def update_staff_profile():
 @app.route('/staff/change_password', methods=['POST'])
 def change_staff_password():
     """Change staff password"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -10358,7 +10478,7 @@ def change_staff_password():
 @app.route('/staff/attendance_calendar')
 def staff_attendance_calendar():
     """Get attendance data for calendar view"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
@@ -10399,7 +10519,7 @@ def staff_attendance_calendar():
 @app.route('/staff/download_pay_slip', methods=['POST'])
 def staff_download_pay_slip():
     """Generate and download pay slip for staff member"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_db_id = session['user_id']
@@ -10441,7 +10561,7 @@ def staff_download_pay_slip():
 @app.route('/staff/preview_pay_slip', methods=['POST'])
 def staff_preview_pay_slip():
     """Generate pay slip data for preview by staff member"""
-    if 'user_id' not in session or session['user_type'] != 'staff':
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_db_id = session['user_id']
@@ -10494,7 +10614,7 @@ def fix_staff_names():
     Fix existing staff records that have full_name but missing first_name/last_name.
     This resolves the 'None None' display issue in Staff Directory.
     """
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -10630,7 +10750,7 @@ def fix_user_suffix_in_staff_names():
 @app.route('/admin/fix_staff_user_suffix', methods=['POST'])
 def fix_staff_user_suffix_route():
     """Admin route to manually fix staff names with 'User' suffix"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'}), 401
     
     try:
@@ -10646,7 +10766,7 @@ def fix_staff_user_suffix_route():
 @app.route('/create_staff_from_device_user', methods=['POST'])
 def create_staff_from_device_user():
     """Create staff account for user who already exists on biometric device"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     school_id = session['school_id']
@@ -10877,7 +10997,7 @@ def forgot_password_request():
 @app.route('/admin/password_reset_requests')
 def admin_password_reset_requests():
     """Admin page to view and manage password reset requests with month filtering"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
     
     try:
@@ -10967,7 +11087,7 @@ def admin_password_reset_requests():
 @app.route('/admin/approve_password_reset', methods=['POST'])
 def approve_password_reset():
     """Approve or reject password reset request"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
     
     try:
@@ -11032,7 +11152,7 @@ def approve_password_reset():
 @app.route('/api/password_reset_count')
 def get_password_reset_count():
     """API endpoint to get count of pending password reset requests"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
     
     try:
@@ -11053,7 +11173,7 @@ def get_password_reset_count():
 @app.route('/api/password_reset_requests')
 def get_password_reset_requests():
     """API endpoint to get password reset requests for AJAX loading with month filtering"""
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
     
     try:
@@ -11220,7 +11340,7 @@ def get_backup_list():
 
 @app.route('/export_data_backup', methods=['POST'])
 def export_data_backup():
-    if 'user_id' not in session or session['user_type'] != 'admin':
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     export_type = request.form.get('export_type', 'excel')
@@ -12161,9 +12281,10 @@ def get_staff_count():
         return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/admin/reports')
+@requires_permission('reports', 'view')
 def admin_reports():
     """Admin reports page"""
-    if 'user_id' not in session or session['user_type'] not in ['admin', 'company_admin']:
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and session.get('user_type') != 'company_admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     today = datetime.datetime.now()
@@ -12303,16 +12424,30 @@ def update_institution_timings():
 
 @app.route('/api/debug_session', methods=['GET'])
 def debug_session():
-    """Debug route to check session status"""
+    """Debug route to check session status and sub-admin permissions"""
     try:
+        db = get_db()
+        # Get all permissions from DB
+        all_perms = db.execute('SELECT * FROM sub_admin_permissions').fetchall()
+        perms_list = [dict(row) for row in all_perms]
+        
+        # Get all staff for comparison
+        all_staff = db.execute('SELECT id, school_id, staff_id, full_name FROM staff LIMIT 10').fetchall()
+        staff_list = [dict(row) for row in all_staff]
+        
         return jsonify({
             'success': True,
             'session_data': {
                 'user_id': session.get('user_id'),
                 'user_type': session.get('user_type'),
                 'full_name': session.get('full_name'),
+                'school_id': session.get('school_id'),
+                'is_sub_admin': session.get('is_sub_admin'),
+                'permissions': session.get('permissions', {}),
                 'has_session': 'user_id' in session
-            }
+            },
+            'db_sub_admin_permissions': perms_list,
+            'db_staff_sample': staff_list
         })
     except Exception as e:
         return jsonify({
@@ -13423,7 +13558,8 @@ def api_staff_list():
     if 'user_id' not in session or session['user_type'] not in ['admin', 'company_admin']:
         return jsonify({'success': False, 'message': 'Unauthorized'}), 401
     
-    school_id = session.get('school_id')
+    # Accept school_id from query parameter or session (consistent with timetable APIs)
+    school_id = request.args.get('school_id') or session.get('school_id')
     if not school_id:
         return jsonify({'success': False, 'message': 'School ID required'}), 400
     
@@ -14762,11 +14898,12 @@ def api_sync_config():
 ########################################
 
 @app.route('/biometric_devices')
+@requires_permission('biometric_devices', 'view')
 def biometric_devices_page():
     """Render the device management page"""
-    if 'user_id' not in session or session.get('user_type') not in ['admin', 'company_admin']:
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and session.get('user_type') != 'company_admin' and not session.get('is_sub_admin')):
         flash('Please login as administrator', 'error')
-        return redirect(url_for('admin_dashboard'))
+        return redirect(url_for('index'))
     
     return render_template('biometric_device_management.html')
 
@@ -15373,6 +15510,116 @@ def api_test_device_connection(device_id):
     except Exception as e:
         print(f"Error testing device: {str(e)}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/manage_sub_admins')
+def manage_sub_admins():
+    """View list of all sub-admins"""
+    if 'user_id' not in session or session.get('user_type') != 'admin' or session.get('is_sub_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized, only Super Admin can manage Sub-Admins'}), 401
+    
+    school_id = session.get('school_id')
+    db = get_db()
+    
+    # Get all staff who have entries in sub_admin_permissions
+    sub_admins = db.execute('''
+        SELECT s.id, s.staff_id, s.full_name, s.department, p.module_name, p.can_view, p.can_edit, p.can_delete
+        FROM staff s
+        JOIN sub_admin_permissions p ON s.staff_id = p.staff_id AND s.school_id = p.school_id
+        WHERE s.school_id = ?
+        ORDER BY s.full_name, p.module_name
+    ''', (school_id,)).fetchall()
+    
+    # Group by staff_id
+    grouped_sub_admins = {}
+    for sa in sub_admins:
+        sid = sa['staff_id']
+        if sid not in grouped_sub_admins:
+            grouped_sub_admins[sid] = {
+                'id': sa['id'],
+                'staff_id': sid,
+                'full_name': sa['full_name'],
+                'department': sa['department'],
+                'modules': []
+            }
+        grouped_sub_admins[sid]['modules'].append({
+            'module_name': sa['module_name'],
+            'can_view': bool(sa['can_view']),
+            'can_edit': bool(sa['can_edit']),
+            'can_delete': bool(sa['can_delete'])
+        })
+        
+    return render_template('manage_sub_admins.html', sub_admins=list(grouped_sub_admins.values()))
+
+
+@app.route('/add_sub_admin', methods=['GET', 'POST'])
+def add_sub_admin():
+    """Add a new sub-admin or update an existing one"""
+    if 'user_id' not in session or session.get('user_type') != 'admin' or session.get('is_sub_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    
+    school_id = session.get('school_id')
+    db = get_db()
+    
+    if request.method == 'GET':
+        staff_list = db.execute('SELECT id, staff_id, full_name, department FROM staff WHERE school_id = ? ORDER BY full_name', (school_id,)).fetchall()
+        return render_template('add_sub_admin.html', staff_list=staff_list)
+        
+    if request.method == 'POST':
+        staff_id = request.form.get('staff_id') # The actual staff username/id string
+        # Modules to assign
+        modules = ['staff_management', 'shift_management', 'salary_management', 'timetable_management', 'reports', 'biometric_devices']
+        
+        try:
+            # First, delete existing permissions for this staff member to overwrite
+            db.execute('DELETE FROM sub_admin_permissions WHERE staff_id = ? AND school_id = ?', (staff_id, school_id))
+            
+            # Insert new permissions based on checkboxes
+            for mod in modules:
+                # Checkbox name format: module_name_view, module_name_edit, module_name_delete
+                can_view = 1 if request.form.get(f'{mod}_view') else 0
+                can_edit = 1 if request.form.get(f'{mod}_edit') else 0
+                can_delete = 1 if request.form.get(f'{mod}_delete') else 0
+                
+                # Only insert if at least view is checked
+                if can_view or can_edit or can_delete:
+                    # Enforce view if edit/delete is checked
+                    if can_edit or can_delete:
+                        can_view = 1
+                        
+                    db.execute('''
+                        INSERT INTO sub_admin_permissions (staff_id, module_name, school_id, can_view, can_edit, can_delete)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (staff_id, mod, school_id, can_view, can_edit, can_delete))
+            
+            db.commit()
+            flash('Sub-admin permissions updated successfully.', 'success')
+            return redirect(url_for('manage_sub_admins'))
+            
+        except sqlite3.Error as e:
+            db.rollback()
+            return jsonify({'success': False, 'error': f'Database error: {str(e)}'}), 500
+
+
+@app.route('/delete_sub_admin', methods=['POST'])
+def delete_sub_admin():
+    """Revoke all sub-admin permissions for a staff member"""
+    if 'user_id' not in session or session.get('user_type') != 'admin' or session.get('is_sub_admin'):
+        flash('Unauthorized access.', 'danger')
+        return redirect(url_for('manage_sub_admins'))
+        
+    staff_id = request.form.get('staff_id')
+    school_id = session.get('school_id')
+    
+    db = get_db()
+    try:
+        db.execute('DELETE FROM sub_admin_permissions WHERE staff_id = ? AND school_id = ?', (staff_id, school_id))
+        db.commit()
+        flash('Sub-Admin access revoked successfully.', 'success')
+    except sqlite3.Error as e:
+        flash(f'Database error: {str(e)}', 'danger')
+    
+    return redirect(url_for('manage_sub_admins'))
 
 
 @app.route('/api/agents/create', methods=['POST'])

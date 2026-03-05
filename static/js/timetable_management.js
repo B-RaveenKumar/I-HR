@@ -922,7 +922,7 @@ function saveDepartmentPermission(department) {
 
 function loadStaffList() {
     console.log('Loading staff for school_id:', schoolId);
-    fetch(`/api/staff/list?school_id=${schoolId}`)
+    fetch(`/api/timetable/staff/list?school_id=${schoolId}`)
         .then(r => {
             console.log('Staff API response status:', r.status);
             if (!r.ok) {

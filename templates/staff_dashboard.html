@@ -776,43 +776,148 @@
                         </ul>
                     </div>
 
-                    <!-- Applications Section -->
-                    <!-- <div class="nav-section"> 
+                    {% if session.get('is_sub_admin') %}
+                    {% set perms = session.get('permissions', {}) %}
+                    <!-- Sub-Admin Delegated Modules Section -->
+                    <div class="nav-section" style="margin-top: 0.5rem;">
                         <div class="nav-section-title">
-                            <i class="bi bi-file-earmark-text"></i>
-                            <span>Applications</span>
+                            <i class="bi bi-shield-check"></i>
+                            <span>Delegated Access</span>
                         </div>
                         <ul class="nav-menu">
+
+                            {% if perms.get('staff_management') %}
                             <li class="nav-item">
-                                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#applyLeaveModal">
-                                    <div class="nav-icon">
-                                        <i class="bi bi-calendar-plus"></i>
+                                <a class="nav-link" href="{{ url_for('staff_management') }}">
+                                    <div class="nav-icon"><i class="bi bi-people"></i></div>
+                                    <div style="flex:1; min-width:0;">
+                                        <span class="nav-text d-block">Staff Management</span>
+                                        <span class="d-flex gap-1 flex-wrap mt-1">
+                                            {% if perms.get('staff_management', {}).get('view') %}<span
+                                                class="badge bg-primary" style="font-size:0.6rem;">View</span>{% endif
+                                            %}
+                                            {% if perms.get('staff_management', {}).get('edit') %}<span
+                                                class="badge bg-success" style="font-size:0.6rem;">Edit</span>{% endif
+                                            %}
+                                            {% if perms.get('staff_management', {}).get('delete') %}<span
+                                                class="badge bg-danger" style="font-size:0.6rem;">Delete</span>{% endif
+                                            %}
+                                        </span>
                                     </div>
-                                    <span class="nav-text">Apply Leave</span>
-                                    <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
+
+                            {% if perms.get('shift_management') %}
                             <li class="nav-item">
-                                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#applyOnDutyModal">
-                                    <div class="nav-icon">
-                                        <i class="bi bi-briefcase"></i>
+                                <a class="nav-link" href="{{ url_for('shift_management') }}">
+                                    <div class="nav-icon"><i class="bi bi-clock"></i></div>
+                                    <div style="flex:1; min-width:0;">
+                                        <span class="nav-text d-block">Shift Management</span>
+                                        <span class="d-flex gap-1 flex-wrap mt-1">
+                                            {% if perms.get('shift_management', {}).get('view') %}<span
+                                                class="badge bg-primary" style="font-size:0.6rem;">View</span>{% endif
+                                            %}
+                                            {% if perms.get('shift_management', {}).get('edit') %}<span
+                                                class="badge bg-success" style="font-size:0.6rem;">Edit</span>{% endif
+                                            %}
+                                            {% if perms.get('shift_management', {}).get('delete') %}<span
+                                                class="badge bg-danger" style="font-size:0.6rem;">Delete</span>{% endif
+                                            %}
+                                        </span>
                                     </div>
-                                    <span class="nav-text">Apply On Duty</span>
-                                    <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
+
+                            {% if perms.get('salary_management') %}
                             <li class="nav-item">
-                                <a class="nav-link" href="#" data-bs-toggle="modal" data-bs-target="#applyPermissionModal">
-                                    <div class="nav-icon">
-                                        <i class="bi bi-clock"></i>
+                                <a class="nav-link" href="{{ url_for('salary_management') }}">
+                                    <div class="nav-icon"><i class="bi bi-currency-dollar"></i></div>
+                                    <div style="flex:1; min-width:0;">
+                                        <span class="nav-text d-block">Salary Management</span>
+                                        <span class="d-flex gap-1 flex-wrap mt-1">
+                                            {% if perms.get('salary_management', {}).get('view') %}<span
+                                                class="badge bg-primary" style="font-size:0.6rem;">View</span>{% endif
+                                            %}
+                                            {% if perms.get('salary_management', {}).get('edit') %}<span
+                                                class="badge bg-success" style="font-size:0.6rem;">Edit</span>{% endif
+                                            %}
+                                            {% if perms.get('salary_management', {}).get('delete') %}<span
+                                                class="badge bg-danger" style="font-size:0.6rem;">Delete</span>{% endif
+                                            %}
+                                        </span>
                                     </div>
-                                    <span class="nav-text">Apply Permission</span>
-                                    <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
+
+                            {% if perms.get('timetable_management') %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin_timetable') }}">
+                                    <div class="nav-icon"><i class="bi bi-calendar3"></i></div>
+                                    <div style="flex:1; min-width:0;">
+                                        <span class="nav-text d-block">Timetable Mgmt</span>
+                                        <span class="d-flex gap-1 flex-wrap mt-1">
+                                            {% if perms.get('timetable_management', {}).get('view') %}<span
+                                                class="badge bg-primary" style="font-size:0.6rem;">View</span>{% endif
+                                            %}
+                                            {% if perms.get('timetable_management', {}).get('edit') %}<span
+                                                class="badge bg-success" style="font-size:0.6rem;">Edit</span>{% endif
+                                            %}
+                                            {% if perms.get('timetable_management', {}).get('delete') %}<span
+                                                class="badge bg-danger" style="font-size:0.6rem;">Delete</span>{% endif
+                                            %}
+                                        </span>
+                                    </div>
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            {% if perms.get('reports') %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="/admin/reports">
+                                    <div class="nav-icon"><i class="bi bi-graph-up"></i></div>
+                                    <div style="flex:1; min-width:0;">
+                                        <span class="nav-text d-block">Reports</span>
+                                        <span class="d-flex gap-1 flex-wrap mt-1">
+                                            {% if perms.get('reports', {}).get('view') %}<span class="badge bg-primary"
+                                                style="font-size:0.6rem;">View</span>{% endif %}
+                                            {% if perms.get('reports', {}).get('edit') %}<span class="badge bg-success"
+                                                style="font-size:0.6rem;">Edit</span>{% endif %}
+                                            {% if perms.get('reports', {}).get('delete') %}<span class="badge bg-danger"
+                                                style="font-size:0.6rem;">Delete</span>{% endif %}
+                                        </span>
+                                    </div>
+                                </a>
+                            </li>
+                            {% endif %}
+
+                            {% if perms.get('biometric_devices') %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="/biometric_devices">
+                                    <div class="nav-icon"><i class="bi bi-fingerprint"></i></div>
+                                    <div style="flex:1; min-width:0;">
+                                        <span class="nav-text d-block">Biometric Devices</span>
+                                        <span class="d-flex gap-1 flex-wrap mt-1">
+                                            {% if perms.get('biometric_devices', {}).get('view') %}<span
+                                                class="badge bg-primary" style="font-size:0.6rem;">View</span>{% endif
+                                            %}
+                                            {% if perms.get('biometric_devices', {}).get('edit') %}<span
+                                                class="badge bg-success" style="font-size:0.6rem;">Edit</span>{% endif
+                                            %}
+                                            {% if perms.get('biometric_devices', {}).get('delete') %}<span
+                                                class="badge bg-danger" style="font-size:0.6rem;">Delete</span>{% endif
+                                            %}
+                                        </span>
+                                    </div>
+                                </a>
+                            </li>
+                            {% endif %}
+
                         </ul>
                     </div>
-                </div> -->
+                    {% endif %}
 
                     <!-- Sidebar Footer -->
                     <div class="sidebar-footer">

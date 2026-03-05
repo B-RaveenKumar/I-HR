@@ -646,6 +646,20 @@ def init_db(app):
         )
         ''')
 
+        # Create sub_admin_permissions table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS sub_admin_permissions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            staff_id VARCHAR(100) NOT NULL,
+            module_name VARCHAR(100) NOT NULL,
+            school_id INTEGER NOT NULL,
+            can_view BOOLEAN DEFAULT 1,
+            can_edit BOOLEAN DEFAULT 0,
+            can_delete BOOLEAN DEFAULT 0,
+            UNIQUE(staff_id, module_name, school_id)
+        )
+        ''')
+
         # Create notification logs table
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS notification_logs (

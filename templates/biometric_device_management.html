@@ -366,10 +366,10 @@
                         <div class="brand-text">
                             {% if institution.branding_enabled and institution.name %}
                                 <h6 class="brand-title">{{ institution.name }}</h6>
-                                <small class="brand-subtitle">Admin Panel</small>
+                                <small class="brand-subtitle">{% if session.get('is_sub_admin') %}Staff Panel{% else %}Admin Panel{% endif %}</small>
                             {% else %}
                                 <h6 class="brand-title">VishnoRex</h6>
-                                <small class="brand-subtitle">Admin Panel</small>
+                                <small class="brand-subtitle">{% if session.get('is_sub_admin') %}Staff Panel{% else %}Admin Panel{% endif %}</small>
                             {% endif %}
                         </div>
                     </div>
@@ -383,7 +383,7 @@
                         </div>
                         <div class="user-info">
                             <div class="user-name">{{ session.get('full_name', 'Admin User') }}</div>
-                            <div class="user-role">Administrator</div>
+                            <div class="user-role">{% if session.get('is_sub_admin') %}Sub-Admin Staff{% else %}Administrator{% endif %}</div>
                         </div>
                     </div>
 
@@ -395,7 +395,7 @@
                         </div>
                         <ul class="nav-menu">
                             <li class="nav-item">
-                                <a class="nav-link" href="/admin/dashboard">
+                                <a class="nav-link" href="{% if session.get('is_sub_admin') %}{{ url_for('staff_dashboard') }}{% else %}/admin/dashboard{% endif %}">
                                     <div class="nav-icon">
                                         <i class="bi bi-house-door"></i>
                                     </div>
@@ -403,6 +403,7 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('staff_management') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('staff_management') }}">
                                     <div class="nav-icon">
@@ -412,6 +413,8 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('shift_management') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('shift_management') }}">
                                     <div class="nav-icon">
@@ -421,6 +424,8 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('salary_management') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('salary_management') }}">
                                     <div class="nav-icon">
@@ -430,6 +435,8 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('timetable_management') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('admin_timetable') }}">
                                     <div class="nav-icon">
@@ -439,7 +446,8 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
-                            
+                            {% endif %}
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('reports') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('admin_reports') }}">
                                     <div class="nav-icon">
@@ -449,6 +457,8 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('biometric_devices') %}
                             <li class="nav-item">
                                 <a class="nav-link active" href="{{ url_for('biometric_devices_page') }}">
                                     <div class="nav-icon">
@@ -458,6 +468,7 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
                         </ul>
                     </div>
 
