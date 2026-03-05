@@ -3,18 +3,185 @@ import sqlite3
 from flask import g
 import os
 
-# Use instance/vishnorex.db - will be created in instance folder
-DATABASE = os.path.join(os.path.dirname(__file__), 'instance', 'vishnorex.db')
+# ---------------------------------------------------------------------------
+# DATABASE BACKEND CONFIGURATION
+# ---------------------------------------------------------------------------
+# Set the DATABASE_URL environment variable to switch to MySQL/MariaDB.
+#
+# MySQL  : mysql+pymysql://user:password@host:port/dbname
+# SQLite : leave DATABASE_URL unset  →  uses local instance/vishnorex.db
+#
+# Example .env / environment variable:
+#   DATABASE_URL=mysql+pymysql://root:Password@mysql-env-jgahcdvwyo.ap-south-1a.lb.nimbuz.tech:31124/vishnorex
+#
+DATABASE_URL = os.getenv('DATABASE_URL', '')
+
+# Fallback SQLite path (used when DATABASE_URL is not set)
+SQLITE_PATH = os.path.join(os.path.dirname(__file__), 'instance', 'vishnorex.db')
+
+# Detect backend from URL prefix
+_USE_MYSQL = DATABASE_URL.startswith('mysql')
+
+
+def _parse_mysql_url(url):
+    """
+    Parse  mysql+pymysql://user:password@host:port/dbname
+    Returns dict suitable for pymysql.connect(**kwargs).
+    """
+    import re
+    # Strip scheme
+    url = re.sub(r'^mysql\+pymysql://', '', url)
+    # Split user:password@host:port/dbname
+    m = re.match(
+        r'(?P<user>[^:]+):(?P<password>[^@]*)@(?P<host>[^:/]+)(?::(?P<port>\d+))?/(?P<db>.+)',
+        url
+    )
+    if not m:
+        raise ValueError(f"Cannot parse DATABASE_URL: {url!r}")
+    return {
+        'user':   m.group('user'),
+        'password': m.group('password'),
+        'host':   m.group('host'),
+        'port':   int(m.group('port') or 3306),
+        'database': m.group('db'),
+        'charset': 'utf8mb4',
+        'autocommit': False,
+    }
+
+
+class _MySQLRow(dict):
+    """dict subclass that also supports index-based access like sqlite3.Row."""
+    def __init__(self, cursor, row):
+        cols = [d[0] for d in cursor.description]
+        super().__init__(zip(cols, row))
+        self._list = list(row)
+
+    def __getitem__(self, key):
+        if isinstance(key, int):
+            return self._list[key]
+        return super().__getitem__(key)
+
+    def keys(self):
+        return super().keys()
+
+
+class _MySQLCursorWrapper:
+    """Wraps a pymysql cursor so it looks like an sqlite3 cursor."""
+
+    def __init__(self, raw_cursor, conn_wrapper):
+        self._cur = raw_cursor
+        self._conn = conn_wrapper
+
+    # Convert SQLite '?' placeholders → MySQL '%s'
+    @staticmethod
+    def _adapt(sql):
+        return sql.replace('?', '%s')
+
+    def execute(self, sql, params=()):
+        self._cur.execute(self._adapt(sql), params)
+        return self
+
+    def executemany(self, sql, seq):
+        self._cur.executemany(self._adapt(sql), seq)
+        return self
+
+    def fetchone(self):
+        row = self._cur.fetchone()
+        if row is None:
+            return None
+        return _MySQLRow(self._cur, row)
+
+    def fetchall(self):
+        rows = self._cur.fetchall()
+        return [_MySQLRow(self._cur, r) for r in rows]
+
+    @property
+    def lastrowid(self):
+        return self._cur.lastrowid
+
+    @property
+    def rowcount(self):
+        return self._cur.rowcount
+
+    @property
+    def description(self):
+        return self._cur.description
+
+    def __iter__(self):
+        for row in self._cur:
+            yield _MySQLRow(self._cur, row)
+
+
+class _MySQLConnectionWrapper:
+    """
+    Wraps a raw pymysql connection so every call site in app.py can keep using
+    the exact same   db.execute(sql, params)  /  db.commit()  pattern as SQLite.
+    """
+
+    def __init__(self, raw_conn):
+        self._conn = raw_conn
+
+    def execute(self, sql, params=()):
+        cur = self._conn.cursor()
+        wrapper = _MySQLCursorWrapper(cur, self)
+        wrapper.execute(sql, params)
+        return wrapper
+
+    def commit(self):
+        self._conn.commit()
+
+    def rollback(self):
+        self._conn.rollback()
+
+    def close(self):
+        self._conn.close()
+
+    def cursor(self):
+        return _MySQLCursorWrapper(self._conn.cursor(), self)
+
+    # Let sqlite3-specific helpers work without crashing on MySQL
+    def isolation_level(self):
+        return None
+
+
+def _connect_mysql():
+    """Open a new pymysql connection and return it wrapped."""
+    try:
+        import pymysql
+    except ImportError:
+        raise RuntimeError(
+            "pymysql is not installed. Run:  pip install pymysql"
+        )
+    params = _parse_mysql_url(DATABASE_URL)
+    raw = pymysql.connect(**params)
+    return _MySQLConnectionWrapper(raw)
+
+
+def _connect_sqlite():
+    """Open a new SQLite connection."""
+    conn = sqlite3.connect(SQLITE_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn
+
 
 def get_db():
+    """
+    Return the database connection for the current Flask request.
+    Uses MySQL when DATABASE_URL env var is set, otherwise SQLite.
+    The connection is cached in Flask's 'g' for the lifetime of the request.
+    """
     db = getattr(g, '_database', None)
     if db is None:
-        db = g._database = sqlite3.connect(DATABASE)
-        db.row_factory = sqlite3.Row
+        if _USE_MYSQL:
+            db = g._database = _connect_mysql()
+        else:
+            db = g._database = _connect_sqlite()
     return db
 
 def init_db(app):
-    os.makedirs(app.instance_path, exist_ok=True)
+    # Only needed for SQLite (creates the instance/ folder)
+    if not _USE_MYSQL:
+        os.makedirs(app.instance_path, exist_ok=True)
 
     with app.app_context():
         db = get_db()

@@ -141,11 +141,12 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         modalContent.innerHTML = `
-            <div class="text-center">
-                <div class="spinner-border text-primary" role="status">
-                    <span class="visually-hidden">Loading...</span>
-                </div>
-                <p class="mt-2">Loading comprehensive staff profile...</p>
+            <div class="text-center py-4">
+                <video autoplay muted loop playsinline
+                       style="width:260px;max-width:90%;height:auto;display:block;margin:0 auto 12px;"
+                       src="/static/vedios/iHR preloader.mp4"
+                       type="video/mp4"></video>
+                <p class="text-muted mb-0">Loading staff profile...</p>
             </div>
         `;
 

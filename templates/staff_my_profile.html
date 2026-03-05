@@ -485,15 +485,14 @@
                 text-align: center !important;
             }
         }
-        /* 🎯 MY PROFILE PRELOADER - Full page overlay with animation */
+        /* 🎯 MY PROFILE PRELOADER - Full page overlay with video */
         .my-profile-preloader {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(8px);
+            background: #ffffff;
             z-index: 9999;
             display: flex;
             align-items: center;
@@ -513,75 +512,24 @@
             position: relative;
         }
 
-        .preloader-image {
-            width: 200px;
-            height: 200px;
-            background-image: url('/static/images/My_profile_ preloader.png');
-            background-size: contain;
-            background-repeat: no-repeat;
-            background-position: center;
-            margin: 0 auto 20px;
-            position: relative;
-        }
-
-        /* CSS Sprite Animation - assuming it's a sprite sheet */
-        .preloader-image.sprite-animation {
-            background-size: 1000% 1000%; /* Assuming 10x10 grid */
-            animation: spriteAnimation 3s steps(100) infinite;
-        }
-
-        @keyframes spriteAnimation {
-            0% { background-position: 0% 0%; }
-            10% { background-position: -100% 0%; }
-            20% { background-position: -200% 0%; }
-            30% { background-position: -300% 0%; }
-            40% { background-position: -400% 0%; }
-            50% { background-position: -500% 0%; }
-            60% { background-position: -600% 0%; }
-            70% { background-position: -700% 0%; }
-            80% { background-position: -800% 0%; }
-            90% { background-position: -900% 0%; }
-            100% { background-position: 0% -100%; }
-        }
-
-        /* Fallback Animation - if not a sprite sheet */
-        .preloader-image.fallback-animation {
-            animation: spinPulse 2s ease-in-out infinite;
-        }
-
-        @keyframes spinPulse {
-            0% { 
-                transform: scale(1) rotate(0deg);
-                opacity: 1;
-            }
-            25% { 
-                transform: scale(1.1) rotate(90deg);
-                opacity: 0.8;
-            }
-            50% { 
-                transform: scale(1.2) rotate(180deg);
-                opacity: 0.6;
-            }
-            75% { 
-                transform: scale(1.1) rotate(270deg);
-                opacity: 0.8;
-            }
-            100% { 
-                transform: scale(1) rotate(360deg);
-                opacity: 1;
-            }
+        .preloader-video {
+            width: 320px;
+            max-width: 90vw;
+            height: auto;
+            display: block;
+            margin: 0 auto;
         }
 
         .preloader-text {
             color: #495057;
             font-size: 1.1rem;
             font-weight: 500;
-            margin-top: 15px;
+            margin-top: 12px;
             opacity: 0.8;
         }
 
         .preloader-progress {
-            margin-top: 20px;
+            margin-top: 16px;
             width: 300px;
             max-width: 90vw;
         }
@@ -790,10 +738,13 @@
     
 </head>
 <body>
-    <!-- 🎯 MY PROFILE PRELOADER - Full page overlay -->
+    <!-- 🎯 MY PROFILE PRELOADER - Full page video overlay -->
     <div class="my-profile-preloader" id="myProfilePreloader">
         <div class="preloader-container">
-            <div class="preloader-image" id="preloaderImage"></div>
+            <video class="preloader-video" id="preloaderVideo"
+                   autoplay muted loop playsinline
+                   src="{{ url_for('static', filename='vedios/iHR preloader.mp4') }}"
+                   type="video/mp4"></video>
             <div class="preloader-text" id="preloaderText">Loading your profile...</div>
             <div class="preloader-progress">
                 <div class="progress">
@@ -1985,11 +1936,11 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script>
-        // 🎯 MY PROFILE PRELOADER CONTROL - Advanced loading management
+        // 🎯 MY PROFILE PRELOADER CONTROL - Video-based loading management
         class MyProfilePreloader {
             constructor() {
                 this.preloader = document.getElementById('myProfilePreloader');
-                this.preloaderImage = document.getElementById('preloaderImage');
+                this.preloaderVideo = document.getElementById('preloaderVideo');
                 this.preloaderText = document.getElementById('preloaderText');
                 this.progressBar = document.getElementById('preloaderProgressBar');
                 this.progress = 0;
@@ -2004,37 +1955,19 @@
                 ];
                 this.currentStep = 0;
                 this.isComplete = false;
-                
+
                 this.init();
             }
 
             init() {
-                // Detect if image is sprite sheet based on file size (heuristic)
-                // File size > 500KB suggests sprite sheet
-                this.detectSpriteSheet();
-                
+                // Ensure video plays
+                if (this.preloaderVideo) {
+                    this.preloaderVideo.play().catch(() => {/* autoplay blocked, video still shows */});
+                }
                 // Start progress simulation
                 this.simulateProgress();
-                
                 // Monitor page load completion
                 this.monitorPageLoad();
-            }
-
-            detectSpriteSheet() {
-                const img = new Image();
-                img.onload = () => {
-                    // If image dimensions suggest sprite sheet (very wide or tall), use sprite animation
-                    if (img.width > img.height * 3 || img.height > img.width * 3) {
-                        this.preloaderImage.classList.add('sprite-animation');
-                    } else {
-                        this.preloaderImage.classList.add('fallback-animation');
-                    }
-                };
-                img.onerror = () => {
-                    // Fallback if image fails to load
-                    this.preloaderImage.classList.add('fallback-animation');
-                };
-                img.src = '/static/images/My_profile_ preloader.png';
             }
 
             simulateProgress() {
@@ -2098,6 +2031,11 @@
                 this.isComplete = true;
                 this.updateProgress(100, 'Complete!');
                 
+                // Stop the video
+                if (this.preloaderVideo) {
+                    this.preloaderVideo.pause();
+                }
+
                 // Smooth fade out after brief delay
                 setTimeout(() => {
                     this.preloader.classList.add('hidden');

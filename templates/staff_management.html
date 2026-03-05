@@ -362,7 +362,25 @@
                                 </a>
                             </li>
                             <li class="nav-item">
-                                <a class="nav-link" href="/admin/reports">
+                                <a class="nav-link" href="{{ url_for('admin_timetable') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-calendar-event"></i>
+                                    </div>
+                                    <span class="nav-text">Timetable Management</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('biometric_devices_page') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-fingerprint"></i>
+                                    </div>
+                                    <span class="nav-text">Biometric Devices</span>
+                                    <div class="nav-indicator"></div>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin_reports') }}">
                                     <div class="nav-icon">
                                         <i class="bi bi-graph-up"></i>
                                     </div>
