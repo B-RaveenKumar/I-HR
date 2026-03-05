@@ -7478,15 +7478,28 @@ def update_staff_enhanced():
             update_parts.append('email = ?')
             update_values.append(email)
         
-        # Shift type logic — apply immediately from today
+        # Shift type delayed logic
         if 'shift_type' in column_names:
-            update_parts.append('shift_type = ?')
-            update_values.append(shift_type)
-            # Clear any pending scheduled shift change
-            if 'next_shift_type' in column_names:
-                update_parts.append('next_shift_type = NULL')
-            if 'next_shift_effective_date' in column_names:
-                update_parts.append('next_shift_effective_date = NULL')
+            if current_staff and current_staff['shift_type'] != shift_type:
+                # If shift is being changed, don't update current shift_type immediately
+                # Instead, set next_shift_type and next_shift_effective_date
+                if 'next_shift_type' in column_names:
+                    update_parts.append('next_shift_type = ?')
+                    update_values.append(shift_type)
+                if 'next_shift_effective_date' in column_names:
+                    tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+                    update_parts.append('next_shift_effective_date = ?')
+                    update_values.append(tomorrow)
+
+                print(f"Shift change detected for staff {staff_db_id}: Scheduled {shift_type} for tomorrow")
+            else:
+                # If it's the same shift, or we don't have current data, update normally (or clear next shift)
+                update_parts.append('shift_type = ?')
+                update_values.append(shift_type)
+                if 'next_shift_type' in column_names:
+                    update_parts.append('next_shift_type = NULL')
+                if 'next_shift_effective_date' in column_names:
+                    update_parts.append('next_shift_effective_date = NULL')
 
         if 'photo_url' in column_names and photo_url:
             update_parts.append('photo_url = ?')
@@ -7528,8 +7541,9 @@ def update_staff_enhanced():
 
         # Record shift history so the calendar can preserve past-day shift times
         if 'shift_type' in column_names and current_staff and current_staff['shift_type'] != shift_type:
-            _today = datetime.datetime.now().strftime('%Y-%m-%d')
-            record_shift_history(db, staff_db_id, school_id, shift_type, _today)
+            # Change is scheduled for tomorrow
+            _tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+            record_shift_history(db, staff_db_id, school_id, shift_type, _tomorrow)
 
         db.commit()
         return jsonify({'success': True})
