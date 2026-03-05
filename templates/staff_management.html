@@ -756,10 +756,18 @@
                                     <select class="form-select" id="deptAddShiftType" name="shift_type" required
                                         title="Select shift type">
                                         <option value="">Select Shift Type</option>
-                                        <option value="general">General</option>
-                                        <option value="morning">Morning</option>
-                                        <option value="evening">Evening</option>
-                                        <option value="night">Night</option>
+                                        {% if shift_defs %}
+                                        {% for s in shift_defs %}
+                                        <option value="{{ s.shift_type }}">{{ s.shift_type.title() }} ({{ s.start_time[:5] }} &ndash; {{ s.end_time[:5] }})</option>
+                                        {% endfor %}
+                                        {% else %}
+                                        <option value="general">General (09:00 &ndash; 17:00)</option>
+                                        <option value="morning">Morning (06:00 &ndash; 14:00)</option>
+                                        <option value="afternoon">Afternoon (14:00 &ndash; 22:00)</option>
+                                        <option value="evening">Evening (16:00 &ndash; 00:00)</option>
+                                        <option value="night">Night (22:00 &ndash; 06:00)</option>
+                                        <option value="overtime">Overtime (18:00 &ndash; 22:00)</option>
+                                        {% endif %}
                                     </select>
                                     <small class="form-text">This shift type will be automatically assigned to new staff
                                         in this department</small>
@@ -921,11 +929,18 @@
                                     </label>
                                     <select class="form-select" id="addShiftType" name="shift_type"
                                         title="Select shift type">
-                                        <option value="general">General</option>
+                                        {% if shift_defs %}
+                                        {% for s in shift_defs %}
+                                        <option value="{{ s.shift_type }}" {% if s.shift_type == 'general' %}selected{% endif %}>{{ s.shift_type.title() }} ({{ s.start_time[:5] }} &ndash; {{ s.end_time[:5] }})</option>
+                                        {% endfor %}
+                                        {% else %}
+                                        <option value="general" selected>General</option>
                                         <option value="morning">Morning</option>
                                         <option value="afternoon">Afternoon</option>
                                         <option value="evening">Evening</option>
                                         <option value="night">Night</option>
+                                        <option value="overtime">Overtime</option>
+                                        {% endif %}
                                     </select>
                                     <small class="form-text">Assigned shift schedule</small>
                                 </div>
@@ -2478,6 +2493,14 @@
         }
     </script>
 
+    <script>
+        // Expose shift definitions to JS for dynamic dropdowns
+        window.shiftDefs = [
+            {% for s in shift_defs %}
+            { shift_type: "{{ s.shift_type }}", start_time: "{{ s.start_time[:5] }}", end_time: "{{ s.end_time[:5] }}", description: "{{ s.description or '' }}" }{% if not loop.last %},{% endif %}
+            {% endfor %}
+        ];
+    </script>
     <script src="{{ url_for('static', filename='js/staff_management.js') }}"></script>
 
     <script>

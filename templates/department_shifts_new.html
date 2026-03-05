@@ -372,10 +372,9 @@
                                     </label>
                                     <select class="form-select" id="addShiftType" name="shift_type" required title="Select shift type">
                                         <option value="">Select Shift Type</option>
-                                        <option value="general">General</option>
-                                        <option value="morning">Morning</option>
-                                        <option value="evening">Evening</option>
-                                        <option value="night">Night</option>
+                                        {% for s in shift_defs %}
+                                        <option value="{{ s.shift_type }}">{{ s.shift_type.title() }} ({{ s.start_time[:5] }} &ndash; {{ s.end_time[:5] }})</option>
+                                        {% endfor %}
                                     </select>
                                     <small class="form-text">This shift type will be automatically assigned to new staff in this department</small>
                                 </div>
@@ -445,10 +444,9 @@
                                         <i class="bi bi-clock"></i> Default Shift Type *
                                     </label>
                                     <select class="form-select" id="editShiftType" name="shift_type" required title="Select shift type">
-                                        <option value="general">General</option>
-                                        <option value="morning">Morning</option>
-                                        <option value="evening">Evening</option>
-                                        <option value="night">Night</option>
+                                        {% for s in shift_defs %}
+                                        <option value="{{ s.shift_type }}">{{ s.shift_type.title() }} ({{ s.start_time[:5] }} &ndash; {{ s.end_time[:5] }})</option>
+                                        {% endfor %}
                                     </select>
                                     <small class="form-text">Updated shift type will apply to new staff members in this department</small>
                                 </div>

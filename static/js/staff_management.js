@@ -605,11 +605,14 @@ function populateEditForm(staff) {
                 <div class="mb-3">
                     <label for="editShiftType" class="form-label">Shift Assign Type</label>
                     <select class="form-select" id="editShiftType" name="shift_type">
-                        <option value="general" ${staff.shift_type === 'general' ? 'selected' : ''}>General</option>
-                        <option value="morning" ${staff.shift_type === 'morning' ? 'selected' : ''}>Morning</option>
-                        <option value="afternoon" ${staff.shift_type === 'afternoon' ? 'selected' : ''}>Afternoon</option>
-                        <option value="evening" ${staff.shift_type === 'evening' ? 'selected' : ''}>Evening</option>
-                        <option value="night" ${staff.shift_type === 'night' ? 'selected' : ''}>Night</option>
+                        ${(window.shiftDefs && window.shiftDefs.length ? window.shiftDefs : [
+                            {shift_type:'general',start_time:'09:00',end_time:'17:00'},
+                            {shift_type:'morning',start_time:'06:00',end_time:'14:00'},
+                            {shift_type:'afternoon',start_time:'14:00',end_time:'22:00'},
+                            {shift_type:'evening',start_time:'16:00',end_time:'00:00'},
+                            {shift_type:'night',start_time:'22:00',end_time:'06:00'},
+                            {shift_type:'overtime',start_time:'18:00',end_time:'22:00'}
+                        ]).map(s => `<option value="${s.shift_type}" ${staff.shift_type === s.shift_type ? 'selected' : ''}>${s.shift_type.charAt(0).toUpperCase()+s.shift_type.slice(1)} (${s.start_time} – ${s.end_time})</option>`).join('')}
                     </select>
                     <div class="mt-1">
                         <small class="text-info">
@@ -965,6 +968,7 @@ function renderDepartmentShiftMappings(mappings) {
                             <span class="text-muted">Default Shift:</span>
                             <span class="badge bg-info">${mapping.default_shift_type.charAt(0).toUpperCase() + mapping.default_shift_type.slice(1)}</span>
                         </div>
+                        ${mapping.start_time ? `<div class="text-center mb-2"><small class="text-success fw-semibold"><i class="bi bi-clock"></i> ${mapping.start_time} – ${mapping.end_time}</small></div>` : ''}
                         <div class="text-muted small">
                             <div>Created: ${mapping.created_at ? mapping.created_at.substring(0, 10) : 'N/A'}</div>
                             <div>Updated: ${mapping.updated_at ? mapping.updated_at.substring(0, 10) : 'N/A'}</div>

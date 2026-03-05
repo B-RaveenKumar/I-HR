@@ -150,7 +150,7 @@ def init_db(app):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             school_id INTEGER NOT NULL,
             department TEXT NOT NULL,
-            default_shift_type TEXT NOT NULL CHECK(default_shift_type IN ('general', 'morning', 'evening', 'night')),
+            default_shift_type TEXT NOT NULL CHECK(default_shift_type IN ('general', 'morning', 'afternoon', 'evening', 'night', 'overtime')),
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (school_id) REFERENCES schools(id),
@@ -709,7 +709,8 @@ def init_db(app):
                 ('morning', '06:00:00', '14:00:00', 15, 'Morning Shift: 6:00 AM - 2:00 PM'),
                 ('afternoon', '14:00:00', '22:00:00', 15, 'Afternoon Shift: 2:00 PM - 10:00 PM'),
                 ('evening', '16:00:00', '00:00:00', 15, 'Evening Shift: 4:00 PM - 12:00 AM'),
-                ('night', '22:00:00', '06:00:00', 15, 'Night Shift: 10:00 PM - 6:00 AM')
+                ('night', '22:00:00', '06:00:00', 15, 'Night Shift: 10:00 PM - 6:00 AM'),
+                ('overtime', '18:00:00', '22:00:00', 0, 'Overtime Shift: 6:00 PM - 10:00 PM')
             ''')
 
         db.commit()
@@ -767,6 +768,76 @@ def get_institution_timings():
             'checkout_time': datetime.time(17, 0),
             'is_custom': False
         }
+
+
+def migrate_department_shift_constraint():
+    """
+    Migration: expand the CHECK constraint on department_shift_mappings to include
+    'afternoon' and 'overtime', and ensure overtime row exists in shift_definitions.
+    Safe to call multiple times (idempotent).
+    """
+    try:
+        db = get_db()
+
+        # Check current constraint via sqlite_master
+        row = db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='table' AND name='department_shift_mappings'"
+        ).fetchone()
+
+        if row and 'overtime' not in row['sql']:
+            # Recreate table with expanded CHECK constraint
+            db.execute('PRAGMA foreign_keys = OFF')
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS department_shift_mappings_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    school_id INTEGER NOT NULL,
+                    department TEXT NOT NULL,
+                    default_shift_type TEXT NOT NULL CHECK(default_shift_type IN
+                        ('general', 'morning', 'afternoon', 'evening', 'night', 'overtime')),
+                    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (school_id) REFERENCES schools(id),
+                    UNIQUE(school_id, department)
+                )
+            ''')
+            db.execute('''
+                INSERT OR IGNORE INTO department_shift_mappings_new
+                    (id, school_id, department, default_shift_type, created_at, updated_at)
+                SELECT id, school_id, department, default_shift_type, created_at, updated_at
+                FROM department_shift_mappings
+            ''')
+            db.execute('DROP TABLE department_shift_mappings')
+            db.execute('ALTER TABLE department_shift_mappings_new RENAME TO department_shift_mappings')
+            db.execute('PRAGMA foreign_keys = ON')
+            db.commit()
+            print('Migration: department_shift_mappings CHECK constraint expanded to include afternoon/overtime')
+
+        # Ensure overtime exists in shift_definitions
+        exists = db.execute(
+            "SELECT 1 FROM shift_definitions WHERE shift_type = 'overtime'"
+        ).fetchone()
+        if not exists:
+            db.execute('''
+                INSERT INTO shift_definitions (shift_type, start_time, end_time, grace_period_minutes, description)
+                VALUES ('overtime', '18:00:00', '22:00:00', 0, 'Overtime Shift: 6:00 PM - 10:00 PM')
+            ''')
+            db.commit()
+            print('Migration: overtime shift added to shift_definitions')
+
+        # Ensure afternoon exists in shift_definitions
+        exists2 = db.execute(
+            "SELECT 1 FROM shift_definitions WHERE shift_type = 'afternoon'"
+        ).fetchone()
+        if not exists2:
+            db.execute('''
+                INSERT INTO shift_definitions (shift_type, start_time, end_time, grace_period_minutes, description)
+                VALUES ('afternoon', '14:00:00', '22:00:00', 15, 'Afternoon Shift: 2:00 PM - 10:00 PM')
+            ''')
+            db.commit()
+            print('Migration: afternoon shift added to shift_definitions')
+
+    except Exception as e:
+        print(f'Warning: migrate_department_shift_constraint failed: {e}')
 
 
 def calculate_attendance_status(check_time, verification_type='check-in', grace_minutes=None, date_obj=None, department=None):

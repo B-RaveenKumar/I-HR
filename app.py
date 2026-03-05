@@ -209,6 +209,12 @@ def ensure_on_duty_permission_table():
 
 with app.app_context():
     ensure_on_duty_permission_table()
+    # Expand department_shift_mappings CHECK constraint + seed overtime shift
+    try:
+        from database import migrate_department_shift_constraint
+        migrate_department_shift_constraint()
+    except Exception as _mig_err:
+        print(f'Startup migration warning: {_mig_err}')
 
 
 ########################################
@@ -4918,7 +4924,18 @@ def department_shifts():
         ORDER BY department
     ''', (school_id,)).fetchall()
 
-    return render_template('department_shifts.html', mappings=mappings, departments=departments)
+    # Get all active shift definitions with times for dropdowns
+    shift_defs = db.execute('''
+        SELECT shift_type, start_time, end_time, grace_period_minutes, description
+        FROM shift_definitions WHERE is_active = 1 ORDER BY id
+    ''').fetchall()
+
+    # Build a quick lookup dict: shift_type -> {start, end}
+    shift_time_map = {s['shift_type']: {'start': s['start_time'][:5], 'end': s['end_time'][:5]}
+                     for s in shift_defs}
+
+    return render_template('department_shifts.html', mappings=mappings, departments=departments,
+                           shift_defs=shift_defs, shift_time_map=shift_time_map)
 
 @app.route('/api/department_shifts', methods=['GET', 'POST', 'DELETE'])
 def api_department_shifts():
@@ -4930,19 +4947,26 @@ def api_department_shifts():
 
     if request.method == 'GET':
         try:
-            # Get all department shift mappings
+            # Get all department shift mappings with shift times
             mappings = db.execute('''
-                SELECT department, default_shift_type, created_at, updated_at
-                FROM department_shift_mappings
-                WHERE school_id = ?
-                ORDER BY department
+                SELECT dsm.department, dsm.default_shift_type, dsm.created_at, dsm.updated_at,
+                       sd.start_time, sd.end_time
+                FROM department_shift_mappings dsm
+                LEFT JOIN shift_definitions sd
+                    ON sd.shift_type = dsm.default_shift_type AND sd.is_active = 1
+                WHERE dsm.school_id = ?
+                ORDER BY dsm.department
             ''', [school_id]).fetchall()
 
             mappings_list = []
             for mapping in mappings:
+                start = (mapping['start_time'] or '')[:5]
+                end   = (mapping['end_time']   or '')[:5]
                 mappings_list.append({
                     'department': mapping['department'],
                     'default_shift_type': mapping['default_shift_type'],
+                    'start_time': start,
+                    'end_time': end,
                     'created_at': mapping['created_at'],
                     'updated_at': mapping['updated_at']
                 })
@@ -5121,14 +5145,21 @@ def staff_management():
     # Get all available departments and positions for dropdowns
     departments = get_all_departments(school_id)
     positions = get_all_positions(school_id)
-    
+
+    # Get all active shift definitions for dropdowns
+    shift_defs = db.execute('''
+        SELECT shift_type, start_time, end_time, description
+        FROM shift_definitions WHERE is_active = 1 ORDER BY id
+    ''').fetchall()
+
     # Auto-fix any staff records with 'User' suffix (run once when page loads)
     try:
         fix_user_suffix_in_staff_names()
     except Exception as e:
         print(f"Warning: Could not auto-fix user suffix: {e}")
 
-    return render_template('staff_management.html', staff=staff, dept_shift_map=dept_shift_map, departments=departments, positions=positions)
+    return render_template('staff_management.html', staff=staff, dept_shift_map=dept_shift_map,
+                           departments=departments, positions=positions, shift_defs=shift_defs)
 
 @app.route('/admin/add_department', methods=['POST'])
 @csrf.exempt
