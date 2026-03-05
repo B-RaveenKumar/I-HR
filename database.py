@@ -14,7 +14,7 @@ import os
 # Example .env / environment variable:
 #   DATABASE_URL=mysql+pymysql://root:Password@mysql-env-jgahcdvwyo.ap-south-1a.lb.nimbuz.tech:31124/vishnorex
 #
-DATABASE_URL = os.getenv('DATABASE_URL', '')
+DATABASE_URL = os.getenv('DATABASE_URL', 'mysql+pymysql://root:Vish0803@mysql-env-94i0cda6di.ap-south-1a.lb.nimbuz.tech:32261/ihrdb')
 
 # Fallback SQLite path (used when DATABASE_URL is not set)
 SQLITE_PATH = os.path.join(os.path.dirname(__file__), 'instance', 'vishnorex.db')
@@ -39,22 +39,59 @@ def _parse_mysql_url(url):
     if not m:
         raise ValueError(f"Cannot parse DATABASE_URL: {url!r}")
     return {
-        'user':   m.group('user'),
+        'user':     m.group('user'),
         'password': m.group('password'),
-        'host':   m.group('host'),
-        'port':   int(m.group('port') or 3306),
+        'host':     m.group('host'),
+        'port':     int(m.group('port') or 3306),
         'database': m.group('db'),
-        'charset': 'utf8mb4',
+        'charset':  'utf8mb4',
         'autocommit': False,
+        # Remove ONLY_FULL_GROUP_BY so legacy SQLite-style GROUP BY queries work.
+        # Also remove NO_ZERO_DATE / NO_ZERO_IN_DATE / STRICT_TRANS_TABLES to
+        # avoid INSERT errors for optional date/time columns with empty strings.
+        'init_command': (
+            "SET SESSION sql_mode = REPLACE(REPLACE(REPLACE(REPLACE(REPLACE("
+            "    @@SESSION.sql_mode,"
+            "    'ONLY_FULL_GROUP_BY',''),"
+            "    'NO_ZERO_DATE',''),"
+            "    'NO_ZERO_IN_DATE',''),"
+            "    'STRICT_TRANS_TABLES',''),"
+            "    'ERROR_FOR_DIVISION_BY_ZERO','')"
+        ),
     }
+
+
+def _coerce_mysql_value(val):
+    """
+    PyMySQL returns TIME columns as datetime.timedelta, but all app code
+    expects datetime.time (same as sqlite3). Convert here once so every
+    fetch site works without changes.
+    Also coerce bytes → str for BLOB/BINARY columns that hold text.
+    """
+    import datetime as _dt
+    if isinstance(val, _dt.timedelta):
+        total = int(val.total_seconds())
+        # Handle negative timedelta (shouldn't happen for TIME, but be safe)
+        if total < 0:
+            total = 0
+        h, rem = divmod(total, 3600)
+        m, s   = divmod(rem, 60)
+        return _dt.time(h % 24, m, s)
+    if isinstance(val, (bytes, bytearray)):
+        try:
+            return val.decode('utf-8')
+        except Exception:
+            return val
+    return val
 
 
 class _MySQLRow(dict):
     """dict subclass that also supports index-based access like sqlite3.Row."""
     def __init__(self, cursor, row):
         cols = [d[0] for d in cursor.description]
-        super().__init__(zip(cols, row))
-        self._list = list(row)
+        coerced = [_coerce_mysql_value(v) for v in row]
+        super().__init__(zip(cols, coerced))
+        self._list = coerced
 
     def __getitem__(self, key):
         if isinstance(key, int):
@@ -72,10 +109,145 @@ class _MySQLCursorWrapper:
         self._cur = raw_cursor
         self._conn = conn_wrapper
 
-    # Convert SQLite '?' placeholders → MySQL '%s'
+    # Convert SQLite syntax → MySQL syntax
     @staticmethod
     def _adapt(sql):
-        return sql.replace('?', '%s')
+        import re
+        # Placeholder substitution
+        sql = sql.replace('?', '%s')
+        # SQLite AUTOINCREMENT → MySQL AUTO_INCREMENT
+        sql = re.sub(r'\bAUTOINCREMENT\b', 'AUTO_INCREMENT', sql)
+        # SQLite INTEGER PRIMARY KEY → MySQL INT PRIMARY KEY
+        sql = re.sub(r'\bINTEGER\s+PRIMARY\s+KEY\s+AUTO_INCREMENT\b',
+                     'INT PRIMARY KEY AUTO_INCREMENT', sql, flags=re.IGNORECASE)
+        # BOOLEAN → TINYINT(1)
+        sql = re.sub(r'\bBOOLEAN\b', 'TINYINT(1)', sql)
+        # REAL → DOUBLE
+        sql = re.sub(r'\bREAL\b', 'DOUBLE', sql)
+        # MySQL: TEXT columns can't have DEFAULT values → VARCHAR(500)
+        lines = sql.split('\n')
+        fixed = []
+        for line in lines:
+            if re.search(r'\bTEXT\b', line, re.IGNORECASE) and re.search(r'\bDEFAULT\b', line, re.IGNORECASE):
+                line = re.sub(r'\bTEXT\b', 'VARCHAR(500)', line, flags=re.IGNORECASE)
+            fixed.append(line)
+        sql = '\n'.join(fixed)
+        # sqlite_master → INFORMATION_SCHEMA equivalents
+        # "SELECT sql FROM sqlite_master ..." → returns no rows (skip SQLite-only migrations)
+        sql = re.sub(
+            r"SELECT\s+sql\s+FROM\s+sqlite_master\b[^\n]*",
+            "SELECT '' AS `sql` FROM INFORMATION_SCHEMA.TABLES WHERE 1=0",
+            sql, flags=re.IGNORECASE
+        )
+        # "SELECT name FROM sqlite_master WHERE type='table' AND name='X'"
+        sql = re.sub(
+            r"SELECT\s+name\s+FROM\s+sqlite_master\s+WHERE\s+type\s*=\s*'table'\s+AND\s+name\s*=\s*(%s|'[^']*')",
+            r"SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema=DATABASE() AND table_name=\1",
+            sql, flags=re.IGNORECASE
+        )
+        # "SELECT name FROM sqlite_master WHERE type='table'"
+        sql = re.sub(
+            r"SELECT\s+name\s+FROM\s+sqlite_master\s+WHERE\s+type\s*=\s*'table'",
+            "SELECT table_name AS name FROM INFORMATION_SCHEMA.TABLES WHERE table_schema=DATABASE()",
+            sql, flags=re.IGNORECASE
+        )
+        # PRAGMA table_info(table) → INFORMATION_SCHEMA equivalent (returns cid/name/type/notnull/dflt_value/pk)
+        def _pragma_table_info(m):
+            tbl = m.group(1).strip('`"\'')
+            return (
+                "SELECT ORDINAL_POSITION-1 AS cid, COLUMN_NAME AS `name`, "
+                "COLUMN_TYPE AS `type`, "
+                "CASE WHEN IS_NULLABLE='NO' THEN 1 ELSE 0 END AS `notnull`, "
+                "COLUMN_DEFAULT AS dflt_value, "
+                "CASE WHEN COLUMN_KEY='PRI' THEN 1 ELSE 0 END AS pk "
+                "FROM INFORMATION_SCHEMA.COLUMNS "
+                f"WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='{tbl}' "
+                "ORDER BY ORDINAL_POSITION"
+            )
+        sql = re.sub(r'\bPRAGMA\s+table_info\s*\(\s*([^\)]+?)\s*\)', _pragma_table_info, sql, flags=re.IGNORECASE)
+        # PRAGMA foreign_keys ... → no-op
+        sql = re.sub(r'\bPRAGMA\s+foreign_keys\s*=\s*\w+\b', 'SELECT 1', sql, flags=re.IGNORECASE)
+        # PRAGMA ... (any other pragma, consume optional (args)) → no-op
+        sql = re.sub(r'\bPRAGMA\s+\w+(?:\s*\([^)]*\))?', 'SELECT 1', sql, flags=re.IGNORECASE)
+        # Convert double-quoted string literals → single-quoted (SQLite allows "val", MySQL needs 'val')
+        # Only replace "value" that follow SQL keywords or operators, not bare identifiers
+        sql = re.sub(
+            r'(?<=[=\(\,\s])\"([^\"\\n]*)\"(?=[,\)\s]|$)',
+            lambda m: "'" + m.group(1).replace("'", "\\'") + "'",
+            sql
+        )
+        # INSERT OR IGNORE → INSERT IGNORE
+        sql = re.sub(r'\bINSERT\s+OR\s+IGNORE\b', 'INSERT IGNORE', sql, flags=re.IGNORECASE)
+        # INSERT OR REPLACE → REPLACE
+        sql = re.sub(r'\bINSERT\s+OR\s+REPLACE\b', 'REPLACE', sql, flags=re.IGNORECASE)
+
+        # ── CAST type aliases ─────────────────────────────────────────────────
+        # CAST(... AS INTEGER) → CAST(... AS SIGNED)  [MySQL ≥5.5 doesn't accept INTEGER in CAST]
+        sql = re.sub(r'\bCAST\s*\(([^)]+)\bAS\s+INTEGER\s*\)',
+                     lambda m: 'CAST(' + m.group(1) + 'AS SIGNED)',
+                     sql, flags=re.IGNORECASE)
+        # CAST(... AS TEXT) → CAST(... AS CHAR)
+        sql = re.sub(r'\bCAST\s*\(([^)]+)\bAS\s+TEXT\s*\)',
+                     lambda m: 'CAST(' + m.group(1) + 'AS CHAR)',
+                     sql, flags=re.IGNORECASE)
+
+        # ── SQLite strftime → MySQL date functions ────────────────────────────
+        _strftime_map = {
+            '%Y-%m-%d': lambda c: f'DATE({c})',
+            '%Y-%m':    lambda c: f"DATE_FORMAT({c}, '%Y-%m')",
+            '%Y':       lambda c: f'YEAR({c})',
+            '%m':       lambda c: f'MONTH({c})',
+            '%d':       lambda c: f'DAY({c})',
+            '%H':       lambda c: f'HOUR({c})',
+            '%M':       lambda c: f'MINUTE({c})',
+            '%S':       lambda c: f'SECOND({c})',
+            '%W':       lambda c: f'WEEK({c})',
+            '%w':       lambda c: f'(DAYOFWEEK({c})-1)',
+            '%j':       lambda c: f'DAYOFYEAR({c})',
+        }
+        def _strftime_to_mysql(m):
+            fmt = m.group(1)
+            col = m.group(2).strip()
+            fn = _strftime_map.get(fmt)
+            if fn:
+                return fn(col)
+            return f"DATE_FORMAT({col}, '{fmt}')"
+        sql = re.sub(r"strftime\s*\(\s*'([^']*)'\s*,\s*([^)]+)\)",
+                     _strftime_to_mysql, sql, flags=re.IGNORECASE)
+
+        # ── julianday arithmetic → DATEDIFF ───────────────────────────────────
+        # julianday(a) - julianday(b) → DATEDIFF(a, b)
+        def _julianday_diff(m):
+            a = m.group(1).strip()
+            b = m.group(2).strip()
+            a = re.sub(r"'now'", 'CURDATE()', a, flags=re.IGNORECASE)
+            b = re.sub(r"'now'", 'CURDATE()', b, flags=re.IGNORECASE)
+            return f'DATEDIFF({a}, {b})'
+        sql = re.sub(
+            r'julianday\s*\(\s*([^)]+)\s*\)\s*-\s*julianday\s*\(\s*([^)]+)\s*\)',
+            _julianday_diff, sql, flags=re.IGNORECASE)
+        # any remaining bare julianday('now') → TO_DAYS(CURDATE())
+        sql = re.sub(r"julianday\s*\(\s*'now'\s*\)", 'TO_DAYS(CURDATE())', sql, flags=re.IGNORECASE)
+        sql = re.sub(r'julianday\s*\(\s*([^)]+)\s*\)', r'TO_DAYS(\1)', sql, flags=re.IGNORECASE)
+
+        # ── date('now', '+/-N unit') → DATE_ADD/DATE_SUB ─────────────────────
+        def _date_now_offset(m):
+            sign   = m.group(1)
+            amount = m.group(2)
+            unit   = m.group(3).rstrip('sS').upper()  # days→DAY, months→MONTH
+            unit_norm = {'DAY': 'DAY', 'MONTH': 'MONTH', 'YEAR': 'YEAR',
+                         'WEEK': 'WEEK', 'HOUR': 'HOUR', 'MINUTE': 'MINUTE'}.get(unit, unit)
+            fn = 'DATE_ADD' if sign == '+' else 'DATE_SUB'
+            return f"{fn}(CURDATE(), INTERVAL {amount} {unit_norm})"
+        sql = re.sub(
+            r"date\s*\(\s*'now'\s*,\s*'([+\-])(\d+)\s+(\w+)'\s*\)",
+            _date_now_offset, sql, flags=re.IGNORECASE)
+
+        # ── DATE('now') / datetime('now') ─────────────────────────────────────
+        sql = re.sub(r"\bDATE\s*\(\s*'now'\s*\)", 'CURDATE()', sql, flags=re.IGNORECASE)
+        sql = re.sub(r"\bdatetime\s*\(\s*'now'\s*\)", 'NOW()', sql, flags=re.IGNORECASE)
+
+        return sql
 
     def execute(self, sql, params=()):
         self._cur.execute(self._adapt(sql), params)
@@ -727,9 +899,19 @@ def init_db(app):
 
         # --- Safe column additions ---
         def ensure_column_exists(table, column_def, column_name):
-            cursor.execute(f"PRAGMA table_info({table})")
-            columns = [col[1] for col in cursor.fetchall()]
-            if column_name not in columns:
+            if _USE_MYSQL:
+                # MySQL: query INFORMATION_SCHEMA to check column existence
+                cursor.execute(
+                    "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+                    "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                    (table, column_name)
+                )
+                row = cursor.fetchone()
+                exists = (row[0] if row else 0) > 0
+            else:
+                cursor.execute(f"PRAGMA table_info({table})")
+                exists = any(col[1] == column_name for col in cursor.fetchall())
+            if not exists:
                 cursor.execute(f"ALTER TABLE {table} ADD COLUMN {column_def}")
 
         ensure_column_exists('schools', 'logo_url TEXT', 'logo_url')
