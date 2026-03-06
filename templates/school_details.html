@@ -403,6 +403,120 @@
         #school-info + .salary-filters-card {
             margin-top: 0.5rem;
         }
+        
+        /* Module Settings Section - Ensure full visibility */
+        #modules-section {
+            overflow: visible !important;
+        }
+        
+        #modules-section .card-body {
+            overflow: visible !important;
+            padding: 1.5rem;
+            min-height: auto;
+            height: auto;
+        }
+        
+        /* Module Toggle Cards */
+        #modules-section .row {
+            display: flex;
+            flex-wrap: wrap;
+            width: 100%;
+        }
+        
+        #modules-section .col-md-6 {
+            flex: 0 0 50%;
+            max-width: 50%;
+            padding: 0.5rem;
+            box-sizing: border-box;
+        }
+        
+        .module-toggle-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            border: 1px solid #dee2e6;
+            border-radius: 0.5rem;
+            background-color: #fff;
+            transition: all 0.3s ease;
+            height: 100%;
+            min-height: 80px;
+        }
+        
+        .module-toggle-card:hover {
+            border-color: #0d6efd;
+            box-shadow: 0 2px 8px rgba(13, 110, 253, 0.1);
+        }
+        
+        .module-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex: 1;
+        }
+        
+        .module-icon {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f8f9fa;
+            border-radius: 0.5rem;
+            font-size: 1.25rem;
+            color: #0d6efd;
+            flex-shrink: 0;
+        }
+        
+        .module-toggle-card h6 {
+            margin: 0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #212529;
+        }
+        
+        .module-toggle-card small {
+            color: #6c757d;
+            font-size: 0.8rem;
+            display: block;
+        }
+        
+        .form-check-input.module-toggle {
+            width: 3rem;
+            height: 1.5rem;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .form-check-input.module-toggle:checked {
+            background-color: #28a745;
+            border-color: #28a745;
+        }
+        
+        @media (max-width: 768px) {
+            #modules-section .col-md-6 {
+                flex: 0 0 100%;
+                max-width: 100%;
+            }
+            
+            .module-toggle-card {
+                padding: 0.75rem;
+            }
+            
+            .module-info {
+                gap: 0.75rem;
+            }
+            
+            .module-icon {
+                width: 35px;
+                height: 35px;
+                font-size: 1.1rem;
+            }
+            
+            .module-toggle-card h6 {
+                font-size: 0.9rem;
+            }
+        }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
     <!-- PWA Meta Tags -->
@@ -488,6 +602,14 @@
                                         <i class="bi bi-calendar-check"></i>
                                     </div>
                                     <span class="nav-text">Today's Attendance</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="#modules-section" onclick="scrollToSection('modules-section')">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-toggles"></i>
+                                    </div>
+                                    <span class="nav-text">Module Settings</span>
                                 </a>
                             </li>
                         </ul>
@@ -880,6 +1002,221 @@
                     </div>
                 </div>
 
+                <!-- Module Settings Section -->
+                <div class="salary-filters-card" id="modules-section">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-toggles"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Module Settings</h5>
+                            <p class="card-subtitle">Control which features are available in the admin panel</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info mb-4">
+                            <i class="bi bi-info-circle me-2"></i>
+                            <strong>Module Control:</strong> Toggle modules on or off. When a module is disabled, it will not appear in the school admin's navigation menu.
+                        </div>
+                        
+                        <div class="row g-3">
+                            <!-- Staff Management -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-people"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Staff Management</h6>
+                                            <small class="text-muted">Manage staff members, profiles, and positions</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="staff_management" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.staff_management else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Shift Management -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-clock"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Shift Management</h6>
+                                            <small class="text-muted">Configure work shifts, time settings, and schedules</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="shift_management" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.shift_management else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Salary Management -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-currency-dollar"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Salary Management</h6>
+                                            <small class="text-muted">Process payroll, allowances, and deductions</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="salary_management" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.salary_management else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Timetable Management -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-calendar3"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Timetable Management</h6>
+                                            <small class="text-muted">Create and manage class schedules and periods</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="timetable_management" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.timetable_management else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Reports & Analytics -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-graph-up"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Reports & Analytics</h6>
+                                            <small class="text-muted">Generate attendance and performance reports</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="reports" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.reports else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Biometric Devices -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-fingerprint"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Biometric Devices</h6>
+                                            <small class="text-muted">Manage attendance devices and sync data</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="biometric_devices" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.biometric_devices else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Department Shift Assignments -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-diagram-3"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Department Shifts</h6>
+                                            <small class="text-muted">Assign shifts to departments and staff groups</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="department_shift_assignments" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.department_shift_assignments else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Holiday Management -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-calendar-event"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Holiday Management</h6>
+                                            <small class="text-muted">Configure holidays and leave policies</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="holiday_management" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.holiday_management else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Quota Management -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-bar-chart"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Quota Management</h6>
+                                            <small class="text-muted">Set and track quotas and targets</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="quota_management" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.quota_management else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-warning mt-4 mb-0">
+                            <i class="bi bi-exclamation-triangle me-2"></i>
+                            <strong>Note:</strong> Disabled modules will be hidden from the admin dashboard. School administrators will not be able to access these features.
+                        </div>
+                    </div>
+                </div>
+
             </main>
         </div>
     </div>
@@ -1024,6 +1361,63 @@
         // Initialize page
         document.addEventListener('DOMContentLoaded', function() {
             // Any initialization code can go here
+            
+            // Module toggle functionality
+            document.querySelectorAll('.module-toggle').forEach(toggle => {
+                toggle.addEventListener('change', function() {
+                    const moduleName = this.getAttribute('data-module');
+                    const schoolId = this.getAttribute('data-school-id');
+                    const isEnabled = this.checked;
+                    const card = this.closest('.module-toggle-card');
+                    
+                    // Visual feedback
+                    card.style.opacity = '0.6';
+                    this.disabled = true;
+                    
+                    // Send update to server
+                    fetch('/api/module-settings/toggle', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            school_id: parseInt(schoolId),
+                            module_name: moduleName,
+                            is_enabled: isEnabled
+                        })
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            // Update visual state
+                            card.style.borderColor = isEnabled ? '#28a745' : '#dc3545';
+                            
+                            // Show brief success feedback
+                            const icon = card.querySelector('.module-icon');
+                            const originalColor = icon.style.backgroundColor;
+                            icon.style.backgroundColor = isEnabled ? '#d4edda' : '#f8d7da';
+                            
+                            setTimeout(() => {
+                                icon.style.backgroundColor = originalColor;
+                                card.style.borderColor = '';
+                            }, 2000);
+                        } else {
+                            // Revert on error
+                            this.checked = !isEnabled;
+                            alert('Error: ' + (data.error || 'Failed to update module setting'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        this.checked = !isEnabled;
+                        alert('Error updating module setting. Please try again.');
+                    })
+                    .finally(() => {
+                        card.style.opacity = '1';
+                        this.disabled = false;
+                    });
+                });
+            });
         });
     </script>
 

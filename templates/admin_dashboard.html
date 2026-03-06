@@ -216,7 +216,7 @@
 
                             {% set perms = session.get('permissions', {}) %}
 
-                            {% if not session.get('is_sub_admin') or perms.get('staff_management', {}).get('view') %}
+                            {% if module_enabled.staff_management and (not session.get('is_sub_admin') or perms.get('staff_management', {}).get('view')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('staff_management') }}">
                                     <div class="nav-icon">
@@ -227,7 +227,7 @@
                             </li>
                             {% endif %}
 
-                            {% if not session.get('is_sub_admin') or perms.get('shift_management', {}).get('view') %}
+                            {% if module_enabled.shift_management and (not session.get('is_sub_admin') or perms.get('shift_management', {}).get('view')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('shift_management') }}">
                                     <div class="nav-icon">
@@ -238,7 +238,7 @@
                             </li>
                             {% endif %}
 
-                            {% if not session.get('is_sub_admin') or perms.get('salary_management', {}).get('view') %}
+                            {% if module_enabled.salary_management and (not session.get('is_sub_admin') or perms.get('salary_management', {}).get('view')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('salary_management') }}">
                                     <div class="nav-icon">
@@ -249,7 +249,7 @@
                             </li>
                             {% endif %}
 
-                            {% if timetable_enabled and (not session.get('is_sub_admin') or
+                            {% if module_enabled.timetable_management and timetable_enabled and (not session.get('is_sub_admin') or
                             perms.get('timetable_management', {}).get('view')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('admin_timetable') }}">
@@ -261,7 +261,7 @@
                             </li>
                             {% endif %}
 
-                            {% if not session.get('is_sub_admin') or perms.get('reports', {}).get('view') %}
+                            {% if module_enabled.reports and (not session.get('is_sub_admin') or perms.get('reports', {}).get('view')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="/admin/reports">
                                     <div class="nav-icon">
@@ -272,7 +272,7 @@
                             </li>
                             {% endif %}
 
-                            {% if not session.get('is_sub_admin') or perms.get('biometric_devices', {}).get('view') %}
+                            {% if module_enabled.biometric_devices and (not session.get('is_sub_admin') or perms.get('biometric_devices', {}).get('view')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="/biometric_devices">
                                     <div class="nav-icon">

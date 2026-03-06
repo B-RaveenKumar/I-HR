@@ -786,7 +786,7 @@
                         </div>
                         <ul class="nav-menu">
 
-                            {% if perms.get('staff_management') %}
+                            {% if module_enabled.get('staff_management', True) and perms.get('staff_management') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('staff_management') }}">
                                     <div class="nav-icon"><i class="bi bi-people"></i></div>
@@ -808,7 +808,7 @@
                             </li>
                             {% endif %}
 
-                            {% if perms.get('shift_management') %}
+                            {% if module_enabled.get('shift_management', True) and perms.get('shift_management') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('shift_management') }}">
                                     <div class="nav-icon"><i class="bi bi-clock"></i></div>
@@ -830,7 +830,7 @@
                             </li>
                             {% endif %}
 
-                            {% if perms.get('salary_management') %}
+                            {% if module_enabled.get('salary_management', True) and perms.get('salary_management') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('salary_management') }}">
                                     <div class="nav-icon"><i class="bi bi-currency-dollar"></i></div>
@@ -852,7 +852,7 @@
                             </li>
                             {% endif %}
 
-                            {% if perms.get('timetable_management') %}
+                            {% if module_enabled.get('timetable_management', True) and perms.get('timetable_management') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('admin_timetable') }}">
                                     <div class="nav-icon"><i class="bi bi-calendar3"></i></div>
@@ -874,7 +874,7 @@
                             </li>
                             {% endif %}
 
-                            {% if perms.get('reports') %}
+                            {% if module_enabled.get('reports', True) and perms.get('reports') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="/admin/reports">
                                     <div class="nav-icon"><i class="bi bi-graph-up"></i></div>
@@ -893,7 +893,7 @@
                             </li>
                             {% endif %}
 
-                            {% if perms.get('biometric_devices') %}
+                            {% if module_enabled.get('biometric_devices', True) and perms.get('biometric_devices') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="/biometric_devices">
                                     <div class="nav-icon"><i class="bi bi-fingerprint"></i></div>

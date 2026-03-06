@@ -60,6 +60,34 @@ atexit.register(lambda: scheduler.shutdown())
 from database import get_system_setting
 AUTO_SYNC_INTERVAL_MINUTES = int(get_system_setting('auto_sync_interval_minutes', 15))
 
+# Helper function to get module settings for a school
+def get_module_enabled(school_id):
+    """
+    Get module enabled settings for a school.
+    Returns dict with module_name: bool values.
+    """
+    db = get_db()
+    school_settings = db.execute('SELECT * FROM schools WHERE id = ?', (school_id,)).fetchone()
+    
+    # Helper function to safely get column value (works with both SQLite Row and dict)
+    def get_setting_value(row, column_name, default=1):
+        try:
+            return row[column_name] if row else default
+        except (KeyError, IndexError):
+            return default
+    
+    return {
+        'staff_management': bool(get_setting_value(school_settings, 'staff_management_enabled')),
+        'shift_management': bool(get_setting_value(school_settings, 'shift_management_enabled')),
+        'salary_management': bool(get_setting_value(school_settings, 'salary_management_enabled')),
+        'timetable_management': bool(get_setting_value(school_settings, 'timetable_management_enabled')),
+        'reports': bool(get_setting_value(school_settings, 'reports_enabled')),
+        'biometric_devices': bool(get_setting_value(school_settings, 'biometric_devices_enabled')),
+        'department_shift_assignments': bool(get_setting_value(school_settings, 'department_shift_assignments_enabled')),
+        'holiday_management': bool(get_setting_value(school_settings, 'holiday_management_enabled')),
+        'quota_management': bool(get_setting_value(school_settings, 'quota_management_enabled')),
+    }
+
 # Add custom Jinja2 filters
 @app.template_filter('dateformat')
 def dateformat_filter(date, format='%Y-%m-%d'):
@@ -962,12 +990,33 @@ def school_details(school_id):
         ORDER BY l.applied_at
     ''', (school_id,)).fetchall()
 
+    # Create module_settings dict from school columns
+    # Helper function to safely get column value
+    def get_column_value(row, column_name, default=1):
+        try:
+            return row[column_name] if row else default
+        except (KeyError, IndexError):
+            return default
+    
+    module_settings = {
+        'staff_management': get_column_value(school, 'staff_management_enabled'),
+        'shift_management': get_column_value(school, 'shift_management_enabled'),
+        'salary_management': get_column_value(school, 'salary_management_enabled'),
+        'timetable_management': get_column_value(school, 'timetable_management_enabled'),
+        'reports': get_column_value(school, 'reports_enabled'),
+        'biometric_devices': get_column_value(school, 'biometric_devices_enabled'),
+        'department_shift_assignments': get_column_value(school, 'department_shift_assignments_enabled'),
+        'holiday_management': get_column_value(school, 'holiday_management_enabled'),
+        'quota_management': get_column_value(school, 'quota_management_enabled'),
+    }
+
     return render_template('school_details.html',
                          school=school,
                          admins=admins,
                          staff=staff,
                          attendance_summary=attendance_summary,
                          pending_leaves=pending_leaves,
+                         module_settings=module_settings,
                          today=today)
 
 @app.route('/get_attendance_summary')
@@ -1863,8 +1912,13 @@ def salary_management():
     if session['user_type'] not in ['admin', 'company_admin']:
         return redirect(url_for('staff_dashboard'))
     
+    school_id = session.get('school_id')
     today = datetime.datetime.now()
-    return render_template('salary_management.html', current_year=today.year)
+    
+    # Get module settings for navigation
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+    
+    return render_template('salary_management.html', current_year=today.year, module_enabled=module_enabled)
 
 @app.route('/get_summary_dashboard')
 def get_summary_dashboard():
@@ -5047,11 +5101,15 @@ def staff_dashboard():
     timetable_settings = db.execute('SELECT is_enabled FROM timetable_settings WHERE school_id = ?', (school_id,)).fetchone()
     timetable_enabled = bool(timetable_settings['is_enabled']) if timetable_settings else False
 
+    # Get module settings for navigation (staff can see limited nav based on admin settings)
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+
     return render_template('staff_dashboard.html',
                          attendance=attendance,
                          leaves=leaves,
                          on_duty_applications=on_duty_applications,
                          permission_applications=permission_applications,
+                         module_enabled=module_enabled,
                          today=today,
                          staff_info=staff_info,
                          timetable_enabled=timetable_enabled)
@@ -5090,8 +5148,18 @@ def department_shifts():
     shift_time_map = {s['shift_type']: {'start': s['start_time'][:5], 'end': s['end_time'][:5]}
                      for s in shift_defs}
 
+    # Get institution info for branding
+    institution = db.execute(
+        'SELECT * FROM schools WHERE id = ?',
+        (school_id,)
+    ).fetchone()
+
+    # Get module settings for navigation
+    module_enabled = get_module_enabled(school_id)
+
     return render_template('department_shifts.html', mappings=mappings, departments=departments,
-                           shift_defs=shift_defs, shift_time_map=shift_time_map)
+                           shift_defs=shift_defs, shift_time_map=shift_time_map,
+                           institution=institution, module_enabled=module_enabled)
 
 @app.route('/api/department_shifts', methods=['GET', 'POST', 'DELETE'])
 def api_department_shifts():
@@ -5265,6 +5333,58 @@ def debug_tables():
     except Exception as e:
         return f"Error checking database: {str(e)}", 500, {'Content-Type': 'text/plain'}
 
+@csrf.exempt
+@app.route('/api/module-settings/toggle', methods=['POST'])
+def toggle_module_settings():
+    """Toggle module enabled/disabled status for a school"""
+    if 'user_id' not in session or session.get('user_type') != 'company_admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    
+    try:
+        data = request.get_json()
+        school_id = data.get('school_id')
+        module_name = data.get('module_name')
+        is_enabled = data.get('is_enabled', True)
+        
+        if not school_id or not module_name:
+            return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+        
+        # Map module name to database column
+        module_column_map = {
+            'staff_management': 'staff_management_enabled',
+            'shift_management': 'shift_management_enabled',
+            'salary_management': 'salary_management_enabled',
+            'timetable_management': 'timetable_management_enabled',
+            'reports': 'reports_enabled',
+            'biometric_devices': 'biometric_devices_enabled',
+            'department_shift_assignments': 'department_shift_assignments_enabled',
+            'holiday_management': 'holiday_management_enabled',
+            'quota_management': 'quota_management_enabled',
+        }
+        
+        column_name = module_column_map.get(module_name)
+        if not column_name:
+            return jsonify({'success': False, 'error': 'Invalid module name'}), 400
+        
+        db = get_db()
+        
+        # Update the module status
+        db.execute(
+            f'UPDATE schools SET {column_name} = ? WHERE id = ?',
+            (1 if is_enabled else 0, school_id)
+        )
+        db.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Module {module_name} {"enabled" if is_enabled else "disabled"} successfully',
+            'module_name': module_name,
+            'is_enabled': is_enabled
+        })
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/admin/staff_management')
 @requires_permission('staff_management', 'view')
 def staff_management():
@@ -5315,8 +5435,12 @@ def staff_management():
     except Exception as e:
         print(f"Warning: Could not auto-fix user suffix: {e}")
 
+    # Get module settings for navigation
+    module_enabled = get_module_enabled(school_id)
+
     return render_template('staff_management.html', staff=staff, dept_shift_map=dept_shift_map,
-                           departments=departments, positions=positions, shift_defs=shift_defs)
+                           departments=departments, positions=positions, shift_defs=shift_defs,
+                           module_enabled=module_enabled)
 
 @app.route('/admin/add_department', methods=['POST'])
 @csrf.exempt
@@ -5505,10 +5629,14 @@ def shift_management():
         (school_id,)
     ).fetchone()
 
+    # Get module settings for navigation
+    module_enabled = get_module_enabled(school_id)
+
     return render_template('shift_management.html', 
                           total_staff_count=total_staff_count, 
                           shifts=shifts,
-                          institution=institution)
+                          institution=institution,
+                          module_enabled=module_enabled)
 
 @app.route('/admin/dashboard')
 def admin_dashboard():
@@ -5623,6 +5751,9 @@ def admin_dashboard():
     timetable_settings = db.execute('SELECT is_enabled FROM timetable_settings WHERE school_id = ?', (school_id,)).fetchone()
     timetable_enabled = bool(timetable_settings['is_enabled']) if timetable_settings else False
 
+    # Get module enabled settings for navigation
+    module_enabled = get_module_enabled(school_id)
+
     if use_modern_ui:
         return render_template('admin_dashboard_modern.html',
                              staff=staff,
@@ -5633,6 +5764,7 @@ def admin_dashboard():
                              today_attendance=today_attendance,
                              today=today,
                              timetable_enabled=timetable_enabled,
+                             module_enabled=module_enabled,
                              recent_activities=[],  # Add recent activities data
                              performance={},  # Add performance metrics
                              biometric_status={},  # Add biometric status
@@ -5646,7 +5778,8 @@ def admin_dashboard():
                              attendance_summary=attendance_summary,
                              today_attendance=today_attendance,
                              today=today,
-                             timetable_enabled=timetable_enabled)
+                             timetable_enabled=timetable_enabled,
+                             module_enabled=module_enabled)
 
 
 @app.route('/admin/timetable')
@@ -5655,7 +5788,11 @@ def admin_timetable():
     """Admin Timetable Management page"""
     if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
-    return render_template('timetable_management.html')
+    
+    school_id = session.get('school_id')
+    module_enabled = get_module_enabled(school_id)
+    
+    return render_template('timetable_management.html', module_enabled=module_enabled)
 
 @app.route('/staff/timetable')
 def staff_timetable():
@@ -12287,8 +12424,13 @@ def admin_reports():
     if 'user_id' not in session or (session.get('user_type') != 'admin' and session.get('user_type') != 'company_admin' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
+    school_id = session.get('school_id')
     today = datetime.datetime.now()
-    return render_template('admin_reports.html', current_year=today.year)
+    
+    # Get module settings for navigation
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+    
+    return render_template('admin_reports.html', current_year=today.year, module_enabled=module_enabled)
 
 @app.route('/admin/settings')
 def admin_settings():
@@ -14905,7 +15047,11 @@ def biometric_devices_page():
         flash('Please login as administrator', 'error')
         return redirect(url_for('index'))
     
-    return render_template('biometric_device_management.html')
+    school_id = session.get('school_id')
+    # Get module settings for navigation
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+    
+    return render_template('biometric_device_management.html', module_enabled=module_enabled)
 
 
 @app.route('/api/schools', methods=['GET'])
@@ -15548,8 +15694,12 @@ def manage_sub_admins():
             'can_edit': bool(sa['can_edit']),
             'can_delete': bool(sa['can_delete'])
         })
+    
+    # Get module settings for navigation
+    module_enabled = get_module_enabled(school_id)
         
-    return render_template('manage_sub_admins.html', sub_admins=list(grouped_sub_admins.values()))
+    return render_template('manage_sub_admins.html', sub_admins=list(grouped_sub_admins.values()),
+                          module_enabled=module_enabled)
 
 
 @app.route('/add_sub_admin', methods=['GET', 'POST'])
@@ -15562,8 +15712,9 @@ def add_sub_admin():
     db = get_db()
     
     if request.method == 'GET':
+        module_enabled = get_module_enabled(school_id)
         staff_list = db.execute('SELECT id, staff_id, full_name, department FROM staff WHERE school_id = ? ORDER BY full_name', (school_id,)).fetchall()
-        return render_template('add_sub_admin.html', staff_list=staff_list, existing_permissions=None, edit_staff_id=None)
+        return render_template('add_sub_admin.html', staff_list=staff_list, existing_permissions=None, edit_staff_id=None, module_enabled=module_enabled)
         
     if request.method == 'POST':
         staff_id = request.form.get('staff_id') # The actual staff username/id string
@@ -15630,10 +15781,13 @@ def edit_sub_admin(staff_id):
     # Get staff list for the dropdown
     staff_list = db.execute('SELECT id, staff_id, full_name, department FROM staff WHERE school_id = ? ORDER BY full_name', (school_id,)).fetchall()
     
+    module_enabled = get_module_enabled(school_id)
+    
     return render_template('add_sub_admin.html', 
                          staff_list=staff_list, 
                          existing_permissions=existing_permissions,
-                         edit_staff_id=staff_id)
+                         edit_staff_id=staff_id,
+                         module_enabled=module_enabled)
 
 
 @app.route('/delete_sub_admin', methods=['POST'])
