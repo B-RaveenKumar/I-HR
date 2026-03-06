@@ -273,6 +273,16 @@
                                     <span class="nav-text">Dashboard</span>
                                 </a>
                             </li>
+                            {% if module_enabled.get('sub_admin_management', True) and not session.get('is_sub_admin') %}
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('manage_sub_admins') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-shield-lock"></i>
+                                    </div>
+                                    <span class="nav-text">Sub-Admins</span>
+                                </a>
+                            </li>
+                            {% endif %}
                             {% if module_enabled.get('staff_management', True) and (not session.get('is_sub_admin') or session.get('permissions', {}).get('staff_management')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('staff_management') }}">

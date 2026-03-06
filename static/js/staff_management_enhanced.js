@@ -71,7 +71,7 @@ function updateAnalyticsCards(analytics) {
     
     // Calculate average tenure
     const avgTenure = analytics.department_stats.reduce((sum, dept) => 
-        sum + (dept.avg_tenure_years || 0), 0) / analytics.department_stats.length;
+        sum + (parseFloat(dept.avg_tenure_years) || 0), 0) / analytics.department_stats.length;
     document.getElementById('avgTenure').textContent = avgTenure ? avgTenure.toFixed(1) : '0';
 }
 

@@ -628,7 +628,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                         <td>${permission.start_time && permission.end_time ? `${permission.start_time} - ${permission.end_time}` : '--'}</td>
                                         <td>
                                             <span class="badge bg-secondary">
-                                                ${permission.duration_hours ? permission.duration_hours.toFixed(1) : '0.0'} hrs
+                                                ${permission.duration_hours ? parseFloat(permission.duration_hours).toFixed(1) : '0.0'} hrs
                                             </span>
                                         </td>
                                         <td>

@@ -203,7 +203,7 @@
                                 </a>
                             </li>
 
-                            {% if not session.get('is_sub_admin') %}
+                            {% if module_enabled.sub_admin_management and not session.get('is_sub_admin') %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('manage_sub_admins') }}">
                                     <div class="nav-icon">
@@ -434,7 +434,13 @@
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <div class="user-avatar me-2">
+                                                    {% if attendance.photo_url %}
+                                                    <img src="{{ url_for('static', filename=attendance.photo_url) }}" 
+                                                         alt="{{ attendance.full_name }}" 
+                                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                                    {% else %}
                                                     <i class="bi bi-person-circle"></i>
+                                                    {% endif %}
                                                 </div>
                                                 <div>
                                                     <div class="fw-bold">
@@ -540,7 +546,13 @@
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <div class="user-avatar me-2">
+                                                    {% if leave.photo_url %}
+                                                    <img src="{{ url_for('static', filename=leave.photo_url) }}" 
+                                                         alt="{{ leave.full_name }}" 
+                                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                                    {% else %}
                                                     <i class="bi bi-person-circle"></i>
+                                                    {% endif %}
                                                 </div>
                                                 <div class="fw-bold">{{ leave.full_name }}</div>
                                             </div>
@@ -630,7 +642,13 @@
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <div class="user-avatar me-2">
+                                                    {% if duty.photo_url %}
+                                                    <img src="{{ url_for('static', filename=duty.photo_url) }}" 
+                                                         alt="{{ duty.full_name }}" 
+                                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                                    {% else %}
                                                     <i class="bi bi-person-circle"></i>
+                                                    {% endif %}
                                                 </div>
                                                 <div class="fw-bold">{{ duty.full_name }}</div>
                                             </div>
@@ -722,7 +740,13 @@
                                         <td>
                                             <div class="d-flex align-items-center">
                                                 <div class="user-avatar me-2">
+                                                    {% if permission.photo_url %}
+                                                    <img src="{{ url_for('static', filename=permission.photo_url) }}" 
+                                                         alt="{{ permission.full_name }}" 
+                                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                                    {% else %}
                                                     <i class="bi bi-person-circle"></i>
+                                                    {% endif %}
                                                 </div>
                                                 <div class="fw-bold">{{ permission.full_name }}</div>
                                             </div>

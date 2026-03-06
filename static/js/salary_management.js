@@ -1311,7 +1311,7 @@ function displayEnhancedSalaryResults(results, year, month) {
     results.forEach(result => {
         if (result.success) {
             const breakdown = result.salary_breakdown;
-            const hoursRatio = breakdown.hours_ratio || 1.0;
+            const hoursRatio = parseFloat(breakdown.hours_ratio || 1.0);
             const hoursRatioPercent = (hoursRatio * 100).toFixed(1);
             const hoursRatioClass = hoursRatio >= 1.0 ? 'text-success' : 'text-warning';
 
@@ -1321,9 +1321,9 @@ function displayEnhancedSalaryResults(results, year, month) {
                         <strong>${result.staff_name}</strong>
                     </td>
                     <td>₹${result.base_monthly_salary.toLocaleString()}</td>
-                    <td>₹${result.hourly_rate.toFixed(2)}</td>
-                    <td>${result.standard_monthly_hours.toFixed(1)} hrs</td>
-                    <td>${result.actual_hours_worked.toFixed(1)} hrs</td>
+                    <td>₹${parseFloat(result.hourly_rate || 0).toFixed(2)}</td>
+                    <td>${parseFloat(result.standard_monthly_hours || 0).toFixed(1)} hrs</td>
+                    <td>${parseFloat(result.actual_hours_worked || 0).toFixed(1)} hrs</td>
                     <td class="${hoursRatioClass}">
                         <strong>${hoursRatioPercent}%</strong>
                     </td>

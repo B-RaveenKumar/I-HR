@@ -86,6 +86,7 @@ def get_module_enabled(school_id):
         'department_shift_assignments': bool(get_setting_value(school_settings, 'department_shift_assignments_enabled')),
         'holiday_management': bool(get_setting_value(school_settings, 'holiday_management_enabled')),
         'quota_management': bool(get_setting_value(school_settings, 'quota_management_enabled')),
+        'sub_admin_management': bool(get_setting_value(school_settings, 'sub_admin_management_enabled')),
     }
 
 # Add custom Jinja2 filters
@@ -1008,6 +1009,7 @@ def school_details(school_id):
         'department_shift_assignments': get_column_value(school, 'department_shift_assignments_enabled'),
         'holiday_management': get_column_value(school, 'holiday_management_enabled'),
         'quota_management': get_column_value(school, 'quota_management_enabled'),
+        'sub_admin_management': get_column_value(school, 'sub_admin_management_enabled'),
     }
 
     return render_template('school_details.html',
@@ -5360,6 +5362,7 @@ def toggle_module_settings():
             'department_shift_assignments': 'department_shift_assignments_enabled',
             'holiday_management': 'holiday_management_enabled',
             'quota_management': 'quota_management_enabled',
+            'sub_admin_management': 'sub_admin_management_enabled',
         }
         
         column_name = module_column_map.get(module_name)
@@ -5657,7 +5660,7 @@ def admin_dashboard():
 
     # Get pending leave applications
     pending_leaves = db.execute('''
-        SELECT l.id, s.full_name, l.leave_type, l.start_date, l.end_date, l.reason
+        SELECT l.id, s.full_name, s.photo_url, l.leave_type, l.start_date, l.end_date, l.reason
         FROM leave_applications l
         JOIN staff s ON l.staff_id = s.id
         WHERE l.school_id = ? AND l.status = 'pending'
@@ -5666,7 +5669,7 @@ def admin_dashboard():
 
     # Get pending on-duty applications
     pending_on_duty = db.execute('''
-        SELECT od.id, s.full_name, od.duty_type, od.start_date, od.end_date, od.start_time, od.end_time, od.location, od.purpose, od.reason
+        SELECT od.id, s.full_name, s.photo_url, od.duty_type, od.start_date, od.end_date, od.start_time, od.end_time, od.location, od.purpose, od.reason
         FROM on_duty_applications od
         JOIN staff s ON od.staff_id = s.id
         WHERE od.school_id = ? AND od.status = 'pending'
@@ -5675,7 +5678,7 @@ def admin_dashboard():
 
     # Get pending permission applications
     pending_permissions = db.execute('''
-        SELECT p.id, s.full_name, p.permission_type, p.permission_date, p.start_time, p.end_time, p.duration_hours, p.reason
+        SELECT p.id, s.full_name, s.photo_url, p.permission_type, p.permission_date, p.start_time, p.end_time, p.duration_hours, p.reason
         FROM permission_applications p
         JOIN staff s ON p.staff_id = s.id
         WHERE p.school_id = ? AND p.status = 'pending'
@@ -5688,7 +5691,7 @@ def admin_dashboard():
     # Get all staff for attendance calculation
     all_staff = db.execute('''
         SELECT s.id as staff_id, s.staff_id as staff_number, s.full_name, s.department,
-               a.time_in, a.time_out
+               a.time_in, a.time_out, s.photo_url
         FROM staff s
         LEFT JOIN attendance a ON s.id = a.staff_id AND a.date = ?
         WHERE s.school_id = ?
@@ -5721,7 +5724,8 @@ def admin_dashboard():
             'department': staff['department'],
             'time_in': staff['time_in'],
             'time_out': staff['time_out'],
-            'status': status
+            'status': status,
+            'photo_url': staff['photo_url']
         }
         
         today_attendance.append(staff_record)
@@ -7395,9 +7399,15 @@ def add_staff_enhanced():
     if 'photo' in request.files:
         photo = request.files['photo']
         if photo and photo.filename and allowed_file(photo.filename):
-            filename = secure_filename(f"{staff_id}_{photo.filename}")
-            photo_path = os.path.join(app.config.get('UPLOAD_FOLDER', 'static/uploads'), filename)
-            os.makedirs(os.path.dirname(photo_path), exist_ok=True)
+            # Ensure uploads directory exists
+            upload_dir = os.path.join(app.config.get('UPLOAD_FOLDER', 'static/uploads'), 'uploads')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            # Generate filename with staff name
+            ext = os.path.splitext(photo.filename)[1]
+            safe_name = full_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+            filename = f"{safe_name}_{staff_id}{ext}"
+            photo_path = os.path.join(upload_dir, filename)
             photo.save(photo_path)
             photo_url = f"uploads/{filename}"
 
@@ -7521,9 +7531,10 @@ def add_staff():
                 upload_dir = os.path.join(app.static_folder, 'uploads')
                 os.makedirs(upload_dir, exist_ok=True)
 
-                # Generate unique filename
+                # Generate filename with staff name
                 ext = os.path.splitext(photo.filename)[1]
-                filename = f"staff_{staff_id}_{int(time.time())}{ext}"
+                safe_name = full_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                filename = f"{safe_name}_{staff_id}{ext}"
                 # Save only the relative path for static serving
                 photo_url = f"uploads/{filename}"
                 photo.save(os.path.join(upload_dir, filename))
@@ -7687,9 +7698,15 @@ def update_staff_enhanced():
     if 'photo' in request.files:
         photo = request.files['photo']
         if photo and photo.filename and allowed_file(photo.filename):
-            filename = secure_filename(f"{staff_id}_{photo.filename}")
-            photo_path = os.path.join(app.config.get('UPLOAD_FOLDER', 'static/uploads'), filename)
-            os.makedirs(os.path.dirname(photo_path), exist_ok=True)
+            # Ensure uploads directory exists
+            upload_dir = os.path.join(app.config.get('UPLOAD_FOLDER', 'static/uploads'), 'uploads')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            # Generate filename with staff name
+            ext = os.path.splitext(photo.filename)[1]
+            safe_name = full_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+            filename = f"{safe_name}_{staff_id}{ext}"
+            photo_path = os.path.join(upload_dir, filename)
             photo.save(photo_path)
             photo_url = f"uploads/{filename}"
 
@@ -8123,9 +8140,10 @@ def update_staff():
                 upload_dir = os.path.join(app.static_folder, 'uploads')
                 os.makedirs(upload_dir, exist_ok=True)
 
-                # Generate unique filename
+                # Generate filename with staff name
                 ext = os.path.splitext(photo.filename)[1]
-                filename = f"staff_{staff_id}_{int(time.time())}{ext}"
+                safe_name = full_name.replace(' ', '_').replace('/', '_').replace('\\', '_')
+                filename = f"{safe_name}_{staff_id}{ext}"
                 photo_url = os.path.join('uploads', filename)
                 photo.save(os.path.join(app.static_folder, photo_url))
             except Exception as e:
@@ -9602,6 +9620,24 @@ def get_latest_device_verifications():
             'verifications': []
         })
 
+def serialize_row(row):
+    """Convert SQLite row to dict and handle time objects for JSON serialization"""
+    if not row:
+        return None
+    
+    result = dict(row)
+    for key, value in result.items():
+        # Convert time objects to string
+        if isinstance(value, datetime.time):
+            result[key] = value.strftime('%H:%M:%S')
+        # Convert datetime objects to string
+        elif isinstance(value, datetime.datetime):
+            result[key] = value.strftime('%Y-%m-%d %H:%M:%S')
+        # Convert date objects to string
+        elif isinstance(value, datetime.date):
+            result[key] = value.strftime('%Y-%m-%d')
+    return result
+
 @app.route('/get_comprehensive_staff_profile')
 def get_comprehensive_staff_profile():
     """Get comprehensive staff profile data for admin dashboard modal"""
@@ -9829,12 +9865,12 @@ def get_comprehensive_staff_profile():
 
         return jsonify({
             'success': True,
-            'staff': dict(staff),
+            'staff': serialize_row(staff),
             'attendance': formatted_attendance,
-            'verifications': [dict(v) for v in verifications],
-            'leaves': [dict(l) for l in leaves],
-            'on_duty_applications': [dict(od) for od in on_duty_applications],
-            'permission_applications': [dict(p) for p in permission_applications],
+            'verifications': [serialize_row(v) for v in verifications],
+            'leaves': [serialize_row(l) for l in leaves],
+            'on_duty_applications': [serialize_row(od) for od in on_duty_applications],
+            'permission_applications': [serialize_row(p) for p in permission_applications],
             'attendance_stats': attendance_stats,
             'month_info': {
                 'year': year,
@@ -10447,8 +10483,8 @@ def get_staff_profile_async_data():
 
         return jsonify({
             'success': True,
-            'detailed_verifications': [dict(row) for row in detailed_verifications],
-            'attendance_records': [dict(row) for row in attendance_records]
+            'detailed_verifications': [serialize_row(row) for row in detailed_verifications],
+            'attendance_records': [serialize_row(row) for row in attendance_records]
         })
         
     except Exception as e:
@@ -10500,6 +10536,9 @@ def update_staff_profile():
     db = get_db()
 
     try:
+        # Get staff info for filename
+        staff_info = db.execute('SELECT full_name, staff_id FROM staff WHERE id = ?', (staff_id,)).fetchone()
+        
         # Handle photo upload
         photo_url = None
         if 'photo' in request.files:
@@ -10510,9 +10549,20 @@ def update_staff_profile():
                     upload_dir = os.path.join(app.static_folder, 'uploads')
                     os.makedirs(upload_dir, exist_ok=True)
 
-                    # Generate unique filename
+                    # Generate filename with staff name
                     ext = os.path.splitext(photo.filename)[1]
-                    filename = f"staff_{staff_id}_{int(time.time())}{ext}"
+                    # Replace spaces and special characters with underscores
+                    safe_name = staff_info['full_name'].replace(' ', '_').replace('/', '_').replace('\\', '_')
+                    filename = f"{safe_name}_{staff_info['staff_id']}{ext}"
+                    
+                    # Delete old photo if exists
+                    if staff_info:
+                        old_photo = db.execute('SELECT photo_url FROM staff WHERE id = ?', (staff_id,)).fetchone()
+                        if old_photo and old_photo['photo_url']:
+                            old_photo_path = os.path.join(app.static_folder, old_photo['photo_url'])
+                            if os.path.exists(old_photo_path):
+                                os.remove(old_photo_path)
+                    
                     photo.save(os.path.join(upload_dir, filename))
                     photo_url = f"uploads/{filename}"
                 except Exception as e:

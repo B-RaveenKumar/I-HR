@@ -132,7 +132,7 @@ function updateSummaryCards(summary) {
     document.getElementById('totalStaffToday').textContent = summary.today_summary.total_staff || 0;
     document.getElementById('presentToday').textContent = summary.today_summary.present_today || 0;
     document.getElementById('lateToday').textContent = summary.today_summary.late_today || 0;
-    document.getElementById('attendanceRateToday').textContent = summary.attendance_rate_today.toFixed(1) + '%';
+    document.getElementById('attendanceRateToday').textContent = parseFloat(summary.attendance_rate_today || 0).toFixed(1) + '%';
 }
 
 function loadDepartments() {
@@ -304,7 +304,7 @@ function displayDailyReport(data, container) {
             <div class="col-md-3">
                 <div class="card bg-info text-white">
                     <div class="card-body text-center">
-                        <h4>${data.attendance_rate.toFixed(1)}%</h4>
+                        <h4>${parseFloat(data.attendance_rate || 0).toFixed(1)}%</h4>
                         <p class="mb-0">Attendance Rate</p>
                     </div>
                 </div>

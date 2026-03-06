@@ -1198,6 +1198,27 @@
                                 </div>
                             </div>
                             
+                            <!-- Sub-Admin Management -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-shield-lock"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Sub-Admin Management</h6>
+                                            <small class="text-muted">Manage sub-administrators and permissions</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="sub_admin_management" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.sub_admin_management else '' }}>
+                                    </div>
+                                </div>
+                            </div>
+                            
                             <!-- Quota Management -->
                             <div class="col-md-6">
                                 <div class="module-toggle-card">
