@@ -386,6 +386,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <i class="bi bi-calendar-week"></i> Weekly Calendar
                     </button>
                 </li>
+                ${data.timetable_enabled ? `
                 <li class="nav-item" role="presentation">
                     <button class="nav-link" id="timetable-tab" data-bs-toggle="tab"
                             data-bs-target="#timetable-pane" type="button" role="tab"
@@ -394,6 +395,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         <i class="bi bi-table"></i> Timetable
                     </button>
                 </li>
+                ` : ''}
             </ul>
 
             <div class="tab-content mt-3" id="staffProfileTabContent">
@@ -651,6 +653,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     <div id="adminStaffWeeklyCalendar"></div>
                 </div>
 
+                ${data.timetable_enabled ? `
                 <!-- Timetable Tab -->
                 <div class="tab-pane fade" id="timetable-pane" role="tabpanel">
                     <div id="adminStaffTimetableContent">
@@ -660,6 +663,7 @@ document.addEventListener('DOMContentLoaded', function () {
                         </div>
                     </div>
                 </div>
+                ` : ''}
             </div>
         `;
 
@@ -667,8 +671,6 @@ document.addEventListener('DOMContentLoaded', function () {
         setTimeout(() => {
             if (staff && staff.id) {
                 initializeStaffWeeklyCalendar(staff.id);
-            } else {
-                console.warn('Staff ID not available for calendar initialization');
             }
         }, 100);
     }

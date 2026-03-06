@@ -830,6 +830,7 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% if module_enabled.get('timetable_management', False) %}
                             <li class="nav-item">
                                 <a class="nav-link active" href="{{ url_for('staff_timetable') }}">
                                     <div class="nav-icon">
@@ -838,6 +839,7 @@
                                     <span class="nav-text">My Timetable</span>
                                 </a>
                             </li>
+                            {% endif %}
                         </ul>
                     </div>
 

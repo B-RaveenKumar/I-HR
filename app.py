@@ -5098,11 +5098,6 @@ def staff_dashboard():
         ORDER BY permission_date DESC
     ''', (staff_db_id,)).fetchall()
 
-    # Get timetable module status for this school
-    school_id = session.get('school_id')
-    timetable_settings = db.execute('SELECT is_enabled FROM timetable_settings WHERE school_id = ?', (school_id,)).fetchone()
-    timetable_enabled = bool(timetable_settings['is_enabled']) if timetable_settings else False
-
     # Get module settings for navigation (staff can see limited nav based on admin settings)
     module_enabled = get_module_enabled(school_id) if school_id else {}
 
@@ -5113,8 +5108,7 @@ def staff_dashboard():
                          permission_applications=permission_applications,
                          module_enabled=module_enabled,
                          today=today,
-                         staff_info=staff_info,
-                         timetable_enabled=timetable_enabled)
+                         staff_info=staff_info)
 
 @app.route('/admin/department_shifts')
 def department_shifts():
@@ -9863,6 +9857,10 @@ def get_comprehensive_staff_profile():
         # Format attendance times to 12-hour format
         formatted_attendance = [format_attendance_times_to_12hr(dict(a)) for a in attendance]
 
+        # Get module settings for this school
+        school_id = staff_dict.get('school_id')
+        module_enabled = get_module_enabled(school_id) if school_id else {}
+
         return jsonify({
             'success': True,
             'staff': serialize_row(staff),
@@ -9876,7 +9874,8 @@ def get_comprehensive_staff_profile():
                 'year': year,
                 'month': month,
                 'month_name': datetime.date(year, month, 1).strftime('%B %Y')
-            }
+            },
+            'timetable_enabled': module_enabled.get('timetable_management', False)
         })
 
     except Exception as e:
@@ -10429,6 +10428,10 @@ def staff_profile_page():
     quota_year = today.year
     quota_summary = get_staff_quota_summary(staff_id, quota_year)
 
+    # Get module settings for this school
+    school_id = session.get('school_id')
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+
     return render_template('staff_my_profile.html',
                          staff=staff,
                          attendance_summary=attendance_summary_dict,
@@ -10439,7 +10442,8 @@ def staff_profile_page():
                          today=today,
                          current_month=today.strftime('%B %Y'),
                          quota_summary=quota_summary,
-                         quota_year=quota_year)
+                         quota_year=quota_year,
+                         module_enabled=module_enabled)
 
 @app.route('/staff/profile/async_data')
 def get_staff_profile_async_data():
