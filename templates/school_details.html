@@ -1019,6 +1019,16 @@
                             <strong>Module Control:</strong> Toggle modules on or off. When a module is disabled, it will not appear in the school admin's navigation menu.
                         </div>
                         
+                        <!-- Bulk Actions -->
+                        <div class="d-flex gap-2 mb-3">
+                            <button type="button" class="btn btn-success btn-sm" id="enableAllModules">
+                                <i class="bi bi-check-circle me-1"></i> Enable All
+                            </button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="disableAllModules">
+                                <i class="bi bi-x-circle me-1"></i> Disable All
+                            </button>
+                        </div>
+                        
                         <div class="row g-3">
                             <!-- Staff Management -->
                             <div class="col-md-6">
@@ -1418,7 +1428,103 @@
                     });
                 });
             });
+            
+            // Enable All Modules
+            document.getElementById('enableAllModules')?.addEventListener('click', function() {
+                toggleAllModules(true);
+            });
+            
+            // Disable All Modules
+            document.getElementById('disableAllModules')?.addEventListener('click', function() {
+                toggleAllModules(false);
+            });
         });
+        
+        // Function to toggle all modules
+        function toggleAllModules(enable) {
+            const toggles = document.querySelectorAll('.module-toggle');
+            const schoolId = toggles[0]?.getAttribute('data-school-id');
+            
+            if (!schoolId) {
+                alert('Unable to find school ID');
+                return;
+            }
+            
+            // Disable buttons during operation
+            const enableBtn = document.getElementById('enableAllModules');
+            const disableBtn = document.getElementById('disableAllModules');
+            enableBtn.disabled = true;
+            disableBtn.disabled = true;
+            
+            // Show loading state
+            const originalEnableText = enableBtn.innerHTML;
+            const originalDisableText = disableBtn.innerHTML;
+            if (enable) {
+                enableBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Enabling...';
+            } else {
+                disableBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span> Disabling...';
+            }
+            
+            // Collect all module names
+            const modules = Array.from(toggles).map(toggle => toggle.getAttribute('data-module'));
+            let successCount = 0;
+            let errorCount = 0;
+            
+            // Process each module
+            const promises = modules.map(moduleName => {
+                return fetch('/api/module-settings/toggle', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        school_id: parseInt(schoolId),
+                        module_name: moduleName,
+                        is_enabled: enable
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        successCount++;
+                        // Update the toggle switch
+                        const toggle = document.querySelector(`[data-module="${moduleName}"]`);
+                        if (toggle) {
+                            toggle.checked = enable;
+                            const card = toggle.closest('.module-toggle-card');
+                            const icon = card.querySelector('.module-icon');
+                            icon.style.backgroundColor = enable ? '#d4edda' : '#f8d7da';
+                            setTimeout(() => {
+                                icon.style.backgroundColor = '';
+                            }, 2000);
+                        }
+                    } else {
+                        errorCount++;
+                        console.error(`Failed to toggle ${moduleName}:`, data.error);
+                    }
+                })
+                .catch(error => {
+                    errorCount++;
+                    console.error(`Error toggling ${moduleName}:`, error);
+                });
+            });
+            
+            // Wait for all promises to complete
+            Promise.all(promises).finally(() => {
+                // Restore buttons
+                enableBtn.innerHTML = originalEnableText;
+                disableBtn.innerHTML = originalDisableText;
+                enableBtn.disabled = false;
+                disableBtn.disabled = false;
+                
+                // Show result
+                if (errorCount === 0) {
+                    alert(`✓ Successfully ${enable ? 'enabled' : 'disabled'} all ${successCount} modules`);
+                } else {
+                    alert(`Completed with ${successCount} successful and ${errorCount} failed operations. Check console for details.`);
+                }
+            });
+        }
     </script>
 
     <script>
