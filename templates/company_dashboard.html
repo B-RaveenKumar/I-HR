@@ -424,7 +424,6 @@
                                         <th><i class="bi bi-telephone me-2"></i>Contact</th>
                                         <th><i class="bi bi-person-badge me-2"></i>Admins</th>
                                         <th><i class="bi bi-people me-2"></i>Staff</th>
-                                        <th><i class="bi bi-calendar-event me-2"></i>Timetable</th>
                                         <th><i class="bi bi-gear me-2"></i>Actions</th>
                                     </tr>
                                 </thead>
@@ -472,20 +471,6 @@
                                         </td>
                                         <td>
                                             <span class="badge bg-info">{{ school.staff_count }}</span>
-                                        </td>
-                                        <td>
-                                            <div class="form-check form-switch">
-                                                <input class="form-check-input timetable-toggle" type="checkbox"
-                                                    data-school-id="{{ school.id }}" id="timetableToggle{{ school.id }}"
-                                                    {% if school.timetable_enabled %}checked{% endif %}>
-                                                <label class="form-check-label" for="timetableToggle{{ school.id }}">
-                                                    {% if school.timetable_enabled %}
-                                                    <span class="badge bg-success">ON</span>
-                                                    {% else %}
-                                                    <span class="badge bg-secondary">OFF</span>
-                                                    {% endif %}
-                                                </label>
-                                            </div>
                                         </td>
                                         <td>
                                             <div class="btn-group" role="group">
