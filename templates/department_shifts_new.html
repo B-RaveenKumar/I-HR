@@ -15,6 +15,125 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <style>
+        /* OVERRIDE: Fix sidebar positioning - Higher specificity */
+        .container-fluid {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .row {
+            margin: 0;
+            height: fit-content !important;
+            min-height: unset !important;
+            display: flex;
+            flex-wrap: nowrap;
+        }
+
+        /* FIXED SIDEBAR - Override external CSS */
+        nav.enhanced-sidebar,
+        .enhanced-sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 250px !important;
+            height: 100vh !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            z-index: 1000 !important;
+            display: block !important;
+            transform: translateX(0) !important;
+            background: #164e63 !important;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        /* MAIN CONTENT - Match sidebar width exactly */
+        main.salary-main-content,
+        .salary-main-content {
+            margin-left: 250px !important;
+            width: calc(100% - 250px) !important;
+            min-height: 100vh;
+            padding: 2rem 1rem !important;
+            overflow-x: hidden;
+        }
+
+        /* Remove Bootstrap default spacing */
+        .col-md-2,
+        .col-md-10 {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        /* MOBILE RESPONSIVE */
+        @media (max-width: 768px) {
+            nav.enhanced-sidebar,
+            .enhanced-sidebar {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                width: 280px !important;
+                height: 100vh !important;
+                overflow-y: auto !important;
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s ease !important;
+                z-index: 1050 !important;
+                display: block !important;
+            }
+
+            nav.enhanced-sidebar.show,
+            .enhanced-sidebar.show {
+                transform: translateX(0) !important;
+            }
+
+            main.salary-main-content,
+            .salary-main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1rem 0.5rem !important;
+                padding-top: 4rem !important;
+            }
+
+            .sidebar-toggle {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                position: fixed !important;
+                top: 1rem !important;
+                left: 1rem !important;
+                z-index: 1100 !important;
+                background: #164e63 !important;
+                color: white !important;
+                border: none !important;
+                border-radius: 0.5rem !important;
+                padding: 0.75rem !important;
+                font-size: 1.25rem !important;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+                transition: all 0.3s ease !important;
+                cursor: pointer !important;
+            }
+        }
+
+        /* DESKTOP - Ensure sidebar is always visible and fixed */
+        @media (min-width: 769px) {
+            nav.enhanced-sidebar,
+            .enhanced-sidebar {
+                position: fixed !important;
+                display: block !important;
+                transform: translateX(0) !important;
+                width: 250px !important;
+                height: 100vh !important;
+            }
+
+            .sidebar-toggle {
+                display: none !important;
+            }
+        }
+
+        /* Ensure proper stacking */
+        body {
+            overflow-x: hidden;
+        }
+    </style>
     <!-- PWA Meta Tags -->
     <meta name="theme-color" content="#0d6efd">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -34,7 +153,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Enhanced Sidebar -->
-            <nav class="col-md-2 d-none d-md-block enhanced-sidebar">
+            <nav class="col-md-2 enhanced-sidebar" id="enhanced-sidebar">
                 <div class="sidebar-header">
                     <div class="brand-logo">
                         <div class="logo-icon">
@@ -93,6 +212,7 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% if module_enabled.get('reports', True) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="/admin/reports">
                                     <div class="nav-icon">
@@ -102,6 +222,7 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
                         </ul>
                     </div>
                 </div>

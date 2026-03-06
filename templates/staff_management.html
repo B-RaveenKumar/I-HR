@@ -359,7 +359,7 @@
                                 </a>
                             </li>
                             {% endif %}
-                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('shift_management') %}
+                            {% if module_enabled.get('shift_management', True) and (not session.get('is_sub_admin') or session.get('permissions', {}).get('shift_management')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('shift_management') }}">
                                     <div class="nav-icon">
@@ -370,7 +370,7 @@
                                 </a>
                             </li>
                             {% endif %}
-                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('salary_management') %}
+                            {% if module_enabled.get('salary_management', True) and (not session.get('is_sub_admin') or session.get('permissions', {}).get('salary_management')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('salary_management') }}">
                                     <div class="nav-icon">
@@ -381,7 +381,7 @@
                                 </a>
                             </li>
                             {% endif %}
-                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('timetable_management') %}
+                            {% if module_enabled.get('timetable_management', True) and (not session.get('is_sub_admin') or session.get('permissions', {}).get('timetable_management')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('admin_timetable') }}">
                                     <div class="nav-icon">
@@ -392,7 +392,7 @@
                                 </a>
                             </li>
                             {% endif %}
-                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('biometric_devices') %}
+                            {% if module_enabled.get('biometric_devices', True) and (not session.get('is_sub_admin') or session.get('permissions', {}).get('biometric_devices')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('biometric_devices_page') }}">
                                     <div class="nav-icon">
@@ -403,7 +403,7 @@
                                 </a>
                             </li>
                             {% endif %}
-                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('reports') %}
+                            {% if module_enabled.get('reports', True) and (not session.get('is_sub_admin') or session.get('permissions', {}).get('reports')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('admin_reports') }}">
                                     <div class="nav-icon">
@@ -680,6 +680,7 @@
                     </div>
                 </div>
 
+                {% if module_enabled.get('department_shift_assignments', True) %}
                 <!-- Department Shift Management Section -->
                 <div class="salary-results-card mt-4" id="departmentShiftsCard">
                     <div class="card-header">
@@ -850,6 +851,7 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
     <!-- Add Staff Modal -->
     <div class="modal fade" id="addStaffModal" tabindex="-1" aria-labelledby="addStaffModalLabel" aria-hidden="true">
