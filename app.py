@@ -5016,11 +5016,13 @@ def process_leave_with_notifications():
 
 @app.route('/staff/dashboard')
 def staff_dashboard():
+    """Staff dashboard with module-based navigation"""
     if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return redirect(url_for('index'))
 
     db = get_db()
     staff_db_id = session['user_id']
+    school_id = session.get('school_id')  # Get school_id from session
 
     # Get staff information including scheduled shift changes
     staff_info = db.execute('''
