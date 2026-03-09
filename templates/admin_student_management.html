@@ -107,6 +107,100 @@
                 display: none !important;
             }
         }
+
+        /* Modern Compact Stat Cards */
+        .stats-row {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .stat-card {
+            flex: 1;
+            min-width: 200px;
+            background: white;
+            border-radius: 12px;
+            padding: 1rem 1.25rem;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: all 0.3s ease;
+            border-left: 4px solid;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+        }
+
+        .stat-card.stat-primary {
+            border-left-color: #3b82f6;
+        }
+
+        .stat-card.stat-success {
+            border-left-color: #10b981;
+        }
+
+        .stat-card.stat-info {
+            border-left-color: #06b6d4;
+        }
+
+        .stat-icon {
+            width: 48px;
+            height: 48px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .stat-card.stat-primary .stat-icon {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+        }
+
+        .stat-card.stat-success .stat-icon {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+        }
+
+        .stat-card.stat-info .stat-icon {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            color: white;
+        }
+
+        .stat-content {
+            flex: 1;
+        }
+
+        .stat-value {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #1e293b;
+            margin: 0;
+            line-height: 1;
+        }
+
+        .stat-label {
+            font-size: 0.875rem;
+            color: #64748b;
+            margin: 0.25rem 0 0 0;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .stats-row {
+                flex-direction: column;
+            }
+            
+            .stat-card {
+                min-width: 100%;
+            }
+        }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
     <!-- PWA Meta Tags -->
@@ -339,44 +433,32 @@
                 </div>
 
                 <!-- Statistics Cards -->
-                <div class="row g-3 mb-4">
-                    <div class="col-lg-4 col-md-6">
-                        <div class="stat-card bg-primary text-white">
-                            <div class="stat-card-body">
-                                <div class="stat-icon">
-                                    <i class="bi bi-people-fill"></i>
-                                </div>
-                                <div class="stat-content">
-                                    <h3 class="stat-value">{{ total_students }}</h3>
-                                    <p class="stat-label">Total Students</p>
-                                </div>
-                            </div>
+                <div class="stats-row">
+                    <div class="stat-card stat-primary">
+                        <div class="stat-icon">
+                            <i class="bi bi-people-fill"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-value">{{ total_students }}</h3>
+                            <p class="stat-label">Total Students</p>
                         </div>
                     </div>
-                    <div class="col-lg-4 col-md-6">
-                        <div class="stat-card bg-success text-white">
-                            <div class="stat-card-body">
-                                <div class="stat-icon">
-                                    <i class="bi bi-person-plus-fill"></i>
-                                </div>
-                                <div class="stat-content">
-                                    <h3 class="stat-value">{{ students_this_month }}</h3>
-                                    <p class="stat-label">Added This Month</p>
-                                </div>
-                            </div>
+                    <div class="stat-card stat-success">
+                        <div class="stat-icon">
+                            <i class="bi bi-person-plus-fill"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-value">{{ students_this_month }}</h3>
+                            <p class="stat-label">Added This Month</p>
                         </div>
                     </div>
-                    <div class="col-lg-4 col-md-6">
-                        <div class="stat-card bg-info text-white">
-                            <div class="stat-card-body">
-                                <div class="stat-icon">
-                                    <i class="bi bi-building"></i>
-                                </div>
-                                <div class="stat-content">
-                                    <h3 class="stat-value">{{ total_classes }}</h3>
-                                    <p class="stat-label">Total Classes</p>
-                                </div>
-                            </div>
+                    <div class="stat-card stat-info">
+                        <div class="stat-icon">
+                            <i class="bi bi-building"></i>
+                        </div>
+                        <div class="stat-content">
+                            <h3 class="stat-value">{{ total_classes }}</h3>
+                            <p class="stat-label">Total Classes</p>
                         </div>
                     </div>
                 </div>
