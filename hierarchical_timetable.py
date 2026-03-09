@@ -314,6 +314,73 @@ class HierarchicalTimetableManager:
         except Exception as e:
             logger.error(f"Error deleting section: {e}")
             return {'success': False, 'error': str(e)}
+    
+    @staticmethod
+    def update_section(school_id, section_id, section_name=None, capacity=None):
+        """Update an existing section"""
+        try:
+            db = get_db()
+            cursor = db.cursor()
+            
+            # Verify section belongs to school
+            cursor.execute('''
+                SELECT level_id, section_name FROM timetable_sections 
+                WHERE id = ? AND school_id = ? AND is_active = 1
+            ''', (section_id, school_id))
+            
+            section = cursor.fetchone()
+            if not section:
+                return {'success': False, 'error': 'Section not found'}
+            
+            level_id = section[0]
+            old_name = section[1]
+            
+            # Build update query dynamically based on provided fields
+            update_fields = []
+            params = []
+            
+            if section_name is not None and section_name != old_name:
+                section_code = str(section_name).strip().upper().replace(" ", "_")
+                if not section_code:
+                    return {'success': False, 'error': 'Invalid section name'}
+                
+                # Check for duplicate section name in same level
+                cursor.execute('''
+                    SELECT id FROM timetable_sections 
+                    WHERE school_id = ? AND level_id = ? AND section_code = ? AND is_active = 1 AND id != ?
+                ''', (school_id, level_id, section_code, section_id))
+                
+                if cursor.fetchone():
+                    return {'success': False, 'error': f'Section "{section_name}" already exists for this grade.'}
+                
+                update_fields.append('section_name = ?')
+                params.append(section_name)
+                update_fields.append('section_code = ?')
+                params.append(section_code)
+            
+            if capacity is not None:
+                update_fields.append('capacity = ?')
+                params.append(capacity)
+            
+            if not update_fields:
+                return {'success': False, 'error': 'No fields to update'}
+            
+            # Add WHERE clause params
+            params.extend([section_id, school_id])
+            
+            query = f'''UPDATE timetable_sections 
+                       SET {', '.join(update_fields)} 
+                       WHERE id = ? AND school_id = ?'''
+            
+            cursor.execute(query, params)
+            db.commit()
+            
+            logger.info(f"✅ Section {section_id} updated (School {school_id})")
+            return {'success': True, 'message': 'Section updated successfully'}
+        
+        except Exception as e:
+            logger.error(f"❌ Error updating section: {e}")
+            return {'success': False, 'error': f"Database error: {str(e)}"}
 
     # ==================== CONFLICT DETECTION ====================
     

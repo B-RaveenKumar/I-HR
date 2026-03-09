@@ -171,6 +171,26 @@ def delete_section(section_id):
         logger.error(f"Error deleting section: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@hierarchical_bp.route('/sections/<int:section_id>', methods=['PUT'])
+@check_admin_auth
+def update_section(section_id):
+    """Update a section"""
+    try:
+        school_id = session.get('school_id')
+        data = request.json or {}
+        
+        section_name = data.get('section_name')
+        capacity = data.get('capacity')
+        
+        result = HierarchicalTimetableManager.update_section(
+            school_id, section_id, section_name, capacity
+        )
+        return jsonify(result), 200 if result['success'] else 400
+    
+    except Exception as e:
+        logger.error(f"Error updating section: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # ==================== AVAILABILITY & CONFLICT CHECK ====================
 
 @hierarchical_bp.route('/check-staff-availability', methods=['POST'])

@@ -404,6 +404,9 @@ function renderSectionsTable(levelId = null) {
                 <td style="padding: 0.75rem 1rem; font-weight: 600;">${s.section_name}</td>
                 <td style="padding: 0.75rem 1rem;">${s.capacity} Students</td>
                 <td style="padding: 0.75rem 1rem; text-align: center;">
+                    <button class="btn btn-sm text-primary hover-grow" onclick="editSection(${s.id})" title="Edit Section">
+                        <i class="bi bi-pencil"></i>
+                    </button>
                     <button class="btn btn-sm text-danger hover-grow" onclick="deleteSection(${s.id})" title="Delete Section">
                         <i class="bi bi-trash"></i>
                     </button>
@@ -464,6 +467,15 @@ function showAddSectionModal() {
     const form = document.getElementById('sectionForm');
     if (form) form.reset();
 
+    // Set modal to "Add" mode
+    document.querySelector('#sectionModal .modal-title').textContent = 'Add New Section';
+    document.querySelector('#sectionModal .btn-primary').textContent = 'Create Section';
+    document.querySelector('#sectionModal .btn-primary').setAttribute('onclick', 'saveSection()');
+    
+    // Remove hidden ID field if it exists
+    const hiddenId = document.getElementById('sectionEditId');
+    if (hiddenId) hiddenId.remove();
+
     // Auto-populate level if one is selected on the left
     if (currentLevelFilter) {
         const levelSelect = document.getElementById('sectionLevelId');
@@ -509,6 +521,76 @@ function saveSection() {
                 loadAllSections();
             } else {
                 showAlert(data.error || 'Failed to create section', 'error');
+            }
+        });
+}
+
+function editSection(sectionId) {
+    const section = allSections.find(s => s.id === sectionId);
+    if (!section) {
+        showAlert('Section not found', 'error');
+        return;
+    }
+
+    // Populate form with section data
+    document.getElementById('sectionLevelId').value = section.level_id;
+    document.getElementById('sectionName').value = section.section_name;
+    document.getElementById('sectionCapacity').value = section.capacity;
+
+    // Add hidden input for section ID
+    let hiddenId = document.getElementById('sectionEditId');
+    if (!hiddenId) {
+        hiddenId = document.createElement('input');
+        hiddenId.type = 'hidden';
+        hiddenId.id = 'sectionEditId';
+        document.getElementById('sectionForm').appendChild(hiddenId);
+    }
+    hiddenId.value = sectionId;
+
+    // Set modal to "Edit" mode
+    document.querySelector('#sectionModal .modal-title').textContent = 'Edit Section';
+    document.querySelector('#sectionModal .btn-primary').textContent = 'Update Section';
+    document.querySelector('#sectionModal .btn-primary').setAttribute('onclick', 'updateSection()');
+
+    // Show modal
+    const modalEl = document.getElementById('sectionModal');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    modal.show();
+}
+
+function updateSection() {
+    const sectionId = document.getElementById('sectionEditId').value;
+    const sectionName = document.getElementById('sectionName').value;
+    const capacity = document.getElementById('sectionCapacity').value;
+
+    if (!sectionName) {
+        showAlert('Please enter a section name', 'error');
+        return;
+    }
+
+    fetch(`/api/hierarchical-timetable/sections/${sectionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify({
+            section_name: sectionName,
+            capacity: parseInt(capacity)
+        })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert('Section updated successfully', 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('sectionModal'));
+                if (modal) modal.hide();
+                loadAllSections();
+            } else {
+                showAlert(data.error || 'Failed to update section', 'error');
             }
         });
 }
