@@ -326,6 +326,102 @@
             gap: 5px;
         }
 
+        /* Timetable Controls */
+        .timetable-controls {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .view-toggle {
+            display: flex;
+            gap: 5px;
+            background: var(--bg-primary);
+            padding: 4px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .toggle-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 15px;
+            background: transparent;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            transition: all 0.3s ease;
+        }
+
+        .toggle-btn i {
+            font-size: 16px;
+        }
+
+        .toggle-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+
+        .toggle-btn.active {
+            background: var(--accent-color);
+            color: white;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .day-navigation {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 5px 12px;
+            background: var(--bg-primary);
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+        }
+
+        .nav-btn {
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            padding: 6px 10px;
+            border-radius: 6px;
+            color: var(--accent-color);
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            transition: all 0.2s ease;
+        }
+
+        .nav-btn:hover {
+            background: var(--bg-hover);
+        }
+
+        .nav-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .current-day-label {
+            font-weight: 600;
+            font-size: 14px;
+            color: var(--text-primary);
+            min-width: 90px;
+            text-align: center;
+        }
+
+        /* Day view specific styles */
+        .timetable.day-view {
+            min-width: auto;
+        }
+
+        .timetable.day-view th:not(.time-col),
+        .timetable.day-view td:not(.time-col) {
+            min-width: 300px;
+        }
+
         .period-break {
             background: #fff3cd !important;
             color: #856404;
@@ -508,7 +604,28 @@
             <div class="card-header">
                 <div class="card-title">
                     <i class="bi bi-calendar-week"></i>
-                    Weekly Schedule
+                    <span id="scheduleTitle">Weekly Schedule</span>
+                </div>
+                <div class="timetable-controls">
+                    <!-- Day Navigation (Hidden by default) -->
+                    <div id="dayNavigation" class="day-navigation" style="display: none;">
+                        <button id="prevDay" class="nav-btn" title="Previous Day">
+                            <i class="bi bi-chevron-left"></i>
+                        </button>
+                        <span id="currentDayLabel" class="current-day-label">Monday</span>
+                        <button id="nextDay" class="nav-btn" title="Next Day">
+                            <i class="bi bi-chevron-right"></i>
+                        </button>
+                    </div>
+                    <!-- View Toggle -->
+                    <div class="view-toggle">
+                        <button id="weekViewBtn" class="toggle-btn active" data-view="week">
+                            <i class="bi bi-calendar-week"></i> Week
+                        </button>
+                        <button id="dayViewBtn" class="toggle-btn" data-view="day">
+                            <i class="bi bi-calendar-day"></i> Day
+                        </button>
+                    </div>
                 </div>
             </div>
             
@@ -602,6 +719,121 @@
                 document.querySelector('.sidebar').classList.toggle('active');
             });
         }
+
+        // Timetable View Toggle & Day Navigation
+        (function() {
+            const weekViewBtn = document.getElementById('weekViewBtn');
+            const dayViewBtn = document.getElementById('dayViewBtn');
+            const dayNavigation = document.getElementById('dayNavigation');
+            const timetableTable = document.querySelector('.timetable');
+            const scheduleTitle = document.getElementById('scheduleTitle');
+            const prevDayBtn = document.getElementById('prevDay');
+            const nextDayBtn = document.getElementById('nextDay');
+            const currentDayLabel = document.getElementById('currentDayLabel');
+            
+            if (!timetableTable) return; // Exit if no timetable
+            
+            const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+            let currentDayIndex = 0;
+            
+            // Load saved preference
+            const savedView = localStorage.getItem('timetableView') || 'week';
+            const savedDay = parseInt(localStorage.getItem('timetableDay')) || 0;
+            currentDayIndex = savedDay;
+            
+            // Initialize view
+            if (savedView === 'day') {
+                switchToDayView();
+            }
+            
+            // View toggle handlers
+            weekViewBtn.addEventListener('click', function() {
+                switchToWeekView();
+            });
+            
+            dayViewBtn.addEventListener('click', function() {
+                switchToDayView();
+            });
+            
+            // Day navigation handlers
+            prevDayBtn.addEventListener('click', function() {
+                if (currentDayIndex > 0) {
+                    currentDayIndex--;
+                    updateDayView();
+                }
+            });
+            
+            nextDayBtn.addEventListener('click', function() {
+                if (currentDayIndex < 5) {
+                    currentDayIndex++;
+                    updateDayView();
+                }
+            });
+            
+            function switchToWeekView() {
+                weekViewBtn.classList.add('active');
+                dayViewBtn.classList.remove('active');
+                dayNavigation.style.display = 'none';
+                timetableTable.classList.remove('day-view');
+                scheduleTitle.textContent = 'Weekly Schedule';
+                
+                // Show all day columns
+                const thead = timetableTable.querySelector('thead tr');
+                const dayHeaders = thead.querySelectorAll('th:not(.time-col)');
+                dayHeaders.forEach(header => header.style.display = '');
+                
+                const tbody = timetableTable.querySelector('tbody');
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const dayCells = row.querySelectorAll('td:not(.time-col)');
+                    dayCells.forEach(cell => cell.style.display = '');
+                });
+                
+                // Save preference
+                localStorage.setItem('timetableView', 'week');
+            }
+            
+            function switchToDayView() {
+                weekViewBtn.classList.remove('active');
+                dayViewBtn.classList.add('active');
+                dayNavigation.style.display = 'flex';
+                timetableTable.classList.add('day-view');
+                
+                updateDayView();
+                
+                // Save preference
+                localStorage.setItem('timetableView', 'day');
+            }
+            
+            function updateDayView() {
+                const dayName = dayNames[currentDayIndex];
+                scheduleTitle.textContent = dayName + ' Schedule';
+                currentDayLabel.textContent = dayName;
+                
+                // Update navigation buttons
+                prevDayBtn.disabled = currentDayIndex === 0;
+                nextDayBtn.disabled = currentDayIndex === 5;
+                
+                // Show only selected day column
+                const thead = timetableTable.querySelector('thead tr');
+                const dayHeaders = thead.querySelectorAll('th:not(.time-col)');
+                dayHeaders.forEach((header, index) => {
+                    header.style.display = index === currentDayIndex ? '' : 'none';
+                });
+                
+                const tbody = timetableTable.querySelector('tbody');
+                const rows = tbody.querySelectorAll('tr');
+                rows.forEach(row => {
+                    const dayCells = row.querySelectorAll('td:not(.time-col)');
+                    dayCells.forEach((cell, index) => {
+                        cell.style.display = index === currentDayIndex ? '' : 'none';
+                    });
+                });
+                
+                // Save current day
+                localStorage.setItem('timetableDay', currentDayIndex.toString());
+            }
+        })();
     </script>
 </body>
 </html>
