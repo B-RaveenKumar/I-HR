@@ -789,11 +789,22 @@ def index():
     # First check if the column exists
     columns = db.execute("PRAGMA table_info(schools)").fetchall()
     has_is_hidden = any(col['name'] == 'is_hidden' for col in columns)
+    has_logo_url = any(col['name'] == 'logo_url' for col in columns)
+    has_student_mgmt = any(col['name'] == 'student_management_enabled' for col in columns)
+
+    # Build the SELECT clause dynamically
+    select_fields = ['id', 'name']
+    if has_logo_url:
+        select_fields.append('logo_url')
+    if has_student_mgmt:
+        select_fields.append('student_management_enabled')
+    
+    select_clause = ', '.join(select_fields)
 
     if has_is_hidden:
-        schools = db.execute('SELECT id, name FROM schools WHERE is_hidden = 0 OR is_hidden IS NULL ORDER BY name').fetchall()
+        schools = db.execute(f'SELECT {select_clause} FROM schools WHERE is_hidden = 0 OR is_hidden IS NULL ORDER BY name').fetchall()
     else:
-        schools = db.execute('SELECT id, name FROM schools ORDER BY name').fetchall()
+        schools = db.execute(f'SELECT {select_clause} FROM schools ORDER BY name').fetchall()
 
     return render_template('index.html', schools=schools)
 

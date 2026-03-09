@@ -109,7 +109,7 @@
                         <img src="{{ url_for('static', filename='images/applogo.png') }}" alt="Logo"
                             class="mb-3 logo-height" id="schoolLogo">
                         <h4 class="mb-3">Welcome to the Vishnorex Portal</h4>
-                        <p class="text-muted mb-4"><small><i class="bi bi-info-circle"></i> Staff & Students can login here</small></p>
+                        <p class="text-muted mb-4"><small><i class="bi bi-info-circle"></i> <span id="loginInfoText">Staff<span id="studentText"> & Students</span> can login here</span></small></p>
                         <form id="schoolLoginForm">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <div class="mb-4">
@@ -119,7 +119,8 @@
                                     {% if schools %}
                                     {% for school in schools %}
                                     <option value="{{ school.id }}"
-                                        data-logo="{{ url_for('static', filename=school.logo_url) if school.logo_url else '' }}">
+                                        data-logo="{{ url_for('static', filename=school.logo_url) if school.logo_url else '' }}"
+                                        data-student-enabled="{{ school.student_management_enabled if school.student_management_enabled is defined else 1 }}">
                                         {{ school.name }}
                                     </option>
                                     {% endfor %}
@@ -244,12 +245,35 @@
             schoolSelect.addEventListener('change', function () {
                 const selectedOption = this.options[this.selectedIndex];
                 const logoUrl = selectedOption.dataset.logo;
+                const studentEnabled = selectedOption.dataset.studentEnabled === '1';
                 const logoElement = document.getElementById('schoolLogo');
+                const studentText = document.getElementById('studentText');
+                const usernameInput = document.getElementById('username');
+                const usernameHelp = usernameInput.nextElementSibling;
 
                 console.log(`🎯 Institution selected: ${selectedOption.text}`);
+                console.log(`📚 Student Management: ${studentEnabled ? 'Enabled' : 'Disabled'}`);
 
                 // Show login fields only if a school is selected
                 loginFields.classList.toggle('d-none', !this.value);
+
+                // Show/hide student-related text based on module status
+                if (studentText) {
+                    studentText.style.display = studentEnabled ? 'inline' : 'none';
+                }
+
+                // Update username placeholder and help text
+                if (studentEnabled) {
+                    usernameInput.placeholder = 'Staff ID or Student ID';
+                    if (usernameHelp) {
+                        usernameHelp.textContent = 'Staff: Use your Staff ID | Students: Use your Student ID';
+                    }
+                } else {
+                    usernameInput.placeholder = 'Staff ID';
+                    if (usernameHelp) {
+                        usernameHelp.textContent = 'Use your Staff ID to login';
+                    }
+                }
 
                 // Update logo based on selected school
                 if (logoUrl) {
