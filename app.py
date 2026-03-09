@@ -16428,12 +16428,86 @@ def student_timetable():
     school = db.execute('SELECT name FROM schools WHERE id = ?', 
                        (student['school_id'],)).fetchone()
     
-    # Get timetable data (placeholder for now - can be extended later)
-    # You can add actual timetable tables later for class schedule
+    # Get timetable periods for student's class and section
+    school_id = student['school_id']
+    student_class = student['class']
+    student_section = student['section']
+    
+    # Query timetable_periods table for periods configured for this class/section
+    cursor = db.cursor()
+    
+    # Get academic level and section IDs
+    level_id = None
+    section_id = None
+    
+    # Try to get level_id from timetable_academic_levels
+    level_row = cursor.execute('''
+        SELECT id FROM timetable_academic_levels 
+        WHERE school_id = ? AND level_name = ? AND is_active = 1
+    ''', (school_id, student_class)).fetchone()
+    
+    if level_row:
+        level_id = level_row['id']
+        
+        # Get section_id from timetable_sections
+        section_row = cursor.execute('''
+            SELECT id FROM timetable_sections 
+            WHERE school_id = ? AND level_id = ? AND section_name = ? AND is_active = 1
+        ''', (school_id, level_id, student_section)).fetchone()
+        
+        if section_row:
+            section_id = section_row['id']
+    
+    # Fetch all periods configured for this class/section or school-wide
+    periods = cursor.execute('''
+        SELECT DISTINCT period_number, period_name, start_time, end_time, duration_minutes
+        FROM timetable_periods
+        WHERE school_id = ? 
+            AND (level_id IS NULL OR level_id = ?)
+            AND (section_id IS NULL OR section_id = ?)
+            AND is_active = 1
+        ORDER BY period_number
+    ''', (school_id, level_id, section_id)).fetchall()
+    
+    # Fetch timetable assignments for this class/section (only show if staff is actually assigned)
+    timetable_assignments = []
+    if level_id and section_id:
+        timetable_assignments = cursor.execute('''
+            SELECT ha.day_of_week, ha.period_number, ha.subject_name, 
+                   ha.room_number, s.full_name as teacher_name,
+                   tp.start_time, tp.end_time, tp.period_name, ha.staff_id
+            FROM timetable_hierarchical_assignments ha
+            LEFT JOIN staff s ON ha.staff_id = s.id
+            LEFT JOIN timetable_periods tp 
+                ON ha.school_id = tp.school_id 
+                AND ha.period_number = tp.period_number
+                AND (tp.level_id IS NULL OR tp.level_id = ?)
+                AND (tp.section_id IS NULL OR tp.section_id = ?)
+            WHERE ha.school_id = ? 
+                AND ha.level_id = ?
+                AND ha.section_id = ?
+                AND ha.staff_id IS NOT NULL
+            ORDER BY ha.day_of_week, ha.period_number
+        ''', (level_id, section_id, school_id, level_id, section_id)).fetchall()
+    
+    # Convert to list of dicts for easier template access
+    periods_list = [dict(row) for row in periods]
+    assignments_list = [dict(row) for row in timetable_assignments]
+    
+    # Build timetable grid structure (day_of_week -> period_number -> assignment)
+    timetable_grid = {}
+    for assignment in assignments_list:
+        day = assignment['day_of_week']
+        period = assignment['period_number']
+        if day not in timetable_grid:
+            timetable_grid[day] = {}
+        timetable_grid[day][period] = assignment
     
     return render_template('student/student_timetable.html',
                          student=student,
-                         school_name=school['name'] if school else 'N/A')
+                         school_name=school['name'] if school else 'N/A',
+                         periods=periods_list,
+                         timetable_grid=timetable_grid)
 
 
 @app.route('/student/update-theme', methods=['POST'])

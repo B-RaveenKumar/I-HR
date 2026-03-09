@@ -280,6 +280,7 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             border: 1px solid var(--border-color);
+            min-width: 150px;
         }
 
         .timetable td {
@@ -289,8 +290,20 @@
             vertical-align: middle;
         }
 
+        .timetable td.time-col {
+            background: var(--bg-secondary);
+            font-weight: 600;
+            color: var(--text-primary);
+            text-align: center;
+            min-width: 150px;
+        }
+
         .timetable tbody tr:hover {
             background: var(--bg-primary);
+        }
+
+        .timetable tbody tr:hover td.time-col {
+            background: var(--bg-secondary);
         }
 
         .period-cell {
@@ -499,20 +512,13 @@
                 </div>
             </div>
             
-            <div class="empty-state">
-                <i class="bi bi-calendar2-week"></i>
-                <h3>Timetable not available</h3>
-                <p>Your class timetable will be displayed here once it's configured by the school.</p>
-                <p style="margin-top: 10px;"><small>Please check back later or contact your class teacher for the schedule.</small></p>
-            </div>
-
-            <!-- Example timetable (uncomment when you have data) -->
-            <!--
+            {% if periods and periods|length > 0 %}
+            <!-- Timetable Display -->
             <div class="timetable-container">
                 <table class="timetable">
                     <thead>
                         <tr>
-                            <th class="time-col">Time</th>
+                            <th class="time-col">Period / Time</th>
                             <th>Monday</th>
                             <th>Tuesday</th>
                             <th>Wednesday</th>
@@ -522,141 +528,62 @@
                         </tr>
                     </thead>
                     <tbody>
+                        {% for period in periods %}
                         <tr>
-                            <td class="time-col"><strong>8:00 - 8:45</strong></td>
-                            <td class="period-cell">
-                                <div class="subject-name">Mathematics</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mr. Sharma</div>
+                            <td class="time-col">
+                                <div style="font-size: 14px; font-weight: 700; margin-bottom: 4px;">Period {{ period.period_number }}</div>
+                                {% if period.start_time and period.end_time %}
+                                <div style="font-size: 11px; margin-top: 4px; color: var(--text-secondary);">{{ period.start_time }} - {{ period.end_time }}</div>
+                                {% endif %}
                             </td>
+                            
+                            {% for day in [1, 2, 3, 4, 5, 6] %}
                             <td class="period-cell">
-                                <div class="subject-name">English</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Ms. Kumar</div>
+                                {% if timetable_grid.get(day, {}).get(period.period_number) %}
+                                    {% set assignment = timetable_grid[day][period.period_number] %}
+                                    <div class="subject-name">{{ period.period_name or assignment.subject_name or 'Subject' }}</div>
+                                    {% if assignment.teacher_name and assignment.teacher_name.strip() %}
+                                    <div class="teacher-name">
+                                        <i class="bi bi-person"></i> {{ assignment.teacher_name }}
+                                    </div>
+                                    {% endif %}
+                                    {% if assignment.room_number %}
+                                    <div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
+                                        <i class="bi bi-door-closed"></i> Room {{ assignment.room_number }}
+                                    </div>
+                                    {% endif %}
+                                {% else %}
+                                    <div style="color: #ccc;">—</div>
+                                {% endif %}
                             </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Science</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Dr. Patel</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Hindi</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mrs. Verma</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Social Studies</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mr. Singh</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Computer</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Ms. Reddy</div>
-                            </td>
+                            {% endfor %}
                         </tr>
-                        <tr>
-                            <td class="time-col"><strong>8:45 - 9:30</strong></td>
-                            <td class="period-cell">
-                                <div class="subject-name">Science</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Dr. Patel</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Mathematics</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mr. Sharma</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">English</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Ms. Kumar</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Physical Ed.</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Coach Rao</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Mathematics</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mr. Sharma</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Art & Craft</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Ms. Desai</div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="time-col"><strong>9:30 - 9:45</strong></td>
-                            <td colspan="6" class="period-break"><i class="bi bi-cup-hot"></i> Short Break</td>
-                        </tr>
-                        <tr>
-                            <td class="time-col"><strong>9:45 - 10:30</strong></td>
-                            <td class="period-cell">
-                                <div class="subject-name">English</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Ms. Kumar</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Hindi</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mrs. Verma</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Mathematics</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mr. Sharma</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Science</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Dr. Patel</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">English</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Ms. Kumar</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Library</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Librarian</div>
-                            </td>
-                        </tr>
-                        <tr>
-                            <td class="time-col"><strong>10:30 - 11:00</strong></td>
-                            <td colspan="6" class="period-lunch"><i class="bi bi-cup-straw"></i> Lunch Break</td>
-                        </tr>
-                        <tr>
-                            <td class="time-col"><strong>11:00 - 11:45</strong></td>
-                            <td class="period-cell">
-                                <div class="subject-name">Social Studies</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mr. Singh</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Science</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Dr. Patel</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Hindi</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mrs. Verma</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Computer</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Ms. Reddy</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Science Lab</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Dr. Patel</div>
-                            </td>
-                            <td class="period-cell">
-                                <div class="subject-name">Music</div>
-                                <div class="teacher-name"><i class="bi bi-person"></i> Mr. Iyer</div>
-                            </td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
 
-            <div class="legend">
-                <div class="legend-item">
-                    <div class="legend-box" style="background: var(--accent-color);"></div>
-                    <span>Regular Class</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-box" style="background: #fff3cd;"></div>
-                    <span>Break Time</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-box" style="background: #d1e7dd;"></div>
-                    <span>Lunch Break</span>
+            <div style="margin-top: 20px; padding: 15px; background: var(--bg-primary); border-radius: 8px;">
+                <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center; font-size: 13px;">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 20px; height: 20px; background: var(--accent-color); border-radius: 4px;"></div>
+                        <span>Scheduled Class</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <div style="width: 20px; height: 20px; background: #ccc; border-radius: 4px;"></div>
+                        <span>Free Period</span>
+                    </div>
                 </div>
             </div>
-            -->
+            {% else %}
+            <!-- Empty State -->
+            <div class="empty-state">
+                <i class="bi bi-calendar2-week"></i>
+                <h3>Timetable not available</h3>
+                <p>Your class timetable will be displayed here once it's configured by the school.</p>
+                <p style="margin-top: 10px;"><small>Please check back later or contact your class teacher for the schedule.</small></p>
+            </div>
+            {% endif %}
         </div>
     </div>
 
