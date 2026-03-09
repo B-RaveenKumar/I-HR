@@ -200,6 +200,7 @@
                             </li>
                             {% endif %}
 
+                            {% if module_enabled.get('student_management', True) and (not session.get('is_sub_admin') or perms.get('student_management', {}).get('view')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('admin_student_management') }}">
                                     <div class="nav-icon">
@@ -208,6 +209,7 @@
                                     <span class="nav-text">Student Management</span>
                                 </a>
                             </li>
+                            {% endif %}
 
                             {% if module_enabled.get('shift_management', True) and (not session.get('is_sub_admin') or perms.get('shift_management', {}).get('view')) %}
                             <li class="nav-item">

@@ -224,6 +224,7 @@
                                 </a>
                             </li>
 
+                            {% if module_enabled.get('student_management', True) and (not session.get('is_sub_admin') or session.get('permissions', {}).get('student_management')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('admin_student_management') }}">
                                     <div class="nav-icon">
@@ -233,6 +234,7 @@
                                     <div class="nav-indicator"></div>
                                 </a>
                             </li>
+                            {% endif %}
 
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('salary_management') }}">

@@ -102,6 +102,7 @@
                             <span class="nav-text">Staff Management</span>
                         </a>
                     </li>
+                    {% if module_enabled.get('student_management', True) %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'admin_student_management' %}active{% endif %}" 
                            href="{{ url_for('admin_student_management') }}" 
@@ -111,6 +112,7 @@
                             <span class="nav-text">Student Management</span>
                         </a>
                     </li>
+                    {% endif %}
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'salary_management' %}active{% endif %}" 
                            href="{{ url_for('salary_management') }}" 

@@ -1239,6 +1239,27 @@
                                     </div>
                                 </div>
                             </div>
+                            
+                            <!-- Student Management -->
+                            <div class="col-md-6">
+                                <div class="module-toggle-card">
+                                    <div class="module-info">
+                                        <div class="module-icon">
+                                            <i class="bi bi-mortarboard"></i>
+                                        </div>
+                                        <div>
+                                            <h6 class="mb-1">Student Management</h6>
+                                            <small class="text-muted">Manage student profiles, attendance, and records</small>
+                                        </div>
+                                    </div>
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input module-toggle" type="checkbox" 
+                                               data-module="student_management" 
+                                               data-school-id="{{ school.id }}"
+                                               {{ 'checked' if module_settings.student_management else '' }}>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                         
                         <div class="alert alert-warning mt-4 mb-0">

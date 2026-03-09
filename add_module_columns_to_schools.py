@@ -55,7 +55,8 @@ def add_module_columns():
         'department_shift_assignments_enabled',
         'holiday_management_enabled',
         'quota_management_enabled',
-        'sub_admin_management_enabled'
+        'sub_admin_management_enabled',
+        'student_management_enabled'
     ]
     
     # Add each column (TINYINT for MySQL, INTEGER for SQLite, DEFAULT 1 = enabled)

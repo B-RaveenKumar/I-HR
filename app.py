@@ -87,6 +87,7 @@ def get_module_enabled(school_id):
         'holiday_management': bool(get_setting_value(school_settings, 'holiday_management_enabled')),
         'quota_management': bool(get_setting_value(school_settings, 'quota_management_enabled')),
         'sub_admin_management': bool(get_setting_value(school_settings, 'sub_admin_management_enabled')),
+        'student_management': bool(get_setting_value(school_settings, 'student_management_enabled')),
     }
 
 # Add custom Jinja2 filters
@@ -1043,6 +1044,7 @@ def school_details(school_id):
         'holiday_management': get_column_value(school, 'holiday_management_enabled'),
         'quota_management': get_column_value(school, 'quota_management_enabled'),
         'sub_admin_management': get_column_value(school, 'sub_admin_management_enabled'),
+        'student_management': get_column_value(school, 'student_management_enabled'),
     }
 
     return render_template('school_details.html',
@@ -5392,6 +5394,7 @@ def toggle_module_settings():
             'holiday_management': 'holiday_management_enabled',
             'quota_management': 'quota_management_enabled',
             'sub_admin_management': 'sub_admin_management_enabled',
+            'student_management': 'student_management_enabled',
         }
         
         column_name = module_column_map.get(module_name)
@@ -5836,6 +5839,12 @@ def admin_student_management():
     
     db = get_db()
     school_id = session['school_id']
+    
+    # Check if student management module is enabled
+    module_enabled = get_module_enabled(school_id)
+    if not module_enabled.get('student_management', True):
+        flash('Student Management module is disabled for this school.', 'warning')
+        return redirect(url_for('admin_dashboard'))
     
     if request.method == 'POST':
         action = request.form.get('action')
