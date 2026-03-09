@@ -6009,20 +6009,44 @@ def admin_student_management():
         WHERE school_id = ? AND strftime('%Y-%m', created_at) = ?
     ''', (school_id, current_month)).fetchone()['count']
     
-    # Total classes - count distinct class-section combinations
-    class_sections = set()
-    unique_classes = set()
-    unique_sections = set()
-    for student in students:
-        if student['class'] and student['section']:
-            class_sections.add(f"{student['class']}-{student['section']}")
-            unique_classes.add(student['class'])
-            unique_sections.add(student['section'])
-    total_classes = len(class_sections)
+    # Fetch classes and sections from timetable academic hierarchy
+    # Get active academic levels (grades/classes)
+    academic_levels = db.execute('''
+        SELECT id, level_name, level_number 
+        FROM timetable_academic_levels 
+        WHERE school_id = ? AND is_active = 1 
+        ORDER BY level_number ASC
+    ''', (school_id,)).fetchall()
     
-    # Sort classes and sections for dropdown
-    sorted_classes = sorted(list(unique_classes))
-    sorted_sections = sorted(list(unique_sections))
+    # Get active sections with their associated levels
+    timetable_sections = db.execute('''
+        SELECT ts.id, ts.section_name, ts.section_code, ts.level_id, tal.level_name
+        FROM timetable_sections ts
+        JOIN timetable_academic_levels tal ON ts.level_id = tal.id
+        WHERE ts.school_id = ? AND ts.is_active = 1
+        ORDER BY tal.level_number, ts.section_name
+    ''', (school_id,)).fetchall()
+    
+    # Build class and section lists
+    unique_classes = [level['level_name'] for level in academic_levels]
+    
+    # Build sections mapping by class for dynamic filtering
+    import json
+    sections_by_class = {}
+    for section in timetable_sections:
+        class_name = section['level_name']
+        if class_name not in sections_by_class:
+            sections_by_class[class_name] = []
+        sections_by_class[class_name].append(section['section_name'])
+    
+    # Get all unique section names (across all levels) for filter dropdown
+    unique_sections_set = set()
+    for section in timetable_sections:
+        unique_sections_set.add(section['section_name'])
+    unique_sections = sorted(list(unique_sections_set))
+    
+    # Calculate total classes from academic hierarchy
+    total_classes = len(academic_levels)
     
     # Get module enabled status
     module_enabled = get_module_enabled(school_id)
@@ -6032,8 +6056,9 @@ def admin_student_management():
                          total_students=total_students,
                          students_this_month=students_this_month,
                          total_classes=total_classes,
-                         unique_classes=sorted_classes,
-                         unique_sections=sorted_sections,
+                         unique_classes=unique_classes,
+                         unique_sections=unique_sections,
+                         sections_by_class=json.dumps(sections_by_class),
                          module_enabled=module_enabled)
 
 

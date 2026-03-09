@@ -745,15 +745,28 @@
                                         <label for="class" class="form-label">
                                             <i class="bi bi-book"></i> Class *
                                         </label>
-                                        <input type="text" class="form-control" id="class" name="class" placeholder="e.g., 10th" required>
-                                        <small class="form-text">Current class</small>
+                                        <select class="form-select" id="class" name="class" required>
+                                            <option value="">Select Class</option>
+                                            {% for class_name in unique_classes %}
+                                            <option value="{{ class_name }}">{{ class_name }}</option>
+                                            {% endfor %}
+                                        </select>
+                                        {% if not unique_classes %}
+                                        <small class="form-text text-warning">
+                                            <i class="bi bi-exclamation-triangle"></i> No classes found. Please set up <a href="{{ url_for('admin_timetable') }}" target="_blank">Academic Hierarchy</a> in Timetable Management first.
+                                        </small>
+                                        {% else %}
+                                        <small class="form-text">Select from Academic Hierarchy Setup</small>
+                                        {% endif %}
                                     </div>
                                     <div class="rule-item">
                                         <label for="section" class="form-label">
                                             <i class="bi bi-grid-3x3"></i> Section *
                                         </label>
-                                        <input type="text" class="form-control" id="section" name="section" placeholder="e.g., A" required>
-                                        <small class="form-text">Class section</small>
+                                        <select class="form-select" id="section" name="section" required disabled>
+                                            <option value="">Select Class First</option>
+                                        </select>
+                                        <small class="form-text">Sections will load based on selected class</small>
                                     </div>
                                     <div class="rule-item">
                                         <label for="academic_year" class="form-label">
@@ -1039,11 +1052,18 @@
                             <div class="rules-grid">
                                 <div class="rule-item">
                                     <label for="edit_class" class="form-label">Class *</label>
-                                    <input type="text" class="form-control" id="edit_class" name="class" required>
+                                    <select class="form-select" id="edit_class" name="class" required>
+                                        <option value="">Select Class</option>
+                                        {% for class_name in unique_classes %}
+                                        <option value="{{ class_name }}">{{ class_name }}</option>
+                                        {% endfor %}
+                                    </select>
                                 </div>
                                 <div class="rule-item">
                                     <label for="edit_section" class="form-label">Section *</label>
-                                    <input type="text" class="form-control" id="edit_section" name="section" required>
+                                    <select class="form-select" id="edit_section" name="section" required>
+                                        <option value="">Select Section</option>
+                                    </select>
                                 </div>
                                 <div class="rule-item">
                                     <label for="edit_academic_year" class="form-label">Academic Year *</label>
@@ -1132,6 +1152,76 @@
             }
         }
 
+        // Sections mapping by class for dynamic filtering
+        const sectionsByClass = {{ sections_by_class|safe }};
+
+        // Update section dropdown based on selected class (Add Form)
+        function updateSectionsForClass() {
+            const classSelect = document.getElementById('class');
+            const sectionSelect = document.getElementById('section');
+            const selectedClass = classSelect.value;
+
+            // Clear current options except first
+            sectionSelect.innerHTML = '<option value="">Select Section</option>';
+
+            // If a class is selected, populate with its sections
+            if (selectedClass && sectionsByClass[selectedClass]) {
+                sectionsByClass[selectedClass].forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    option.textContent = section;
+                    sectionSelect.appendChild(option);
+                });
+                sectionSelect.disabled = false;
+            } else {
+                sectionSelect.disabled = true;
+            }
+        }
+
+        // Update section dropdown based on selected class (Edit Form)
+        function updateEditSectionsForClass() {
+            const classSelect = document.getElementById('edit_class');
+            const sectionSelect = document.getElementById('edit_section');
+            const selectedClass = classSelect.value;
+            const currentSection = sectionSelect.value; // Store current selection
+
+            // Clear current options except first
+            sectionSelect.innerHTML = '<option value="">Select Section</option>';
+
+            // If a class is selected, populate with its sections
+            if (selectedClass && sectionsByClass[selectedClass]) {
+                sectionsByClass[selectedClass].forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    option.textContent = section;
+                    if (section === currentSection) {
+                        option.selected = true;
+                    }
+                    sectionSelect.appendChild(option);
+                });
+                sectionSelect.disabled = false;
+            } else {
+                sectionSelect.disabled = true;
+            }
+        }
+
+        // Initialize section dropdown on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            // Add event listener to class dropdown in add form
+            const classSelect = document.getElementById('class');
+            if (classSelect) {
+                classSelect.addEventListener('change', updateSectionsForClass);
+                // Disable section initially
+                document.getElementById('section').disabled = true;
+            }
+
+            // Add event listener to class dropdown in edit form
+            const editClassSelect = document.getElementById('edit_class');
+            if (editClassSelect) {
+                editClassSelect.addEventListener('change', updateEditSectionsForClass);
+            }
+        });
+
         // Edit student
         function editStudent(studentId) {
             fetch(`/api/get-student/${studentId}`)
@@ -1148,8 +1238,26 @@
                         document.getElementById('edit_gender').value = student.gender;
                         document.getElementById('edit_student_mobile').value = student.phone || '';
                         document.getElementById('edit_parent_mobile').value = student.parent_phone;
+                        
+                        // Set class first
                         document.getElementById('edit_class').value = student.class;
-                        document.getElementById('edit_section').value = student.section;
+                        
+                        // Update sections based on class, then set section value
+                        const editSectionSelect = document.getElementById('edit_section');
+                        if (student.class && sectionsByClass[student.class]) {
+                            editSectionSelect.innerHTML = '<option value="">Select Section</option>';
+                            sectionsByClass[student.class].forEach(section => {
+                                const option = document.createElement('option');
+                                option.value = section;
+                                option.textContent = section;
+                                if (section === student.section) {
+                                    option.selected = true;
+                                }
+                                editSectionSelect.appendChild(option);
+                            });
+                            editSectionSelect.disabled = false;
+                        }
+                        
                         document.getElementById('edit_academic_year').value = student.academic_year || '';
                         document.getElementById('edit_address').value = student.address;
                         
@@ -1178,6 +1286,41 @@
                 document.body.appendChild(form);
                 form.submit();
             }
+        }
+
+        // Update filter section dropdown when class filter changes
+        function updateFilterSections() {
+            const classFilterSelect = document.getElementById('classFilter');
+            const sectionFilterSelect = document.getElementById('sectionFilter');
+            const selectedClass = classFilterSelect.value;
+            
+            // Clear current options
+            sectionFilterSelect.innerHTML = '<option value="">All Sections</option>';
+            
+            // If a class is selected, populate with its sections
+            if (selectedClass && sectionsByClass[selectedClass]) {
+                sectionsByClass[selectedClass].forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    option.textContent = section;
+                    sectionFilterSelect.appendChild(option);
+                });
+            } else if (!selectedClass) {
+                // If no class selected, show all sections
+                const allSections = new Set();
+                Object.values(sectionsByClass).forEach(sections => {
+                    sections.forEach(section => allSections.add(section));
+                });
+                allSections.forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    option.textContent = section;
+                    sectionFilterSelect.appendChild(option);
+                });
+            }
+            
+            // Apply filters after updating sections
+            applyFilters();
         }
 
         // Filter functions
@@ -1215,6 +1358,9 @@
 
         // Search on keyup
         document.getElementById('studentSearchInput')?.addEventListener('keyup', applyFilters);
+        
+        // Update section filter when class filter changes
+        document.getElementById('classFilter')?.addEventListener('change', updateFilterSections);
 
         // Logout function
         function logout() {
