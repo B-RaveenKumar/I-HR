@@ -194,7 +194,7 @@ class _MySQLCursorWrapper:
         # ── SQLite strftime → MySQL date functions ────────────────────────────
         _strftime_map = {
             '%Y-%m-%d': lambda c: f'DATE({c})',
-            '%Y-%m':    lambda c: f"DATE_FORMAT({c}, '%Y-%m')",
+            '%Y-%m':    lambda c: f"DATE_FORMAT({c}, '%%Y-%%m')",
             '%Y':       lambda c: f'YEAR({c})',
             '%m':       lambda c: f'MONTH({c})',
             '%d':       lambda c: f'DAY({c})',
@@ -211,7 +211,9 @@ class _MySQLCursorWrapper:
             fn = _strftime_map.get(fmt)
             if fn:
                 return fn(col)
-            return f"DATE_FORMAT({col}, '{fmt}')"
+            # Escape % signs for other format strings
+            escaped_fmt = fmt.replace('%', '%%')
+            return f"DATE_FORMAT({col}, '{escaped_fmt}')"
         sql = re.sub(r"strftime\s*\(\s*'([^']*)'\s*,\s*([^)]+)\)",
                      _strftime_to_mysql, sql, flags=re.IGNORECASE)
 
@@ -444,6 +446,76 @@ def init_db(app):
             FOREIGN KEY (staff_id) REFERENCES staff(id),
             FOREIGN KEY (school_id) REFERENCES schools(id),
             UNIQUE(staff_id, date)
+        )
+        ''')
+
+        # Create students table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS students (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            student_id TEXT NOT NULL,
+            password TEXT NOT NULL,
+            full_name TEXT NOT NULL,
+            first_name TEXT,
+            last_name TEXT,
+            email TEXT,
+            phone TEXT,
+            `class` TEXT,
+            section TEXT,
+            roll_number TEXT,
+            admission_number TEXT,
+            student_type TEXT DEFAULT 'Day Scholar',
+            gender TEXT CHECK(gender IN ('Male', 'Female', 'Other')),
+            date_of_birth DATE,
+            age INTEGER,
+            date_of_admission DATE,
+            academic_year TEXT,
+            parent_name TEXT,
+            parent_phone TEXT,
+            parent_email TEXT,
+            mother_name TEXT,
+            mother_phone TEXT,
+            parent_occupation TEXT,
+            address TEXT,
+            tenth_marks TEXT,
+            tenth_percentage REAL,
+            twelfth_marks TEXT,
+            twelfth_percentage REAL,
+            skills TEXT,
+            tc_number TEXT,
+            aadhar_number TEXT,
+            custom_fields TEXT,
+            photo_data TEXT,
+            theme_preference TEXT DEFAULT 'light',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            UNIQUE(school_id, student_id)
+        )
+        ''')
+
+        # Create student attendance table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS student_attendance (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            school_id INTEGER NOT NULL,
+            date DATE NOT NULL,
+            morning_status TEXT CHECK(morning_status IN ('present', 'absent', 'late', 'leave')),
+            morning_time TIME,
+            morning_marked_by INTEGER,
+            morning_notes TEXT,
+            afternoon_status TEXT CHECK(afternoon_status IN ('present', 'absent', 'late', 'leave')),
+            afternoon_time TIME,
+            afternoon_marked_by INTEGER,
+            afternoon_notes TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            FOREIGN KEY (morning_marked_by) REFERENCES staff(id),
+            FOREIGN KEY (afternoon_marked_by) REFERENCES staff(id),
+            UNIQUE(student_id, date)
         )
         ''')
 
@@ -968,6 +1040,10 @@ def init_db(app):
         
         # Add reason_if_unavailable to timetable_conflict_logs
         ensure_column_exists('timetable_conflict_logs', 'reason_if_unavailable TEXT', 'reason_if_unavailable')
+
+        # Add student management columns
+        ensure_column_exists('students', 'age INTEGER', 'age')
+        ensure_column_exists('students', 'academic_year TEXT', 'academic_year')
 
         # Create cloud-related tables
         cursor.execute('''

@@ -932,6 +932,39 @@ def handle_school_login():
         else:
             print("Password verification failed")  # Debug log
 
+    # Check student - using username as student_id
+    student = db.execute('''
+        SELECT * FROM students
+        WHERE school_id = ? AND student_id = ?
+    ''', (school_id, username)).fetchone()
+
+    if student:
+        password_hash = student['password'] if 'password' in student.keys() and student['password'] is not None else ''
+        print(f"Student found: {student['full_name']}, Has password hash: {bool(password_hash)}")  # Debug log
+
+        if password_hash and check_password_hash(password_hash, password):
+            print("Student login successful")  # Debug log
+            session['student_id'] = student['id']
+            session['school_id'] = student['school_id']
+            session['user_type'] = 'student'
+            session['student_username'] = username
+            session['full_name'] = student['full_name']
+            
+            # Load institution branding data
+            school = db.execute(
+                'SELECT name, logo_path, branding_enabled FROM schools WHERE id = ?',
+                (student['school_id'],)
+            ).fetchone()
+            if school:
+                session['institution_name'] = school['name']
+                session['institution_logo'] = school['logo_path']
+                session['branding_enabled'] = school['branding_enabled']
+            
+            return jsonify({'redirect': url_for('student_dashboard')})
+        elif not password_hash:
+            print("Student has no password set")  # Debug log
+            return jsonify({'error': 'Password not set for this student. Please contact admin.'}), 401
+
     print("Login failed - invalid credentials")  # Debug log
     return jsonify({'error': 'Invalid credentials'}), 401
 
@@ -5793,6 +5826,230 @@ def admin_timetable():
     module_enabled = get_module_enabled(school_id)
     
     return render_template('timetable_management.html', module_enabled=module_enabled)
+
+
+@app.route('/admin/student-management', methods=['GET', 'POST'])
+def admin_student_management():
+    """Admin Student Management page"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return redirect(url_for('index'))
+    
+    db = get_db()
+    school_id = session['school_id']
+    
+    if request.method == 'POST':
+        action = request.form.get('action')
+        
+        try:
+            if action == 'create':
+                # Create new student - Extended fields
+                admission_number = request.form.get('admission_number')
+                roll_number = request.form.get('roll_number')
+                student_type = request.form.get('student_type', 'Day Scholar')
+                first_name = request.form.get('first_name')
+                last_name = request.form.get('last_name')
+                date_of_birth = request.form.get('date_of_birth')
+                age = request.form.get('age')
+                gender = request.form.get('gender')
+                student_mobile = request.form.get('student_mobile')
+                address = request.form.get('address')
+                class_name = request.form.get('class')
+                section = request.form.get('section')
+                academic_year = request.form.get('academic_year')
+                
+                # Parent details
+                parent_name = request.form.get('parent_name')
+                parent_mobile = request.form.get('parent_mobile')
+                parent_email = request.form.get('parent_email')
+                mother_name = request.form.get('mother_name')
+                mother_phone = request.form.get('mother_phone')
+                parent_occupation = request.form.get('parent_occupation')
+                
+                # Academic details
+                tenth_marks = request.form.get('tenth_marks')
+                tenth_percentage = request.form.get('tenth_percentage')
+                twelfth_marks = request.form.get('twelfth_marks')
+                twelfth_percentage = request.form.get('twelfth_percentage')
+                skills = request.form.get('skills')
+                
+                # Documents
+                tc_number = request.form.get('tc_number')
+                aadhar_number = request.form.get('aadhar_number')
+                
+                # Photo upload handling
+                photo_data = None
+                if 'student_photo' in request.files:
+                    photo_file = request.files['student_photo']
+                    if photo_file and photo_file.filename:
+                        import base64
+                        photo_bytes = photo_file.read()
+                        photo_data = f"data:image/{photo_file.filename.rsplit('.', 1)[1].lower()};base64,{base64.b64encode(photo_bytes).decode('utf-8')}"
+                
+                # Custom fields
+                import json
+                custom_fields = {}
+                for key in request.form:
+                    if key.startswith('custom_field_'):
+                        field_name = key.replace('custom_field_', '')
+                        custom_fields[field_name] = request.form.get(key)
+                custom_fields_json = json.dumps(custom_fields) if custom_fields else None
+                
+                # Validate: Either admission_number or roll_number must be provided
+                if not admission_number and not roll_number:
+                    flash('Either Admission Number or Roll Number is required!', 'error')
+                    return redirect(url_for('admin_student_management'))
+                
+                # Generate student_id
+                if admission_number:
+                    student_id = f"STU{admission_number}"
+                else:
+                    student_id = f"STU{roll_number}"
+                
+                # Generate default password (can be changed later)
+                default_password = generate_password_hash('student123')
+                
+                # Create full_name
+                full_name = f"{first_name} {last_name}"
+                
+                # Check if student_id already exists
+                existing = db.execute('''
+                    SELECT id FROM students 
+                    WHERE school_id = ? AND (student_id = ? OR admission_number = ? OR roll_number = ?)
+                ''', (school_id, student_id, admission_number, roll_number)).fetchone()
+                
+                if existing:
+                    flash('Student with this admission/roll number already exists!', 'error')
+                else:
+                    db.execute('''
+                        INSERT INTO students (
+                            school_id, student_id, password, full_name, first_name, last_name,
+                            admission_number, roll_number, student_type, date_of_birth, age, gender,
+                            student_mobile, address, `class`, section, academic_year,
+                            parent_name, parent_phone, parent_email, mother_name, mother_phone,
+                            parent_occupation, tenth_marks, tenth_percentage, twelfth_marks,
+                            twelfth_percentage, skills, tc_number, aadhar_number, custom_fields, photo_data
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', (school_id, student_id, default_password, full_name, first_name, last_name,
+                          admission_number, roll_number, student_type, date_of_birth, age, gender,
+                          student_mobile, address, class_name, section, academic_year,
+                          parent_name, parent_mobile, parent_email, mother_name, mother_phone,
+                          parent_occupation, tenth_marks, tenth_percentage, twelfth_marks,
+                          twelfth_percentage, skills, tc_number, aadhar_number, custom_fields_json, photo_data))
+                    db.commit()
+                    flash(f'Student {full_name} created successfully! Default password: student123', 'success')
+                
+            elif action == 'edit':
+                # Update existing student
+                student_id = request.form.get('student_id')
+                roll_number = request.form.get('roll_number')
+                first_name = request.form.get('first_name')
+                last_name = request.form.get('last_name')
+                date_of_birth = request.form.get('date_of_birth')
+                age = request.form.get('age')
+                gender = request.form.get('gender')
+                student_mobile = request.form.get('student_mobile')
+                parent_mobile = request.form.get('parent_mobile')
+                address = request.form.get('address')
+                class_name = request.form.get('class')
+                section = request.form.get('section')
+                academic_year = request.form.get('academic_year')
+                
+                # Create full_name
+                full_name = f"{first_name} {last_name}"
+                
+                db.execute('''
+                    UPDATE students SET
+                        roll_number = ?, first_name = ?, last_name = ?, full_name = ?,
+                        date_of_birth = ?, age = ?, gender = ?, phone = ?, parent_phone = ?,
+                        address = ?, `class` = ?, section = ?, academic_year = ?
+                    WHERE id = ? AND school_id = ?
+                ''', (roll_number, first_name, last_name, full_name, date_of_birth, age,
+                      gender, student_mobile, parent_mobile, address, class_name, section,
+                      academic_year, student_id, school_id))
+                db.commit()
+                flash('Student updated successfully!', 'success')
+                
+            elif action == 'delete':
+                # Delete student
+                student_id = request.form.get('student_id')
+                db.execute('DELETE FROM students WHERE id = ? AND school_id = ?', 
+                          (student_id, school_id))
+                db.commit()
+                flash('Student deleted successfully!', 'success')
+                
+        except Exception as e:
+            flash(f'Error: {str(e)}', 'error')
+        
+        return redirect(url_for('admin_student_management'))
+    
+    # GET request - display page
+    # Get all students - use backticks for MySQL reserved keyword 'class'
+    students = db.execute('''
+        SELECT * FROM students
+        WHERE school_id = ?
+        ORDER BY `class`, section, roll_number
+    ''', (school_id,)).fetchall()
+    
+    # Get statistics
+    total_students = len(students)
+    
+    # Students added this month
+    current_month = datetime.date.today().strftime('%Y-%m')
+    students_this_month = db.execute('''
+        SELECT COUNT(*) as count FROM students
+        WHERE school_id = ? AND strftime('%Y-%m', created_at) = ?
+    ''', (school_id, current_month)).fetchone()['count']
+    
+    # Total classes - count distinct class-section combinations
+    class_sections = set()
+    unique_classes = set()
+    unique_sections = set()
+    for student in students:
+        if student['class'] and student['section']:
+            class_sections.add(f"{student['class']}-{student['section']}")
+            unique_classes.add(student['class'])
+            unique_sections.add(student['section'])
+    total_classes = len(class_sections)
+    
+    # Sort classes and sections for dropdown
+    sorted_classes = sorted(list(unique_classes))
+    sorted_sections = sorted(list(unique_sections))
+    
+    # Get module enabled status
+    module_enabled = get_module_enabled(school_id)
+    
+    return render_template('admin_student_management.html',
+                         students=students,
+                         total_students=total_students,
+                         students_this_month=students_this_month,
+                         total_classes=total_classes,
+                         unique_classes=sorted_classes,
+                         unique_sections=sorted_sections,
+                         module_enabled=module_enabled)
+
+
+@app.route('/api/get-student/<int:student_id>')
+def api_get_student(student_id):
+    """API endpoint to get student data for editing"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    
+    db = get_db()
+    school_id = session['school_id']
+    
+    student = db.execute('''
+        SELECT * FROM students
+        WHERE id = ? AND school_id = ?
+    ''', (student_id, school_id)).fetchone()
+    
+    if not student:
+        return jsonify({'success': False, 'error': 'Student not found'}), 404
+    
+    return jsonify({
+        'success': True,
+        'student': dict(student)
+    })
+
 
 @app.route('/staff/timetable')
 def staff_timetable():
@@ -15939,6 +16196,322 @@ def api_deactivate_agent(agent_id):
     except Exception as e:
         print(f"Error deactivating agent: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ===============================================================================
+# STUDENT PORTAL ROUTES
+# ===============================================================================
+
+@app.route('/student/login', methods=['GET', 'POST'])
+def student_login():
+    """Redirect to main login page - students can login through the same interface"""
+    return redirect(url_for('index'))
+
+
+@app.route('/student/dashboard')
+def student_dashboard():
+    """Student dashboard with attendance display"""
+    if 'student_id' not in session or session.get('user_type') != 'student':
+        return redirect(url_for('student_login'))
+    
+    db = get_db()
+    
+    # Get student details
+    student = db.execute('''
+        SELECT * FROM students WHERE id = ?
+    ''', (session['student_id'],)).fetchone()
+    
+    if not student:
+        session.clear()
+        return redirect(url_for('student_login'))
+    
+    # Get school name
+    school = db.execute('SELECT name FROM schools WHERE id = ?', 
+                       (student['school_id'],)).fetchone()
+    
+    # Get today's attendance
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    attendance = db.execute('''
+        SELECT sa.*, 
+               s1.full_name as morning_marked_by_name,
+               s2.full_name as afternoon_marked_by_name
+        FROM student_attendance sa
+        LEFT JOIN staff s1 ON sa.morning_marked_by = s1.id
+        LEFT JOIN staff s2 ON sa.afternoon_marked_by = s2.id
+        WHERE sa.student_id = ? AND sa.attendance_date = ?
+    ''', (session['student_id'], today)).fetchone()
+    
+    return render_template('student/student_dashboard.html',
+                         student=student,
+                         school_name=school['name'] if school else 'N/A',
+                         attendance=attendance,
+                         current_date=datetime.date.today().strftime('%d %B, %Y'))
+
+
+@app.route('/student/attendance-history')
+def student_attendance_history():
+    """Student attendance history page"""
+    if 'student_id' not in session or session.get('user_type') != 'student':
+        return redirect(url_for('student_login'))
+    
+    db = get_db()
+    student = db.execute('SELECT * FROM students WHERE id = ?', 
+                        (session['student_id'],)).fetchone()
+    
+    # Get attendance history (last 30 days)
+    attendance_records = db.execute('''
+        SELECT sa.*, 
+               s1.full_name as morning_marked_by_name,
+               s2.full_name as afternoon_marked_by_name
+        FROM student_attendance sa
+        LEFT JOIN staff s1 ON sa.morning_marked_by = s1.id
+        LEFT JOIN staff s2 ON sa.afternoon_marked_by = s2.id
+        WHERE sa.student_id = ?
+        ORDER BY sa.attendance_date DESC
+        LIMIT 30
+    ''', (session['student_id'],)).fetchall()
+    
+    school = db.execute('SELECT name FROM schools WHERE id = ?', 
+                       (student['school_id'],)).fetchone()
+    
+    return render_template('student/student_attendance_history.html',
+                         student=student,
+                         school_name=school['name'] if school else 'N/A',
+                         attendance_records=attendance_records)
+
+
+@app.route('/student/profile')
+def student_profile():
+    """Student profile page"""
+    if 'student_id' not in session or session.get('user_type') != 'student':
+        return redirect(url_for('student_login'))
+    
+    db = get_db()
+    student = db.execute('SELECT * FROM students WHERE id = ?', 
+                        (session['student_id'],)).fetchone()
+    
+    school = db.execute('SELECT name FROM schools WHERE id = ?', 
+                       (student['school_id'],)).fetchone()
+    
+    return render_template('student/student_profile.html',
+                         student=student,
+                         school_name=school['name'] if school else 'N/A')
+
+
+@app.route('/student/homework-exam')
+def student_homework_exam():
+    """Student homework and exam corner"""
+    if 'student_id' not in session or session.get('user_type') != 'student':
+        return redirect(url_for('student_login'))
+    
+    db = get_db()
+    student = db.execute('SELECT * FROM students WHERE id = ?', 
+                        (session['student_id'],)).fetchone()
+    
+    school = db.execute('SELECT name FROM schools WHERE id = ?', 
+                       (student['school_id'],)).fetchone()
+    
+    # Get upcoming exams/homework (placeholder for now - can be extended later)
+    # You can add actual homework/exam tables later
+    
+    return render_template('student/student_homework_exam.html',
+                         student=student,
+                         school_name=school['name'] if school else 'N/A')
+
+
+@app.route('/student/fees')
+def student_fees():
+    """Student fees and payment history page"""
+    if 'student_id' not in session or session.get('user_type') != 'student':
+        return redirect(url_for('student_login'))
+    
+    db = get_db()
+    student = db.execute('SELECT * FROM students WHERE id = ?', 
+                        (session['student_id'],)).fetchone()
+    
+    if not student:
+        return redirect(url_for('student_login'))
+    
+    school = db.execute('SELECT name FROM schools WHERE id = ?', 
+                       (student['school_id'],)).fetchone()
+    
+    # Get fees information (placeholder for now - can be extended later)
+    # You can add actual fees/payment tables later
+    
+    return render_template('student/student_fees.html',
+                         student=student,
+                         school_name=school['name'] if school else 'N/A')
+
+
+@app.route('/student/leave')
+def student_leave():
+    """Student leave application and history page"""
+    if 'student_id' not in session or session.get('user_type') != 'student':
+        return redirect(url_for('student_login'))
+    
+    db = get_db()
+    student = db.execute('SELECT * FROM students WHERE id = ?', 
+                        (session['student_id'],)).fetchone()
+    
+    if not student:
+        return redirect(url_for('student_login'))
+    
+    school = db.execute('SELECT name FROM schools WHERE id = ?', 
+                       (student['school_id'],)).fetchone()
+    
+    # Get leave applications (placeholder for now - can be extended later)
+    # You can add actual leave tables later
+    
+    return render_template('student/student_leave.html',
+                         student=student,
+                         school_name=school['name'] if school else 'N/A')
+
+
+@app.route('/student/timetable')
+def student_timetable():
+    """Student timetable/class schedule page"""
+    if 'student_id' not in session or session.get('user_type') != 'student':
+        return redirect(url_for('student_login'))
+    
+    db = get_db()
+    student = db.execute('SELECT * FROM students WHERE id = ?', 
+                        (session['student_id'],)).fetchone()
+    
+    if not student:
+        return redirect(url_for('student_login'))
+    
+    school = db.execute('SELECT name FROM schools WHERE id = ?', 
+                       (student['school_id'],)).fetchone()
+    
+    # Get timetable data (placeholder for now - can be extended later)
+    # You can add actual timetable tables later for class schedule
+    
+    return render_template('student/student_timetable.html',
+                         student=student,
+                         school_name=school['name'] if school else 'N/A')
+
+
+@app.route('/student/update-theme', methods=['POST'])
+@csrf.exempt
+def student_update_theme():
+    """Update student theme preference"""
+    if 'student_id' not in session or session.get('user_type') != 'student':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    theme = data.get('theme', 'light')
+    
+    if theme not in ['light', 'dark', 'blue', 'green']:
+        return jsonify({'success': False, 'error': 'Invalid theme'}), 400
+    
+    db = get_db()
+    db.execute('''
+        UPDATE students SET theme_preference = ? WHERE id = ?
+    ''', (theme, session['student_id']))
+    db.commit()
+    
+    return jsonify({'success': True})
+
+
+@app.route('/student/logout')
+def student_logout():
+    """Student logout"""
+    session.clear()
+    return redirect(url_for('student_login'))
+
+
+# Staff route for marking student attendance
+@app.route('/staff/mark-student-attendance', methods=['GET', 'POST'])
+def staff_mark_student_attendance():
+    """Staff interface for marking student attendance"""
+    if 'user_id' not in session or session.get('user_type') not in ['admin', 'staff']:
+        return redirect(url_for('index'))
+    
+    db = get_db()
+    school_id = session['school_id']
+    staff_id = session['user_id']
+    
+    if request.method == 'POST':
+        student_id = request.form.get('student_id')
+        date = request.form.get('date', datetime.date.today().strftime('%Y-%m-%d'))
+        session_type = request.form.get('session_type')  # 'morning' or 'afternoon'
+        status = request.form.get('status')  # 'present', 'absent', 'late', 'leave'
+        notes = request.form.get('notes', '')
+        
+        if not all([student_id, session_type, status]):
+            flash('All required fields must be filled', 'error')
+            return redirect(url_for('staff_mark_student_attendance'))
+        
+        current_time = datetime.datetime.now().strftime('%H:%M:%S')
+        
+        # Check if attendance record exists for this date
+        existing = db.execute('''
+            SELECT id FROM student_attendance
+            WHERE student_id = ? AND attendance_date = ?
+        ''', (student_id, date)).fetchone()
+        
+        if existing:
+            # Update existing record
+            if session_type == 'morning':
+                db.execute('''
+                    UPDATE student_attendance
+                    SET morning_status = ?, morning_time = ?, 
+                        morning_marked_by = ?, morning_notes = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE student_id = ? AND attendance_date = ?
+                ''', (status, current_time, staff_id, notes, student_id, date))
+            else:  # afternoon
+                db.execute('''
+                    UPDATE student_attendance
+                    SET afternoon_status = ?, afternoon_time = ?, 
+                        afternoon_marked_by = ?, afternoon_notes = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE student_id = ? AND attendance_date = ?
+                ''', (status, current_time, staff_id, notes, student_id, date))
+        else:
+            # Create new record
+            if session_type == 'morning':
+                db.execute('''
+                    INSERT INTO student_attendance (
+                        student_id, school_id, attendance_date, 
+                        morning_status, morning_time, morning_marked_by, morning_notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (student_id, school_id, date, status, current_time, staff_id, notes))
+            else:  # afternoon
+                db.execute('''
+                    INSERT INTO student_attendance (
+                        student_id, school_id, attendance_date, 
+                        afternoon_status, afternoon_time, afternoon_marked_by, afternoon_notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (student_id, school_id, date, status, current_time, staff_id, notes))
+        
+        db.commit()
+        flash('Attendance marked successfully', 'success')
+        return redirect(url_for('staff_mark_student_attendance'))
+    
+    # GET request - show form
+    # Get all students for this school
+    students = db.execute('''
+        SELECT id, student_id, full_name, `class`, section, roll_number
+        FROM students
+        WHERE school_id = ?
+        ORDER BY `class`, section, roll_number
+    ''', (school_id,)).fetchall()
+    
+    # Get today's attendance
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    today_attendance = db.execute('''
+        SELECT sa.*, s.student_id, s.full_name, s.`class`, s.section
+        FROM student_attendance sa
+        JOIN students s ON sa.student_id = s.id
+        WHERE sa.school_id = ? AND sa.attendance_date = ?
+        ORDER BY s.`class`, s.section, s.roll_number
+    ''', (school_id, today)).fetchall()
+    
+    return render_template('student/mark_student_attendance.html',
+                         students=students,
+                         today_attendance=today_attendance,
+                         current_date=today)
 
 
 # ===============================================================================

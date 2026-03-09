@@ -200,6 +200,15 @@
                             </li>
                             {% endif %}
 
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('admin_student_management') }}">
+                                    <div class="nav-icon">
+                                        <i class="bi bi-mortarboard"></i>
+                                    </div>
+                                    <span class="nav-text">Student Management</span>
+                                </a>
+                            </li>
+
                             {% if module_enabled.get('shift_management', True) and (not session.get('is_sub_admin') or perms.get('shift_management', {}).get('view')) %}
                             <li class="nav-item">
                                 <a class="nav-link" href="{{ url_for('shift_management') }}">

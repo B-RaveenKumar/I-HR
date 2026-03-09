@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="{{ student.theme_preference or 'light' }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homework & Exam Corner - VishnoRex</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+    
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    
+    <style>
+        :root[data-theme="light"] {
+            --bg-primary: #f8f9fa;
+            --bg-secondary: #ffffff;
+            --bg-sidebar: #2c3e50;
+            --text-primary: #2d3748;
+            --text-secondary: #718096;
+            --text-sidebar: #ecf0f1;
+            --border-color: #e2e8f0;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            --accent-color: #667eea;
+            --accent-hover: #5568d3;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --danger-color: #f56565;
+        }
+
+        :root[data-theme="dark"] {
+            --bg-primary: #1a202c;
+            --bg-secondary: #2d3748;
+            --bg-sidebar: #1a1a2e;
+            --text-primary: #e2e8f0;
+            --text-secondary: #a0aec0;
+            --text-sidebar: #cbd5e0;
+            --border-color: #4a5568;
+            --card-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+            --accent-color: #7c3aed;
+            --accent-hover: #6d28d9;
+            --success-color: #38a169;
+            --warning-color: #dd6b20;
+            --danger-color: #e53e3e;
+        }
+
+        :root[data-theme="blue"] {
+            --bg-primary: #ebf8ff;
+            --bg-secondary: #ffffff;
+            --bg-sidebar: #2c5282;
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --text-sidebar: #e6fffa;
+            --border-color: #bee3f8;
+            --card-shadow: 0 4px 6px rgba(45, 55, 72, 0.07);
+            --accent-color: #3182ce;
+            --accent-hover: #2c5282;
+            --success-color: #38b2ac;
+            --warning-color: #ed8936;
+            --danger-color: #f56565;
+        }
+
+        :root[data-theme="green"] {
+            --bg-primary: #f0fff4;
+            --bg-secondary: #ffffff;
+            --bg-sidebar: #2f855a;
+            --text-primary: #2d3748;
+            --text-secondary: #4a5568;
+            --text-sidebar: #f0fff4;
+            --border-color: #c6f6d5;
+            --card-shadow: 0 4px 6px rgba(45, 55, 72, 0.07);
+            --accent-color: #48bb78;
+            --accent-hover: #38a169;
+            --success-color: #48bb78;
+            --warning-color: #ed8936;
+            --danger-color: #f56565;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .sidebar {
+            position: fixed;
+            left: 0;
+            top: 0;
+            width: 260px;
+            height: 100vh;
+            background: var(--bg-sidebar);
+            color: var(--text-sidebar);
+            padding: 20px;
+            overflow-y: auto;
+            z-index: 1000;
+        }
+
+        .sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-brand i {
+            font-size: 32px;
+            color: var(--accent-color);
+        }
+
+        .sidebar-brand h3 {
+            font-size: 22px;
+            font-weight: 700;
+            margin: 0;
+        }
+
+        .sidebar-user {
+            text-align: center;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 20px;
+        }
+
+        .sidebar-user-avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin: 0 auto 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--accent-color) 0%, var(--accent-hover) 100%);
+            font-size: 32px;
+            color: white;
+        }
+
+        .sidebar-user h4 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .sidebar-user p {
+            font-size: 13px;
+            opacity: 0.8;
+            margin: 0;
+        }
+
+        .sidebar-nav {
+            list-style: none;
+            padding: 0;
+        }
+
+        .sidebar-nav li {
+            margin-bottom: 5px;
+        }
+
+        .sidebar-nav a {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 15px;
+            color: var(--text-sidebar);
+            text-decoration: none;
+            border-radius: 10px;
+            transition: all 0.2s;
+        }
+
+        .sidebar-nav a:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(5px);
+        }
+
+        .sidebar-nav a.active {
+            background: rgba(255, 255, 255, 0.15);
+            font-weight: 600;
+        }
+
+        .sidebar-nav i {
+            font-size: 18px;
+            width: 20px;
+        }
+
+        .main-content {
+            margin-left: 260px;
+            padding: 30px;
+            min-height: 100vh;
+        }
+
+        .top-bar {
+            background: var(--bg-secondary);
+            padding: 20px 30px;
+            border-radius: 15px;
+            margin-bottom: 30px;
+            box-shadow: var(--card-shadow);
+        }
+
+        .top-bar h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .card {
+            background: var(--bg-secondary);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: var(--card-shadow);
+            border: 1px solid var(--border-color);
+            margin-bottom: 25px;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            font-size: 24px;
+            color: var(--accent-color);
+        }
+
+        .btn-primary {
+            background: var(--accent-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+            transform: translateY(-2px);
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+
+        .empty-state i {
+            font-size: 64px;
+            margin-bottom: 20px;
+            opacity: 0.3;
+        }
+
+        .empty-state h3 {
+            font-size: 20px;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            font-size: 14px;
+        }
+
+        .homework-item, .exam-item {
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid var(--border-color);
+            margin-bottom: 15px;
+            transition: all 0.2s;
+        }
+
+        .homework-item:hover, .exam-item:hover {
+            transform: translateX(5px);
+            box-shadow: var(--card-shadow);
+        }
+
+        .item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 10px;
+        }
+
+        .item-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .item-subject {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .item-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .badge-pending {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .badge-completed {
+            background: #d1e7dd;
+            color: #0f5132;
+        }
+
+        .badge-overdue {
+            background: #f8d7da;
+            color: #842029;
+        }
+
+        .item-description {
+            margin: 10px 0;
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        .item-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--border-color);
+            font-size: 13px;
+            color: var(--text-secondary);
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s;
+            }
+
+            .sidebar.active {
+                transform: translateX(0);
+            }
+
+            .main-content {
+                margin-left: 0;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <div class="sidebar-brand">
+            <i class="bi bi-mortarboard-fill"></i>
+            <h3>VishnoRex</h3>
+        </div>
+
+        <div class="sidebar-user">
+            <div class="sidebar-user-avatar">
+                {% if student.photo_data %}
+                <img src="{{ student.photo_data }}" alt="Student" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+                {% else %}
+                <i class="bi bi-person"></i>
+                {% endif %}
+            </div>
+            <h4>{{ student.full_name }}</h4>
+            <p>{{ student.class }} - {{ student.section }}</p>
+            <p style="font-size: 12px;">{{ student.student_id }}</p>
+        </div>
+
+        <ul class="sidebar-nav">
+            <li>
+                <a href="{{ url_for('student_dashboard') }}">
+                    <i class="bi bi-house-door"></i>
+                    <span>Dashboard</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('student_attendance_history') }}">
+                    <i class="bi bi-calendar-check"></i>
+                    <span>Attendance History</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('student_timetable') }}">
+                    <i class="bi bi-table"></i>
+                    <span>Timetable</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('student_homework_exam') }}" class="active">
+                    <i class="bi bi-journal-text"></i>
+                    <span>Homework / Exam Corner</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('student_fees') }}">
+                    <i class="bi bi-credit-card"></i>
+                    <span>Fees</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('student_leave') }}">
+                    <i class="bi bi-calendar-x"></i>
+                    <span>Leave</span>
+                </a>
+            </li>
+            <li>
+                <a href="{{ url_for('student_profile') }}">
+                    <i class="bi bi-person-circle"></i>
+                    <span>My Profile</span>
+                </a>
+            </li>
+        </ul>
+
+        <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+            <ul class="sidebar-nav" style="padding: 0;">
+                <li>
+                    <a href="{{ url_for('student_logout') }}" style="color: var(--danger-color);">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <h1><i class="bi bi-journal-text"></i> Homework & Exam Corner</h1>
+        </div>
+
+        <!-- Homework Section -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="bi bi-pencil-square"></i>
+                    Pending Homework
+                </div>
+            </div>
+            
+            <div class="empty-state">
+                <i class="bi bi-check-circle"></i>
+                <h3>All caught up!</h3>
+                <p>No pending homework assignments at the moment.</p>
+                <p style="margin-top: 10px;"><small>Check back later for new assignments from your teachers.</small></p>
+            </div>
+
+            <!-- Example homework items (uncomment when you have data) -->
+            <!--
+            <div class="homework-item">
+                <div class="item-header">
+                    <div>
+                        <div class="item-title">Complete Chapter 5 Exercises</div>
+                        <div class="item-subject">Mathematics</div>
+                    </div>
+                    <span class="item-badge badge-pending">Pending</span>
+                </div>
+                <div class="item-description">
+                    Complete exercises 1-10 from Chapter 5: Algebra basics. Submit in your notebook.
+                </div>
+                <div class="item-footer">
+                    <span><i class="bi bi-calendar"></i> Due: March 12, 2026</span>
+                    <span><i class="bi bi-person"></i> Mr. Sharma</span>
+                </div>
+            </div>
+            -->
+        </div>
+
+        <!-- Upcoming Exams Section -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="bi bi-clipboard-check"></i>
+                    Upcoming Exams
+                </div>
+            </div>
+            
+            <div class="empty-state">
+                <i class="bi bi-calendar-event"></i>
+                <h3>No upcoming exams</h3>
+                <p>You don't have any exams scheduled at the moment.</p>
+                <p style="margin-top: 10px;"><small>Your exam schedule will appear here when available.</small></p>
+            </div>
+
+            <!-- Example exam items (uncomment when you have data) -->
+            <!--
+            <div class="exam-item">
+                <div class="item-header">
+                    <div>
+                        <div class="item-title">Mid-Term Examination</div>
+                        <div class="item-subject">Science (Physics, Chemistry, Biology)</div>
+                    </div>
+                    <span class="item-badge badge-pending">Upcoming</span>
+                </div>
+                <div class="item-description">
+                    Chapters 1-5 from all three subjects. Total marks: 100. Duration: 3 hours.
+                </div>
+                <div class="item-footer">
+                    <span><i class="bi bi-calendar"></i> Date: March 20, 2026</span>
+                    <span><i class="bi bi-clock"></i> Time: 9:00 AM</span>
+                </div>
+            </div>
+            -->
+        </div>
+
+        <!-- Completed Homework Section -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">
+                    <i class="bi bi-check2-all"></i>
+                    Completed Homework
+                </div>
+            </div>
+            
+            <div class="empty-state">
+                <i class="bi bi-inbox"></i>
+                <h3>No completed homework yet</h3>
+                <p>Completed assignments will appear here.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        // Mobile sidebar toggle
+        if (window.innerWidth <= 768) {
+            const menuToggle = document.createElement('button');
+            menuToggle.innerHTML = '<i class="bi bi-list"></i>';
+            menuToggle.style.cssText = 'position: fixed; top: 20px; left: 20px; z-index: 1001; background: var(--accent-color); color: white; border: none; padding: 10px 15px; border-radius: 8px; font-size: 20px; cursor: pointer;';
+            document.body.appendChild(menuToggle);
+            
+            menuToggle.addEventListener('click', function() {
+                document.querySelector('.sidebar').classList.toggle('active');
+            });
+        }
+    </script>
+</body>
+</html>

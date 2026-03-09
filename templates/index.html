@@ -108,8 +108,8 @@
                     <div class="card-body p-5 text-center">
                         <img src="{{ url_for('static', filename='images/applogo.png') }}" alt="Logo"
                             class="mb-3 logo-height" id="schoolLogo">
-                        <h4 class="mb-3">Welcome to the Vishnorex Portal </Portal>
-                        </h4>
+                        <h4 class="mb-3">Welcome to the Vishnorex Portal</h4>
+                        <p class="text-muted mb-4"><small><i class="bi bi-info-circle"></i> Staff & Students can login here</small></p>
                         <form id="schoolLoginForm">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <div class="mb-4">
@@ -136,9 +136,10 @@
                             </div>
                             <div id="loginFields" class="d-none">
                                 <div class="mb-3 text-start">
-                                    <label for="username" class="form-label">User name</label>
+                                    <label for="username" class="form-label">User ID</label>
                                     <input type="text" class="form-control" id="username" name="username"
-                                        placeholder="Enter your user name" required>
+                                        placeholder="Staff ID or Student ID" required>
+                                    <small class="form-text text-muted">Staff: Use your Staff ID | Students: Use your Student ID</small>
                                 </div>
                                 <div class="mb-3 text-start">
                                     <label for="password" class="form-label">Password</label>
@@ -199,8 +200,8 @@
                         <div class="mb-3">
                             <label for="resetUserId" class="form-label">User ID</label>
                             <input type="text" class="form-control" id="resetUserId" name="user_id"
-                                placeholder="Enter your staff ID or username" required>
-                            <div class="form-text">Enter the same ID you use to login</div>
+                                placeholder="Staff ID or Student ID" required>
+                            <div class="form-text">Enter your Staff ID or Student ID</div>
                         </div>
                         <div class="mb-3">
                             <label for="resetReason" class="form-label">Reason (Optional)</label>
