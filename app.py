@@ -13696,42 +13696,33 @@ def set_staff_quotas(staff_id, school_id, quotas, quota_year=None):
         if 'leave' in quotas:
             for leave_type, allocated_days in quotas['leave'].items():
                 if leave_type in ['CL', 'SL', 'EL', 'ML']:
-                    # Insert or update leave quota
+                    # Insert or update leave quota (MySQL compatible)
                     db.execute('''
-                        INSERT OR REPLACE INTO staff_leave_quotas
+                        INSERT INTO staff_leave_quotas
                         (staff_id, school_id, quota_year, leave_type, allocated_days, used_days)
-                        VALUES (?, ?, ?, ?, ?, 
-                            COALESCE((SELECT used_days FROM staff_leave_quotas 
-                                     WHERE staff_id = ? AND school_id = ? AND quota_year = ? AND leave_type = ?), 0)
-                        )
-                    ''', (staff_id, school_id, quota_year, leave_type, allocated_days,
-                          staff_id, school_id, quota_year, leave_type))
+                        VALUES (?, ?, ?, ?, ?, 0)
+                        ON DUPLICATE KEY UPDATE allocated_days = VALUES(allocated_days)
+                    ''', (staff_id, school_id, quota_year, leave_type, allocated_days))
         
         # Set OD quota
         if 'od' in quotas:
             allocated_days = quotas['od']
             db.execute('''
-                INSERT OR REPLACE INTO staff_od_quotas
+                INSERT INTO staff_od_quotas
                 (staff_id, school_id, quota_year, allocated_days, used_days)
-                VALUES (?, ?, ?, ?, 
-                    COALESCE((SELECT used_days FROM staff_od_quotas 
-                             WHERE staff_id = ? AND school_id = ? AND quota_year = ?), 0)
-                )
-            ''', (staff_id, school_id, quota_year, allocated_days,
-                  staff_id, school_id, quota_year))
+                VALUES (?, ?, ?, ?, 0)
+                ON DUPLICATE KEY UPDATE allocated_days = VALUES(allocated_days)
+            ''', (staff_id, school_id, quota_year, allocated_days))
         
         # Set Permission quota
         if 'permission' in quotas:
             allocated_hours = quotas['permission']
             db.execute('''
-                INSERT OR REPLACE INTO staff_permission_quotas
+                INSERT INTO staff_permission_quotas
                 (staff_id, school_id, quota_year, allocated_hours, used_hours)
-                VALUES (?, ?, ?, ?, 
-                    COALESCE((SELECT used_hours FROM staff_permission_quotas 
-                             WHERE staff_id = ? AND school_id = ? AND quota_year = ?), 0.0)
-                )
-            ''', (staff_id, school_id, quota_year, allocated_hours,
-                  staff_id, school_id, quota_year))
+                VALUES (?, ?, ?, ?, 0.0)
+                ON DUPLICATE KEY UPDATE allocated_hours = VALUES(allocated_hours)
+            ''', (staff_id, school_id, quota_year, allocated_hours))
         
         db.commit()
         
@@ -13870,13 +13861,37 @@ def bulk_quota_assignment():
 
         for sid in staff_ids:
             try:
-                res = set_staff_quotas(sid, school_id, quotas, quota_year)
-                if res.get('success'):
-                    updated += 1
-                else:
-                    failed.append({'staff_id': sid, 'error': res.get('error')})
+                # Inline SQL to avoid per-staff commits and lock contention
+                for leave_type in ['CL', 'SL', 'EL', 'ML']:
+                    allocated = quotas['leave'].get(leave_type, 0)
+                    db.execute('''
+                        INSERT INTO staff_leave_quotas
+                        (staff_id, school_id, quota_year, leave_type, allocated_days, used_days)
+                        VALUES (?, ?, ?, ?, ?, 0)
+                        ON DUPLICATE KEY UPDATE allocated_days = VALUES(allocated_days)
+                    ''', (sid, school_id, quota_year, leave_type, allocated))
+
+                # OD quota
+                db.execute('''
+                    INSERT INTO staff_od_quotas
+                    (staff_id, school_id, quota_year, allocated_days, used_days)
+                    VALUES (?, ?, ?, ?, 0)
+                    ON DUPLICATE KEY UPDATE allocated_days = VALUES(allocated_days)
+                ''', (sid, school_id, quota_year, od_days))
+
+                # Permission quota
+                db.execute('''
+                    INSERT INTO staff_permission_quotas
+                    (staff_id, school_id, quota_year, allocated_hours, used_hours)
+                    VALUES (?, ?, ?, ?, 0.0)
+                    ON DUPLICATE KEY UPDATE allocated_hours = VALUES(allocated_hours)
+                ''', (sid, school_id, quota_year, permission_hours))
+
+                updated += 1
             except Exception as e:
                 failed.append({'staff_id': sid, 'error': str(e)})
+
+        db.commit()
 
         return jsonify({
             'success': True,
@@ -14107,6 +14122,9 @@ def api_get_staff_quotas(staff_id, quota_year):
         return jsonify({'success': False, 'message': 'School ID required'}), 400
     
     try:
+        # Ensure default quotas exist before fetching
+        initialize_staff_quotas(staff_id, school_id, quota_year)
+        
         quota_summary = get_staff_quota_summary(staff_id, quota_year, school_id)
         
         if 'error' in quota_summary:
@@ -14773,8 +14791,8 @@ def initialize_staff_quotas(staff_id, school_id, year):
     
     try:
         # Initialize leave quotas
-        leave_types = ['CL', 'SL', 'EL', 'ML', 'PL']
-        default_allocations = {'CL': 12, 'SL': 10, 'EL': 21, 'ML': 90, 'PL': 7}
+        leave_types = ['CL', 'SL', 'EL', 'ML']
+        default_allocations = {'CL': 12, 'SL': 10, 'EL': 21, 'ML': 90}
         
         for leave_type in leave_types:
             existing = db.execute("""
