@@ -317,90 +317,97 @@
         }
 
         .quota-status-card {
-            background: white;
-            border-radius: 10px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-            border-left: 4px solid #007bff;
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            background: #fff;
+            border-radius: 8px;
+            padding: 0.65rem 0.85rem;
+            box-shadow: 0 1px 4px rgba(0,0,0,.06);
+            border-left: 3px solid #007bff;
+            transition: transform .15s, box-shadow .15s;
         }
 
         .quota-status-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.15);
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0,0,0,.1);
         }
 
         .quota-card-header {
             display: flex;
             align-items: center;
             justify-content: space-between;
-            margin-bottom: 1rem;
+            margin-bottom: 0.35rem;
         }
 
         .quota-card-title {
             font-weight: 600;
             color: #495057;
             margin: 0;
+            font-size: 0.75rem;
             display: flex;
             align-items: center;
-            gap: 0.5rem;
+            gap: 0.3rem;
         }
 
+        .quota-card-title i { font-size: 0.8rem; }
+
         .quota-badge {
-            background: linear-gradient(135deg, #007bff 0%, #0056b3 100%);
-            color: white;
-            padding: 0.25rem 0.75rem;
-            border-radius: 20px;
-            font-size: 0.85rem;
-            font-weight: 500;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: #fff;
+            padding: 0.15rem 0.5rem;
+            border-radius: 12px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            letter-spacing: .02em;
         }
 
         .quota-progress {
-            height: 8px;
+            height: 4px;
             background: #e9ecef;
-            border-radius: 4px;
+            border-radius: 2px;
             overflow: hidden;
-            margin-bottom: 1rem;
+            margin-bottom: 0.35rem;
         }
 
         .quota-progress-bar {
             height: 100%;
-            transition: width 0.3s ease;
-            border-radius: 4px;
+            transition: width .3s;
+            border-radius: 2px;
         }
 
         .quota-stats {
             display: flex;
             justify-content: space-between;
-            font-size: 0.9rem;
+            gap: 0.25rem;
         }
 
         .quota-stat {
             text-align: center;
+            flex: 1;
         }
 
         .quota-stat-value {
-            font-weight: 600;
-            font-size: 1.1rem;
-            margin-bottom: 0.25rem;
+            font-weight: 700;
+            font-size: 0.85rem;
+            line-height: 1.2;
         }
 
         .quota-stat-label {
-            color: white;
-            font-size: 0.8rem;
+            color: #6c757d;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: .03em;
         }
 
         /* Quota progress bar colors */
         .progress-bar-success {
-            background: #221e66;
+            background: linear-gradient(90deg, #28a745, #20c997);
         }
 
         .progress-bar-warning {
-            background: #221e66;
+            background: linear-gradient(90deg, #ffc107, #fd7e14);
         }
 
         .progress-bar-danger {
-            background: #221e66;
+            background: linear-gradient(90deg, #dc3545, #e74c3c);
         }
 
         /* Card border colors by quota type */
@@ -413,21 +420,19 @@
         }
 
         .quota-status-card.permission-card {
-            border-left-color: white;
+            border-left-color: #6f42c1;
         }
 
         /* Quota Status Container Scrolling */
         .quota-status-container {
-            max-height: 300px !important;
-            min-height: 100px;
+            max-height: 260px !important;
+            min-height: 80px;
             overflow-y: auto !important;
             overflow-x: hidden !important;
-            padding-right: 10px;
-            margin-right: -10px;
             border: 1px solid #e9ecef;
             border-radius: 8px;
             background-color: #f8f9fa;
-            padding: 15px;
+            padding: 10px;
             position: relative;
             display: block !important;
         }
@@ -3437,7 +3442,7 @@
         // Create quota status card
         function createQuotaCard(type, title, allocated, used, remaining, unit) {
             const col = document.createElement('div');
-            col.className = 'col-md-6 col-lg-4 mb-3';
+            col.className = 'col-6 col-md-4 col-lg-4 mb-2';
 
             const usagePercent = allocated > 0 ? (used / allocated) * 100 : 0;
             let progressBarClass = 'progress-bar-success';
@@ -3456,9 +3461,9 @@
             col.innerHTML = `
                 <div class="quota-status-card ${type}-card">
                     <div class="quota-card-header">
-                        <h6 class="quota-card-title">
+                        <span class="quota-card-title">
                             ${getQuotaIcon(type)} ${displayTitle}
-                        </h6>
+                        </span>
                         <span class="quota-badge">${allocated} ${unit}</span>
                     </div>
                     <div class="quota-progress">
@@ -3467,7 +3472,7 @@
                     <div class="quota-stats">
                         <div class="quota-stat">
                             <div class="quota-stat-value text-success">${allocated}</div>
-                            <div class="quota-stat-label">Allocated</div>
+                            <div class="quota-stat-label">Alloc</div>
                         </div>
                         <div class="quota-stat">
                             <div class="quota-stat-value text-warning">${used}</div>
@@ -3475,7 +3480,7 @@
                         </div>
                         <div class="quota-stat">
                             <div class="quota-stat-value text-primary">${remaining}</div>
-                            <div class="quota-stat-label">Remaining</div>
+                            <div class="quota-stat-label">Left</div>
                         </div>
                     </div>
                 </div>
