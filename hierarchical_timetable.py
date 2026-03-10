@@ -902,24 +902,85 @@ class HierarchicalTimetableManager:
             row = cursor.fetchone()
             max_periods = (row[0] or 8) if row else 8
             
-            # 3. Get all assignments
-            query = "SELECT staff_id, day_of_week, period_number FROM timetable_hierarchical_assignments WHERE school_id = ?"
-            params = [school_id]
-            if day_of_week is not None:
-                query += " AND day_of_week = ?"
-                params.append(day_of_week)
+            # Debug: Log what tables we're checking
+            logger.info(f"Checking staff availability for school_id={school_id}, day_filter={day_of_week}")
             
-            cursor.execute(query, params)
-            assignments = cursor.fetchall()
+            # Debug: Check each table individually first
+            cursor.execute("SELECT COUNT(*) FROM timetable_hierarchical_assignments WHERE school_id = ? AND staff_id IS NOT NULL", (school_id,))
+            h_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM timetable_assignments WHERE school_id = ? AND staff_id IS NOT NULL", (school_id,))
+            a_count = cursor.fetchone()[0]
+            cursor.execute("SELECT COUNT(*) FROM timetable_self_allocations WHERE school_id = ? AND staff_id IS NOT NULL", (school_id,))
+            s_count = cursor.fetchone()[0]
+            logger.info(f"Table counts - hierarchical: {h_count}, assignments: {a_count}, self_allocations: {s_count}")
+            
+            # Get assignments from each table separately for detailed logging
+            day_filter = "" if day_of_week is None else f" AND day_of_week = {day_of_week}"
+            
+            # From hierarchical_assignments
+            cursor.execute(f"SELECT DISTINCT staff_id, day_of_week, period_number FROM timetable_hierarchical_assignments WHERE school_id = ? AND staff_id IS NOT NULL{day_filter}", 
+                          (school_id,) if day_of_week is None else (school_id,))
+            h_assignments = cursor.fetchall()
+            logger.info(f"Hierarchical assignments: {len(h_assignments)} records")
+            
+            # From timetable_assignments  
+            cursor.execute(f"SELECT DISTINCT staff_id, day_of_week, period_number FROM timetable_assignments WHERE school_id = ? AND staff_id IS NOT NULL{day_filter}",
+                          (school_id,) if day_of_week is None else (school_id,))
+            a_assignments = cursor.fetchall()
+            logger.info(f"Direct assignments: {len(a_assignments)} records")
+            
+            # From self_allocations
+            cursor.execute(f"SELECT DISTINCT staff_id, day_of_week, period_number FROM timetable_self_allocations WHERE school_id = ? AND staff_id IS NOT NULL{day_filter}",
+                          (school_id,) if day_of_week is None else (school_id,))
+            s_assignments = cursor.fetchall()
+            logger.info(f"Self allocations: {len(s_assignments)} records")
+            
+            # Combine all assignments
+            all_assignments = []
+            for row in h_assignments:
+                all_assignments.append(('hierarchical', row))
+            for row in a_assignments:
+                all_assignments.append(('assignments', row))
+            for row in s_assignments:
+                all_assignments.append(('self_allocations', row))
+            
+            logger.info(f"Total combined: {len(all_assignments)} assignment records")
             
             # Map: staff_id -> day -> set(periods)
             busy_map = {s['id']: {} for s in staff_list}
-            for row in assignments:
-                sid, day, pnum = row
-                if sid in busy_map:
-                    if day not in busy_map[sid]:
-                        busy_map[sid][day] = set()
-                    busy_map[sid][day].add(pnum)
+            source_map = {}  # Track which table each assignment comes from
+            
+            for source, row in all_assignments:
+                # Handle both tuple and Row object formats (MySQL vs SQLite)
+                try:
+                    if isinstance(row, tuple):
+                        sid, day, pnum = row[0], row[1], row[2]
+                    else:
+                        sid = row['staff_id']
+                        day = row['day_of_week']
+                        pnum = row['period_number']
+                    
+                    if sid and sid in busy_map:
+                        if day not in busy_map[sid]:
+                            busy_map[sid][day] = set()
+                        
+                        # Track if this is a new addition or duplicate
+                        was_present = pnum in busy_map[sid][day]
+                        busy_map[sid][day].add(pnum)
+                        
+                        # Log the source of each assignment
+                        key = f"{sid}_{day}_{pnum}"
+                        if key not in source_map:
+                            source_map[key] = []
+                        source_map[key].append(source)
+                        
+                        if not was_present:
+                            logger.info(f"Assignment added - Staff:{sid}, Day:{day}, Period:{pnum}, Source:{source}")
+                        else:
+                            logger.warning(f"DUPLICATE - Staff:{sid}, Day:{day}, Period:{pnum} already exists, also found in {source}")
+                except Exception as e:
+                    logger.error(f"Error processing row {row} from {source}: {e}")
+                    continue
             
             # 4. Build result
             result = []
@@ -931,6 +992,15 @@ class HierarchicalTimetableManager:
                 for day in days_to_check:
                     busy = busy_map[sid].get(day, set())
                     free = [p for p in range(1, max_periods + 1) if p not in busy]
+                    
+                    # Debug log for staff with assignments
+                    if len(busy) > 0:
+                        logger.info(f"Staff {staff['name']} (ID:{sid}) - Day {day}: {len(busy)} assigned periods: {sorted(list(busy))}")
+                        # Show which tables contributed to these assignments
+                        for p in sorted(list(busy)):
+                            key = f"{sid}_{day}_{p}"
+                            sources = source_map.get(key, ['unknown'])
+                            logger.debug(f"  Period {p} sources: {', '.join(sources)}")
                     
                     result.append({
                         'staff_id': sid,

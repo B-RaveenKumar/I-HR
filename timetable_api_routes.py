@@ -486,7 +486,7 @@ def get_similar_periods():
 @timetable_api.route('/api/timetable/period/delete', methods=['POST'])
 @admin_required
 def delete_period():
-    """Delete a period"""
+    """Delete a period and cascade delete all related assignments"""
     try:
         data = request.get_json()
         school_id = data.get('school_id') or session.get('school_id')
@@ -497,10 +497,85 @@ def delete_period():
             
         db = get_db()
         cursor = db.cursor()
-        cursor.execute('DELETE FROM timetable_periods WHERE id = ? AND school_id = ?', (period_id, school_id))
+        
+        # First get period details for cascade delete
+        cursor.execute('SELECT period_number, level_id, section_id, day_of_week FROM timetable_periods WHERE id = ? AND school_id = ?', 
+                      (period_id, school_id))
+        period = cursor.fetchone()
+        
+        if not period:
+            return jsonify({'success': False, 'error': 'Period not found'}), 404
+        
+        period_number = period['period_number']
+        level_id = period['level_id']
+        section_id = period['section_id']
+        day_of_week = period['day_of_week']
+        
+        # Cascade delete: Remove all staff assignments for this period
+        # 1. Delete from timetable_hierarchical_assignments
+        if level_id and section_id and day_of_week:
+            cursor.execute('''
+                DELETE FROM timetable_hierarchical_assignments 
+                WHERE school_id = ? AND period_number = ? 
+                  AND level_id = ? AND section_id = ? AND day_of_week = ?
+            ''', (school_id, period_number, level_id, section_id, day_of_week))
+            hierarchical_deleted = cursor.rowcount
+        else:
+            cursor.execute('''
+                DELETE FROM timetable_hierarchical_assignments 
+                WHERE school_id = ? AND period_number = ?
+            ''', (school_id, period_number))
+            hierarchical_deleted = cursor.rowcount
+        
+        # 2. Delete from timetable_assignments (old direct assignments)
+        if day_of_week:
+            cursor.execute('''
+                DELETE FROM timetable_assignments 
+                WHERE school_id = ? AND period_number = ? AND day_of_week = ?
+            ''', (school_id, period_number, day_of_week))
+            direct_deleted = cursor.rowcount
+        else:
+            cursor.execute('''
+                DELETE FROM timetable_assignments 
+                WHERE school_id = ? AND period_number = ?
+            ''', (school_id, period_number))
+            direct_deleted = cursor.rowcount
+        
+        # 3. Delete from timetable_self_allocations
+        if day_of_week:
+            cursor.execute('''
+                DELETE FROM timetable_self_allocations 
+                WHERE school_id = ? AND period_number = ? AND day_of_week = ?
+            ''', (school_id, period_number, day_of_week))
+            self_deleted = cursor.rowcount
+        else:
+            cursor.execute('''
+                DELETE FROM timetable_self_allocations 
+                WHERE school_id = ? AND period_number = ?
+            ''', (school_id, period_number))
+            self_deleted = cursor.rowcount
+        
+        # 4. Finally delete the period itself
+        cursor.execute('DELETE FROM timetable_periods WHERE id = ? AND school_id = ?', 
+                      (period_id, school_id))
+        
         db.commit()
         
-        return jsonify({'success': True, 'message': 'Period deleted successfully'})
+        total_deleted = hierarchical_deleted + direct_deleted + self_deleted
+        message = f'Period deleted successfully'
+        if total_deleted > 0:
+            message += f' ({total_deleted} staff assignment(s) also removed)'
+        
+        return jsonify({
+            'success': True, 
+            'message': message,
+            'cascade_deleted': {
+                'hierarchical_assignments': hierarchical_deleted,
+                'direct_assignments': direct_deleted,
+                'self_allocations': self_deleted,
+                'total': total_deleted
+            }
+        })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
