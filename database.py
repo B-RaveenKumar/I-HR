@@ -983,6 +983,43 @@ def init_db(app):
         )
         ''')
 
+        # ==================== FEE MANAGEMENT TABLES ====================
+
+        # Fee types / templates per school
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS fee_types (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            name VARCHAR(255) NOT NULL,
+            description TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            UNIQUE(school_id, name)
+        )
+        ''')
+
+        # Student fee assignments
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS student_fees (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            student_db_id INTEGER NOT NULL,
+            fee_type_id INTEGER NOT NULL,
+            amount REAL NOT NULL,
+            due_date DATE,
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'paid', 'overdue', 'waived')),
+            paid_date DATE,
+            payment_mode TEXT,
+            notes TEXT,
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            FOREIGN KEY (student_db_id) REFERENCES students(id),
+            FOREIGN KEY (fee_type_id) REFERENCES fee_types(id)
+        )
+        ''')
+
         # --- Safe column additions ---
         def ensure_column_exists(table, column_def, column_name):
             if _USE_MYSQL:

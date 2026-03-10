@@ -6152,6 +6152,245 @@ def api_student_dashboard_data():
     })
 
 
+# ========================= FEE MANAGEMENT APIs =========================
+
+@app.route('/api/fees/types', methods=['GET'])
+def api_fee_types_get():
+    """Get all fee types for the school"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    db = get_db()
+    school_id = session['school_id']
+    rows = db.execute(
+        'SELECT id, name, description FROM fee_types WHERE school_id = ? ORDER BY name',
+        (school_id,)
+    ).fetchall()
+    return jsonify({'success': True, 'fee_types': [dict(r) for r in rows]})
+
+
+@app.route('/api/fees/types', methods=['POST'])
+@csrf.exempt
+def api_fee_types_create():
+    """Create a new fee type"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    data = request.get_json() or {}
+    name = (data.get('name') or '').strip()
+    description = (data.get('description') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Fee type name is required'}), 400
+    db = get_db()
+    school_id = session['school_id']
+    try:
+        db.execute(
+            'INSERT INTO fee_types (school_id, name, description) VALUES (?, ?, ?)',
+            (school_id, name, description or None)
+        )
+        db.commit()
+        row = db.execute(
+            'SELECT id, name, description FROM fee_types WHERE school_id = ? AND name = ?',
+            (school_id, name)
+        ).fetchone()
+        return jsonify({'success': True, 'fee_type': dict(row)})
+    except Exception as e:
+        if 'UNIQUE' in str(e) or 'Duplicate' in str(e):
+            return jsonify({'success': False, 'error': 'A fee type with this name already exists'}), 409
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/fees/types/<int:ft_id>', methods=['DELETE'])
+@csrf.exempt
+def api_fee_types_delete(ft_id):
+    """Delete a fee type"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    db = get_db()
+    school_id = session['school_id']
+    existing = db.execute(
+        'SELECT id FROM fee_types WHERE id = ? AND school_id = ?', (ft_id, school_id)
+    ).fetchone()
+    if not existing:
+        return jsonify({'success': False, 'error': 'Fee type not found'}), 404
+    db.execute('DELETE FROM student_fees WHERE fee_type_id = ? AND school_id = ?', (ft_id, school_id))
+    db.execute('DELETE FROM fee_types WHERE id = ? AND school_id = ?', (ft_id, school_id))
+    db.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/fees/students')
+def api_fees_students():
+    """Get students filtered by class/section for fee assignment"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    db = get_db()
+    school_id = session['school_id']
+    cls = request.args.get('class', '').strip()
+    section = request.args.get('section', '').strip()
+    query = '''
+        SELECT id, student_id, full_name, `class`, section, roll_number
+        FROM students WHERE school_id = ?
+    '''
+    params = [school_id]
+    if cls:
+        query += ' AND `class` = ?'
+        params.append(cls)
+    if section:
+        query += ' AND section = ?'
+        params.append(section)
+    query += ' ORDER BY `class`, section, roll_number, full_name'
+    rows = db.execute(query, params).fetchall()
+    return jsonify({'success': True, 'students': [dict(r) for r in rows]})
+
+
+@app.route('/api/fees/assign', methods=['POST'])
+@csrf.exempt
+def api_fees_assign():
+    """Assign a fee to one or more students"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    data = request.get_json() or {}
+    student_ids = data.get('student_ids', [])  # list of students.id (int)
+    fee_type_id = data.get('fee_type_id')
+    amount = data.get('amount')
+    due_date = data.get('due_date') or None
+    notes = (data.get('notes') or '').strip() or None
+    if not student_ids or not fee_type_id or amount is None:
+        return jsonify({'success': False, 'error': 'student_ids, fee_type_id and amount are required'}), 400
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Invalid amount'}), 400
+    db = get_db()
+    school_id = session['school_id']
+    admin_id = session['user_id']
+    ft = db.execute(
+        'SELECT id FROM fee_types WHERE id = ? AND school_id = ?', (fee_type_id, school_id)
+    ).fetchone()
+    if not ft:
+        return jsonify({'success': False, 'error': 'Fee type not found'}), 404
+    created = 0
+    for sid in student_ids:
+        st = db.execute(
+            'SELECT id FROM students WHERE id = ? AND school_id = ?', (sid, school_id)
+        ).fetchone()
+        if not st:
+            continue
+        db.execute('''
+            INSERT INTO student_fees (school_id, student_db_id, fee_type_id, amount, due_date, notes, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (school_id, sid, fee_type_id, amount, due_date, notes, admin_id))
+        created += 1
+    db.commit()
+    return jsonify({'success': True, 'created': created})
+
+
+@app.route('/api/fees/pay/<int:fee_id>', methods=['POST'])
+@csrf.exempt
+def api_fees_pay(fee_id):
+    """Mark a fee as paid"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    data = request.get_json() or {}
+    payment_mode = (data.get('payment_mode') or 'Cash').strip()
+    db = get_db()
+    school_id = session['school_id']
+    fee = db.execute(
+        'SELECT id FROM student_fees WHERE id = ? AND school_id = ?', (fee_id, school_id)
+    ).fetchone()
+    if not fee:
+        return jsonify({'success': False, 'error': 'Fee record not found'}), 404
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    db.execute(
+        "UPDATE student_fees SET status='paid', paid_date=?, payment_mode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        (today, payment_mode, fee_id)
+    )
+    db.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/fees/<int:fee_id>', methods=['DELETE'])
+@csrf.exempt
+def api_fees_delete(fee_id):
+    """Delete a fee record"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    db = get_db()
+    school_id = session['school_id']
+    fee = db.execute(
+        'SELECT id FROM student_fees WHERE id = ? AND school_id = ?', (fee_id, school_id)
+    ).fetchone()
+    if not fee:
+        return jsonify({'success': False, 'error': 'Fee record not found'}), 404
+    db.execute('DELETE FROM student_fees WHERE id = ?', (fee_id,))
+    db.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/fees/student-list')
+def api_fees_student_list():
+    """Get all fee records for students (admin view, filterable by class/section)"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    db = get_db()
+    school_id = session['school_id']
+    cls = request.args.get('class', '').strip()
+    section = request.args.get('section', '').strip()
+    query = '''
+        SELECT sf.id, sf.student_db_id, s.student_id, s.full_name, s.`class`, s.section,
+               s.roll_number, ft.name as fee_type_name, ft.id as fee_type_id,
+               sf.amount, sf.due_date, sf.status, sf.paid_date, sf.payment_mode, sf.notes
+        FROM student_fees sf
+        JOIN students s ON sf.student_db_id = s.id
+        JOIN fee_types ft ON sf.fee_type_id = ft.id
+        WHERE sf.school_id = ?
+    '''
+    params = [school_id]
+    if cls:
+        query += ' AND s.`class` = ?'
+        params.append(cls)
+    if section:
+        query += ' AND s.section = ?'
+        params.append(section)
+    query += ' ORDER BY s.`class`, s.section, s.roll_number, ft.name'
+    rows = db.execute(query, params).fetchall()
+    return jsonify({'success': True, 'fees': [dict(r) for r in rows]})
+
+
+@app.route('/api/fees/student/<int:student_db_id>')
+def api_fees_for_student(student_db_id):
+    """Get all fee records for a specific student (used by student panel)"""
+    # Allow either admin or the student themselves
+    is_admin = 'user_id' in session and (session.get('user_type') == 'admin' or session.get('is_sub_admin'))
+    is_student = 'student_id' in session and session.get('user_type') == 'student'
+    if not is_admin and not is_student:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    db = get_db()
+    # Validate student belongs to the current school
+    school_id = session.get('school_id')
+    student = db.execute('SELECT id, school_id FROM students WHERE id = ?', (student_db_id,)).fetchone()
+    if not student:
+        return jsonify({'success': False, 'error': 'Student not found'}), 404
+    if school_id and student['school_id'] != school_id:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+    rows = db.execute('''
+        SELECT sf.id, ft.name as fee_type_name, sf.amount, sf.due_date,
+               sf.status, sf.paid_date, sf.payment_mode, sf.notes, sf.created_at
+        FROM student_fees sf
+        JOIN fee_types ft ON sf.fee_type_id = ft.id
+        WHERE sf.student_db_id = ?
+        ORDER BY sf.created_at DESC
+    ''', (student_db_id,)).fetchall()
+    fees = [dict(r) for r in rows]
+    total = sum(f['amount'] for f in fees)
+    paid = sum(f['amount'] for f in fees if f['status'] == 'paid')
+    pending = sum(f['amount'] for f in fees if f['status'] == 'pending')
+    overdue = sum(f['amount'] for f in fees if f['status'] == 'overdue')
+    return jsonify({'success': True, 'fees': fees,
+                    'summary': {'total': total, 'paid': paid, 'pending': pending, 'overdue': overdue}})
+
+# ========================= END FEE MANAGEMENT APIs =========================
+
+
 @app.route('/api/get-student/<int:student_id>')
 def api_get_student(student_id):
     """API endpoint to get student data for editing"""
@@ -16476,13 +16715,31 @@ def student_fees():
     
     school = db.execute('SELECT name FROM schools WHERE id = ?', 
                        (student['school_id'],)).fetchone()
-    
-    # Get fees information (placeholder for now - can be extended later)
-    # You can add actual fees/payment tables later
-    
+
+    # Fetch fees for this student
+    fee_rows = db.execute('''
+        SELECT sf.id, ft.name as fee_type_name, sf.amount, sf.due_date,
+               sf.status, sf.paid_date, sf.payment_mode, sf.notes, sf.created_at
+        FROM student_fees sf
+        JOIN fee_types ft ON sf.fee_type_id = ft.id
+        WHERE sf.student_db_id = ?
+        ORDER BY sf.created_at DESC
+    ''', (session['student_id'],)).fetchall()
+
+    fees = [dict(r) for r in fee_rows]
+    total_fees  = sum(f['amount'] for f in fees)
+    paid_amount = sum(f['amount'] for f in fees if f['status'] == 'paid')
+    pending_amount = sum(f['amount'] for f in fees if f['status'] in ('pending', 'overdue'))
+    overdue_amount = sum(f['amount'] for f in fees if f['status'] == 'overdue')
+
     return render_template('student/student_fees.html',
                          student=student,
-                         school_name=school['name'] if school else 'N/A')
+                         school_name=school['name'] if school else 'N/A',
+                         fees=fees,
+                         total_fees=total_fees,
+                         paid_amount=paid_amount,
+                         pending_amount=pending_amount,
+                         overdue_amount=overdue_amount)
 
 
 @app.route('/student/leave')

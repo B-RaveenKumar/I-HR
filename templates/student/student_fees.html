@@ -533,42 +533,35 @@
             <div class="summary-card total">
                 <i class="bi bi-receipt"></i>
                 <div class="summary-label">Total Fees</div>
-                <div class="summary-amount">₹0</div>
+                <div class="summary-amount">₹{{ "{:,.2f}".format(total_fees) }}</div>
             </div>
             <div class="summary-card paid">
                 <i class="bi bi-check-circle"></i>
                 <div class="summary-label">Paid</div>
-                <div class="summary-amount">₹0</div>
+                <div class="summary-amount">₹{{ "{:,.2f}".format(paid_amount) }}</div>
             </div>
             <div class="summary-card pending">
                 <i class="bi bi-clock-history"></i>
                 <div class="summary-label">Pending</div>
-                <div class="summary-amount">₹0</div>
+                <div class="summary-amount">₹{{ "{:,.2f}".format(pending_amount) }}</div>
             </div>
             <div class="summary-card overdue">
                 <i class="bi bi-exclamation-triangle"></i>
                 <div class="summary-label">Overdue</div>
-                <div class="summary-amount">₹0</div>
+                <div class="summary-amount">₹{{ "{:,.2f}".format(overdue_amount) }}</div>
             </div>
         </div>
 
-        <!-- Fee Structure -->
+        <!-- Fee Records -->
         <div class="card">
             <div class="card-header">
                 <div class="card-title">
                     <i class="bi bi-list-ul"></i>
-                    Fee Structure
+                    Fee Details
                 </div>
             </div>
-            
-            <div class="empty-state">
-                <i class="bi bi-file-earmark-text"></i>
-                <h3>No fee structure available</h3>
-                <p>Fee details will be displayed here once they are configured by the school.</p>
-            </div>
 
-            <!-- Example fee structure table (uncomment when you have data) -->
-            <!--
+            {% if fees %}
             <div class="table-responsive">
                 <table class="fees-table">
                     <thead>
@@ -577,31 +570,48 @@
                             <th>Amount</th>
                             <th>Due Date</th>
                             <th>Status</th>
-                            <th>Action</th>
+                            <th>Paid On</th>
+                            <th>Mode</th>
                         </tr>
                     </thead>
                     <tbody>
+                        {% for fee in fees %}
                         <tr>
-                            <td><strong>Tuition Fee</strong><br><small>Q1 - 2025-26</small></td>
-                            <td><strong>₹15,000</strong></td>
-                            <td>April 10, 2025</td>
-                            <td><span class="status-badge status-paid">Paid</span></td>
-                            <td><button class="btn-primary"><i class="bi bi-download"></i> Receipt</button></td>
+                            <td><strong>{{ fee.fee_type_name }}</strong>
+                                {% if fee.notes %}<br><small style="color:var(--text-secondary);">{{ fee.notes }}</small>{% endif %}
+                            </td>
+                            <td><strong>₹{{ "{:,.2f}".format(fee.amount) }}</strong></td>
+                            <td>{{ fee.due_date or '—' }}</td>
+                            <td>
+                                {% if fee.status == 'paid' %}
+                                    <span class="status-badge status-paid">Paid</span>
+                                {% elif fee.status == 'overdue' %}
+                                    <span class="status-badge" style="background:var(--danger-color);color:#fff;padding:3px 10px;border-radius:12px;font-size:0.78rem;font-weight:600;">Overdue</span>
+                                {% elif fee.status == 'waived' %}
+                                    <span class="status-badge" style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:12px;font-size:0.78rem;font-weight:600;">Waived</span>
+                                {% else %}
+                                    <span class="status-badge status-pending">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ fee.paid_date or '—' }}</td>
+                            <td>{{ fee.payment_mode or '—' }}</td>
                         </tr>
-                        <tr>
-                            <td><strong>Exam Fee</strong><br><small>Mid-Term 2025-26</small></td>
-                            <td><strong>₹2,500</strong></td>
-                            <td>March 15, 2026</td>
-                            <td><span class="status-badge status-pending">Pending</span></td>
-                            <td><button class="btn-primary"><i class="bi bi-cash"></i> Pay Now</button></td>
-                        </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
-            -->
+            {% else %}
+            <div class="empty-state">
+                <i class="bi bi-file-earmark-text"></i>
+                <h3>No fee records yet</h3>
+                <p>Fee details will appear here once assigned by the school.</p>
+            </div>
+            {% endif %}
         </div>
 
-        <!-- Payment History -->
+        <!-- Paid history -->
+        {% set paid_fees = fees | selectattr('status', 'equalto', 'paid') | list %}
+        {% if paid_fees %}
         <div class="card">
             <div class="card-header">
                 <div class="card-title">
@@ -609,41 +619,30 @@
                     Payment History
                 </div>
             </div>
-            
-            <div class="empty-state">
-                <i class="bi bi-inbox"></i>
-                <h3>No payment history</h3>
-                <p>Your payment transactions will appear here.</p>
-            </div>
-
-            <!-- Example payment history table (uncomment when you have data) -->
-            <!--
             <div class="table-responsive">
                 <table class="fees-table">
                     <thead>
                         <tr>
-                            <th>Date</th>
-                            <th>Receipt No.</th>
-                            <th>Description</th>
+                            <th>Fee Type</th>
                             <th>Amount</th>
+                            <th>Paid On</th>
                             <th>Payment Mode</th>
-                            <th>Action</th>
                         </tr>
                     </thead>
                     <tbody>
+                        {% for fee in paid_fees %}
                         <tr>
-                            <td>Jan 15, 2026</td>
-                            <td><strong>#FEE2026001</strong></td>
-                            <td>Tuition Fee - Q4 2025-26</td>
-                            <td>₹15,000</td>
-                            <td><span class="status-badge status-paid">Online</span></td>
-                            <td><button class="btn-primary"><i class="bi bi-download"></i> Download</button></td>
+                            <td><strong>{{ fee.fee_type_name }}</strong></td>
+                            <td>₹{{ "{:,.2f}".format(fee.amount) }}</td>
+                            <td>{{ fee.paid_date or '—' }}</td>
+                            <td>{{ fee.payment_mode or '—' }}</td>
                         </tr>
+                        {% endfor %}
                     </tbody>
                 </table>
             </div>
-            -->
         </div>
+        {% endif %}
 
         <!-- Contact Info -->
         <div class="card">
