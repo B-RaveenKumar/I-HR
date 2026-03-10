@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+ #!/usr/bin/env python
 """Check staff assignments for debugging"""
 import sqlite3
 
