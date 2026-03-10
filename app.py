@@ -6044,11 +6044,18 @@ def admin_student_management():
     # Build sections mapping by class for dynamic filtering
     import json
     sections_by_class = {}
+    # Also map (class, section) -> section_id for timetable lookups
+    section_id_map = {}  # { 'ClassName': { 'SectionName': section_id } }
+    level_id_map = {}    # { 'ClassName': level_id }
+    for level in academic_levels:
+        level_id_map[level['level_name']] = level['id']
     for section in timetable_sections:
         class_name = section['level_name']
         if class_name not in sections_by_class:
             sections_by_class[class_name] = []
+            section_id_map[class_name] = {}
         sections_by_class[class_name].append(section['section_name'])
+        section_id_map[class_name][section['section_name']] = section['id']
     
     # Get all unique section names (across all levels) for filter dropdown
     unique_sections_set = set()
@@ -6070,7 +6077,79 @@ def admin_student_management():
                          unique_classes=unique_classes,
                          unique_sections=unique_sections,
                          sections_by_class=json.dumps(sections_by_class),
+                         section_id_map=json.dumps(section_id_map),
+                         level_id_map=json.dumps(level_id_map),
                          module_enabled=module_enabled)
+
+
+@app.route('/api/student-dashboard-data')
+def api_student_dashboard_data():
+    """API endpoint to get student attendance dashboard data for today"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    db = get_db()
+    school_id = session['school_id']
+    today = datetime.date.today().strftime('%Y-%m-%d')
+
+    # Get all students with today's attendance
+    students = db.execute('''
+        SELECT s.id, s.student_id, s.full_name, s.first_name, s.last_name,
+               s.`class`, s.section, s.roll_number, s.photo_data, s.gender,
+               sa.morning_status, sa.morning_time, sa.afternoon_status, sa.afternoon_time
+        FROM students s
+        LEFT JOIN student_attendance sa ON s.id = sa.student_id AND sa.attendance_date = ?
+        WHERE s.school_id = ?
+        ORDER BY s.`class`, s.section, s.roll_number
+    ''', (today, school_id)).fetchall()
+
+    student_list = []
+    summary = {'total': 0, 'present': 0, 'absent': 0, 'late': 0, 'leave': 0, 'not_marked': 0}
+
+    for s in students:
+        summary['total'] += 1
+        morning = s['morning_status'] or ''
+        afternoon = s['afternoon_status'] or ''
+
+        # Determine overall status
+        if morning == 'present' or afternoon == 'present':
+            status = 'Present'
+            summary['present'] += 1
+        elif morning == 'late' or afternoon == 'late':
+            status = 'Late'
+            summary['late'] += 1
+        elif morning == 'leave' or afternoon == 'leave':
+            status = 'On Leave'
+            summary['leave'] += 1
+        elif morning == 'absent' or afternoon == 'absent':
+            status = 'Absent'
+            summary['absent'] += 1
+        else:
+            status = 'Not Marked'
+            summary['not_marked'] += 1
+
+        student_list.append({
+            'id': s['id'],
+            'student_id': s['student_id'],
+            'full_name': s['full_name'],
+            'class': s['class'],
+            'section': s['section'],
+            'roll_number': s['roll_number'],
+            'gender': s['gender'] or '',
+            'morning_status': morning,
+            'morning_time': s['morning_time'] or '--:--:--',
+            'afternoon_status': afternoon,
+            'afternoon_time': s['afternoon_time'] or '--:--:--',
+            'status': status,
+            'has_photo': bool(s['photo_data'])
+        })
+
+    return jsonify({
+        'success': True,
+        'date': today,
+        'summary': summary,
+        'students': student_list
+    })
 
 
 @app.route('/api/get-student/<int:student_id>')

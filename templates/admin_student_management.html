@@ -96,6 +96,191 @@
             flex-shrink: 0;
         }
 
+        .glass-overlay .glass-stat {
+            cursor: pointer;
+        }
+
+        .glass-overlay .glass-stat.active .glass-icon {
+            background: rgba(22, 78, 99, 0.3);
+            border-color: #164e63;
+            box-shadow: 0 0 0 2px rgba(22, 78, 99, 0.2);
+        }
+
+        .glass-overlay .glass-stat.active .glass-value {
+            color: #0e3a4a;
+        }
+
+        /* View sections */
+        .view-section { display: none; }
+        .view-section.active { display: block; }
+
+        /* Student Dashboard */
+        .student-dashboard-header {
+            background: linear-gradient(135deg, #164e63 0%, #1e6b84 100%);
+            border-radius: 14px;
+            padding: 1.25rem 1.5rem;
+            margin-bottom: 1.5rem;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .student-dashboard-header .dash-title {
+            display: flex; align-items: center; gap: 0.75rem;
+        }
+
+        .student-dashboard-header .dash-title i {
+            font-size: 1.5rem;
+        }
+
+        .student-dashboard-header .dash-title h5 {
+            margin: 0; font-weight: 700;
+        }
+
+        .student-dashboard-header .dash-title p {
+            margin: 0; font-size: 0.8rem; opacity: 0.8;
+        }
+
+        .dash-stats {
+            display: flex; gap: 1.25rem; flex-wrap: wrap;
+        }
+
+        .dash-stat-item {
+            display: flex; align-items: center; gap: 0.4rem;
+            font-size: 0.85rem;
+        }
+
+        .dash-stat-item .dash-stat-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+        }
+
+        .dash-stat-item .dash-stat-num {
+            font-weight: 700; font-size: 1rem;
+        }
+
+        .student-attendance-table {
+            background: white;
+            border-radius: 14px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .student-attendance-table .table-header-bar {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+            display: flex; align-items: center; justify-content: space-between;
+            flex-wrap: wrap; gap: 0.75rem;
+        }
+
+        .student-attendance-table .search-box {
+            position: relative;
+        }
+
+        .student-attendance-table .search-box i {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: #94a3b8;
+        }
+
+        .student-attendance-table .search-box input {
+            padding-left: 36px; border-radius: 8px; border: 1px solid #e2e8f0;
+            font-size: 0.875rem; width: 300px; height: 38px;
+        }
+
+        .student-attendance-table table thead th {
+            background: #f8fafc; color: #164e63; font-weight: 600;
+            font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.04em;
+            border-top: 2px solid #164e63;
+            padding: 0.75rem 1rem;
+        }
+
+        .student-attendance-table table tbody td {
+            padding: 0.7rem 1rem; vertical-align: middle;
+            font-size: 0.875rem; border-bottom: 1px solid #f1f5f9;
+        }
+
+        .student-attendance-table table tbody tr:hover {
+            background: #f8fafc;
+        }
+
+        /* ===== TIMETABLE GRID ===== */
+        .tt-section-block {
+            background: #fff;
+            border-radius: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            margin-bottom: 1.75rem;
+            overflow: hidden;
+        }
+        .tt-section-header {
+            background: #fff;
+            padding: 1rem 1.5rem;
+            display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        .tt-section-header .tt-sec-title {
+            display: flex; align-items: center; gap: 0.6rem;
+            font-weight: 700; font-size: 1.1rem; color: #1e293b;
+        }
+        .tt-section-header .tt-sec-title i { font-size: 1.3rem; color: #667eea; }
+        .tt-section-header .tt-sec-meta { font-size: 0.78rem; color: #64748b; margin-top: 2px; }
+        .tt-grid-wrap { overflow-x: auto; padding: 0 1rem 1rem; }
+        .tt-grid {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 700px;
+        }
+        .tt-grid thead th {
+            background: #667eea;
+            color: #fff;
+            font-weight: 600;
+            text-align: center;
+            padding: 12px 10px;
+            border: 1px solid rgba(255,255,255,0.2);
+            font-size: 0.85rem;
+        }
+        .tt-grid thead th.tt-time-col {
+            background: #f8f9fa;
+            color: #1e293b;
+            border: 1px solid #e2e8f0;
+            min-width: 130px;
+            font-size: 0.82rem;
+        }
+        .tt-grid tbody td {
+            border: 1px solid #e2e8f0;
+            padding: 12px 10px;
+            text-align: center;
+            vertical-align: middle;
+            min-height: 80px;
+        }
+        .tt-grid tbody tr:hover { background: #f8f9fa; }
+        .tt-grid tbody tr:hover td.tt-time-col { background: #fff; }
+        .tt-grid tbody td.tt-time-col {
+            background: #fff;
+            font-weight: 700;
+            color: #1e293b;
+            text-align: center;
+            min-width: 130px;
+        }
+        .tt-grid tbody td.tt-time-col .tt-period-num {
+            font-size: 0.9rem; font-weight: 700; margin-bottom: 4px;
+        }
+        .tt-grid tbody td.tt-time-col .tt-period-time {
+            font-size: 0.72rem; color: #64748b; margin-top: 3px;
+        }
+        .tt-subject {
+            font-weight: 600; font-size: 0.85rem;
+            color: #1e293b; margin-bottom: 4px; line-height: 1.3;
+        }
+        .tt-staff {
+            font-size: 0.75rem; color: #64748b;
+            display: flex; align-items: center; justify-content: center; gap: 4px;
+        }
+        .tt-room { font-size: 0.7rem; color: #94a3b8; margin-top: 2px; }
+        .tt-empty { color: #cbd5e1; }
+        .tt-no-data { padding: 2.5rem; text-align: center; color: #94a3b8; font-size: 0.9rem; }
+
         /* OVERRIDE: Fix sidebar positioning for student management */
         .container-fluid {
             padding: 0 !important;
@@ -489,19 +674,25 @@
                 <div class="salary-header">
                     <!-- Frosted glass overlay (slides down on hover) -->
                     <div class="glass-overlay">
-                        <div class="glass-stat">
+                        <div class="glass-stat" onclick="switchView('dashboard')">
                             <div class="glass-icon"><i class="bi bi-speedometer2"></i></div>
                             <div class="glass-value">Dashboard</div>
                             <div class="glass-label">Overview</div>
                         </div>
                         <div class="glass-divider"></div>
-                        <div class="glass-stat">
+                        <div class="glass-stat active" onclick="switchView('students')">
+                            <div class="glass-icon"><i class="bi bi-mortarboard"></i></div>
+                            <div class="glass-value">Students</div>
+                            <div class="glass-label">Management</div>
+                        </div>
+                        <div class="glass-divider"></div>
+                        <div class="glass-stat" onclick="switchView('timetable')">
                             <div class="glass-icon"><i class="bi bi-calendar3"></i></div>
                             <div class="glass-value">Timetable</div>
                             <div class="glass-label">Schedule</div>
                         </div>
                         <div class="glass-divider"></div>
-                        <div class="glass-stat">
+                        <div class="glass-stat" onclick="switchView('fees')">
                             <div class="glass-icon"><i class="bi bi-cash-stack"></i></div>
                             <div class="glass-value">Fees</div>
                             <div class="glass-label">Management</div>
@@ -532,6 +723,120 @@
                     </div>
                 </div>
 
+                <!-- ====== DASHBOARD VIEW ====== -->
+                <div id="view-dashboard" class="view-section">
+                    <div class="student-dashboard-header">
+                        <div class="dash-title">
+                            <i class="bi bi-calendar-check"></i>
+                            <div>
+                                <h5>Today's Student Attendance</h5>
+                                <p id="dashDate">Loading...</p>
+                            </div>
+                        </div>
+                        <div class="dash-stats">
+                            <div class="dash-stat-item"><div class="dash-stat-dot" style="background:#10b981"></div><span class="dash-stat-num" id="dashPresent">0</span> Present</div>
+                            <div class="dash-stat-item"><div class="dash-stat-dot" style="background:#ef4444"></div><span class="dash-stat-num" id="dashAbsent">0</span> Absent</div>
+                            <div class="dash-stat-item"><div class="dash-stat-dot" style="background:#f59e0b"></div><span class="dash-stat-num" id="dashLate">0</span> Late</div>
+                            <div class="dash-stat-item"><div class="dash-stat-dot" style="background:#6366f1"></div><span class="dash-stat-num" id="dashLeave">0</span> On Leave</div>
+                            <div class="dash-stat-item"><div class="dash-stat-dot" style="background:#94a3b8"></div><span class="dash-stat-num" id="dashNotMarked">0</span> Not Marked</div>
+                        </div>
+                    </div>
+
+                    <div class="student-attendance-table">
+                        <div class="table-header-bar">
+                            <div class="search-box">
+                                <i class="bi bi-search"></i>
+                                <input type="text" id="dashSearch" class="form-control" placeholder="Search by name, ID, department...">
+                            </div>
+                            <select class="form-select" id="dashClassFilter" style="width:auto;min-width:140px;height:38px;border-radius:8px;font-size:0.875rem;border:1px solid #e2e8f0">
+                                <option value="">All Classes</option>
+                                {% for class_name in unique_classes %}
+                                <option value="{{ class_name }}">{{ class_name }}</option>
+                                {% endfor %}
+                            </select>
+                            <select class="form-select" id="dashSectionFilter" style="width:auto;min-width:140px;height:38px;border-radius:8px;font-size:0.875rem;border:1px solid #e2e8f0">
+                                <option value="">All Sections</option>
+                                {% for section in unique_sections %}
+                                <option value="{{ section }}">{{ section }}</option>
+                                {% endfor %}
+                            </select>
+                            <select class="form-select" id="dashStatusFilter" style="width:auto;min-width:140px;height:38px;border-radius:8px;font-size:0.875rem;border:1px solid #e2e8f0">
+                                <option value="">All Status</option>
+                                <option value="Present">Present</option>
+                                <option value="Absent">Absent</option>
+                                <option value="Late">Late</option>
+                                <option value="On Leave">On Leave</option>
+                                <option value="Not Marked">Not Marked</option>
+                            </select>
+                            <select class="form-select" id="dashGenderFilter" style="width:auto;min-width:130px;height:38px;border-radius:8px;font-size:0.875rem;border:1px solid #e2e8f0">
+                                <option value="">All Genders</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="table-responsive">
+                            <table class="table mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Roll No.</th>
+                                        <th>Name</th>
+                                        <th>Class</th>
+                                        <th>Morning</th>
+                                        <th>Afternoon</th>
+                                        <th>Status</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="dashAttendanceBody">
+                                    <tr><td colspan="7" class="text-center py-4 text-muted">Loading attendance data...</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====== TIMETABLE VIEW (placeholder) ====== -->
+                <div id="view-timetable" class="view-section">
+                    <!-- Timetable Header bar -->
+                    <div class="student-dashboard-header mb-3">
+                        <div class="dash-title">
+                            <i class="bi bi-calendar3"></i>
+                            <div>
+                                <h5>Class Timetable</h5>
+                                <p>Select a class to view all section schedules</p>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                            <select id="ttClassSelect" class="form-select" style="width:auto;min-width:160px;height:38px;border-radius:8px;font-size:0.875rem;" onchange="onTTClassChange()">
+                                <option value="">-- Select Class --</option>
+                                {% for class_name in unique_classes %}
+                                <option value="{{ class_name }}">{{ class_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Timetable content area -->
+                    <div id="ttContent">
+                        <div class="text-center py-5 text-muted">
+                            <i class="bi bi-calendar3" style="font-size:2.5rem;opacity:0.25"></i>
+                            <p class="mt-3">Select a class above to view the timetable.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====== FEES VIEW (placeholder) ====== -->
+                <div id="view-fees" class="view-section">
+                    <div class="text-center py-5">
+                        <i class="bi bi-cash-stack" style="font-size:3rem;opacity:0.3"></i>
+                        <h5 class="mt-3 text-muted">Fees Management</h5>
+                        <p class="text-muted">Student fees management section coming soon.</p>
+                    </div>
+                </div>
+
+                <!-- ====== STUDENTS VIEW (default) ====== -->
+                <div id="view-students" class="view-section active">
                 <!-- Statistics Cards -->
                 <div class="stats-row">
                     <div class="stat-card stat-primary">
@@ -713,6 +1018,7 @@
                         </div>
                     </div>
                 </div>
+                </div><!-- end view-students -->
             </main>
         </div>
     </div>
@@ -1931,6 +2237,246 @@ showStep(currentStep);
         document.addEventListener('DOMContentLoaded', function() {
             loadCustomFields();
         });
+
+        // ======== VIEW SWITCHING ========
+        function switchView(viewName) {
+            // Hide all view sections
+            document.querySelectorAll('.view-section').forEach(v => v.classList.remove('active'));
+            // Show the target view
+            const target = document.getElementById('view-' + viewName);
+            if (target) target.classList.add('active');
+
+            // Update glass nav active state
+            document.querySelectorAll('.glass-overlay .glass-stat').forEach(s => s.classList.remove('active'));
+            event && event.target ? null : null;
+            // Find the clicked item by matching viewName
+            document.querySelectorAll('.glass-overlay .glass-stat').forEach(s => {
+                const val = s.querySelector('.glass-value');
+                if (val) {
+                    const map = {'Dashboard':'dashboard','Students':'students','Timetable':'timetable','Fees':'fees'};
+                    if (map[val.textContent.trim()] === viewName) s.classList.add('active');
+                }
+            });
+
+            // Load dashboard data when switching to dashboard
+            if (viewName === 'dashboard') loadDashboardData();
+        }
+
+        // ======== TIMETABLE ========
+        const _sectionIdMap = {{ section_id_map | safe }};
+        const _sectionsByClass = {{ sections_by_class | safe }};
+        const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+        function onTTClassChange() {
+            const cls = document.getElementById('ttClassSelect').value;
+            const container = document.getElementById('ttContent');
+            if (!cls) {
+                container.innerHTML = '<div class="text-center py-5 text-muted"><i class="bi bi-calendar3" style="font-size:2.5rem;opacity:0.25"></i><p class="mt-3">Select a class above to view the timetable.</p></div>';
+                return;
+            }
+            const sections = _sectionsByClass[cls] || [];
+            if (!sections.length) {
+                container.innerHTML = '<div class="tt-no-data">No sections found for this class.</div>';
+                return;
+            }
+            container.innerHTML = '<div class="text-center py-4 text-muted"><i class="bi bi-hourglass-split"></i> Loading timetable...</div>';
+
+            // Fetch schedules for all sections in parallel
+            const promises = sections.map(secName => {
+                const secId = (_sectionIdMap[cls] || {})[secName];
+                if (!secId) return Promise.resolve({ secName, secId: null, data: null });
+                return fetch(`/api/hierarchical-timetable/section-schedule/${secId}`)
+                    .then(r => r.json())
+                    .then(data => ({ secName, secId, data }))
+                    .catch(() => ({ secName, secId, data: null }));
+            });
+
+            Promise.all(promises).then(results => {
+                let html = '';
+                results.forEach(({ secName, secId, data }) => {
+                    html += buildSectionTimetable(cls, secName, data);
+                });
+                container.innerHTML = html || '<div class="tt-no-data">No timetable data found.</div>';
+            });
+        }
+
+        function buildSectionTimetable(cls, secName, apiResult) {
+            let sectionInfo = { section_name: secName, level_name: cls, capacity: '-' };
+            let schedule = [];
+            if (apiResult && apiResult.success && apiResult.data) {
+                sectionInfo = apiResult.data.section_info || sectionInfo;
+                schedule = apiResult.data.schedule || [];
+            }
+
+            // Build grid: periods as rows, days as columns
+            const periodsSet = new Set();
+            const periodTimes = {};
+            const grid = {}; // grid[period][day]
+
+            schedule.forEach(entry => {
+                periodsSet.add(entry.period_number);
+                if (entry.start_time && entry.end_time) {
+                    periodTimes[entry.period_number] = `${entry.start_time} - ${entry.end_time}`;
+                }
+                if (!grid[entry.period_number]) grid[entry.period_number] = {};
+                grid[entry.period_number][entry.day_of_week] = entry;
+            });
+
+            const periods = Array.from(periodsSet).sort((a, b) => a - b);
+
+            // Section header card
+            let html = `<div class="tt-section-block">
+                <div class="tt-section-header">
+                    <div>
+                        <div class="tt-sec-title"><i class="bi bi-mortarboard-fill"></i> ${escapeHtml(sectionInfo.level_name)} &mdash; Section ${escapeHtml(sectionInfo.section_name)}</div>
+                        <div class="tt-sec-meta"><i class="bi bi-people"></i> Capacity: ${escapeHtml(String(sectionInfo.capacity || '-'))}</div>
+                    </div>
+                </div>`;
+
+            if (!periods.length) {
+                html += `<div class="tt-no-data"><i class="bi bi-calendar-x" style="font-size:2rem;opacity:0.3;display:block;margin-bottom:8px"></i>No periods assigned for this section.</div></div>`;
+                return html;
+            }
+
+            // Table: first col = Period/Time, then one col per day
+            html += `<div class="tt-grid-wrap"><table class="tt-grid"><thead><tr>
+                <th class="tt-time-col">Period / Time</th>`;
+            DAYS.forEach(day => {
+                html += `<th>${day}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+
+            periods.forEach(p => {
+                const timeStr = periodTimes[p] || '';
+                html += `<tr>
+                    <td class="tt-time-col">
+                        <div class="tt-period-num">Period ${p}</div>
+                        ${timeStr ? `<div class="tt-period-time">${escapeHtml(timeStr)}</div>` : ''}
+                    </td>`;
+                DAYS.forEach((_, dayIdx) => {
+                    const entry = (grid[p] || {})[dayIdx];
+                    if (entry) {
+                        html += `<td>
+                            <div class="tt-subject">${escapeHtml(entry.subject_name || 'N/A')}</div>
+                            <div class="tt-staff"><i class="bi bi-person"></i> ${escapeHtml(entry.staff_name || '-')}</div>
+                            ${entry.room_number ? `<div class="tt-room"><i class="bi bi-door-closed"></i> Room ${escapeHtml(entry.room_number)}</div>` : ''}
+                        </td>`;
+                    } else {
+                        html += `<td><span class="tt-empty">—</span></td>`;
+                    }
+                });
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div></div>';
+            return html;
+        }
+
+        let dashboardData = null;
+        function loadDashboardData() {
+            fetch('/api/student-dashboard-data')
+                .then(r => r.json())
+                .then(data => {
+                    if (!data.success) return;
+                    dashboardData = data;
+
+                    // Update date
+                    const d = new Date(data.date + 'T00:00:00');
+                    document.getElementById('dashDate').textContent = d.toLocaleDateString('en-GB', {day:'2-digit',month:'short',year:'numeric'}) + ' - Live updates';
+
+                    // Update summary counters
+                    const s = data.summary;
+                    document.getElementById('dashPresent').textContent = s.present;
+                    document.getElementById('dashAbsent').textContent = s.absent;
+                    document.getElementById('dashLate').textContent = s.late;
+                    document.getElementById('dashLeave').textContent = s.leave;
+                    document.getElementById('dashNotMarked').textContent = s.not_marked;
+
+                    // Render table
+                    renderDashTable(data.students);
+                })
+                .catch(err => console.error('Dashboard load error', err));
+        }
+
+        function renderDashTable(students) {
+            const tbody = document.getElementById('dashAttendanceBody');
+            if (!students || students.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-muted">No student records found.</td></tr>';
+                return;
+            }
+            let html = '';
+            students.forEach(st => {
+                const initials = (st.full_name || 'S').charAt(0).toUpperCase();
+                const statusBadge = getStatusBadge(st.status);
+                const morningBadge = getTimeBadge(st.morning_status, st.morning_time);
+                const afternoonBadge = getTimeBadge(st.afternoon_status, st.afternoon_time);
+                html += `<tr>
+                    <td><strong>${escapeHtml(st.roll_number || st.student_id || '-')}</strong></td>
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <div style="width:36px;height:36px;border-radius:50%;background:#164e63;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:0.85rem;margin-right:10px;flex-shrink:0">${initials}</div>
+                            <div class="fw-semibold">${escapeHtml(st.full_name)}</div>
+                        </div>
+                    </td>
+                    <td><span class="badge bg-info">${escapeHtml(st['class'] || '-')} - ${escapeHtml(st.section || '-')}</span></td>
+                    <td>${morningBadge}</td>
+                    <td>${afternoonBadge}</td>
+                    <td>${statusBadge}</td>
+                    <td><button class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></button></td>
+                </tr>`;
+            });
+            tbody.innerHTML = html;
+        }
+
+        function getStatusBadge(status) {
+            const map = {
+                'Present': '<span class="badge bg-success">Present</span>',
+                'Absent': '<span class="badge bg-danger">Absent</span>',
+                'Late': '<span class="badge bg-warning text-dark">Late</span>',
+                'On Leave': '<span class="badge bg-info">On Leave</span>',
+                'Not Marked': '<span class="badge bg-secondary">Not Marked</span>'
+            };
+            return map[status] || '<span class="badge bg-secondary">Not Marked</span>';
+        }
+
+        function getTimeBadge(status, time) {
+            if (!status) return '<span class="text-muted"><i class="bi bi-clock"></i> --:--:--</span>';
+            const cls = status === 'present' ? 'text-success' : status === 'late' ? 'text-warning' : status === 'absent' ? 'text-danger' : 'text-muted';
+            return `<span class="${cls}"><i class="bi bi-clock"></i> ${escapeHtml(time)}</span>`;
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const d = document.createElement('div');
+            d.textContent = text;
+            return d.innerHTML;
+        }
+
+        // Dashboard filters
+        function applyDashFilters() {
+            if (!dashboardData) return;
+            const q = (document.getElementById('dashSearch').value || '').toLowerCase();
+            const cls = document.getElementById('dashClassFilter').value;
+            const sec = document.getElementById('dashSectionFilter').value;
+            const sts = document.getElementById('dashStatusFilter').value;
+            const gen = document.getElementById('dashGenderFilter').value;
+            const filtered = dashboardData.students.filter(s => {
+                if (q && !((s.full_name || '').toLowerCase().includes(q) ||
+                    (s.student_id || '').toLowerCase().includes(q) ||
+                    (s.roll_number || '').toLowerCase().includes(q))) return false;
+                if (cls && (s['class'] || '') !== cls) return false;
+                if (sec && (s.section || '') !== sec) return false;
+                if (sts && (s.status || '') !== sts) return false;
+                if (gen && (s.gender || '') !== gen) return false;
+                return true;
+            });
+            renderDashTable(filtered);
+        }
+        document.getElementById('dashSearch')?.addEventListener('input', applyDashFilters);
+        document.getElementById('dashClassFilter')?.addEventListener('change', applyDashFilters);
+        document.getElementById('dashSectionFilter')?.addEventListener('change', applyDashFilters);
+        document.getElementById('dashStatusFilter')?.addEventListener('change', applyDashFilters);
+        document.getElementById('dashGenderFilter')?.addEventListener('change', applyDashFilters);
 
         // Handle form submission
         document.getElementById('addStudentForm')?.addEventListener('submit', function(event) {
