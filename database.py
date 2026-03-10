@@ -1006,8 +1006,9 @@ def init_db(app):
             student_db_id INTEGER NOT NULL,
             fee_type_id INTEGER NOT NULL,
             amount REAL NOT NULL,
+            paid_amount REAL DEFAULT 0,
             due_date DATE,
-            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'paid', 'overdue', 'waived')),
+            status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'paid', 'overdue', 'waived', 'partial')),
             paid_date DATE,
             payment_mode TEXT,
             notes TEXT,
@@ -1081,6 +1082,59 @@ def init_db(app):
         # Add student management columns
         ensure_column_exists('students', 'age INTEGER', 'age')
         ensure_column_exists('students', 'academic_year TEXT', 'academic_year')
+        # Add fee partial-payment column
+        ensure_column_exists('student_fees', 'paid_amount REAL DEFAULT 0', 'paid_amount')
+
+        # Fix status CHECK constraint to include 'partial'
+        if _USE_MYSQL:
+            # MySQL: drop the auto-named constraint and recreate with 'partial' included
+            for _cname in ('student_fees_chk_1', 'student_fees_chk_status'):
+                try:
+                    cursor.execute(f"ALTER TABLE student_fees DROP CHECK `{_cname}`")
+                except Exception:
+                    pass
+            try:
+                cursor.execute(
+                    "ALTER TABLE student_fees ADD CONSTRAINT student_fees_chk_status "
+                    "CHECK(status IN ('pending','paid','overdue','waived','partial'))"
+                )
+            except Exception:
+                pass
+        else:
+            # SQLite: recreate the table if the current schema lacks 'partial'
+            cursor.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name='student_fees'")
+            _row = cursor.fetchone()
+            if _row and "'partial'" not in (_row[0] or ''):
+                cursor.execute('''
+                    CREATE TABLE IF NOT EXISTS student_fees_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        school_id INTEGER NOT NULL,
+                        student_db_id INTEGER NOT NULL,
+                        fee_type_id INTEGER NOT NULL,
+                        amount REAL NOT NULL,
+                        paid_amount REAL DEFAULT 0,
+                        due_date DATE,
+                        status TEXT DEFAULT 'pending' CHECK(status IN ('pending','paid','overdue','waived','partial')),
+                        paid_date DATE,
+                        payment_mode TEXT,
+                        notes TEXT,
+                        created_by INTEGER,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (school_id) REFERENCES schools(id),
+                        FOREIGN KEY (student_db_id) REFERENCES students(id),
+                        FOREIGN KEY (fee_type_id) REFERENCES fee_types(id)
+                    )
+                ''')
+                cursor.execute('''
+                    INSERT INTO student_fees_new
+                    SELECT id, school_id, student_db_id, fee_type_id, amount,
+                           COALESCE(paid_amount, 0), due_date, status, paid_date,
+                           payment_mode, notes, created_by, created_at, updated_at
+                    FROM student_fees
+                ''')
+                cursor.execute('DROP TABLE student_fees')
+                cursor.execute('ALTER TABLE student_fees_new RENAME TO student_fees')
 
         # Create cloud-related tables
         cursor.execute('''

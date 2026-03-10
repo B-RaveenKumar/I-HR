@@ -281,6 +281,312 @@
         .tt-empty { color: #cbd5e1; }
         .tt-no-data { padding: 2.5rem; text-align: center; color: #94a3b8; font-size: 0.9rem; }
 
+        /* ===== FEES MODULE ===== */
+        .fee-wizard-card {
+            background: #fff;
+            border-radius: 18px;
+            box-shadow: 0 4px 24px rgba(16,185,129,0.10), 0 1px 4px rgba(0,0,0,0.06);
+            overflow: hidden;
+            flex: 2;
+            min-width: 520px;
+        }
+        .fee-wizard-header {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            padding: 1.4rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .fee-wizard-header .fwh-icon {
+            width: 52px; height: 52px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 13px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.6rem; color: #fff;
+        }
+        .fee-wizard-header .fwh-title { font-weight: 700; font-size: 1.2rem; color: #fff; }
+        .fee-wizard-header .fwh-sub   { font-size: 0.85rem; color: rgba(255,255,255,0.85); margin-top: 2px; }
+        .fee-wizard-steps {
+            display: flex;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .fee-wizard-step {
+            flex: 1;
+            padding: 0.85rem 1.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.65rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #94a3b8;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+        .fee-wizard-step.active {
+            color: #10b981;
+            border-bottom-color: #10b981;
+        }
+        .fee-wizard-step .step-num {
+            width: 28px; height: 28px;
+            border-radius: 50%;
+            background: #e2e8f0;
+            color: #64748b;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            flex-shrink: 0;
+            transition: all 0.2s;
+        }
+        .fee-wizard-step.active .step-num {
+            background: #10b981;
+            color: #fff;
+        }
+        .fee-wizard-step.done .step-num {
+            background: #d1fae5;
+            color: #059669;
+        }
+        .fee-wizard-body { padding: 1.75rem 2rem; }
+        .fee-filter-row {
+            display: flex;
+            gap: 1rem;
+            flex-wrap: wrap;
+            margin-bottom: 1.25rem;
+            align-items: flex-end;
+        }
+        .fee-filter-group label {
+            display: block;
+            font-size: 0.73rem;
+            font-weight: 700;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 5px;
+        }
+        .fee-filter-group select,
+        .fee-filter-group input {
+            border: 1.5px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 9px 14px;
+            font-size: 0.9rem;
+            color: #1e293b;
+            background: #f8fafc;
+            outline: none;
+            transition: border 0.2s;
+            height: 44px;
+        }
+        .fee-filter-group select:focus,
+        .fee-filter-group input:focus {
+            border-color: #10b981;
+            background: #fff;
+        }
+        .fee-search-wrap {
+            position: relative;
+            flex: 1;
+            min-width: 220px;
+        }
+        .fee-search-wrap i.search-icon {
+            position: absolute;
+            left: 13px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+        .fee-search-wrap .search-spinner {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: none;
+            width: 16px;
+            height: 16px;
+        }
+        .fee-search-wrap input {
+            padding-left: 38px !important;
+            width: 100%;
+        }
+        .fee-load-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 9px 22px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            height: 44px;
+            transition: transform 0.15s, box-shadow 0.15s;
+            align-self: flex-end;
+        }
+        .fee-load-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(102,126,234,0.35); }
+        /* Student selection grid */
+        .fee-student-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+            gap: 0.75rem;
+            max-height: 360px;
+            overflow-y: auto;
+            padding: 3px;
+        }
+        .fee-student-card {
+            border: 2px solid #e2e8f0;
+            border-radius: 13px;
+            padding: 0.85rem 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            background: #fff;
+            user-select: none;
+        }
+        .fee-student-card:hover {
+            border-color: #86efac;
+            background: #f0fdf4;
+        }
+        .fee-student-card.selected {
+            border-color: #10b981;
+            background: #ecfdf5;
+            box-shadow: 0 0 0 3px rgba(16,185,129,0.12);
+        }
+        .fee-student-card .fsc-avatar {
+            width: 42px; height: 42px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #667eea 0%, #10b981 100%);
+            color: #fff;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1rem;
+            font-weight: 700;
+            flex-shrink: 0;
+        }
+        .fee-student-card .fsc-info { flex: 1; min-width: 0; }
+        .fee-student-card .fsc-name {
+            font-weight: 600;
+            font-size: 0.88rem;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .fee-student-card .fsc-meta {
+            font-size: 0.75rem;
+            color: #64748b;
+            margin-top: 2px;
+        }
+        .fee-student-card .fsc-check {
+            width: 22px; height: 22px;
+            border-radius: 50%;
+            border: 2px solid #cbd5e1;
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            transition: all 0.15s;
+            font-size: 0.8rem;
+            color: transparent;
+        }
+        .fee-student-card.selected .fsc-check {
+            background: #10b981;
+            border-color: #10b981;
+            color: #fff;
+        }
+        .fee-select-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 0;
+            margin-bottom: 0.6rem;
+            font-size: 0.85rem;
+            color: #475569;
+        }
+        .fee-select-bar button {
+            background: none;
+            border: none;
+            color: #667eea;
+            font-size: 0.83rem;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 0;
+        }
+        /* Fee detail fields */
+        .fee-detail-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin-top: 1.25rem;
+            padding-top: 1.25rem;
+            border-top: 1.5px dashed #e2e8f0;
+        }
+        .fee-field label {
+            display: block;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #475569;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 5px;
+        }
+        .fee-field input,
+        .fee-field select {
+            width: 100%;
+            border: 1.5px solid #e2e8f0;
+            border-radius: 9px;
+            padding: 9px 12px;
+            font-size: 0.87rem;
+            color: #1e293b;
+            background: #f8fafc;
+            outline: none;
+            transition: border 0.2s, background 0.2s;
+        }
+        .fee-field input:focus,
+        .fee-field select:focus {
+            border-color: #10b981;
+            background: #fff;
+            box-shadow: 0 0 0 3px rgba(16,185,129,0.1);
+        }
+        .fee-field.full { grid-column: 1 / -1; }
+        .fee-assign-btn {
+            margin-top: 1.25rem;
+            width: 100%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: #fff;
+            border: none;
+            border-radius: 11px;
+            padding: 0.85rem;
+            font-size: 0.95rem;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            transition: transform 0.15s, box-shadow 0.15s;
+            letter-spacing: 0.02em;
+        }
+        .fee-assign-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16,185,129,0.4);
+        }
+        .fee-assign-btn:disabled {
+            background: #94a3b8;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .fee-selected-count {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #d1fae5;
+            color: #065f46;
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+        }
+
         /* OVERRIDE: Fix sidebar positioning for student management */
         .container-fluid {
             padding: 0 !important;
@@ -856,82 +1162,124 @@
                             </div>
                         </div>
 
-                        <!-- Assign Fee Card -->
-                        <div style="flex:1;min-width:280px;background:#fff;border-radius:14px;box-shadow:0 2px 8px rgba(0,0,0,0.08);padding:1.25rem;">
-                            <div style="font-weight:700;font-size:1rem;color:#1e293b;display:flex;align-items:center;gap:0.5rem;margin-bottom:1rem;border-bottom:2px solid #e2e8f0;padding-bottom:0.75rem;">
-                                <i class="bi bi-cash-coin" style="color:#10b981"></i> Assign Fee to Students
-                            </div>
-                            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;align-items:flex-end;">
+                        <!-- Assign Fee Card (Modern Wizard) -->
+                        <div class="fee-wizard-card">
+                            <!-- Header -->
+                            <div class="fee-wizard-header">
+                                <div class="fwh-icon"><i class="bi bi-cash-coin"></i></div>
                                 <div>
-                                    <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:3px;">Class</label>
-                                    <select id="feesClassSelect" class="form-select form-select-sm" style="min-width:130px;" onchange="onFeesClassChange()">
-                                        <option value="">All Classes</option>
-                                        {% for class_name in unique_classes %}
-                                        <option value="{{ class_name }}">{{ class_name }}</option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:3px;">Section</label>
-                                    <select id="feesSectionSelect" class="form-select form-select-sm" style="min-width:120px;" onchange="loadFeesStudents()">
-                                        <option value="">All Sections</option>
-                                    </select>
-                                </div>
-                                <div style="flex:1;min-width:180px;">
-                                    <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:3px;">Search Student</label>
-                                    <input type="text" id="feesStudentSearch" class="form-control form-control-sm" placeholder="Name or roll number…" oninput="filterFeesStudents()">
-                                </div>
-                                <div>
-                                    <button class="btn btn-sm" style="background:#667eea;color:#fff;border-radius:8px;" onclick="loadFeesStudents()">
-                                        <i class="bi bi-search"></i> Load
-                                    </button>
+                                    <div class="fwh-title">Assign Fee to Students</div>
+                                    <div class="fwh-sub">Select students, choose fee type &amp; amount</div>
                                 </div>
                             </div>
 
-                            <!-- Student list with checkboxes -->
-                            <div id="feesStudentArea" style="margin-top:0.75rem;max-height:200px;overflow-y:auto;border:1px solid #e2e8f0;border-radius:8px;display:none;">
-                                <table id="feesStudentTable" style="width:100%;border-collapse:collapse;font-size:0.82rem;">
-                                    <thead>
-                                        <tr style="background:#f8fafc;position:sticky;top:0;">
-                                            <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;">
-                                                <input type="checkbox" id="feesSelectAll" onchange="toggleSelectAllFeeStudents(this)">
-                                            </th>
-                                            <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#475569;font-weight:600;">Name</th>
-                                            <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#475569;font-weight:600;">Class</th>
-                                            <th style="padding:6px 10px;border-bottom:1px solid #e2e8f0;color:#475569;font-weight:600;">Roll No.</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="feesStudentBody"></tbody>
-                                </table>
+                            <!-- Step tabs -->
+                            <div class="fee-wizard-steps">
+                                <div class="fee-wizard-step active" id="fwStep1Tab">
+                                    <span class="step-num">1</span> Select Students
+                                </div>
+                                <div class="fee-wizard-step" id="fwStep2Tab">
+                                    <span class="step-num">2</span> Fee Details
+                                </div>
                             </div>
 
-                            <!-- Fee assignment fields -->
-                            <div style="display:flex;gap:0.75rem;flex-wrap:wrap;margin-top:0.75rem;align-items:flex-end;">
-                                <div>
-                                    <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:3px;">Fee Type</label>
-                                    <select id="assignFeeType" class="form-select form-select-sm" style="min-width:160px;">
-                                        <option value="">Select fee type…</option>
-                                    </select>
-                                </div>
-                                <div>
-                                    <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:3px;">Amount (₹)</label>
-                                    <input type="number" id="assignFeeAmount" class="form-control form-control-sm" style="width:110px;" placeholder="0.00" min="0" step="0.01">
-                                </div>
-                                <div>
-                                    <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:3px;">Due Date</label>
-                                    <input type="date" id="assignFeeDue" class="form-control form-control-sm" style="width:140px;">
-                                </div>
-                                <div style="flex:1;min-width:160px;">
-                                    <label style="font-size:0.78rem;font-weight:600;color:#475569;display:block;margin-bottom:3px;">Notes</label>
-                                    <input type="text" id="assignFeeNotes" class="form-control form-control-sm" placeholder="Optional notes…">
-                                </div>
-                                <div>
-                                    <button class="btn btn-sm" style="background:#10b981;color:#fff;border-radius:8px;" onclick="assignFees()">
-                                        <i class="bi bi-check2-circle"></i> Assign Fee
+                            <div class="fee-wizard-body">
+                                <!-- ── Step 1: filter + student cards ── -->
+                                <div id="fwStep1">
+                                    <div class="fee-filter-row">
+                                        <div class="fee-filter-group">
+                                            <label>Class</label>
+                                            <select id="feesClassSelect" style="min-width:120px;" onchange="onFeesClassChange()">
+                                                <option value="">All Classes</option>
+                                                {% for class_name in unique_classes %}
+                                                <option value="{{ class_name }}">{{ class_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div class="fee-filter-group">
+                                            <label>Section</label>
+                                            <select id="feesSectionSelect" style="min-width:110px;" onchange="loadFeesStudents()">
+                                                <option value="">All</option>
+                                            </select>
+                                        </div>
+                                        <div class="fee-filter-group fee-search-wrap">
+                                            <label>Search by Name / Roll No</label>
+                                            <i class="bi bi-search search-icon"></i>
+                                            <div class="search-spinner spinner-border spinner-border-sm text-success" role="status" id="feesSearchSpinner" style="display:none;"></div>
+                                            <input type="text" id="feesStudentSearch" placeholder="Type name or roll number…" oninput="onFeesSearchInput()">
+                                        </div>
+                                        <button class="fee-load-btn" style="margin-bottom:0;" onclick="loadFeesStudents()">
+                                            <i class="bi bi-funnel"></i> Load
+                                        </button>
+                                    </div>
+
+                                    <!-- Selection bar -->
+                                    <div id="feesSelectBar" class="fee-select-bar" style="display:none;">
+                                        <span id="feesSelectedCount" class="fee-selected-count"><i class="bi bi-check-circle-fill"></i> 0 selected</span>
+                                        <div style="display:flex;gap:0.75rem;">
+                                            <button onclick="toggleSelectAllFeeStudents(true)">Select All</button>
+                                            <button onclick="toggleSelectAllFeeStudents(false)" style="color:#ef4444;">Clear</button>
+                                        </div>
+                                    </div>
+
+                                    <!-- Student grid -->
+                                    <div id="feesStudentArea" style="display:none;">
+                                        <div id="feesStudentGrid" class="fee-student-grid"></div>
+                                    </div>
+
+                                    <div id="feesStudentEmpty" style="display:block;padding:3rem 2rem;text-align:center;color:#94a3b8;font-size:0.9rem;">
+                                        <i class="bi bi-people" style="font-size:3rem;opacity:0.25;display:block;margin-bottom:10px;"></i>
+                                        Select a class &amp; section — or type a roll number to auto-load.
+                                    </div>
+
+                                    <!-- Next button -->
+                                    <button id="fwNextBtn" class="fee-assign-btn" style="margin-top:1rem;background:linear-gradient(135deg,#667eea 0%,#5568d3 100%);" onclick="fwGoStep2()" disabled>
+                                        <i class="bi bi-arrow-right-circle"></i> Next: Set Fee Details
                                     </button>
                                 </div>
+
+                                <!-- ── Step 2: fee details ── -->
+                                <div id="fwStep2" style="display:none;">
+                                    <!-- Selected students preview -->
+                                    <div style="background:#f0fdf4;border-radius:10px;padding:0.65rem 1rem;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between;">
+                                        <span style="font-size:0.83rem;color:#065f46;font-weight:600;">
+                                            <i class="bi bi-people-fill"></i>
+                                            <span id="fwStep2Count">0</span> student(s) selected
+                                        </span>
+                                        <button onclick="fwGoStep1()" style="background:none;border:none;color:#10b981;font-size:0.8rem;font-weight:600;cursor:pointer;">
+                                            <i class="bi bi-pencil"></i> Change
+                                        </button>
+                                    </div>
+
+                                    <div class="fee-detail-grid">
+                                        <div class="fee-field">
+                                            <label><i class="bi bi-tag-fill" style="color:#667eea"></i> Fee Type</label>
+                                            <select id="assignFeeType">
+                                                <option value="">Select fee type…</option>
+                                            </select>
+                                        </div>
+                                        <div class="fee-field">
+                                            <label><i class="bi bi-currency-rupee" style="color:#10b981"></i> Amount (₹)</label>
+                                            <input type="number" id="assignFeeAmount" placeholder="0.00" min="0" step="0.01">
+                                        </div>
+                                        <div class="fee-field">
+                                            <label><i class="bi bi-calendar-event" style="color:#f59e0b"></i> Due Date</label>
+                                            <input type="date" id="assignFeeDue">
+                                        </div>
+                                        <div class="fee-field">
+                                            <label><i class="bi bi-chat-text" style="color:#06b6d4"></i> Notes</label>
+                                            <input type="text" id="assignFeeNotes" placeholder="Optional notes…">
+                                        </div>
+                                    </div>
+
+                                    <div id="feesAssignMsg" style="display:none;margin-top:0.75rem;font-size:0.83rem;border-radius:8px;padding:0.6rem 1rem;"></div>
+
+                                    <button class="fee-assign-btn" onclick="assignFees()">
+                                        <i class="bi bi-check2-circle"></i> Assign Fee Now
+                                    </button>
+                                    <button onclick="fwGoStep1()" style="width:100%;margin-top:0.5rem;background:none;border:1.5px solid #e2e8f0;border-radius:11px;padding:0.55rem;font-size:0.83rem;color:#64748b;cursor:pointer;font-weight:600;"><i class="bi bi-arrow-left"></i> Back</button>
+                                </div>
                             </div>
-                            <div id="feesAssignMsg" style="display:none;margin-top:0.5rem;font-size:0.83rem;"></div>
                         </div>
                     </div>
 
@@ -942,6 +1290,14 @@
                                 <i class="bi bi-table" style="color:#06b6d4"></i> Fee Records
                             </div>
                             <div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
+                                <!-- Search by name / roll number -->
+                                <div style="position:relative;">
+                                    <i class="bi bi-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:#94a3b8;font-size:0.85rem;"></i>
+                                    <input type="text" id="feeRecordsSearch" placeholder="Search name / roll no…"
+                                        style="border:1.5px solid #e2e8f0;border-radius:9px;padding:5px 12px 5px 30px;font-size:0.82rem;outline:none;width:200px;transition:border 0.2s;"
+                                        oninput="filterFeeRecords()"
+                                        onfocus="this.style.borderColor='#06b6d4'" onblur="this.style.borderColor='#e2e8f0'">
+                                </div>
                                 <select id="feeRecordsClass" class="form-select form-select-sm" style="min-width:120px;" onchange="onFeeRecordsClassChange()">
                                     <option value="">All Classes</option>
                                     {% for class_name in unique_classes %}
@@ -959,23 +1315,129 @@
                         <!-- Summary counters -->
                         <div id="feeRecordsSummary" style="display:flex;gap:1rem;margin-bottom:1rem;flex-wrap:wrap;"></div>
                         <div style="overflow-x:auto;">
-                            <table id="feeRecordsTable" style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:700px;">
+                            <table id="feeRecordsTable" style="width:100%;border-collapse:collapse;font-size:0.82rem;min-width:820px;">
                                 <thead>
                                     <tr style="background:#f8fafc;">
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Student</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Class</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Fee Type</th>
-                                        <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Amount</th>
+                                        <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Total (₹)</th>
+                                        <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#16a34a;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Paid (₹)</th>
+                                        <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#d97706;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Balance (₹)</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Due Date</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Status</th>
-                                        <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Paid On</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="feeRecordsBody">
-                                    <tr><td colspan="8" class="text-center py-4 text-muted">Select a class/section and click Refresh to view fee records.</td></tr>
+                                    <tr><td colspan="9" class="text-center py-4 text-muted">Select a class/section and click Refresh to view fee records.</td></tr>
                                 </tbody>
                             </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====== FEE EDIT MODAL ====== -->
+                <div id="feeEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+                    <div style="background:#fff;border-radius:18px;padding:2rem;width:500px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;">
+                            <div style="display:flex;align-items:center;gap:0.6rem;">
+                                <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#667eea,#5568d3);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;"><i class="bi bi-pencil-square"></i></div>
+                                <div>
+                                    <div style="font-weight:700;font-size:1rem;color:#1e293b;">Edit Fee Record</div>
+                                    <div id="feeEditStudentName" style="font-size:0.78rem;color:#64748b;"></div>
+                                </div>
+                            </div>
+                            <button onclick="closeFeeEditModal()" style="background:none;border:none;font-size:1.4rem;color:#94a3b8;cursor:pointer;line-height:1;">&times;</button>
+                        </div>
+                        <input type="hidden" id="feeEditId">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                            <div>
+                                <label style="font-size:0.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Fee Type</label>
+                                <select id="feeEditType" style="width:100%;border:1.5px solid #e2e8f0;border-radius:9px;padding:9px 12px;font-size:0.87rem;outline:none;background:#f8fafc;"></select>
+                            </div>
+                            <div>
+                                <label style="font-size:0.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Total Amount (₹)</label>
+                                <input type="number" id="feeEditAmount" min="0" step="0.01" style="width:100%;border:1.5px solid #e2e8f0;border-radius:9px;padding:9px 12px;font-size:0.87rem;outline:none;background:#f8fafc;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Due Date</label>
+                                <input type="date" id="feeEditDue" style="width:100%;border:1.5px solid #e2e8f0;border-radius:9px;padding:9px 12px;font-size:0.87rem;outline:none;background:#f8fafc;">
+                            </div>
+                            <div>
+                                <label style="font-size:0.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Status</label>
+                                <select id="feeEditStatus" style="width:100%;border:1.5px solid #e2e8f0;border-radius:9px;padding:9px 12px;font-size:0.87rem;outline:none;background:#f8fafc;">
+                                    <option value="pending">Pending</option>
+                                    <option value="partial">Partial</option>
+                                    <option value="paid">Paid</option>
+                                    <option value="overdue">Overdue</option>
+                                    <option value="waived">Waived</option>
+                                </select>
+                            </div>
+                            <div style="grid-column:1/-1;">
+                                <label style="font-size:0.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Notes</label>
+                                <input type="text" id="feeEditNotes" placeholder="Optional notes…" style="width:100%;border:1.5px solid #e2e8f0;border-radius:9px;padding:9px 12px;font-size:0.87rem;outline:none;background:#f8fafc;">
+                            </div>
+                        </div>
+                        <div id="feeEditMsg" style="display:none;margin-top:0.75rem;font-size:0.82rem;border-radius:8px;padding:0.55rem 0.9rem;"></div>
+                        <div style="display:flex;gap:0.75rem;margin-top:1.25rem;">
+                            <button onclick="saveFeeEdit()" style="flex:1;background:linear-gradient(135deg,#667eea,#5568d3);color:#fff;border:none;border-radius:10px;padding:0.75rem;font-weight:700;font-size:0.9rem;cursor:pointer;">
+                                <i class="bi bi-check2-circle"></i> Save Changes
+                            </button>
+                            <button onclick="closeFeeEditModal()" style="background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:0.75rem 1.25rem;font-weight:600;font-size:0.87rem;cursor:pointer;">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====== PARTIAL PAYMENT MODAL ====== -->
+                <div id="feePartialModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:9999;align-items:center;justify-content:center;">
+                    <div style="background:#fff;border-radius:18px;padding:2rem;width:440px;max-width:95vw;box-shadow:0 20px 60px rgba(0,0,0,0.25);position:relative;">
+                        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;">
+                            <div style="display:flex;align-items:center;gap:0.6rem;">
+                                <div style="width:38px;height:38px;border-radius:10px;background:linear-gradient(135deg,#10b981,#059669);display:flex;align-items:center;justify-content:center;color:#fff;font-size:1rem;"><i class="bi bi-cash-stack"></i></div>
+                                <div>
+                                    <div style="font-weight:700;font-size:1rem;color:#1e293b;">Record Payment</div>
+                                    <div id="partialStudentName" style="font-size:0.78rem;color:#64748b;"></div>
+                                </div>
+                            </div>
+                            <button onclick="closeFeePartialModal()" style="background:none;border:none;font-size:1.4rem;color:#94a3b8;cursor:pointer;line-height:1;">&times;</button>
+                        </div>
+                        <!-- Fee summary -->
+                        <div style="background:#f0fdf4;border-radius:12px;padding:0.9rem 1rem;margin-bottom:1.25rem;display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;text-align:center;">
+                            <div><div style="font-size:0.7rem;color:#64748b;font-weight:600;text-transform:uppercase;">Total</div><div id="partialTotal" style="font-weight:700;color:#1e293b;font-size:1rem;">₹0</div></div>
+                            <div><div style="font-size:0.7rem;color:#16a34a;font-weight:600;text-transform:uppercase;">Paid</div><div id="partialPaid" style="font-weight:700;color:#16a34a;font-size:1rem;">₹0</div></div>
+                            <div><div style="font-size:0.7rem;color:#d97706;font-weight:600;text-transform:uppercase;">Balance</div><div id="partialBalance" style="font-weight:700;color:#d97706;font-size:1rem;">₹0</div></div>
+                        </div>
+                        <input type="hidden" id="partialFeeId">
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-bottom:1rem;">
+                            <div>
+                                <label style="font-size:0.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Pay Now (₹)</label>
+                                <input type="number" id="partialPayNow" min="0.01" step="0.01" placeholder="0.00"
+                                    style="width:100%;border:1.5px solid #e2e8f0;border-radius:9px;padding:9px 12px;font-size:0.9rem;outline:none;background:#f8fafc;"
+                                    oninput="updatePartialPreview()">
+                            </div>
+                            <div>
+                                <label style="font-size:0.72rem;font-weight:700;color:#475569;text-transform:uppercase;letter-spacing:0.05em;display:block;margin-bottom:5px;">Payment Mode</label>
+                                <select id="partialPayMode" style="width:100%;border:1.5px solid #e2e8f0;border-radius:9px;padding:9px 12px;font-size:0.87rem;outline:none;background:#f8fafc;">
+                                    <option>Cash</option>
+                                    <option>Online</option>
+                                    <option>Cheque</option>
+                                    <option>DD</option>
+                                    <option>UPI</option>
+                                    <option>Bank Transfer</option>
+                                </select>
+                            </div>
+                        </div>
+                        <!-- Live preview -->
+                        <div id="partialPreview" style="background:#eff6ff;border-radius:9px;padding:0.6rem 1rem;font-size:0.82rem;color:#2563eb;margin-bottom:1rem;display:none;">
+                            After payment: Paid <strong id="partialPreviewPaid"></strong> · Balance <strong id="partialPreviewBal"></strong>
+                        </div>
+                        <div id="partialMsg" style="display:none;margin-bottom:0.75rem;font-size:0.82rem;border-radius:8px;padding:0.55rem 0.9rem;"></div>
+                        <div style="display:flex;gap:0.75rem;">
+                            <button onclick="submitPartialPay()" style="flex:1;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:10px;padding:0.75rem;font-weight:700;font-size:0.9rem;cursor:pointer;">
+                                <i class="bi bi-check2-circle"></i> Record Payment
+                            </button>
+                            <button onclick="closeFeePartialModal()" style="background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:0.75rem 1.25rem;font-weight:600;font-size:0.87rem;cursor:pointer;">Cancel</button>
                         </div>
                     </div>
                 </div>
@@ -2698,67 +3160,202 @@ showStep(currentStep);
             const cls = document.getElementById('feesClassSelect').value;
             const secSel = document.getElementById('feesSectionSelect');
             const secs = _feesSectionsByClass[cls] || [];
-            secSel.innerHTML = '<option value="">All Sections</option>' + secs.map(s => `<option value="${s}">${s}</option>`).join('');
+            secSel.innerHTML = '<option value="">All</option>' + secs.map(s => `<option value="${s}">${s}</option>`).join('');
             loadFeesStudents();
         }
 
         function loadFeesStudents() {
             const cls = document.getElementById('feesClassSelect').value;
             const sec = document.getElementById('feesSectionSelect').value;
+            const area = document.getElementById('feesStudentArea');
+            const empty = document.getElementById('feesStudentEmpty');
+            const bar  = document.getElementById('feesSelectBar');
+            const spinner = document.getElementById('feesSearchSpinner');
             if (!cls) {
-                document.getElementById('feesStudentArea').style.display = 'none';
+                area.style.display = 'none';
+                bar.style.display = 'none';
+                empty.style.display = 'block';
                 _feesStudents = [];
+                _updateFwNextBtn();
                 return;
             }
+            if (spinner) spinner.style.display = 'inline-block';
             fetch(`/api/fees/students?class=${encodeURIComponent(cls)}&section=${encodeURIComponent(sec)}`)
                 .then(r => r.json())
                 .then(d => {
                     _feesStudents = d.students || [];
-                    renderFeesStudentTable(_feesStudents);
-                    document.getElementById('feesStudentArea').style.display = _feesStudents.length ? 'block' : 'none';
-                });
+                    filterFeesStudents();
+                    if (_feesStudents.length) {
+                        area.style.display = 'block';
+                        bar.style.display  = 'flex';
+                        empty.style.display = 'none';
+                    } else {
+                        area.style.display = 'none';
+                        bar.style.display  = 'none';
+                        empty.style.display = 'block';
+                        empty.innerHTML = '<i class="bi bi-emoji-frown" style="font-size:2.5rem;opacity:0.25;display:block;margin-bottom:10px;"></i>No students found for this filter.';
+                    }
+                    _updateFwNextBtn();
+                })
+                .finally(() => { if (spinner) spinner.style.display = 'none'; });
+        }
+
+        let _feesSearchTimer = null;
+
+        function onFeesSearchInput() {
+            const q = (document.getElementById('feesStudentSearch').value || '').trim();
+
+            // If students are already loaded, just filter in-place
+            if (_feesStudents.length) {
+                filterFeesStudents();
+                return;
+            }
+
+            // Auto-load when user types — debounce 400ms
+            if (!q) return;
+            clearTimeout(_feesSearchTimer);
+            const spinner = document.getElementById('feesSearchSpinner');
+            if (spinner) spinner.style.display = 'inline-block';
+            _feesSearchTimer = setTimeout(() => {
+                _autoLoadAndFilter(q);
+            }, 400);
+        }
+
+        function _autoLoadAndFilter(q) {
+            const cls  = document.getElementById('feesClassSelect').value;
+            const sec  = document.getElementById('feesSectionSelect').value;
+            const spinner = document.getElementById('feesSearchSpinner');
+            // fetch all students (no class filter needed — search across all)
+            const url = cls
+                ? `/api/fees/students?class=${encodeURIComponent(cls)}&section=${encodeURIComponent(sec)}`
+                : `/api/fees/students?class=&section=`;
+            fetch(url)
+                .then(r => r.json())
+                .then(d => {
+                    _feesStudents = d.students || [];
+                    filterFeesStudents();
+                    const area  = document.getElementById('feesStudentArea');
+                    const empty = document.getElementById('feesStudentEmpty');
+                    const bar   = document.getElementById('feesSelectBar');
+                    const filtered = _feesStudents.filter(s => _matchStudent(s, q));
+                    if (filtered.length) {
+                        area.style.display  = 'block';
+                        bar.style.display   = 'flex';
+                        empty.style.display = 'none';
+                    } else {
+                        area.style.display  = 'none';
+                        bar.style.display   = 'none';
+                        empty.style.display = 'block';
+                        empty.innerHTML = '<i class="bi bi-emoji-frown" style="font-size:2.5rem;opacity:0.25;display:block;margin-bottom:10px;"></i>No student found for "' + escapeHtml(q) + '".';
+                    }
+                    _updateFwNextBtn();
+                })
+                .finally(() => { if (spinner) spinner.style.display = 'none'; });
+        }
+
+        function _matchStudent(s, q) {
+            const ql = q.toLowerCase();
+            return (s.full_name   || '').toLowerCase().includes(ql) ||
+                   (s.roll_number || '').toLowerCase().includes(ql) ||
+                   (s.student_id  || '').toLowerCase().includes(ql);
         }
 
         function filterFeesStudents() {
             const q = (document.getElementById('feesStudentSearch').value || '').toLowerCase();
-            const filtered = _feesStudents.filter(s =>
-                (s.full_name || '').toLowerCase().includes(q) ||
-                (s.roll_number || '').toLowerCase().includes(q) ||
-                (s.student_id || '').toLowerCase().includes(q)
-            );
+            if (!q) { renderFeesStudentTable(_feesStudents); return; }
+            const filtered = _feesStudents.filter(s => _matchStudent(s, q));
             renderFeesStudentTable(filtered);
         }
 
-        function renderFeesStudentTable(students) {
-            const tbody = document.getElementById('feesStudentBody');
-            if (!students.length) {
-                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-3 text-muted" style="font-size:0.82rem;">No students found.</td></tr>';
-                return;
-            }
-            tbody.innerHTML = students.map(s => `
-                <tr>
-                    <td style="padding:5px 10px;"><input type="checkbox" class="feeStudentCb" value="${s.id}"></td>
-                    <td style="padding:5px 10px;">${escapeHtml(s.full_name)}</td>
-                    <td style="padding:5px 10px;">${escapeHtml(s['class'] || '')}${s.section ? ' - ' + escapeHtml(s.section) : ''}</td>
-                    <td style="padding:5px 10px;">${escapeHtml(s.roll_number || '-')}</td>
-                </tr>
-            `).join('');
-            document.getElementById('feesSelectAll').checked = false;
+        function _studentInitials(name) {
+            const parts = (name || '?').trim().split(' ');
+            return (parts[0][0] + (parts[1] ? parts[1][0] : '')).toUpperCase();
         }
 
-        function toggleSelectAllFeeStudents(cb) {
-            document.querySelectorAll('.feeStudentCb').forEach(c => c.checked = cb.checked);
+        function renderFeesStudentTable(students) {
+            const grid = document.getElementById('feesStudentGrid');
+            if (!grid) return;
+            if (!students.length) {
+                grid.innerHTML = '<div style="grid-column:1/-1;text-align:center;color:#94a3b8;padding:1.5rem;font-size:0.83rem;">No students match your search.</div>';
+                return;
+            }
+            grid.innerHTML = students.map(s => `
+                <div class="fee-student-card" data-id="${s.id}" onclick="_toggleFeeCard(this)">
+                    <div class="fsc-avatar">${_studentInitials(s.full_name)}</div>
+                    <div class="fsc-info">
+                        <div class="fsc-name">${escapeHtml(s.full_name)}</div>
+                        <div class="fsc-meta">${escapeHtml(s['class'] || '')}${s.section ? ' · ' + escapeHtml(s.section) : ''}${s.roll_number ? ' · ' + escapeHtml(s.roll_number) : ''}</div>
+                    </div>
+                    <div class="fsc-check"><i class="bi bi-check"></i></div>
+                </div>
+            `).join('');
+            _updateFwSelectedCount();
+        }
+
+        function _toggleFeeCard(el) {
+            el.classList.toggle('selected');
+            _updateFwSelectedCount();
+            _updateFwNextBtn();
+        }
+
+        function toggleSelectAllFeeStudents(selectAll) {
+            document.querySelectorAll('.fee-student-card').forEach(c => {
+                if (selectAll) c.classList.add('selected');
+                else c.classList.remove('selected');
+            });
+            _updateFwSelectedCount();
+            _updateFwNextBtn();
+        }
+
+        function _getSelectedStudentIds() {
+            return Array.from(document.querySelectorAll('.fee-student-card.selected')).map(c => parseInt(c.dataset.id));
+        }
+
+        function _updateFwSelectedCount() {
+            const n = document.querySelectorAll('.fee-student-card.selected').length;
+            const el = document.getElementById('feesSelectedCount');
+            if (el) el.innerHTML = `<i class="bi bi-check-circle-fill"></i> ${n} selected`;
+        }
+
+        function _updateFwNextBtn() {
+            const btn = document.getElementById('fwNextBtn');
+            if (!btn) return;
+            const n = document.querySelectorAll('.fee-student-card.selected').length;
+            btn.disabled = n === 0;
+            btn.innerHTML = n > 0
+                ? `<i class="bi bi-arrow-right-circle"></i> Next: Set Fee Details (${n} student${n > 1 ? 's' : ''})`
+                : `<i class="bi bi-arrow-right-circle"></i> Next: Set Fee Details`;
+        }
+
+        function fwGoStep2() {
+            const n = _getSelectedStudentIds().length;
+            if (!n) return;
+            document.getElementById('fwStep1').style.display = 'none';
+            document.getElementById('fwStep2').style.display = 'block';
+            document.getElementById('fwStep1Tab').classList.remove('active');
+            document.getElementById('fwStep1Tab').classList.add('done');
+            document.getElementById('fwStep2Tab').classList.add('active');
+            document.getElementById('fwStep2Count').textContent = n;
+        }
+
+        function fwGoStep1() {
+            document.getElementById('fwStep2').style.display = 'none';
+            document.getElementById('fwStep1').style.display = 'block';
+            document.getElementById('fwStep2Tab').classList.remove('active');
+            document.getElementById('fwStep1Tab').classList.add('active');
+            document.getElementById('fwStep1Tab').classList.remove('done');
+            const msgEl = document.getElementById('feesAssignMsg');
+            if (msgEl) msgEl.style.display = 'none';
         }
 
         function assignFees() {
-            const selected = Array.from(document.querySelectorAll('.feeStudentCb:checked')).map(c => parseInt(c.value));
+            const selected = _getSelectedStudentIds();
             const typeId = parseInt(document.getElementById('assignFeeType').value);
             const amount = parseFloat(document.getElementById('assignFeeAmount').value);
             const dueDate = document.getElementById('assignFeeDue').value;
             const notes = document.getElementById('assignFeeNotes').value.trim();
-            const msgEl = document.getElementById('feesAssignMsg');
 
-            if (!selected.length) { showFeesMsg('warning', 'Select at least one student.'); return; }
+            if (!selected.length) { showFeesMsg('warning', 'No students selected.'); return; }
             if (!typeId) { showFeesMsg('warning', 'Select a fee type.'); return; }
             if (!amount || isNaN(amount) || amount <= 0) { showFeesMsg('warning', 'Enter a valid amount.'); return; }
 
@@ -2770,12 +3367,11 @@ showStep(currentStep);
                 if (d.success) {
                     showFeesMsg('success', `Fee assigned to ${d.created} student(s) successfully.`);
                     loadFeeRecords();
-                    // Clear selections
-                    document.querySelectorAll('.feeStudentCb').forEach(c => c.checked = false);
-                    document.getElementById('feesSelectAll').checked = false;
+                    toggleSelectAllFeeStudents(false);
                     document.getElementById('assignFeeAmount').value = '';
                     document.getElementById('assignFeeDue').value = '';
                     document.getElementById('assignFeeNotes').value = '';
+                    setTimeout(() => fwGoStep1(), 2000);
                 } else {
                     showFeesMsg('danger', d.error || 'Failed to assign fees.');
                 }
@@ -2796,6 +3392,8 @@ showStep(currentStep);
         }
 
         // --- Fee Records ---
+        let _feeRecords = [];
+
         function onFeeRecordsClassChange() {
             const cls = document.getElementById('feeRecordsClass').value;
             const secSel = document.getElementById('feeRecordsSection');
@@ -2809,49 +3407,73 @@ showStep(currentStep);
             const sec = document.getElementById('feeRecordsSection').value;
             fetch(`/api/fees/student-list?class=${encodeURIComponent(cls)}&section=${encodeURIComponent(sec)}`)
                 .then(r => r.json())
-                .then(d => { renderFeeRecords(d.fees || []); });
+                .then(d => {
+                    _feeRecords = d.fees || [];
+                    filterFeeRecords();
+                });
+        }
+
+        function filterFeeRecords() {
+            const q = (document.getElementById('feeRecordsSearch')?.value || '').trim().toLowerCase();
+            if (!q) { renderFeeRecords(_feeRecords); return; }
+            const filtered = _feeRecords.filter(f =>
+                (f.full_name   || '').toLowerCase().includes(q) ||
+                (f.roll_number || '').toLowerCase().includes(q) ||
+                (f.student_id  || '').toLowerCase().includes(q)
+            );
+            renderFeeRecords(filtered);
         }
 
         function renderFeeRecords(fees) {
             const tbody = document.getElementById('feeRecordsBody');
             if (!fees.length) {
-                tbody.innerHTML = '<tr><td colspan="8" class="text-center py-4 text-muted">No fee records found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">No fee records found.</td></tr>';
                 document.getElementById('feeRecordsSummary').innerHTML = '';
                 return;
             }
             // Summary
             const total   = fees.reduce((a, f) => a + f.amount, 0);
-            const paid    = fees.filter(f => f.status === 'paid').reduce((a, f) => a + f.amount, 0);
-            const pending = fees.filter(f => f.status === 'pending' || f.status === 'overdue').reduce((a, f) => a + f.amount, 0);
+            const paidAmt = fees.reduce((a, f) => a + (f.paid_amount || 0), 0);
+            const balance = total - paidAmt;
+            const partialCount = fees.filter(f => f.status === 'partial').length;
             document.getElementById('feeRecordsSummary').innerHTML = `
-                <div style="background:#eff6ff;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#2563eb;">₹${total.toLocaleString('en-IN', {minimumFractionDigits:2})}</span><br><span style="color:#475569;">Total</span></div>
-                <div style="background:#f0fdf4;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#16a34a;">₹${paid.toLocaleString('en-IN', {minimumFractionDigits:2})}</span><br><span style="color:#475569;">Paid</span></div>
-                <div style="background:#fff7ed;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#d97706;">₹${pending.toLocaleString('en-IN', {minimumFractionDigits:2})}</span><br><span style="color:#475569;">Pending</span></div>
+                <div style="background:#eff6ff;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#2563eb;">₹${total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><br><span style="color:#475569;">Total Billed</span></div>
+                <div style="background:#f0fdf4;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#16a34a;">₹${paidAmt.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><br><span style="color:#475569;">Total Paid</span></div>
+                <div style="background:#fff7ed;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#d97706;">₹${balance.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><br><span style="color:#475569;">Total Balance</span></div>
+                ${partialCount ? `<div style="background:#fef3c7;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#b45309;">${partialCount}</span><br><span style="color:#475569;">Partial</span></div>` : ''}
                 <div style="color:#64748b;font-size:0.82rem;align-self:center;">${fees.length} record(s)</div>
             `;
 
             const statusBadge = {
-                paid: '<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">Paid</span>',
+                paid:    '<span style="background:#d1fae5;color:#065f46;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">Paid</span>',
                 pending: '<span style="background:#fef3c7;color:#92400e;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">Pending</span>',
+                partial: '<span style="background:#fff7ed;color:#c2410c;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">Partial</span>',
                 overdue: '<span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">Overdue</span>',
-                waived: '<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">Waived</span>',
+                waived:  '<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">Waived</span>',
             };
 
-            tbody.innerHTML = fees.map(f => `
+            tbody.innerHTML = fees.map(f => {
+                const total   = parseFloat(f.amount || 0);
+                const paid    = parseFloat(f.paid_amount || 0);
+                const balance = total - paid;
+                const canPay  = f.status !== 'paid' && f.status !== 'waived';
+                return `
                 <tr style="border-bottom:1px solid #f1f5f9;">
                     <td style="padding:8px 10px;font-weight:600;">${escapeHtml(f.full_name)}</td>
                     <td style="padding:8px 10px;">${escapeHtml(f['class'] || '')}${f.section ? ' - ' + escapeHtml(f.section) : ''}<br><small style="color:#94a3b8;">Roll: ${escapeHtml(f.roll_number || '-')}</small></td>
                     <td style="padding:8px 10px;">${escapeHtml(f.fee_type_name)}</td>
-                    <td style="padding:8px 10px;font-weight:600;">₹${parseFloat(f.amount).toLocaleString('en-IN', {minimumFractionDigits:2})}</td>
+                    <td style="padding:8px 10px;font-weight:600;">₹${total.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+                    <td style="padding:8px 10px;color:#16a34a;font-weight:600;">₹${paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+                    <td style="padding:8px 10px;color:${balance > 0 ? '#d97706' : '#16a34a'};font-weight:600;">₹${balance.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
                     <td style="padding:8px 10px;">${f.due_date || '—'}</td>
-                    <td style="padding:8px 10px;">${statusBadge[f.status] || f.status}</td>
-                    <td style="padding:8px 10px;">${f.paid_date || '—'}${f.payment_mode ? `<br><small style="color:#94a3b8;">${escapeHtml(f.payment_mode)}</small>` : ''}</td>
-                    <td style="padding:8px 10px;">
-                        ${f.status !== 'paid' ? `<button class="btn btn-sm" style="background:#10b981;color:#fff;border-radius:6px;font-size:0.75rem;padding:3px 8px;margin-right:4px;" onclick="markFeePaid(${f.id})"><i class="bi bi-check-lg"></i> Paid</button>` : ''}
-                        <button class="btn btn-sm btn-outline-danger" style="border-radius:6px;font-size:0.75rem;padding:3px 8px;" onclick="deleteFeeRecord(${f.id})"><i class="bi bi-trash"></i></button>
+                    <td style="padding:8px 10px;">${statusBadge[f.status] || f.status}${f.paid_date ? `<br><small style="color:#94a3b8;">${f.paid_date}${f.payment_mode ? ' · ' + escapeHtml(f.payment_mode) : ''}</small>` : ''}</td>
+                    <td style="padding:8px 10px;white-space:nowrap;">
+                        ${canPay ? `<button class="btn btn-sm" title="Record payment" style="background:#10b981;color:#fff;border-radius:6px;font-size:0.75rem;padding:3px 8px;margin-right:3px;" onclick="openPartialPay(${f.id},${total},${paid})"><i class="bi bi-cash-stack"></i> Pay</button>` : ''}
+                        <button class="btn btn-sm" title="Edit record" style="background:#667eea;color:#fff;border-radius:6px;font-size:0.75rem;padding:3px 8px;margin-right:3px;" onclick="openFeeEdit(${f.id},'${escapeHtml(f.full_name)}',${total},'${f.due_date||''}',${f.fee_type_id},'${f.status}','${escapeHtml(f.notes||'')}')"><i class="bi bi-pencil"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" title="Delete" style="border-radius:6px;font-size:0.75rem;padding:3px 8px;" onclick="deleteFeeRecord(${f.id})"><i class="bi bi-trash"></i></button>
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
         }
 
         function markFeePaid(feeId) {
@@ -2876,6 +3498,121 @@ showStep(currentStep);
                 if (d.success) loadFeeRecords();
                 else alert(d.error || 'Failed.');
             });
+        }
+
+        // ---- Edit Modal ----
+        function openFeeEdit(id, studentName, amount, dueDate, feeTypeId, status, notes) {
+            document.getElementById('feeEditId').value = id;
+            document.getElementById('feeEditStudentName').textContent = studentName;
+            document.getElementById('feeEditAmount').value = amount;
+            document.getElementById('feeEditDue').value = dueDate;
+            document.getElementById('feeEditStatus').value = status;
+            document.getElementById('feeEditNotes').value = notes;
+            // Populate fee types
+            const sel = document.getElementById('feeEditType');
+            sel.innerHTML = _feeTypes.map(ft => `<option value="${ft.id}" ${ft.id == feeTypeId ? 'selected' : ''}>${escapeHtml(ft.name)}</option>`).join('');
+            const msgEl = document.getElementById('feeEditMsg');
+            msgEl.style.display = 'none';
+            const modal = document.getElementById('feeEditModal');
+            modal.style.display = 'flex';
+        }
+
+        function closeFeeEditModal() {
+            document.getElementById('feeEditModal').style.display = 'none';
+        }
+
+        function saveFeeEdit() {
+            const id       = document.getElementById('feeEditId').value;
+            const amount   = document.getElementById('feeEditAmount').value;
+            const dueDate  = document.getElementById('feeEditDue').value;
+            const typeId   = document.getElementById('feeEditType').value;
+            const status   = document.getElementById('feeEditStatus').value;
+            const notes    = document.getElementById('feeEditNotes').value;
+            const msgEl    = document.getElementById('feeEditMsg');
+            if (!amount || parseFloat(amount) <= 0) {
+                _showFeeModalMsg(msgEl, 'warning', 'Enter a valid amount.');
+                return;
+            }
+            fetch(`/api/fees/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || '' },
+                body: JSON.stringify({ amount: parseFloat(amount), due_date: dueDate || null, fee_type_id: typeId, status, notes })
+            }).then(r => r.json()).then(d => {
+                if (d.success) {
+                    _showFeeModalMsg(msgEl, 'success', 'Fee updated successfully.');
+                    loadFeeRecords();
+                    setTimeout(closeFeeEditModal, 1200);
+                } else {
+                    _showFeeModalMsg(msgEl, 'danger', d.error || 'Update failed.');
+                }
+            }).catch(() => _showFeeModalMsg(msgEl, 'danger', 'Network error.'));
+        }
+
+        // ---- Partial Payment Modal ----
+        let _partialFeeData = {};
+
+        function openPartialPay(feeId, total, alreadyPaid) {
+            _partialFeeData = { feeId, total, alreadyPaid };
+            const balance = total - alreadyPaid;
+            document.getElementById('partialFeeId').value = feeId;
+            document.getElementById('partialTotal').textContent   = '₹' + total.toLocaleString('en-IN', {minimumFractionDigits:2});
+            document.getElementById('partialPaid').textContent    = '₹' + alreadyPaid.toLocaleString('en-IN', {minimumFractionDigits:2});
+            document.getElementById('partialBalance').textContent = '₹' + balance.toLocaleString('en-IN', {minimumFractionDigits:2});
+            document.getElementById('partialPayNow').value = '';
+            document.getElementById('partialPreview').style.display = 'none';
+            const msgEl = document.getElementById('partialMsg');
+            msgEl.style.display = 'none';
+            // find student name from feeRecords
+            const rec = _feeRecords.find(f => f.id === feeId);
+            document.getElementById('partialStudentName').textContent = rec ? rec.full_name : '';
+            document.getElementById('feePartialModal').style.display = 'flex';
+        }
+
+        function closeFeePartialModal() {
+            document.getElementById('feePartialModal').style.display = 'none';
+        }
+
+        function updatePartialPreview() {
+            const payNow  = parseFloat(document.getElementById('partialPayNow').value) || 0;
+            const preview = document.getElementById('partialPreview');
+            if (payNow <= 0) { preview.style.display = 'none'; return; }
+            const { total, alreadyPaid } = _partialFeeData;
+            const newPaid   = Math.min(alreadyPaid + payNow, total);
+            const newBal    = total - newPaid;
+            document.getElementById('partialPreviewPaid').textContent = '₹' + newPaid.toLocaleString('en-IN', {minimumFractionDigits:2});
+            document.getElementById('partialPreviewBal').textContent  = '₹' + newBal.toLocaleString('en-IN', {minimumFractionDigits:2});
+            preview.style.display = 'block';
+        }
+
+        function submitPartialPay() {
+            const feeId   = document.getElementById('partialFeeId').value;
+            const payNow  = parseFloat(document.getElementById('partialPayNow').value);
+            const mode    = document.getElementById('partialPayMode').value;
+            const msgEl   = document.getElementById('partialMsg');
+            if (!payNow || payNow <= 0) { _showFeeModalMsg(msgEl, 'warning', 'Enter an amount to pay.'); return; }
+            fetch(`/api/fees/pay-partial/${feeId}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || '' },
+                body: JSON.stringify({ paid_now: payNow, payment_mode: mode })
+            }).then(r => r.json()).then(d => {
+                if (d.success) {
+                    const label = d.status === 'paid' ? 'Fully paid!' : 'Partial payment recorded.';
+                    _showFeeModalMsg(msgEl, 'success', label);
+                    loadFeeRecords();
+                    setTimeout(closeFeePartialModal, 1400);
+                } else {
+                    _showFeeModalMsg(msgEl, 'danger', d.error || 'Failed.');
+                }
+            }).catch(() => _showFeeModalMsg(msgEl, 'danger', 'Network error.'));
+        }
+
+        function _showFeeModalMsg(el, type, msg) {
+            const bg   = { success: '#d1fae5', danger: '#fee2e2', warning: '#fef3c7' };
+            const text = { success: '#065f46', danger: '#991b1b', warning: '#92400e' };
+            el.style.background = bg[type] || '#f1f5f9';
+            el.style.color      = text[type] || '#1e293b';
+            el.textContent = msg;
+            el.style.display = 'block';
         }
 
         // Initialise fees when view becomes active

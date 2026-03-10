@@ -6308,6 +6308,79 @@ def api_fees_pay(fee_id):
     return jsonify({'success': True})
 
 
+@app.route('/api/fees/<int:fee_id>', methods=['PUT'])
+@csrf.exempt
+def api_fees_update(fee_id):
+    """Update a fee record (amount, due_date, fee_type_id, notes, status)"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    data = request.get_json() or {}
+    db = get_db()
+    school_id = session['school_id']
+    fee = db.execute(
+        'SELECT id FROM student_fees WHERE id = ? AND school_id = ?', (fee_id, school_id)
+    ).fetchone()
+    if not fee:
+        return jsonify({'success': False, 'error': 'Fee record not found'}), 404
+    updates = []
+    params = []
+    if 'amount' in data:
+        try:
+            updates.append('amount=?'); params.append(float(data['amount']))
+        except (ValueError, TypeError):
+            return jsonify({'success': False, 'error': 'Invalid amount'}), 400
+    if 'due_date' in data:
+        updates.append('due_date=?'); params.append(data['due_date'] or None)
+    if 'fee_type_id' in data and data['fee_type_id']:
+        updates.append('fee_type_id=?'); params.append(int(data['fee_type_id']))
+    if 'notes' in data:
+        updates.append('notes=?'); params.append((data['notes'] or '').strip() or None)
+    if 'status' in data and data['status'] in ('pending', 'paid', 'overdue', 'waived', 'partial'):
+        updates.append('status=?'); params.append(data['status'])
+    if not updates:
+        return jsonify({'success': False, 'error': 'Nothing to update'}), 400
+    updates.append('updated_at=CURRENT_TIMESTAMP')
+    params.append(fee_id)
+    db.execute(f"UPDATE student_fees SET {', '.join(updates)} WHERE id=?", params)
+    db.commit()
+    return jsonify({'success': True})
+
+
+@app.route('/api/fees/pay-partial/<int:fee_id>', methods=['POST'])
+@csrf.exempt
+def api_fees_pay_partial(fee_id):
+    """Record a partial (or full) payment against a fee record"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    data = request.get_json() or {}
+    db = get_db()
+    school_id = session['school_id']
+    fee = db.execute(
+        'SELECT id, amount, paid_amount FROM student_fees WHERE id = ? AND school_id = ?',
+        (fee_id, school_id)
+    ).fetchone()
+    if not fee:
+        return jsonify({'success': False, 'error': 'Fee record not found'}), 404
+    try:
+        paid_now = float(data.get('paid_now', 0))
+    except (ValueError, TypeError):
+        return jsonify({'success': False, 'error': 'Invalid amount'}), 400
+    if paid_now <= 0:
+        return jsonify({'success': False, 'error': 'Amount must be greater than 0'}), 400
+    total_amount = float(fee['amount'])
+    already_paid = float(fee['paid_amount'] or 0)
+    new_paid = min(already_paid + paid_now, total_amount)
+    payment_mode = (data.get('payment_mode') or 'Cash').strip()
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    new_status = 'paid' if new_paid >= total_amount else 'partial'
+    db.execute(
+        "UPDATE student_fees SET paid_amount=?, status=?, paid_date=?, payment_mode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        (new_paid, new_status, today, payment_mode, fee_id)
+    )
+    db.commit()
+    return jsonify({'success': True, 'new_paid': new_paid, 'status': new_status, 'total': total_amount})
+
+
 @app.route('/api/fees/<int:fee_id>', methods=['DELETE'])
 @csrf.exempt
 def api_fees_delete(fee_id):
@@ -6338,7 +6411,7 @@ def api_fees_student_list():
     query = '''
         SELECT sf.id, sf.student_db_id, s.student_id, s.full_name, s.`class`, s.section,
                s.roll_number, ft.name as fee_type_name, ft.id as fee_type_id,
-               sf.amount, sf.due_date, sf.status, sf.paid_date, sf.payment_mode, sf.notes
+               sf.amount, sf.paid_amount, sf.due_date, sf.status, sf.paid_date, sf.payment_mode, sf.notes
         FROM student_fees sf
         JOIN students s ON sf.student_db_id = s.id
         JOIN fee_types ft ON sf.fee_type_id = ft.id
