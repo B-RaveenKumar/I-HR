@@ -7035,14 +7035,14 @@ def process_leave():
           f"- Type: {leave_app['leave_type']}, Dates: {leave_app['start_date']} to {leave_app['end_date']}")
 
     # Update leave status with admin tracking
-    db.execute('''
+    cursor = db.execute('''
         UPDATE leave_applications
         SET status = ?, processed_by = ?, processed_at = ?
         WHERE id = ? AND status = 'pending'
     ''', (status, admin_id, processed_at, leave_id))
     
     # Verify update was successful
-    updated_rows = db.total_changes
+    updated_rows = cursor.rowcount
     if updated_rows == 0:
         db.rollback()
         return jsonify({'success': False, 'error': 'Failed to update leave status - may already be processed'})
