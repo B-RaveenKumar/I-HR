@@ -17,6 +17,85 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
     <style>
+        /* HOVER GLASS OVERLAY for header card */
+        .salary-header {
+            position: relative;
+            overflow: visible;
+        }
+
+        .salary-header .glass-overlay {
+            position: absolute;
+            top: 100%; left: 0; right: 0;
+            background: rgba(255, 255, 255, 0.65);
+            backdrop-filter: blur(18px) saturate(1.4);
+            -webkit-backdrop-filter: blur(18px) saturate(1.4);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            border-top: 1px solid rgba(255, 255, 255, 0.5);
+            border-radius: 0 0 14px 14px;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.12);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 2.5rem;
+            padding: 0.75rem 2rem;
+            transform: translateY(-100%);
+            opacity: 0;
+            transition: transform 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .salary-header:hover .glass-overlay {
+            transform: translateY(0);
+            opacity: 1;
+            z-index: 5;
+            pointer-events: auto;
+        }
+
+        .glass-overlay .glass-stat {
+            text-align: center;
+            color: #1a1a2e;
+        }
+
+        .glass-overlay .glass-stat .glass-icon {
+            width: 44px; height: 44px;
+            border-radius: 12px;
+            background: rgba(22, 78, 99, 0.12);
+            border: 1px solid rgba(22, 78, 99, 0.15);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 6px;
+            font-size: 1.2rem;
+            color: #164e63;
+            transition: transform .2s, background .2s;
+        }
+
+        .glass-overlay .glass-stat:hover .glass-icon {
+            transform: scale(1.12);
+            background: rgba(22, 78, 99, 0.22);
+        }
+
+        .glass-overlay .glass-stat .glass-value {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: #164e63;
+            line-height: 1.3;
+        }
+
+        .glass-overlay .glass-stat .glass-label {
+            font-size: 0.65rem;
+            color: #555;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 500;
+        }
+
+        .glass-overlay .glass-divider {
+            width: 1px;
+            height: 48px;
+            background: rgba(0, 0, 0, 0.12);
+            flex-shrink: 0;
+        }
+
         /* OVERRIDE: Fix sidebar positioning for student management */
         .container-fluid {
             padding: 0 !important;
@@ -408,6 +487,27 @@
 
                 <!-- Enhanced Header -->
                 <div class="salary-header">
+                    <!-- Frosted glass overlay (slides down on hover) -->
+                    <div class="glass-overlay">
+                        <div class="glass-stat">
+                            <div class="glass-icon"><i class="bi bi-speedometer2"></i></div>
+                            <div class="glass-value">Dashboard</div>
+                            <div class="glass-label">Overview</div>
+                        </div>
+                        <div class="glass-divider"></div>
+                        <div class="glass-stat">
+                            <div class="glass-icon"><i class="bi bi-calendar3"></i></div>
+                            <div class="glass-value">Timetable</div>
+                            <div class="glass-label">Schedule</div>
+                        </div>
+                        <div class="glass-divider"></div>
+                        <div class="glass-stat">
+                            <div class="glass-icon"><i class="bi bi-cash-stack"></i></div>
+                            <div class="glass-value">Fees</div>
+                            <div class="glass-label">Management</div>
+                        </div>
+                    </div>
+
                     <div class="header-content">
                         <div class="header-title">
                             <div class="title-icon">
