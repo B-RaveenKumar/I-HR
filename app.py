@@ -16791,8 +16791,9 @@ def student_fees():
 
     # Fetch fees for this student
     fee_rows = db.execute('''
-        SELECT sf.id, ft.name as fee_type_name, sf.amount, sf.due_date,
-               sf.status, sf.paid_date, sf.payment_mode, sf.notes, sf.created_at
+        SELECT sf.id, ft.name as fee_type_name, sf.amount,
+               COALESCE(sf.paid_amount, 0) as paid_amount,
+               sf.due_date, sf.status, sf.paid_date, sf.payment_mode, sf.notes, sf.created_at
         FROM student_fees sf
         JOIN fee_types ft ON sf.fee_type_id = ft.id
         WHERE sf.student_db_id = ?
@@ -16800,10 +16801,16 @@ def student_fees():
     ''', (session['student_id'],)).fetchall()
 
     fees = [dict(r) for r in fee_rows]
-    total_fees  = sum(f['amount'] for f in fees)
-    paid_amount = sum(f['amount'] for f in fees if f['status'] == 'paid')
-    pending_amount = sum(f['amount'] for f in fees if f['status'] in ('pending', 'overdue'))
-    overdue_amount = sum(f['amount'] for f in fees if f['status'] == 'overdue')
+    # Compute balance for each fee
+    for f in fees:
+        f['balance'] = round(float(f['amount']) - float(f['paid_amount']), 2)
+
+    total_fees      = sum(f['amount'] for f in fees)
+    paid_amount     = sum(f['paid_amount'] for f in fees)
+    balance_amount  = round(total_fees - paid_amount, 2)
+    partial_fees    = [f for f in fees if f['status'] == 'partial']
+    pending_amount  = sum(f['balance'] for f in fees if f['status'] in ('pending', 'partial', 'overdue'))
+    overdue_amount  = sum(f['balance'] for f in fees if f['status'] == 'overdue')
 
     return render_template('student/student_fees.html',
                          student=student,
@@ -16811,8 +16818,10 @@ def student_fees():
                          fees=fees,
                          total_fees=total_fees,
                          paid_amount=paid_amount,
+                         balance_amount=balance_amount,
                          pending_amount=pending_amount,
-                         overdue_amount=overdue_amount)
+                         overdue_amount=overdue_amount,
+                         partial_count=len(partial_fees))
 
 
 @app.route('/student/leave')

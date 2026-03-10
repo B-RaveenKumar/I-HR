@@ -379,9 +379,44 @@
         }
 
         .status-partial {
-            background: var(--accent-color);
-            color: var(--bg-secondary);
+            background: #ff9800;
+            color: #fff;
             font-weight: 600;
+        }
+
+        .partial-progress {
+            width: 100%;
+            height: 6px;
+            background: #e2e8f0;
+            border-radius: 4px;
+            margin-top: 5px;
+            overflow: hidden;
+        }
+
+        .partial-progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #10b981, #059669);
+            border-radius: 4px;
+            transition: width 0.4s;
+        }
+
+        .balance-pill {
+            display: inline-block;
+            background: #fff7ed;
+            color: #c2410c;
+            border-radius: 20px;
+            padding: 2px 10px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-top: 3px;
+        }
+
+        .summary-card.balance {
+            border-left: 4px solid #ff9800;
+        }
+
+        .summary-card.balance i {
+            color: #ff9800;
         }
 
         .btn-primary {
@@ -532,22 +567,29 @@
         <div class="summary-grid">
             <div class="summary-card total">
                 <i class="bi bi-receipt"></i>
-                <div class="summary-label">Total Fees</div>
+                <div class="summary-label">Total Billed</div>
                 <div class="summary-amount">₹{{ "{:,.2f}".format(total_fees) }}</div>
             </div>
             <div class="summary-card paid">
                 <i class="bi bi-check-circle"></i>
-                <div class="summary-label">Paid</div>
+                <div class="summary-label">Total Paid</div>
                 <div class="summary-amount">₹{{ "{:,.2f}".format(paid_amount) }}</div>
             </div>
-            <div class="summary-card pending">
-                <i class="bi bi-clock-history"></i>
-                <div class="summary-label">Pending</div>
-                <div class="summary-amount">₹{{ "{:,.2f}".format(pending_amount) }}</div>
+            <div class="summary-card balance">
+                <i class="bi bi-hourglass-split"></i>
+                <div class="summary-label">Balance Due</div>
+                <div class="summary-amount">₹{{ "{:,.2f}".format(balance_amount) }}</div>
             </div>
+            {% if partial_count %}
+            <div class="summary-card" style="border-left:4px solid #ff9800;">
+                <i class="bi bi-pie-chart" style="color:#ff9800;"></i>
+                <div class="summary-label">Partially Paid</div>
+                <div class="summary-amount" style="color:#ff9800;">{{ partial_count }} fee{{ 's' if partial_count > 1 }}</div>
+            </div>
+            {% endif %}
             <div class="summary-card overdue">
                 <i class="bi bi-exclamation-triangle"></i>
-                <div class="summary-label">Overdue</div>
+                <div class="summary-label">Overdue Balance</div>
                 <div class="summary-amount">₹{{ "{:,.2f}".format(overdue_amount) }}</div>
             </div>
         </div>
@@ -567,34 +609,59 @@
                     <thead>
                         <tr>
                             <th>Fee Type</th>
-                            <th>Amount</th>
+                            <th>Total (₹)</th>
+                            <th>Paid (₹)</th>
+                            <th>Balance (₹)</th>
                             <th>Due Date</th>
                             <th>Status</th>
-                            <th>Paid On</th>
-                            <th>Mode</th>
+                            <th>Last Payment</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for fee in fees %}
+                        {% set pct = ((fee.paid_amount / fee.amount) * 100) | round(1) if fee.amount > 0 else 0 %}
                         <tr>
-                            <td><strong>{{ fee.fee_type_name }}</strong>
+                            <td>
+                                <strong>{{ fee.fee_type_name }}</strong>
                                 {% if fee.notes %}<br><small style="color:var(--text-secondary);">{{ fee.notes }}</small>{% endif %}
                             </td>
                             <td><strong>₹{{ "{:,.2f}".format(fee.amount) }}</strong></td>
+                            <td style="color:#16a34a;font-weight:600;">₹{{ "{:,.2f}".format(fee.paid_amount) }}</td>
+                            <td>
+                                {% if fee.balance > 0 %}
+                                    <span style="color:#d97706;font-weight:700;">₹{{ "{:,.2f}".format(fee.balance) }}</span>
+                                    {% if fee.status == 'partial' %}
+                                    <div class="partial-progress">
+                                        <div class="partial-progress-bar" style="width:{{ pct }}%;"></div>
+                                    </div>
+                                    <small style="color:var(--text-secondary);">{{ pct }}% paid</small>
+                                    {% endif %}
+                                {% else %}
+                                    <span style="color:#16a34a;font-weight:600;">—</span>
+                                {% endif %}
+                            </td>
                             <td>{{ fee.due_date or '—' }}</td>
                             <td>
                                 {% if fee.status == 'paid' %}
-                                    <span class="status-badge status-paid">Paid</span>
+                                    <span class="status-badge status-paid"><i class="bi bi-check-circle-fill"></i> Paid</span>
+                                {% elif fee.status == 'partial' %}
+                                    <span class="status-badge status-partial"><i class="bi bi-pie-chart-fill"></i> Partial</span>
                                 {% elif fee.status == 'overdue' %}
-                                    <span class="status-badge" style="background:var(--danger-color);color:#fff;padding:3px 10px;border-radius:12px;font-size:0.78rem;font-weight:600;">Overdue</span>
+                                    <span class="status-badge" style="background:var(--danger-color);color:#fff;padding:3px 10px;border-radius:12px;font-size:0.78rem;font-weight:600;"><i class="bi bi-exclamation-triangle-fill"></i> Overdue</span>
                                 {% elif fee.status == 'waived' %}
                                     <span class="status-badge" style="background:#ede9fe;color:#5b21b6;padding:3px 10px;border-radius:12px;font-size:0.78rem;font-weight:600;">Waived</span>
                                 {% else %}
-                                    <span class="status-badge status-pending">Pending</span>
+                                    <span class="status-badge status-pending"><i class="bi bi-clock"></i> Pending</span>
                                 {% endif %}
                             </td>
-                            <td>{{ fee.paid_date or '—' }}</td>
-                            <td>{{ fee.payment_mode or '—' }}</td>
+                            <td>
+                                {% if fee.paid_date %}
+                                    {{ fee.paid_date }}
+                                    {% if fee.payment_mode %}<br><small style="color:var(--text-secondary);">{{ fee.payment_mode }}</small>{% endif %}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -609,9 +676,9 @@
             {% endif %}
         </div>
 
-        <!-- Paid history -->
-        {% set paid_fees = fees | selectattr('status', 'equalto', 'paid') | list %}
-        {% if paid_fees %}
+        <!-- Paid / Partial history -->
+        {% set active_fees = fees | selectattr('status', 'in', ['paid', 'partial']) | list %}
+        {% if active_fees %}
         <div class="card">
             <div class="card-header">
                 <div class="card-title">
@@ -624,18 +691,39 @@
                     <thead>
                         <tr>
                             <th>Fee Type</th>
-                            <th>Amount</th>
-                            <th>Paid On</th>
+                            <th>Total (₹)</th>
+                            <th>Paid (₹)</th>
+                            <th>Balance (₹)</th>
+                            <th>Last Paid On</th>
                             <th>Payment Mode</th>
+                            <th>Status</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for fee in paid_fees %}
+                        {% for fee in active_fees %}
+                        {% set pct = ((fee.paid_amount / fee.amount) * 100) | round(1) if fee.amount > 0 else 0 %}
                         <tr>
                             <td><strong>{{ fee.fee_type_name }}</strong></td>
                             <td>₹{{ "{:,.2f}".format(fee.amount) }}</td>
+                            <td style="color:#16a34a;font-weight:600;">₹{{ "{:,.2f}".format(fee.paid_amount) }}</td>
+                            <td style="color:{{ '#d97706' if fee.balance > 0 else '#16a34a' }};font-weight:600;">
+                                {% if fee.balance > 0 %}
+                                    ₹{{ "{:,.2f}".format(fee.balance) }}
+                                    <div class="partial-progress"><div class="partial-progress-bar" style="width:{{ pct }}%;"></div></div>
+                                    <small style="color:var(--text-secondary);">{{ pct }}% paid</small>
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
                             <td>{{ fee.paid_date or '—' }}</td>
                             <td>{{ fee.payment_mode or '—' }}</td>
+                            <td>
+                                {% if fee.status == 'paid' %}
+                                    <span class="status-badge status-paid"><i class="bi bi-check-circle-fill"></i> Fully Paid</span>
+                                {% else %}
+                                    <span class="status-badge status-partial"><i class="bi bi-pie-chart-fill"></i> Partial</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
