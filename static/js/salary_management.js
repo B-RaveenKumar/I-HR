@@ -710,7 +710,7 @@ function displayDetailedSalaryBreakdown(data) {
         
         <!-- Net Salary -->
         <div class="salary-breakdown-section">
-            <div class="breakdown-item total-row" style="font-size: 1.2rem; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 15px; border-radius: 10px;">
+            <div class="breakdown-item total-row" style="font-size: 1.2rem; color: white; padding: 15px; border-radius: 10px;">
                 <span class="breakdown-label">NET SALARY</span>
                 <span class="breakdown-value">₹${breakdown.net_salary.toLocaleString('en-IN')}</span>
             </div>

@@ -183,7 +183,7 @@
 }
 
 .bg-light {
-    background-color: #f8f9fa !important;
+    background-color: rgb(255, 255, 255) !important;
 }
 
 .rounded {
