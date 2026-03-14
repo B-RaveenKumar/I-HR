@@ -85,13 +85,209 @@
         /* ── Attendance-specific styles ── */
         .att-form-grid {
             display: grid;
-            grid-template-columns: 2fr 1fr 1fr 1fr;
+            grid-template-columns: 1fr 1fr;
             gap: 1rem;
         }
         .att-form-grid .full { grid-column: 1 / -1; }
 
-        @media (max-width: 1100px) { .att-form-grid { grid-template-columns: 1fr 1fr; } }
         @media (max-width: 640px)  { .att-form-grid { grid-template-columns: 1fr; } }
+
+        .att-helper-text {
+            margin: .25rem 0 1rem;
+            color: #475569;
+            font-size: .92rem;
+        }
+
+        .att-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: .75rem;
+            margin: 1rem 0;
+        }
+
+        .summary-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem;
+            padding: .45rem .85rem;
+            border-radius: 999px;
+            font-weight: 600;
+            font-size: .85rem;
+        }
+
+        .summary-pill.present {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .summary-pill.absent {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .student-list {
+            display: grid;
+            gap: .75rem;
+            background: transparent;
+            border: none;
+            border-radius: 0;
+            overflow: hidden;
+        }
+
+        .student-list-head,
+        .student-row {
+            display: grid;
+            grid-template-columns: 1.1fr 2fr 1.2fr auto;
+            gap: .85rem;
+            align-items: center;
+            padding: .78rem .95rem;
+        }
+
+        .student-list-head {
+            background: #f8fafc;
+            color: #334155;
+            font-size: .74rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: .08em;
+            border: 1px solid #e2e8f0;
+            border-radius: .95rem;
+        }
+
+        .student-row {
+            border: 1px solid #e2e8f0;
+            border-radius: .95rem;
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, .05);
+            cursor: pointer;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+        }
+
+        .student-row:hover {
+            transform: translateY(-1px);
+            border-color: #cbd5e1;
+            box-shadow: 0 16px 32px rgba(15, 23, 42, .08);
+        }
+
+        .student-row.is-present {
+            background: linear-gradient(180deg, #f7fff8 0%, #ecfdf3 100%);
+            border-color: #bbf7d0;
+        }
+
+        .student-row.is-absent {
+            background: linear-gradient(180deg, #fff7f7 0%, #fef2f2 100%);
+            border-color: #fecaca;
+        }
+
+        .student-meta {
+            display: flex;
+            flex-direction: column;
+            gap: .08rem;
+            min-width: 0;
+        }
+
+        .student-name {
+            font-size: .93rem;
+            font-weight: 600;
+            color: #0f172a;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .student-id-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 72px;
+            padding: .38rem .62rem;
+            border-radius: 999px;
+            background: #e2e8f0;
+            color: #0f172a;
+            font-size: .76rem;
+            font-weight: 700;
+        }
+
+        .student-subtext {
+            color: #64748b;
+            font-size: .74rem;
+            line-height: 1.15;
+        }
+
+        .student-class-chip {
+            display: inline-flex;
+            align-items: center;
+            justify-content: flex-start;
+            width: fit-content;
+            padding: .34rem .58rem;
+            border-radius: 999px;
+            background: rgba(15, 23, 42, .06);
+            color: #334155;
+            font-size: .74rem;
+            font-weight: 700;
+        }
+
+        .status-toggle {
+            min-width: 96px;
+            border: none;
+            border-radius: 999px;
+            padding: .42rem .82rem;
+            font-size: .76rem;
+            font-weight: 700;
+            letter-spacing: .02em;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,.35);
+        }
+
+        .status-toggle.present {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-toggle.absent {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .att-actions {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: .75rem;
+            margin-top: 1.25rem;
+        }
+
+        .draft-feedback {
+            color: #166534;
+            font-size: .9rem;
+            font-weight: 500;
+        }
+
+        .student-empty {
+            padding: 2rem 1rem;
+            text-align: center;
+            color: #64748b;
+        }
+
+        @media (max-width: 768px) {
+            .student-list-head {
+                display: none;
+            }
+
+            .student-row {
+                grid-template-columns: 1fr;
+                gap: .45rem;
+            }
+
+            .student-row > div:last-child {
+                display: flex;
+                justify-content: flex-start;
+            }
+
+            .student-name {
+                white-space: normal;
+            }
+        }
 
         /* Status badges */
         .status-badge {
@@ -120,22 +316,71 @@
         .att-table tbody tr:hover { background: #f9fafb; }
         .att-table-wrap { overflow-x: auto; }
 
-        /* Flash messages */
-        .flash-msg {
-            padding: .75rem 1.1rem;
-            border-radius: .5rem;
-            margin-bottom: 1rem;
-            font-size: .9rem;
-            font-weight: 500;
+        .toast-stack {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 1200;
             display: flex;
-            align-items: center;
-            gap: .5rem;
+            flex-direction: column;
+            gap: .75rem;
+            max-width: min(380px, calc(100vw - 2rem));
         }
-        .flash-success { background: #dcfce7; color: #166534; border: 1px solid #bbf7d0; }
-        .flash-error   { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+
+        .att-toast {
+            border: 1px solid #e2e8f0;
+            border-radius: .95rem;
+            box-shadow: 0 16px 32px rgba(15, 23, 42, .12);
+            overflow: hidden;
+        }
+
+        .att-toast .toast-header {
+            border-bottom: none;
+            padding: .8rem 1rem;
+        }
+
+        .att-toast .toast-body {
+            padding: .85rem 1rem 1rem;
+            font-size: .92rem;
+        }
+
+        .att-toast.toast-success .toast-header {
+            background: #166534;
+            color: #ffffff;
+        }
+
+        .att-toast.toast-error .toast-header {
+            background: #991b1b;
+            color: #ffffff;
+        }
+
+        @media (max-width: 768px) {
+            .toast-stack {
+                left: 1rem;
+                right: 1rem;
+                max-width: none;
+            }
+        }
     </style>
 </head>
 <body>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+        <div class="toast-stack" aria-live="polite" aria-atomic="true">
+            {% for category, message in messages %}
+            <div class="toast att-toast toast-{{ 'success' if category == 'success' else 'error' }}" role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="2000" data-bs-autohide="true">
+                <div class="toast-header">
+                    <i class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }} me-2"></i>
+                    <strong class="me-auto">{{ 'Success' if category == 'success' else 'Error' }}</strong>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast" aria-label="Close"></button>
+                </div>
+                <div class="toast-body">{{ message }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    {% endwith %}
+
     <!-- Sidebar Toggle -->
     <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar" aria-expanded="false" aria-controls="enhanced-sidebar">
         <i class="bi bi-list"></i>
@@ -244,66 +489,31 @@
                     </div>
                 </div>
 
-                <!-- Flash Messages -->
-                {% with messages = get_flashed_messages(with_categories=true) %}
-                    {% if messages %}
-                        {% for category, message in messages %}
-                        <div class="flash-msg flash-{{ 'success' if category == 'success' else 'error' }}">
-                            <i class="bi bi-{{ 'check-circle' if category == 'success' else 'exclamation-triangle' }}"></i>
-                            {{ message }}
-                        </div>
-                        {% endfor %}
-                    {% endif %}
-                {% endwith %}
-
                 <!-- Mark Attendance Form Card -->
                 <div class="salary-filters-card">
                     <div class="card-header">
                         <div class="header-icon"><i class="bi bi-plus-circle"></i></div>
                         <div class="header-content">
                             <h5 class="card-title">Mark Attendance</h5>
-                            <p class="card-subtitle">Select a student and record their attendance status</p>
+                            <p class="card-subtitle">All students are shown below. They start as present, click a row to mark absent.</p>
                         </div>
                     </div>
                     <div class="card-body">
-                        <form method="POST" action="{{ url_for('staff_mark_student_attendance') }}">
+                        <form method="POST" action="{{ url_for('staff_mark_student_attendance') }}" id="attendanceForm">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="attendance_payload" id="attendancePayload">
                             <div class="att-form-grid">
-                                <div>
-                                    <label for="student_id" class="form-label fw-semibold">Select Student <span class="text-danger">*</span></label>
-                                    <select name="student_id" id="student_id" class="form-select" required>
-                                        <option value="">-- Select Student --</option>
-                                        {% for student in students %}
-                                        <option value="{{ student.id }}">
-                                            {{ student.student_id }} - {{ student.full_name }} ({{ student.class }}-{{ student.section }})
-                                        </option>
-                                        {% endfor %}
-                                    </select>
-                                </div>
-
                                 <div>
                                     <label for="date" class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
                                     <input type="date" name="date" id="date" class="form-control"
-                                           value="{{ current_date }}" max="{{ current_date }}" required>
+                                           value="{{ current_date }}" max="{{ max_date }}" required>
                                 </div>
 
                                 <div>
                                     <label for="session_type" class="form-label fw-semibold">Session <span class="text-danger">*</span></label>
                                     <select name="session_type" id="session_type" class="form-select" required>
-                                        <option value="">-- Select --</option>
-                                        <option value="morning">Morning</option>
-                                        <option value="afternoon">Afternoon</option>
-                                    </select>
-                                </div>
-
-                                <div>
-                                    <label for="status" class="form-label fw-semibold">Status <span class="text-danger">*</span></label>
-                                    <select name="status" id="status" class="form-select" required>
-                                        <option value="">-- Select --</option>
-                                        <option value="present">Present</option>
-                                        <option value="absent">Absent</option>
-                                        <option value="late">Late</option>
-                                        <option value="leave">Leave</option>
+                                        <option value="morning" {% if selected_session == 'morning' %}selected{% endif %}>Morning</option>
+                                        <option value="afternoon" {% if selected_session == 'afternoon' %}selected{% endif %}>Afternoon</option>
                                     </select>
                                 </div>
 
@@ -311,12 +521,70 @@
                                     <label for="notes" class="form-label fw-semibold">Notes (Optional)</label>
                                     <textarea name="notes" id="notes" class="form-control" rows="2" placeholder="Add any additional notes..."></textarea>
                                 </div>
+                            </div>
 
-                                <div class="full">
-                                    <button type="submit" class="btn btn-primary px-4">
-                                        <i class="bi bi-check-circle me-2"></i>Mark Attendance
-                                    </button>
+                            <p class="att-helper-text">
+                                <i class="bi bi-info-circle me-1"></i>Present is the default. Click a student row to switch between present and absent.
+                            </p>
+
+                            <div class="att-summary">
+                                <div class="summary-pill present">
+                                    <i class="bi bi-check-circle"></i>
+                                    Present: <span id="presentCount">0</span>
                                 </div>
+                                <div class="summary-pill absent">
+                                    <i class="bi bi-x-circle"></i>
+                                    Absent: <span id="absentCount">0</span>
+                                </div>
+                            </div>
+
+                            <div class="student-list" id="studentList">
+                                {% if students %}
+                                <div class="student-list-head">
+                                    <div>Student ID</div>
+                                    <div>Student</div>
+                                    <div>Class</div>
+                                    <div>Status</div>
+                                </div>
+                                {% for student in students %}
+                                <div class="student-row {% if student.initial_status == 'absent' %}is-absent{% else %}is-present{% endif %}"
+                                     data-student-id="{{ student.id }}"
+                                     data-student-name="{{ student.full_name }}"
+                                     data-morning-status="{{ student.morning_status or '' }}"
+                                     data-afternoon-status="{{ student.afternoon_status or '' }}">
+                                    <div>
+                                        <span class="student-id-badge">{{ student.student_id }}</span>
+                                    </div>
+                                    <div class="student-meta">
+                                        <span class="student-name">{{ student.full_name }}</span>
+                                        <span class="student-subtext">Roll No: {{ student.roll_number if student.roll_number else 'N/A' }}</span>
+                                    </div>
+                                    <div><span class="student-class-chip">{{ student.class }} - {{ student.section }}</span></div>
+                                    <div>
+                                        <button type="button"
+                                                class="status-toggle {% if student.initial_status == 'absent' %}absent{% else %}present{% endif %}"
+                                                data-status-display>
+                                            {{ 'Absent' if student.initial_status == 'absent' else 'Present' }}
+                                        </button>
+                                    </div>
+                                </div>
+                                {% endfor %}
+                                {% else %}
+                                <div class="student-empty">
+                                    <i class="bi bi-people" style="font-size: 1.5rem; display:block; margin-bottom:.5rem;"></i>
+                                    No students are available for attendance.
+                                </div>
+                                {% endif %}
+                            </div>
+
+                            <div class="att-actions">
+                                <button type="button" class="btn btn-outline-secondary px-4" id="saveDraftButton" {% if not students %}disabled{% endif %}>
+                                    <i class="bi bi-save me-2"></i>Save Draft
+                                </button>
+                                <button type="submit" class="btn btn-primary px-4" {% if not students %}disabled{% endif %}>
+                                    <i class="bi bi-check-circle me-2"></i>Mark Attendance
+                                </button>
+                                <span class="draft-feedback" id="draftFeedback"></span>
                             </div>
                         </form>
                     </div>
@@ -327,7 +595,7 @@
                     <div class="card-header">
                         <div class="header-icon"><i class="bi bi-calendar-check"></i></div>
                         <div class="header-content">
-                            <h5 class="card-title">Today's Attendance</h5>
+                            <h5 class="card-title">Attendance Records</h5>
                             <p class="card-subtitle">Records for {{ current_date }}</p>
                         </div>
                     </div>
@@ -412,6 +680,189 @@
             const d = new Date();
             dateEl.textContent = d.toLocaleDateString('en-GB', { day:'2-digit', month:'short', year:'numeric' });
         }
+
+        document.querySelectorAll('.att-toast').forEach((toastElement) => {
+            const toast = new bootstrap.Toast(toastElement, { delay: 2000, autohide: true });
+            toast.show();
+        });
+
+        const attendanceForm = document.getElementById('attendanceForm');
+        const attendancePayload = document.getElementById('attendancePayload');
+        const dateInput = document.getElementById('date');
+        const sessionInput = document.getElementById('session_type');
+        const notesInput = document.getElementById('notes');
+        const saveDraftButton = document.getElementById('saveDraftButton');
+        const draftFeedback = document.getElementById('draftFeedback');
+        const presentCount = document.getElementById('presentCount');
+        const absentCount = document.getElementById('absentCount');
+        const studentRows = Array.from(document.querySelectorAll('.student-row'));
+        const attendanceState = {};
+
+        function showDraftFeedback(message, isError = false) {
+            if (!draftFeedback) {
+                return;
+            }
+
+            draftFeedback.textContent = message;
+            draftFeedback.style.color = isError ? '#991b1b' : '#166534';
+
+            window.clearTimeout(showDraftFeedback.timeoutId);
+            showDraftFeedback.timeoutId = window.setTimeout(() => {
+                draftFeedback.textContent = '';
+            }, 2500);
+        }
+
+        function getDraftKey() {
+            return `student-attendance-draft:${dateInput.value}:${sessionInput.value}`;
+        }
+
+        function getBaseStatus(row) {
+            const rawStatus = sessionInput.value === 'afternoon'
+                ? row.dataset.afternoonStatus
+                : row.dataset.morningStatus;
+
+            return (rawStatus || '').toLowerCase() === 'absent' ? 'absent' : 'present';
+        }
+
+        function renderRow(row) {
+            const studentId = row.dataset.studentId;
+            const status = attendanceState[studentId] || 'present';
+            const statusButton = row.querySelector('[data-status-display]');
+
+            row.classList.toggle('is-present', status === 'present');
+            row.classList.toggle('is-absent', status === 'absent');
+
+            if (statusButton) {
+                statusButton.textContent = status === 'absent' ? 'Absent' : 'Present';
+                statusButton.classList.toggle('present', status === 'present');
+                statusButton.classList.toggle('absent', status === 'absent');
+            }
+        }
+
+        function updateSummary() {
+            const values = Object.values(attendanceState);
+            const absent = values.filter((value) => value === 'absent').length;
+            const present = values.length - absent;
+
+            if (presentCount) {
+                presentCount.textContent = String(present);
+            }
+
+            if (absentCount) {
+                absentCount.textContent = String(absent);
+            }
+        }
+
+        function resetAttendanceState() {
+            studentRows.forEach((row) => {
+                attendanceState[row.dataset.studentId] = getBaseStatus(row);
+                renderRow(row);
+            });
+            updateSummary();
+        }
+
+        function buildPayload() {
+            if (attendancePayload) {
+                attendancePayload.value = JSON.stringify(attendanceState);
+            }
+        }
+
+        function toggleStudent(studentId) {
+            attendanceState[studentId] = attendanceState[studentId] === 'absent' ? 'present' : 'absent';
+            const row = studentRows.find((item) => item.dataset.studentId === studentId);
+            if (row) {
+                renderRow(row);
+            }
+            updateSummary();
+        }
+
+        function loadDraft() {
+            let draft = null;
+
+            try {
+                draft = JSON.parse(localStorage.getItem(getDraftKey()) || 'null');
+            } catch (error) {
+                draft = null;
+            }
+
+            if (!draft || !draft.statuses) {
+                resetAttendanceState();
+                return;
+            }
+
+            resetAttendanceState();
+            Object.entries(draft.statuses).forEach(([studentId, status]) => {
+                if (studentId in attendanceState) {
+                    attendanceState[studentId] = status === 'absent' ? 'absent' : 'present';
+                }
+            });
+
+            if (typeof draft.notes === 'string' && notesInput) {
+                notesInput.value = draft.notes;
+            }
+
+            studentRows.forEach(renderRow);
+            updateSummary();
+            showDraftFeedback('Draft loaded');
+        }
+
+        function reloadAttendanceView() {
+            const params = new URLSearchParams({
+                date: dateInput.value,
+                session_type: sessionInput.value
+            });
+            window.location.href = `{{ url_for('staff_mark_student_attendance') }}?${params.toString()}`;
+        }
+
+        studentRows.forEach((row) => {
+            const studentId = row.dataset.studentId;
+            row.addEventListener('click', () => toggleStudent(studentId));
+
+            const statusButton = row.querySelector('[data-status-display]');
+            if (statusButton) {
+                statusButton.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    toggleStudent(studentId);
+                });
+            }
+        });
+
+        if (dateInput) {
+            dateInput.addEventListener('change', reloadAttendanceView);
+        }
+
+        if (sessionInput) {
+            sessionInput.addEventListener('change', reloadAttendanceView);
+        }
+
+        if (saveDraftButton) {
+            saveDraftButton.addEventListener('click', () => {
+                try {
+                    localStorage.setItem(getDraftKey(), JSON.stringify({
+                        statuses: attendanceState,
+                        notes: notesInput ? notesInput.value : '',
+                        savedAt: new Date().toISOString()
+                    }));
+                    showDraftFeedback('Draft saved');
+                } catch (error) {
+                    showDraftFeedback('Draft could not be saved', true);
+                }
+            });
+        }
+
+        if (attendanceForm) {
+            attendanceForm.addEventListener('submit', () => {
+                buildPayload();
+                try {
+                    localStorage.removeItem(getDraftKey());
+                } catch (error) {
+                    // Ignore localStorage cleanup failures.
+                }
+            });
+        }
+
+        loadDraft();
 
         // Logout
         function logout() {

@@ -17434,88 +17434,140 @@ def staff_mark_student_attendance():
     db = get_db()
     school_id = session['school_id']
     staff_id = session['user_id']
+    today = datetime.date.today().strftime('%Y-%m-%d')
+
+    selected_date = request.args.get('date', today)
+    try:
+        selected_date = datetime.date.fromisoformat(selected_date).strftime('%Y-%m-%d')
+    except (TypeError, ValueError):
+        selected_date = today
+
+    selected_session = request.args.get('session_type', 'morning')
+    if selected_session not in ['morning', 'afternoon']:
+        selected_session = 'morning'
     
     if request.method == 'POST':
-        student_id = request.form.get('student_id')
-        date = request.form.get('date', datetime.date.today().strftime('%Y-%m-%d'))
-        session_type = request.form.get('session_type')  # 'morning' or 'afternoon'
-        status = request.form.get('status')  # 'present', 'absent', 'late', 'leave'
-        notes = request.form.get('notes', '')
-        
-        if not all([student_id, session_type, status]):
-            flash('All required fields must be filled', 'error')
-            return redirect(url_for('staff_mark_student_attendance'))
-        
+        date = request.form.get('date', today)
+        try:
+            date = datetime.date.fromisoformat(date).strftime('%Y-%m-%d')
+        except (TypeError, ValueError):
+            date = today
+
+        session_type = request.form.get('session_type', 'morning')
+        if session_type not in ['morning', 'afternoon']:
+            flash('Please select a valid session', 'error')
+            return redirect(url_for('staff_mark_student_attendance', date=date, session_type='morning'))
+
+        notes = request.form.get('notes', '').strip()
+        attendance_payload = request.form.get('attendance_payload', '')
+
+        try:
+            attendance_map = json.loads(attendance_payload) if attendance_payload else {}
+        except json.JSONDecodeError:
+            attendance_map = None
+
+        if not isinstance(attendance_map, dict):
+            flash('Attendance list could not be processed. Please try again.', 'error')
+            return redirect(url_for('staff_mark_student_attendance', date=date, session_type=session_type))
+
         current_time = datetime.datetime.now().strftime('%H:%M:%S')
-        
-        # Check if attendance record exists for this date
-        existing = db.execute('''
-            SELECT id FROM student_attendance
-            WHERE student_id = ? AND attendance_date = ?
-        ''', (student_id, date)).fetchone()
-        
-        if existing:
-            # Update existing record
-            if session_type == 'morning':
-                db.execute('''
-                    UPDATE student_attendance
-                    SET morning_status = ?, morning_time = ?, 
-                        morning_marked_by = ?, morning_notes = ?,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE student_id = ? AND attendance_date = ?
-                ''', (status, current_time, staff_id, notes, student_id, date))
-            else:  # afternoon
-                db.execute('''
-                    UPDATE student_attendance
-                    SET afternoon_status = ?, afternoon_time = ?, 
-                        afternoon_marked_by = ?, afternoon_notes = ?,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE student_id = ? AND attendance_date = ?
-                ''', (status, current_time, staff_id, notes, student_id, date))
-        else:
-            # Create new record
-            if session_type == 'morning':
-                db.execute('''
-                    INSERT INTO student_attendance (
-                        student_id, school_id, attendance_date, 
-                        morning_status, morning_time, morning_marked_by, morning_notes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (student_id, school_id, date, status, current_time, staff_id, notes))
-            else:  # afternoon
-                db.execute('''
-                    INSERT INTO student_attendance (
-                        student_id, school_id, attendance_date, 
-                        afternoon_status, afternoon_time, afternoon_marked_by, afternoon_notes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-                ''', (student_id, school_id, date, status, current_time, staff_id, notes))
-        
+
+        students = db.execute('''
+            SELECT id
+            FROM students
+            WHERE school_id = ?
+            ORDER BY `class`, section, roll_number
+        ''', (school_id,)).fetchall()
+
+        student_ids = [student['id'] for student in students]
+        if not student_ids:
+            flash('No students found for this school', 'error')
+            return redirect(url_for('staff_mark_student_attendance', date=date, session_type=session_type))
+
+        existing_records = db.execute('''
+            SELECT id, student_id
+            FROM student_attendance
+            WHERE school_id = ? AND attendance_date = ?
+        ''', (school_id, date)).fetchall()
+        existing_map = {record['student_id']: record['id'] for record in existing_records}
+
+        marked_count = 0
+        for student_id in student_ids:
+            raw_status = str(attendance_map.get(str(student_id), 'present')).strip().lower()
+            status = 'absent' if raw_status == 'absent' else 'present'
+
+            if student_id in existing_map:
+                if session_type == 'morning':
+                    db.execute('''
+                        UPDATE student_attendance
+                        SET morning_status = ?, morning_time = ?, 
+                            morning_marked_by = ?, morning_notes = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE student_id = ? AND attendance_date = ?
+                    ''', (status, current_time, staff_id, notes, student_id, date))
+                else:
+                    db.execute('''
+                        UPDATE student_attendance
+                        SET afternoon_status = ?, afternoon_time = ?, 
+                            afternoon_marked_by = ?, afternoon_notes = ?,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE student_id = ? AND attendance_date = ?
+                    ''', (status, current_time, staff_id, notes, student_id, date))
+            else:
+                if session_type == 'morning':
+                    db.execute('''
+                        INSERT INTO student_attendance (
+                            student_id, school_id, attendance_date, 
+                            morning_status, morning_time, morning_marked_by, morning_notes
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (student_id, school_id, date, status, current_time, staff_id, notes))
+                else:
+                    db.execute('''
+                        INSERT INTO student_attendance (
+                            student_id, school_id, attendance_date, 
+                            afternoon_status, afternoon_time, afternoon_marked_by, afternoon_notes
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    ''', (student_id, school_id, date, status, current_time, staff_id, notes))
+
+            marked_count += 1
+
         db.commit()
-        flash('Attendance marked successfully', 'success')
-        return redirect(url_for('staff_mark_student_attendance'))
-    
+        flash(f'Attendance saved for {marked_count} students', 'success')
+        return redirect(url_for('staff_mark_student_attendance', date=date, session_type=session_type))
+
     # GET request - show form
-    # Get all students for this school
     students = db.execute('''
         SELECT id, student_id, full_name, `class`, section, roll_number
         FROM students
         WHERE school_id = ?
         ORDER BY `class`, section, roll_number
     ''', (school_id,)).fetchall()
-    
-    # Get today's attendance
-    today = datetime.date.today().strftime('%Y-%m-%d')
-    today_attendance = db.execute('''
-        SELECT sa.*, s.student_id, s.full_name, s.`class`, s.section
+
+    attendance_records = db.execute('''
+        SELECT sa.*, s.student_id, s.full_name, s.`class`, s.section, s.roll_number
         FROM student_attendance sa
         JOIN students s ON sa.student_id = s.id
         WHERE sa.school_id = ? AND sa.attendance_date = ?
         ORDER BY s.`class`, s.section, s.roll_number
-    ''', (school_id, today)).fetchall()
-    
+    ''', (school_id, selected_date)).fetchall()
+
+    attendance_map = {record['student_id']: record for record in attendance_records}
+    prepared_students = []
+    for student in students:
+        student_data = dict(student)
+        attendance_record = attendance_map.get(student['id'])
+        student_data['morning_status'] = attendance_record['morning_status'] if attendance_record else None
+        student_data['afternoon_status'] = attendance_record['afternoon_status'] if attendance_record else None
+        current_status = student_data[f'{selected_session}_status']
+        student_data['initial_status'] = 'absent' if current_status == 'absent' else 'present'
+        prepared_students.append(student_data)
+
     return render_template('student/mark_student_attendance.html',
-                         students=students,
-                         today_attendance=today_attendance,
-                         current_date=today)
+                         students=prepared_students,
+                         today_attendance=attendance_records,
+                         current_date=selected_date,
+                         selected_session=selected_session,
+                         max_date=today)
 
 
 # ===============================================================================
