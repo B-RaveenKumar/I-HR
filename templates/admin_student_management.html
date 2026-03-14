@@ -3782,13 +3782,128 @@ showStep(currentStep);
                 '</div></body></html>';
         }
 
-        function printFeeReceipt(data) {
-            data.schoolName = data.schoolName || _SCHOOL_NAME;
+        // ── Printer status (live refresh) ────────────────────────────────
+        let _thermalPrinterReady = false;
+        let _thermalStatusTimer = null;
+        (async () => {
+            try {
+                const r = await fetch('/api/fees/printer-status?ts=' + Date.now(), { cache: 'no-store' });
+                const j = await r.json();
+                _thermalPrinterReady = !!(j && j.thermal_ready);
+            } catch (_) { _thermalPrinterReady = false; }
+        })();
+
+        async function _refreshThermalStatusUI(btnT, hint) {
+            try {
+                const r = await fetch('/api/fees/printer-status?ts=' + Date.now(), { cache: 'no-store' });
+                const j = await r.json();
+                _thermalPrinterReady = !!(j && j.thermal_ready);
+            } catch (_) {
+                _thermalPrinterReady = false;
+            }
+
+            if (_thermalPrinterReady) {
+                btnT.disabled = false;
+                btnT.style.opacity = '1';
+                btnT.style.cursor = 'pointer';
+                hint.textContent = 'Connected & ready';
+                hint.style.color = '#16a34a';
+            } else {
+                btnT.disabled = true;
+                btnT.style.opacity = '.45';
+                btnT.style.cursor = 'not-allowed';
+                hint.textContent = 'Not connected';
+                hint.style.color = '#dc2626';
+            }
+        }
+
+        // ── Printer chooser modal ────────────────────────────────────────
+        function _ensurePrintModal() {
+            if (document.getElementById('_printerChooserModal')) return;
+            const el = document.createElement('div');
+            el.id = '_printerChooserModal';
+            el.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(15,23,42,.55);z-index:99990;align-items:center;justify-content:center;';
+            el.innerHTML = `
+              <div style="background:#fff;border-radius:16px;padding:32px 28px 24px;width:360px;max-width:94vw;box-shadow:0 8px 40px rgba(0,0,0,.22);font-family:'Segoe UI',Arial,sans-serif;">
+                <h3 style="margin:0 0 6px 0;font-size:1.1rem;color:#1e293b;">&#128424; Print Receipt</h3>
+                <p style="margin:0 0 22px 0;font-size:.82rem;color:#64748b;">Choose how you want to print this receipt</p>
+                <div style="display:flex;flex-direction:column;gap:12px;">
+                  <button id="_pmThermal" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;cursor:pointer;text-align:left;transition:border .15s;">
+                    <span style="font-size:1.6rem;">&#128444;</span>
+                    <span><strong style="display:block;font-size:.9rem;color:#1e293b;">Thermal Printer</strong><small id="_pmThermalHint" style="color:#64748b;">Checking…</small></span>
+                  </button>
+                  <button id="_pmNormal" style="display:flex;align-items:center;gap:14px;padding:14px 16px;border:2px solid #e2e8f0;border-radius:12px;background:#f8fafc;cursor:pointer;text-align:left;transition:border .15s;">
+                    <span style="font-size:1.6rem;">&#128438;</span>
+                    <span><strong style="display:block;font-size:.9rem;color:#1e293b;">Normal Printer</strong><small style="color:#64748b;">Opens browser print dialog</small></span>
+                  </button>
+                </div>
+                <button id="_pmCancel" style="margin-top:18px;width:100%;padding:9px;border:none;border-radius:8px;background:#f1f5f9;color:#64748b;font-size:.85rem;cursor:pointer;">Cancel</button>
+              </div>`;
+            document.body.appendChild(el);
+        }
+
+        function _showPrinterModal(onThermal, onNormal) {
+            _ensurePrintModal();
+            const modal   = document.getElementById('_printerChooserModal');
+            const btnT    = document.getElementById('_pmThermal');
+            const btnN    = document.getElementById('_pmNormal');
+            const btnC    = document.getElementById('_pmCancel');
+            const hint    = document.getElementById('_pmThermalHint');
+            modal.style.display = 'flex';
+
+            _refreshThermalStatusUI(btnT, hint);
+            if (_thermalStatusTimer) clearInterval(_thermalStatusTimer);
+            _thermalStatusTimer = setInterval(() => _refreshThermalStatusUI(btnT, hint), 300000);
+
+            function close() {
+                modal.style.display = 'none';
+                if (_thermalStatusTimer) {
+                    clearInterval(_thermalStatusTimer);
+                    _thermalStatusTimer = null;
+                }
+                btnT.onclick = null;
+                btnN.onclick = null;
+                btnC.onclick = null;
+            }
+
+            btnT.onclick = () => { if (!_thermalPrinterReady) return; close(); onThermal(); };
+            btnN.onclick = () => { close(); onNormal(); };
+            btnC.onclick = () => close();
+            modal.onclick = (e) => { if (e.target === modal) close(); };
+        }
+
+        function _doThermalPrint(data) {
+            fetch('/api/fees/auto-print', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || '' },
+                body: JSON.stringify({ receipt: data })
+            }).then(r => r.json()).then(out => {
+                if (out && out.success) {
+                    const t = document.createElement('div');
+                    t.textContent = '\u2705 Receipt printed to thermal printer';
+                    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#166534;color:#fff;padding:10px 22px;border-radius:8px;font-size:.88rem;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.18);';
+                    document.body.appendChild(t);
+                    setTimeout(() => t.remove(), 3000);
+                } else {
+                    alert('Thermal print failed: ' + (out.error || 'Unknown error'));
+                }
+            }).catch(() => alert('Thermal print failed. Please try Normal Printer.'));
+        }
+
+        function _doBrowserPrint(data) {
             const w = window.open('', '_blank', 'width=660,height=780,scrollbars=yes');
             if (!w) { alert('Please allow pop-ups to print the receipt.'); return; }
             w.document.write(generateReceiptHTML(data));
             w.document.close();
-            setTimeout(() => w.print(), 600);
+            setTimeout(() => w.print(), 400);
+        }
+
+        function printFeeReceipt(data) {
+            data.schoolName = data.schoolName || _SCHOOL_NAME;
+            _showPrinterModal(
+                () => _doThermalPrint(data),
+                () => _doBrowserPrint(data)
+            );
         }
 
         function printSingleFeeReceipt(feeId) {

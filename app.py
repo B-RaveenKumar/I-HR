@@ -27,6 +27,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 import os
 import json
+import subprocess
 import calendar
 
 # Import cloud modules (with fallback for backward compatibility)
@@ -6157,6 +6158,304 @@ def api_student_dashboard_data():
 
 
 # ========================= FEE MANAGEMENT APIs =========================
+
+def _fee_print_user_authorized():
+    """Allow any logged-in user (admin, sub-admin, staff, student) to request fee receipt printing."""
+    has_admin_session  = 'user_id' in session
+    has_student_session = 'student_id' in session
+    return has_admin_session or has_student_session
+
+
+def _detect_windows_printers():
+    """Return installed printers and best thermal/default candidates on Windows."""
+    if os.name != 'nt':
+        return {'supported': False, 'reason': 'Auto printer routing is supported on Windows only'}
+    try:
+        import win32print  # type: ignore
+    except Exception:
+        return {'supported': False, 'reason': 'pywin32 is not available'}
+
+    flags = win32print.PRINTER_ENUM_LOCAL | win32print.PRINTER_ENUM_CONNECTIONS
+    enum_rows = win32print.EnumPrinters(flags)
+    names = []
+    for row in enum_rows:
+        if isinstance(row, tuple) and len(row) >= 3 and row[2]:
+            names.append(str(row[2]))
+    names = list(dict.fromkeys(names))
+
+    try:
+        default_printer = win32print.GetDefaultPrinter()
+    except Exception:
+        default_printer = None
+
+    thermal_keywords = (
+        'thermal', 'pos', 'receipt', '58mm', '80mm', 'xp-80', 'xprinter',
+        'epson tm', 'tm-t', 'tsp100', 'sunmi', 'zjiang', 'posbox'
+    )
+    thermal_candidates = [p for p in names if any(k in p.lower() for k in thermal_keywords)]
+
+    # Strict mode: thermal is enabled only when printer is both READY and USB connected.
+    thermal_printer = None
+    thermal_ready = False
+    for candidate in thermal_candidates:
+        ready, _ = _is_windows_printer_ready(candidate)
+        usb_connected, _ = _is_windows_printer_usb_connected(candidate)
+        present, _ = _is_windows_printer_physically_present(candidate)
+        if ready and usb_connected and present:
+            thermal_printer = candidate
+            thermal_ready = True
+            break
+
+    return {
+        'supported': True,
+        'all': names,
+        'default': default_printer,
+        'thermal': thermal_printer,
+        'thermal_ready': thermal_ready,
+        'thermal_candidates': thermal_candidates,
+    }
+
+
+def _is_windows_printer_usb_connected(printer_name):
+    """Check whether a Windows printer is attached via a USB port."""
+    if os.name != 'nt':
+        return False, 'Not Windows'
+    try:
+        import win32print  # type: ignore
+        handle = win32print.OpenPrinter(printer_name)
+        try:
+            info = win32print.GetPrinter(handle, 2)
+            port_name = str(info.get('pPortName') or '')
+        finally:
+            win32print.ClosePrinter(handle)
+    except Exception as exc:
+        return False, f'Unable to query printer port: {exc}'
+
+    # Typical direct USB ports are USB001/USB002.
+    # Many receipt drivers map USB devices to virtual local ports like CP001/DOT4_001.
+    port_upper = port_name.upper()
+    is_usb = (
+        'USB' in port_upper
+        or port_upper.startswith('CP')
+        or port_upper.startswith('DOT4')
+    )
+    if not is_usb:
+        return False, f'Not USB port ({port_name})'
+    return True, f'USB connected ({port_name})'
+
+
+def _is_windows_printer_physically_present(printer_name):
+    """Check whether Windows reports the printer queue device as physically present."""
+    if os.name != 'nt':
+        return False, 'Not Windows'
+
+    # Queue status can remain "Normal" while cable is unplugged.
+    # PnP PrintQueue Present flag is a stricter hardware-availability signal.
+    safe_name = str(printer_name or '').replace("'", "''")
+    ps_script = (
+        "$d = Get-PnpDevice | Where-Object { $_.Class -eq 'PrintQueue' -and $_.FriendlyName -eq '" + safe_name + "' } "
+        "| Select-Object -First 1 FriendlyName,Status,Present; "
+        "if ($null -eq $d) { '' } else { $d | ConvertTo-Json -Compress }"
+    )
+
+    try:
+        result = subprocess.run(
+            ['powershell', '-NoProfile', '-Command', ps_script],
+            capture_output=True,
+            text=True,
+            timeout=4,
+            check=False,
+        )
+    except Exception as exc:
+        return False, f'Unable to query PnP presence: {exc}'
+
+    out = (result.stdout or '').strip()
+    if not out:
+        return False, 'PrintQueue device not found in PnP'
+
+    try:
+        payload = json.loads(out)
+    except Exception:
+        return False, f'Unexpected PnP response: {out[:120]}'
+
+    present = bool(payload.get('Present'))
+    status = str(payload.get('Status') or '').strip().lower()
+    if present and status == 'ok':
+        return True, 'PnP present'
+    return False, f'PnP not present (status={payload.get("Status")}, present={payload.get("Present")})'
+
+
+def _is_windows_printer_ready(printer_name):
+    """Check whether a Windows printer queue appears online/ready for printing."""
+    if os.name != 'nt':
+        return False, 'Not Windows'
+    try:
+        import win32print  # type: ignore
+        handle = win32print.OpenPrinter(printer_name)
+        try:
+            info = win32print.GetPrinter(handle, 2)
+            status = int(info.get('Status', 0) or 0)
+        finally:
+            win32print.ClosePrinter(handle)
+    except Exception as exc:
+        return False, f'Unable to query printer status: {exc}'
+
+    bad_bits = (
+        getattr(win32print, 'PRINTER_STATUS_OFFLINE', 0x80)
+        | getattr(win32print, 'PRINTER_STATUS_ERROR', 0x2)
+        | getattr(win32print, 'PRINTER_STATUS_NOT_AVAILABLE', 0x1000)
+        | getattr(win32print, 'PRINTER_STATUS_PAPER_JAM', 0x8)
+        | getattr(win32print, 'PRINTER_STATUS_PAPER_OUT', 0x10)
+        | getattr(win32print, 'PRINTER_STATUS_USER_INTERVENTION', 0x100000)
+        | getattr(win32print, 'PRINTER_STATUS_DOOR_OPEN', 0x400000)
+    )
+
+    if status & bad_bits:
+        return False, f'Printer not ready (status={status})'
+    return True, 'Ready'
+
+
+def _build_fee_receipt_text(receipt):
+    """Build printer-friendly plain-text receipt for thermal printers."""
+    width = 48
+
+    def esc(v):
+        return str(v or '').strip()
+
+    def money(v):
+        try:
+            return f"{float(v or 0):.2f}"
+        except Exception:
+            return "0.00"
+
+    def center(text):
+        text = esc(text)
+        if len(text) >= width:
+            return text[:width]
+        pad = (width - len(text)) // 2
+        return (' ' * pad) + text
+
+    fees = receipt.get('fees') or []
+    total = sum(float((f or {}).get('total') or 0) for f in fees)
+    paid = sum(float((f or {}).get('paid') or 0) for f in fees)
+    balance = sum(float((f or {}).get('balance') or 0) for f in fees)
+
+    lines = [
+        center(receipt.get('schoolName') or 'School'),
+        center('FEE PAYMENT RECEIPT'),
+        '-' * width,
+        f"Receipt : {esc(receipt.get('receiptNo'))}",
+        f"Date    : {esc(receipt.get('paidDate') or datetime.date.today().strftime('%Y-%m-%d'))}",
+        f"Student : {esc(receipt.get('studentName'))}",
+        f"ID      : {esc(receipt.get('studentId'))}",
+        f"Class   : {esc(receipt.get('classSection'))}",
+        '-' * width,
+    ]
+
+    for idx, fee in enumerate(fees, start=1):
+        fee_type = esc((fee or {}).get('feeType'))
+        lines.append(f"{idx}. {fee_type}"[:width])
+        lines.append(f"   Total:{money((fee or {}).get('total'))}  Paid:{money((fee or {}).get('paid'))}  Bal:{money((fee or {}).get('balance'))}")
+
+    lines.extend([
+        '-' * width,
+        f"TOTAL   : {money(total)}",
+        f"PAID    : {money(paid)}",
+        f"BALANCE : {money(balance)}",
+        f"Mode    : {esc(receipt.get('paymentMode') or 'Cash')}",
+    ])
+
+    notes = esc(receipt.get('notes'))
+    if notes:
+        lines.append(f"Notes   : {notes}"[:width])
+
+    lines.extend([
+        '-' * width,
+        center('Thank you!'),
+        '\n\n'
+    ])
+    return '\n'.join(lines)
+
+
+def _send_raw_to_windows_printer(printer_name, payload_text, cut_paper=False):
+    """Send plain text directly to a Windows printer using RAW mode."""
+    import win32print  # type: ignore
+
+    data = payload_text.encode('utf-8', errors='replace')
+    if cut_paper:
+        data += b'\n\n\x1dV\x00'
+
+    handle = win32print.OpenPrinter(printer_name)
+    try:
+        win32print.StartDocPrinter(handle, 1, ('Fee Receipt', None, 'RAW'))
+        try:
+            win32print.StartPagePrinter(handle)
+            win32print.WritePrinter(handle, data)
+            win32print.EndPagePrinter(handle)
+        finally:
+            win32print.EndDocPrinter(handle)
+    finally:
+        win32print.ClosePrinter(handle)
+
+
+@app.route('/api/fees/printer-status', methods=['GET'])
+def api_fees_printer_status():
+    """Return whether a ready thermal printer is connected – used by frontend to decide print path."""
+    # No strict auth needed – this is non-sensitive hardware metadata.
+    # Any page that shows the print button is already behind a login wall.
+    if not ('user_id' in session or 'student_id' in session):
+        return jsonify({'success': True, 'thermal_ready': False, 'thermal_name': None})
+    detected = _detect_windows_printers()
+    thermal = detected.get('thermal')
+    return jsonify({
+        'success': True,
+        'thermal_ready': bool(detected.get('thermal_ready')),
+        'thermal_name': thermal or None,
+    })
+
+
+
+@app.route('/api/fees/auto-print', methods=['POST'])
+@csrf.exempt
+def api_fees_auto_print():
+    """Thermal print endpoint: print only when a connected USB thermal printer is ready."""
+    if not _fee_print_user_authorized():
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+    receipt = data.get('receipt') or {}
+    if not isinstance(receipt, dict) or not receipt.get('fees'):
+        return jsonify({'success': False, 'error': 'Invalid receipt payload'}), 400
+
+    detected = _detect_windows_printers()
+    if not detected.get('supported'):
+        return jsonify({
+            'success': False,
+            'error': detected.get('reason') or 'Thermal print not available'
+        })
+
+    thermal_printer = detected.get('thermal')
+    if not thermal_printer:
+        return jsonify({
+            'success': False,
+            'error': 'Thermal printer is not connected or not ready'
+        })
+
+    try:
+        txt = _build_fee_receipt_text(receipt)
+        _send_raw_to_windows_printer(thermal_printer, txt, cut_paper=True)
+        return jsonify({
+            'success': True,
+            'printed': True,
+            'printer_type': 'thermal',
+            'printer_name': thermal_printer
+        })
+    except Exception as exc:
+        logger.error(f"Auto thermal print failed: {exc}")
+        return jsonify({
+            'success': False,
+            'error': 'Thermal print failed'
+        })
 
 @app.route('/api/fees/types', methods=['GET'])
 def api_fee_types_get():
