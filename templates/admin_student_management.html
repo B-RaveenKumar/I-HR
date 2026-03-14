@@ -2966,7 +2966,7 @@ showStep(currentStep);
                         ${timeStr ? `<div class="tt-period-time">${escapeHtml(timeStr)}</div>` : ''}
                     </td>`;
                 DAYS.forEach((_, dayIdx) => {
-                    const entry = (grid[p] || {})[dayIdx];
+                    const entry = (grid[p] || {})[dayIdx + 1];
                     if (entry) {
                         html += `<td>
                             <div class="tt-subject">${escapeHtml(entry.subject_name || 'N/A')}</div>
