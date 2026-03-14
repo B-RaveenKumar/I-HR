@@ -978,11 +978,19 @@
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Start Time</label>
-                            <input type="time" id="timingStart" class="form-control">
+                            <input type="time" id="timingStart" class="form-control" onchange="syncTimingMeridiem('timingStart', 'timingStartMeridiem')">
+                            <select id="timingStartMeridiem" class="form-select mt-2">
+                                <option value="AM">AM</option>
+                                <option value="PM">PM</option>
+                            </select>
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">End Time</label>
-                            <input type="time" id="timingEnd" class="form-control">
+                            <input type="time" id="timingEnd" class="form-control" onchange="syncTimingMeridiem('timingEnd', 'timingEndMeridiem')">
+                            <select id="timingEndMeridiem" class="form-select mt-2">
+                                <option value="AM">AM</option>
+                                <option value="PM">PM</option>
+                            </select>
                         </div>
                     </div>
                 </div>

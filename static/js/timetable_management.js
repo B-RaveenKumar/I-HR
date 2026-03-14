@@ -197,10 +197,43 @@ function populatePeriodTimeSlotDropdown(selectedId = '') {
     }
 }
 
+function getMeridiemFromTime(timeValue) {
+    if (!timeValue || !timeValue.includes(':')) {
+        return 'AM';
+    }
+
+    const [hourStr] = timeValue.split(':');
+    const hour = parseInt(hourStr, 10);
+    return hour >= 12 ? 'PM' : 'AM';
+}
+
+function syncTimingMeridiem(timeInputId, meridiemSelectId) {
+    const timeInput = document.getElementById(timeInputId);
+    const meridiemSelect = document.getElementById(meridiemSelectId);
+    if (!timeInput || !meridiemSelect || !timeInput.value) return;
+
+    meridiemSelect.value = getMeridiemFromTime(timeInput.value);
+}
+
+function to24HourTime(timeValue, meridiem) {
+    if (!timeValue || !timeValue.includes(':')) {
+        return timeValue;
+    }
+
+    const [hourStr, minuteStr] = timeValue.split(':');
+    const rawHour = parseInt(hourStr, 10);
+    const baseHour = rawHour % 12;
+    const hour24 = meridiem === 'PM' ? baseHour + 12 : baseHour;
+
+    return `${String(hour24).padStart(2, '0')}:${minuteStr}`;
+}
+
 function showAddTimingModal() {
     document.getElementById('timingLabel').value = '';
     document.getElementById('timingStart').value = '';
     document.getElementById('timingEnd').value = '';
+    document.getElementById('timingStartMeridiem').value = 'AM';
+    document.getElementById('timingEndMeridiem').value = 'AM';
     document.getElementById('periodTimingModalTitle').textContent = 'Add Time Slot';
     document.getElementById('periodTimingModal').dataset.editId = '';
 
@@ -214,6 +247,8 @@ function editPeriodTiming(timingId) {
     document.getElementById('timingLabel').value = timing.slot_label || '';
     document.getElementById('timingStart').value = timing.start_time || '';
     document.getElementById('timingEnd').value = timing.end_time || '';
+    document.getElementById('timingStartMeridiem').value = getMeridiemFromTime(timing.start_time || '');
+    document.getElementById('timingEndMeridiem').value = getMeridiemFromTime(timing.end_time || '');
     document.getElementById('periodTimingModalTitle').textContent = 'Edit Time Slot';
     document.getElementById('periodTimingModal').dataset.editId = timingId;
 
@@ -224,6 +259,8 @@ function savePeriodTiming() {
     const slotLabel = document.getElementById('timingLabel').value.trim();
     const startTime = document.getElementById('timingStart').value;
     const endTime = document.getElementById('timingEnd').value;
+    const startMeridiem = document.getElementById('timingStartMeridiem').value;
+    const endMeridiem = document.getElementById('timingEndMeridiem').value;
     const editId = document.getElementById('periodTimingModal').dataset.editId;
 
     if (!slotLabel || !startTime || !endTime) {
@@ -231,11 +268,14 @@ function savePeriodTiming() {
         return;
     }
 
+    const normalizedStartTime = to24HourTime(startTime, startMeridiem);
+    const normalizedEndTime = to24HourTime(endTime, endMeridiem);
+
     const payload = {
         school_id: schoolId,
         slot_label: slotLabel,
-        start_time: startTime,
-        end_time: endTime
+        start_time: normalizedStartTime,
+        end_time: normalizedEndTime
     };
 
     if (editId) {
@@ -426,6 +466,9 @@ function loadAcademicLevels() {
                     filterSectionsByLevel(currentLevelFilter);
                 }
 
+                // Refresh labels in periods table once levels are available
+                renderPeriodsTable();
+
                 fetchOrgConfig();
             }
         });
@@ -539,6 +582,9 @@ function loadAllSections() {
 
                 // Reload section management table using current filter
                 renderSectionsTable(currentLevelFilter);
+
+                // Refresh labels in periods table once sections are available
+                renderPeriodsTable();
             }
         })
         .catch(err => console.error('❌ Error loading sections:', err));
