@@ -1320,17 +1320,15 @@
                                     <tr style="background:#f8fafc;">
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Student</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Class</th>
-                                        <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Fee Type</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Total (₹)</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#16a34a;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Paid (₹)</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#d97706;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Balance (₹)</th>
-                                        <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Due Date</th>
-                                        <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Status</th>
+                                        <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Fee Items</th>
                                         <th style="padding:8px 10px;border-bottom:2px solid #e2e8f0;color:#164e63;font-weight:700;font-size:0.78rem;text-transform:uppercase;">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody id="feeRecordsBody">
-                                    <tr><td colspan="9" class="text-center py-4 text-muted">Select a class/section and click Refresh to view fee records.</td></tr>
+                                    <tr><td colspan="6" class="text-center py-4 text-muted">Select a class/section and click Refresh to view fee records.</td></tr>
                                 </tbody>
                             </table>
                         </div>
@@ -3393,6 +3391,10 @@ showStep(currentStep);
 
         // --- Fee Records ---
         let _feeRecords = [];
+        let _feeRenderedRecords = [];
+        let _feeCurrentSearch = '';
+        const _expandedFeeStudents = new Set();
+        const _SCHOOL_NAME = {{ school_name | tojson }};
 
         function onFeeRecordsClassChange() {
             const cls = document.getElementById('feeRecordsClass').value;
@@ -3415,19 +3417,71 @@ showStep(currentStep);
 
         function filterFeeRecords() {
             const q = (document.getElementById('feeRecordsSearch')?.value || '').trim().toLowerCase();
-            if (!q) { renderFeeRecords(_feeRecords); return; }
-            const filtered = _feeRecords.filter(f =>
-                (f.full_name   || '').toLowerCase().includes(q) ||
-                (f.roll_number || '').toLowerCase().includes(q) ||
-                (f.student_id  || '').toLowerCase().includes(q)
+            _feeCurrentSearch = q;
+            if (!q) {
+                _feeRenderedRecords = [..._feeRecords];
+                renderFeeRecords(_feeRenderedRecords);
+                return;
+            }
+
+            const matchedStudentIds = new Set(
+                _feeRecords
+                    .filter(f =>
+                        (f.full_name || '').toLowerCase().includes(q) ||
+                        (f.roll_number || '').toLowerCase().includes(q) ||
+                        (f.student_id || '').toLowerCase().includes(q)
+                    )
+                    .map(f => f.student_db_id)
             );
-            renderFeeRecords(filtered);
+
+            _feeRenderedRecords = _feeRecords.filter(f => matchedStudentIds.has(f.student_db_id));
+            matchedStudentIds.forEach(id => _expandedFeeStudents.add(id));
+            renderFeeRecords(_feeRenderedRecords);
+        }
+
+        function groupFeeRecordsByStudent(fees) {
+            const map = new Map();
+            fees.forEach(f => {
+                if (!map.has(f.student_db_id)) {
+                    map.set(f.student_db_id, {
+                        student_db_id: f.student_db_id,
+                        student_id: f.student_id,
+                        full_name: f.full_name,
+                        class_name: f['class'],
+                        section: f.section,
+                        roll_number: f.roll_number,
+                        fees: []
+                    });
+                }
+                map.get(f.student_db_id).fees.push(f);
+            });
+
+            return Array.from(map.values())
+                .map(g => {
+                    const total = g.fees.reduce((a, item) => a + parseFloat(item.amount || 0), 0);
+                    const paid = g.fees.reduce((a, item) => a + parseFloat(item.paid_amount || 0), 0);
+                    return {
+                        ...g,
+                        total,
+                        paid,
+                        balance: Math.max(0, total - paid)
+                    };
+                })
+                .sort((a, b) => {
+                    const clsA = (a.class_name || '').toString();
+                    const clsB = (b.class_name || '').toString();
+                    if (clsA !== clsB) return clsA.localeCompare(clsB, undefined, { numeric: true, sensitivity: 'base' });
+                    const secA = (a.section || '').toString();
+                    const secB = (b.section || '').toString();
+                    if (secA !== secB) return secA.localeCompare(secB, undefined, { numeric: true, sensitivity: 'base' });
+                    return (a.full_name || '').localeCompare((b.full_name || ''), undefined, { sensitivity: 'base' });
+                });
         }
 
         function renderFeeRecords(fees) {
             const tbody = document.getElementById('feeRecordsBody');
             if (!fees.length) {
-                tbody.innerHTML = '<tr><td colspan="9" class="text-center py-4 text-muted">No fee records found.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="6" class="text-center py-4 text-muted">No fee records found.</td></tr>';
                 document.getElementById('feeRecordsSummary').innerHTML = '';
                 return;
             }
@@ -3436,12 +3490,13 @@ showStep(currentStep);
             const paidAmt = fees.reduce((a, f) => a + (f.paid_amount || 0), 0);
             const balance = total - paidAmt;
             const partialCount = fees.filter(f => f.status === 'partial').length;
+            const grouped = groupFeeRecordsByStudent(fees);
             document.getElementById('feeRecordsSummary').innerHTML = `
                 <div style="background:#eff6ff;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#2563eb;">₹${total.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><br><span style="color:#475569;">Total Billed</span></div>
                 <div style="background:#f0fdf4;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#16a34a;">₹${paidAmt.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><br><span style="color:#475569;">Total Paid</span></div>
                 <div style="background:#fff7ed;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#d97706;">₹${balance.toLocaleString('en-IN',{minimumFractionDigits:2})}</span><br><span style="color:#475569;">Total Balance</span></div>
                 ${partialCount ? `<div style="background:#fef3c7;border-radius:8px;padding:0.5rem 1rem;font-size:0.82rem;"><span style="font-weight:700;color:#b45309;">${partialCount}</span><br><span style="color:#475569;">Partial</span></div>` : ''}
-                <div style="color:#64748b;font-size:0.82rem;align-self:center;">${fees.length} record(s)</div>
+                <div style="color:#64748b;font-size:0.82rem;align-self:center;">${fees.length} fee record(s) · ${grouped.length} student(s)</div>
             `;
 
             const statusBadge = {
@@ -3452,28 +3507,225 @@ showStep(currentStep);
                 waived:  '<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:12px;font-size:0.75rem;font-weight:600;">Waived</span>',
             };
 
-            tbody.innerHTML = fees.map(f => {
-                const total   = parseFloat(f.amount || 0);
-                const paid    = parseFloat(f.paid_amount || 0);
-                const balance = total - paid;
-                const canPay  = f.status !== 'paid' && f.status !== 'waived';
+            tbody.innerHTML = grouped.map(g => {
+                const isExpanded = _expandedFeeStudents.has(g.student_db_id);
+                const selectedTotalId = `fee-selected-total-${g.student_db_id}`;
+                const payBtnId = `fee-pay-btn-${g.student_db_id}`;
+                const modeId = `fee-payment-mode-${g.student_db_id}`;
+                const detailsId = `fee-details-${g.student_db_id}`;
+
+                const feeRows = g.fees.map(f => {
+                    const totalAmount = parseFloat(f.amount || 0);
+                    const paidAmount = parseFloat(f.paid_amount || 0);
+                    const feeBalance = Math.max(0, totalAmount - paidAmount);
+                    const canPay = feeBalance > 0 && f.status !== 'waived';
+                    const amountInputId = `fee-pay-amount-${f.id}`;
+
+                    return `
+                        <tr style="border-bottom:1px solid #e2e8f0;">
+                            <td style="padding:6px 8px;text-align:center;">
+                                <input type="checkbox"
+                                       class="fee-select-checkbox"
+                                       data-student-id="${g.student_db_id}"
+                                       data-fee-id="${f.id}"
+                                       data-balance="${feeBalance}"
+                                       ${canPay ? '' : 'disabled'}
+                                       onchange="onFeeCheckboxChange(${g.student_db_id}, ${f.id})">
+                            </td>
+                            <td style="padding:6px 8px;font-weight:600;">${escapeHtml(f.fee_type_name)}</td>
+                            <td style="padding:6px 8px;">₹${totalAmount.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+                            <td style="padding:6px 8px;color:#16a34a;">₹${paidAmount.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+                            <td style="padding:6px 8px;color:${feeBalance > 0 ? '#d97706' : '#16a34a'};font-weight:600;">₹${feeBalance.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+                            <td style="padding:6px 8px;">${f.due_date || '—'}</td>
+                            <td style="padding:6px 8px;">${statusBadge[f.status] || f.status}</td>
+                            <td style="padding:6px 8px;">
+                                <input id="${amountInputId}" type="number" min="0.01" step="0.01" value="${feeBalance.toFixed(2)}"
+                                       ${canPay ? 'disabled' : 'disabled'}
+                                       oninput="onFeeAmountInput(${g.student_db_id}, ${f.id})"
+                                       style="width:110px;border:1px solid #cbd5e1;border-radius:7px;padding:4px 6px;font-size:0.78rem;background:${canPay ? '#fff' : '#f1f5f9'};">
+                            </td>
+                            <td style="padding:6px 8px;white-space:nowrap;">
+                                ${canPay ? `<button class="btn btn-sm" title="Record payment" style="background:#10b981;color:#fff;border-radius:6px;font-size:0.72rem;padding:3px 7px;margin-right:3px;" onclick="openPartialPay(${f.id},${totalAmount},${paidAmount})"><i class="bi bi-cash-stack"></i></button>` : ''}
+                                ${(f.status === 'paid' || f.status === 'partial') ? `<button class="btn btn-sm" title="Print receipt" style="background:#7c3aed;color:#fff;border-radius:6px;font-size:0.72rem;padding:3px 7px;margin-right:3px;" onclick="printSingleFeeReceipt(${f.id})"><i class="bi bi-printer"></i></button>` : ''}
+                                <button class="btn btn-sm" title="Edit record" style="background:#667eea;color:#fff;border-radius:6px;font-size:0.72rem;padding:3px 7px;margin-right:3px;" onclick="openFeeEdit(${f.id},'${escapeHtml(f.full_name)}',${totalAmount},'${f.due_date||''}',${f.fee_type_id},'${f.status}','${escapeHtml(f.notes||'')}')"><i class="bi bi-pencil"></i></button>
+                                <button class="btn btn-sm btn-outline-danger" title="Delete" style="border-radius:6px;font-size:0.72rem;padding:3px 7px;" onclick="deleteFeeRecord(${f.id})"><i class="bi bi-trash"></i></button>
+                            </td>
+                        </tr>
+                    `;
+                }).join('');
+
                 return `
-                <tr style="border-bottom:1px solid #f1f5f9;">
-                    <td style="padding:8px 10px;font-weight:600;">${escapeHtml(f.full_name)}</td>
-                    <td style="padding:8px 10px;">${escapeHtml(f['class'] || '')}${f.section ? ' - ' + escapeHtml(f.section) : ''}<br><small style="color:#94a3b8;">Roll: ${escapeHtml(f.roll_number || '-')}</small></td>
-                    <td style="padding:8px 10px;">${escapeHtml(f.fee_type_name)}</td>
-                    <td style="padding:8px 10px;font-weight:600;">₹${total.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
-                    <td style="padding:8px 10px;color:#16a34a;font-weight:600;">₹${paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
-                    <td style="padding:8px 10px;color:${balance > 0 ? '#d97706' : '#16a34a'};font-weight:600;">₹${balance.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
-                    <td style="padding:8px 10px;">${f.due_date || '—'}</td>
-                    <td style="padding:8px 10px;">${statusBadge[f.status] || f.status}${f.paid_date ? `<br><small style="color:#94a3b8;">${f.paid_date}${f.payment_mode ? ' · ' + escapeHtml(f.payment_mode) : ''}</small>` : ''}</td>
-                    <td style="padding:8px 10px;white-space:nowrap;">
-                        ${canPay ? `<button class="btn btn-sm" title="Record payment" style="background:#10b981;color:#fff;border-radius:6px;font-size:0.75rem;padding:3px 8px;margin-right:3px;" onclick="openPartialPay(${f.id},${total},${paid})"><i class="bi bi-cash-stack"></i> Pay</button>` : ''}
-                        <button class="btn btn-sm" title="Edit record" style="background:#667eea;color:#fff;border-radius:6px;font-size:0.75rem;padding:3px 8px;margin-right:3px;" onclick="openFeeEdit(${f.id},'${escapeHtml(f.full_name)}',${total},'${f.due_date||''}',${f.fee_type_id},'${f.status}','${escapeHtml(f.notes||'')}')"><i class="bi bi-pencil"></i></button>
-                        <button class="btn btn-sm btn-outline-danger" title="Delete" style="border-radius:6px;font-size:0.75rem;padding:3px 8px;" onclick="deleteFeeRecord(${f.id})"><i class="bi bi-trash"></i></button>
-                    </td>
-                </tr>`;
+                    <tr style="border-bottom:1px solid #e2e8f0;background:${isExpanded ? '#f8fafc' : '#fff'};">
+                        <td style="padding:10px;font-weight:700;">${escapeHtml(g.full_name)}<br><small style="color:#94a3b8;">ID: ${escapeHtml(g.student_id || '-')} · Roll: ${escapeHtml(g.roll_number || '-')}</small></td>
+                        <td style="padding:10px;">${escapeHtml(g.class_name || '')}${g.section ? ' - ' + escapeHtml(g.section) : ''}</td>
+                        <td style="padding:10px;font-weight:700;">₹${g.total.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+                        <td style="padding:10px;color:#16a34a;font-weight:700;">₹${g.paid.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+                        <td style="padding:10px;color:${g.balance > 0 ? '#d97706' : '#16a34a'};font-weight:700;">₹${g.balance.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
+                        <td style="padding:10px;">${g.fees.length} item(s)</td>
+                        <td style="padding:10px;white-space:nowrap;">
+                            <button class="btn btn-sm" style="background:${isExpanded ? '#334155' : '#0ea5e9'};color:#fff;border-radius:8px;font-size:0.76rem;padding:4px 9px;" onclick="toggleFeeStudentDetails(${g.student_db_id})">
+                                <i class="bi ${isExpanded ? 'bi-chevron-up' : 'bi-chevron-down'}"></i> ${isExpanded ? 'Hide' : 'Manage'}
+                            </button>
+                        </td>
+                    </tr>
+                    <tr id="${detailsId}" style="display:${isExpanded ? 'table-row' : 'none'};background:#f8fafc;">
+                        <td colspan="6" style="padding:0;">
+                            <div style="padding:10px 12px 12px 12px;border-top:1px dashed #cbd5e1;">
+                                <div style="overflow-x:auto;">
+                                    <table style="width:100%;border-collapse:collapse;font-size:0.79rem;background:#fff;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;">
+                                        <thead>
+                                            <tr style="background:#f1f5f9;">
+                                                <th style="padding:7px 8px;width:38px;text-align:center;">#</th>
+                                                <th style="padding:7px 8px;text-align:left;">Fee Type</th>
+                                                <th style="padding:7px 8px;text-align:left;">Total</th>
+                                                <th style="padding:7px 8px;text-align:left;">Paid</th>
+                                                <th style="padding:7px 8px;text-align:left;">Balance</th>
+                                                <th style="padding:7px 8px;text-align:left;">Due</th>
+                                                <th style="padding:7px 8px;text-align:left;">Status</th>
+                                                <th style="padding:7px 8px;text-align:left;">Pay Now (₹)</th>
+                                                <th style="padding:7px 8px;text-align:left;">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>${feeRows}</tbody>
+                                    </table>
+                                </div>
+                                <div style="display:flex;gap:0.75rem;justify-content:flex-end;align-items:center;margin-top:10px;flex-wrap:wrap;">
+                                    <select id="${modeId}" style="border:1px solid #cbd5e1;border-radius:8px;padding:6px 10px;font-size:0.8rem;min-width:140px;">
+                                        <option>Cash</option>
+                                        <option>Online</option>
+                                        <option>Cheque</option>
+                                        <option>DD</option>
+                                        <option>UPI</option>
+                                        <option>Bank Transfer</option>
+                                    </select>
+                                    <span style="font-size:0.8rem;color:#475569;">Selected Total: <strong id="${selectedTotalId}">₹0.00</strong></span>
+                                    <button id="${payBtnId}" class="btn btn-sm" disabled
+                                            style="background:#10b981;color:#fff;border-radius:8px;font-size:0.78rem;padding:6px 12px;opacity:0.55;"
+                                            onclick="submitSelectedFeePayments(${g.student_db_id})">
+                                        <i class="bi bi-cash-stack"></i> Pay Selected
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
             }).join('');
+        }
+
+        function toggleFeeStudentDetails(studentDbId) {
+            if (_expandedFeeStudents.has(studentDbId)) {
+                _expandedFeeStudents.delete(studentDbId);
+            } else {
+                _expandedFeeStudents.add(studentDbId);
+            }
+            renderFeeRecords(_feeRenderedRecords.length ? _feeRenderedRecords : _feeRecords);
+        }
+
+        function _recalculateSelectedFeeTotal(studentDbId) {
+            const checkboxes = document.querySelectorAll(`.fee-select-checkbox[data-student-id="${studentDbId}"]`);
+            let total = 0;
+            let hasSelection = false;
+            let hasInvalid = false;
+
+            checkboxes.forEach(box => {
+                const feeId = box.getAttribute('data-fee-id');
+                const balance = parseFloat(box.getAttribute('data-balance') || '0');
+                const amountInput = document.getElementById(`fee-pay-amount-${feeId}`);
+                if (!amountInput) return;
+
+                if (box.checked) {
+                    hasSelection = true;
+                    amountInput.disabled = false;
+                    amountInput.style.background = '#fff';
+                    const amount = parseFloat(amountInput.value || '0');
+                    if (!amount || amount <= 0 || amount > balance) {
+                        hasInvalid = true;
+                        amountInput.style.borderColor = '#ef4444';
+                    } else {
+                        amountInput.style.borderColor = '#cbd5e1';
+                        total += amount;
+                    }
+                } else {
+                    amountInput.disabled = true;
+                    amountInput.style.background = '#f8fafc';
+                    amountInput.style.borderColor = '#cbd5e1';
+                }
+            });
+
+            const totalEl = document.getElementById(`fee-selected-total-${studentDbId}`);
+            if (totalEl) {
+                totalEl.textContent = `₹${total.toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+            }
+
+            const payBtn = document.getElementById(`fee-pay-btn-${studentDbId}`);
+            if (payBtn) {
+                const canPay = hasSelection && !hasInvalid && total > 0;
+                payBtn.disabled = !canPay;
+                payBtn.style.opacity = canPay ? '1' : '0.55';
+                payBtn.style.cursor = canPay ? 'pointer' : 'not-allowed';
+            }
+        }
+
+        function onFeeCheckboxChange(studentDbId, feeId) {
+            const checkbox = document.querySelector(`.fee-select-checkbox[data-student-id="${studentDbId}"][data-fee-id="${feeId}"]`);
+            const input = document.getElementById(`fee-pay-amount-${feeId}`);
+            if (checkbox && input && checkbox.checked && (!input.value || parseFloat(input.value) <= 0)) {
+                const balance = parseFloat(checkbox.getAttribute('data-balance') || '0');
+                input.value = balance.toFixed(2);
+            }
+            _recalculateSelectedFeeTotal(studentDbId);
+        }
+
+        function onFeeAmountInput(studentDbId) {
+            _recalculateSelectedFeeTotal(studentDbId);
+        }
+
+        function submitSelectedFeePayments(studentDbId) {
+            const checkboxes = document.querySelectorAll(`.fee-select-checkbox[data-student-id="${studentDbId}"]:checked`);
+            if (!checkboxes.length) {
+                showFeesMsg('warning', 'Select at least one fee item to pay.');
+                return;
+            }
+
+            const payments = [];
+            for (const box of checkboxes) {
+                const feeId = parseInt(box.getAttribute('data-fee-id'));
+                const balance = parseFloat(box.getAttribute('data-balance') || '0');
+                const amountInput = document.getElementById(`fee-pay-amount-${feeId}`);
+                const amount = parseFloat(amountInput?.value || '0');
+                if (!amount || amount <= 0) {
+                    showFeesMsg('warning', 'Enter a valid pay amount for selected fees.');
+                    return;
+                }
+                if (amount > balance) {
+                    showFeesMsg('warning', 'Pay amount cannot exceed fee balance.');
+                    return;
+                }
+                payments.push({ fee_id: feeId, amount });
+            }
+
+            const paymentMode = document.getElementById(`fee-payment-mode-${studentDbId}`)?.value || 'Cash';
+            fetch('/api/fees/pay-selected', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || ''
+                },
+                body: JSON.stringify({
+                    student_db_id: studentDbId,
+                    payment_mode: paymentMode,
+                    payments
+                })
+            }).then(r => r.json()).then(d => {
+                if (d.success) {
+                    showFeesMsg('success', `${d.updated_count} fee item(s) paid. Total deducted: ₹${(d.total_deducted || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`);
+                    const _receiptFeeIds = payments.map(p => p.fee_id);
+                    loadFeeRecords();
+                    setTimeout(() => printGroupFeeReceipt(studentDbId, _receiptFeeIds, paymentMode), 900);
+                } else {
+                    showFeesMsg('danger', d.error || 'Failed to process selected payment.');
+                }
+            }).catch(() => showFeesMsg('danger', 'Network error.'));
         }
 
         function markFeePaid(feeId) {
@@ -3489,8 +3741,99 @@ showStep(currentStep);
             });
         }
 
+        // ==================== RECEIPT PRINTING ====================
+        function _esc(s) {
+            return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function generateReceiptHTML(data) {
+            const fmt = n => parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            const today = data.paidDate || new Date().toISOString().slice(0, 10);
+            const totalBilled  = data.fees.reduce((a, f) => a + f.total, 0);
+            const totalPaid    = data.fees.reduce((a, f) => a + f.paid, 0);
+            const totalBalance = data.fees.reduce((a, f) => a + f.balance, 0);
+            const feeRowsHtml = data.fees.map((f, i) =>
+                '<tr>' +
+                '<td style="padding:8px 12px;">' + (i+1) + '</td>' +
+                '<td style="padding:8px 12px;">' + _esc(f.feeType) + '</td>' +
+                '<td style="padding:8px 12px;">&#8377;' + fmt(f.total) + '</td>' +
+                '<td style="padding:8px 12px;color:#16a34a;font-weight:600;">&#8377;' + fmt(f.paid) + '</td>' +
+                '<td style="padding:8px 12px;color:' + (f.balance > 0 ? '#d97706' : '#16a34a') + ';font-weight:600;">&#8377;' + fmt(f.balance) + '</td>' +
+                '</tr>'
+            ).join('');
+            const css = '*{margin:0;padding:0;box-sizing:border-box}body{font-family:\'Segoe UI\',Arial,sans-serif;background:#f8fafc;color:#1e293b}.receipt{max-width:580px;margin:24px auto;padding:32px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.08)}.header{text-align:center;border-bottom:3px solid #667eea;padding-bottom:18px;margin-bottom:20px}.school-name{font-size:1.5rem;font-weight:800;color:#1e293b}.receipt-title{font-size:.92rem;color:#667eea;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-top:6px}.rmeta{display:flex;justify-content:space-between;font-size:.8rem;color:#475569;background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:18px}.sbox{background:#f0f9ff;border-radius:10px;padding:14px 18px;margin-bottom:18px;border-left:4px solid #0ea5e9}.sbox h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#0369a1;font-weight:700;margin-bottom:10px}.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:.82rem}.sl{color:#64748b}.sv{font-weight:600;color:#1e293b}.ft{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:.83rem}.ft thead tr{background:linear-gradient(135deg,#667eea,#5568d3)}.ft th{padding:9px 12px;color:#fff;text-align:left;font-weight:600;font-size:.75rem;text-transform:uppercase}.ft tbody tr:nth-child(even){background:#f8fafc}.ftr td{border-top:2px solid #e2e8f0;font-weight:700;padding:10px 12px;background:#f0fdf4}.ppill{display:flex;gap:20px;background:#eff6ff;border-radius:9px;padding:11px 16px;font-size:.83rem;margin-bottom:20px;flex-wrap:wrap}.ppill span{color:#64748b}.ppill strong{color:#1e293b}.footer{border-top:1px dashed #e2e8f0;padding-top:16px;display:flex;justify-content:space-between;align-items:flex-end}.fnote{font-size:.73rem;color:#94a3b8;line-height:1.6}.sline{border-top:1.5px solid #334155;width:140px;padding-top:5px;text-align:center;font-size:.73rem;color:#475569;margin-top:44px}.cbar{margin-bottom:16px;display:flex;gap:8px;justify-content:flex-end}.bp{background:#667eea;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.83rem;font-weight:600;cursor:pointer}.bc{background:#f1f5f9;color:#475569;border:none;border-radius:8px;padding:8px 14px;font-size:.83rem;cursor:pointer}@media print{.cbar{display:none}body{background:#fff}.receipt{box-shadow:none;border:none}}';
+            return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt ' + _esc(data.receiptNo) + '</title><style>' + css + '</style></head>' +
+                '<body><div class="receipt">' +
+                '<div class="cbar"><button class="bp" onclick="window.print()">&#128424; Print</button><button class="bc" onclick="window.close()">&#215; Close</button></div>' +
+                '<div class="header"><div class="school-name">' + _esc(data.schoolName) + '</div><div class="receipt-title">&#128196; Fee Payment Receipt</div></div>' +
+                '<div class="rmeta"><div><strong>Receipt No:</strong> ' + _esc(data.receiptNo) + '</div><div><strong>Date:</strong> ' + _esc(today) + '</div></div>' +
+                '<div class="sbox"><h3>Student Details</h3><div class="sgrid">' +
+                '<div><span class="sl">Name: </span><span class="sv">' + _esc(data.studentName) + '</span></div>' +
+                '<div><span class="sl">Student ID: </span><span class="sv">' + _esc(data.studentId) + '</span></div>' +
+                '<div><span class="sl">Roll No: </span><span class="sv">' + _esc(data.roll) + '</span></div>' +
+                '<div><span class="sl">Class: </span><span class="sv">' + _esc(data.classSection) + '</span></div>' +
+                '</div></div>' +
+                '<table class="ft"><thead><tr><th>#</th><th>Fee Type</th><th>Total (&#8377;)</th><th>Paid (&#8377;)</th><th>Balance (&#8377;)</th></tr></thead>' +
+                '<tbody>' + feeRowsHtml +
+                '<tr class="ftr"><td colspan="2">TOTAL</td><td>&#8377;' + fmt(totalBilled) + '</td><td style="color:#16a34a;">&#8377;' + fmt(totalPaid) + '</td><td style="color:' + (totalBalance > 0 ? '#d97706' : '#16a34a') + ';">&#8377;' + fmt(totalBalance) + '</td></tr>' +
+                '</tbody></table>' +
+                '<div class="ppill"><span>Payment Mode: <strong>' + _esc(data.paymentMode || 'Cash') + '</strong></span><span>Paid On: <strong>' + _esc(today) + '</strong></span>' + (data.notes ? '<span>Notes: <strong>' + _esc(data.notes) + '</strong></span>' : '') + '</div>' +
+                '<div class="footer"><div class="fnote">This is a computer-generated receipt.<br>Thank you for your payment!</div><div><div class="sline">Authorized Signatory</div></div></div>' +
+                '</div></body></html>';
+        }
+
+        function printFeeReceipt(data) {
+            data.schoolName = data.schoolName || _SCHOOL_NAME;
+            const w = window.open('', '_blank', 'width=660,height=780,scrollbars=yes');
+            if (!w) { alert('Please allow pop-ups to print the receipt.'); return; }
+            w.document.write(generateReceiptHTML(data));
+            w.document.close();
+            setTimeout(() => w.print(), 600);
+        }
+
+        function printSingleFeeReceipt(feeId) {
+            const rec = _feeRecords.find(f => f.id === feeId);
+            if (!rec) return;
+            const total = parseFloat(rec.amount || 0);
+            const paid  = parseFloat(rec.paid_amount || 0);
+            printFeeReceipt({
+                receiptNo: 'REC-' + feeId,
+                studentName: rec.full_name,
+                studentId: rec.student_id || '\u2014',
+                roll: rec.roll_number || '\u2014',
+                classSection: (rec['class'] || '') + (rec.section ? ' - ' + rec.section : ''),
+                fees: [{ feeType: rec.fee_type_name, total, paid, balance: Math.max(0, total - paid) }],
+                paymentMode: rec.payment_mode || 'Cash',
+                paidDate: rec.paid_date || new Date().toISOString().slice(0, 10),
+                notes: rec.notes || ''
+            });
+        }
+
+        function printGroupFeeReceipt(studentDbId, paidFeeIds, paymentMode) {
+            const groupFees = _feeRecords.filter(f => f.student_db_id === studentDbId && paidFeeIds.includes(f.id));
+            if (!groupFees.length) return;
+            const first = groupFees[0];
+            printFeeReceipt({
+                receiptNo: 'REC-' + studentDbId + '-' + Date.now(),
+                studentName: first.full_name,
+                studentId: first.student_id || '\u2014',
+                roll: first.roll_number || '\u2014',
+                classSection: (first['class'] || '') + (first.section ? ' - ' + first.section : ''),
+                fees: groupFees.map(f => {
+                    const t = parseFloat(f.amount || 0);
+                    const p = parseFloat(f.paid_amount || 0);
+                    return { feeType: f.fee_type_name, total: t, paid: p, balance: Math.max(0, t - p) };
+                }),
+                paymentMode: paymentMode || 'Cash',
+                paidDate: new Date().toISOString().slice(0, 10),
+                notes: ''
+            });
+        }
+        // ==================== END RECEIPT PRINTING ====================
+
         function deleteFeeRecord(feeId) {
             if (!confirm('Delete this fee record?')) return;
+
             fetch(`/api/fees/${feeId}`, {
                 method: 'DELETE',
                 headers: { 'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || '' }
@@ -3599,7 +3942,7 @@ showStep(currentStep);
                     const label = d.status === 'paid' ? 'Fully paid!' : 'Partial payment recorded.';
                     _showFeeModalMsg(msgEl, 'success', label);
                     loadFeeRecords();
-                    setTimeout(closeFeePartialModal, 1400);
+                    setTimeout(() => { closeFeePartialModal(); printSingleFeeReceipt(parseInt(feeId)); }, 900);
                 } else {
                     _showFeeModalMsg(msgEl, 'danger', d.error || 'Failed.');
                 }

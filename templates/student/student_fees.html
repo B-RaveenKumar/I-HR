@@ -615,6 +615,7 @@
                             <th>Due Date</th>
                             <th>Status</th>
                             <th>Last Payment</th>
+                            <th>Receipt</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -662,6 +663,14 @@
                                     —
                                 {% endif %}
                             </td>
+                            <td>
+                                {% if fee.status in ['paid', 'partial'] %}
+                                <button onclick="printStudentFeeReceipt({{ fee.id }})" title="Print Receipt"
+                                    style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:0.78rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                                    <i class="bi bi-printer"></i> Receipt
+                                </button>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -697,6 +706,7 @@
                             <th>Last Paid On</th>
                             <th>Payment Mode</th>
                             <th>Status</th>
+                            <th>Receipt</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -723,6 +733,12 @@
                                 {% else %}
                                     <span class="status-badge status-partial"><i class="bi bi-pie-chart-fill"></i> Partial</span>
                                 {% endif %}
+                            </td>
+                            <td>
+                                <button onclick="printStudentFeeReceipt({{ fee.id }})" title="Print Receipt"
+                                    style="background:#7c3aed;color:#fff;border:none;border-radius:8px;padding:5px 10px;font-size:0.78rem;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+                                    <i class="bi bi-printer"></i> Receipt
+                                </button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -751,6 +767,55 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+        // ==================== RECEIPT DATA ====================
+        const _studentFees = {{ fees | tojson }};
+        const _sName  = {{ student.full_name | tojson }};
+        const _sId    = {{ student.student_id | tojson }};
+        const _sRoll  = {{ (student.roll_number or '') | tojson }};
+        const _sCls   = {{ (student['class'] or '') | tojson }};
+        const _sSec   = {{ (student.section or '') | tojson }};
+        const _sSchool = {{ school_name | tojson }};
+
+        function _escR(s) {
+            return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function printStudentFeeReceipt(feeId) {
+            const rec = _studentFees.find(f => f.id === feeId);
+            if (!rec) return;
+            const total   = parseFloat(rec.amount || 0);
+            const paid    = parseFloat(rec.paid_amount || 0);
+            const balance = Math.max(0, total - paid);
+            const fmt = n => parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            const today   = rec.paid_date || new Date().toISOString().slice(0, 10);
+            const css = '*{margin:0;padding:0;box-sizing:border-box}body{font-family:\'Segoe UI\',Arial,sans-serif;background:#f8fafc;color:#1e293b}.receipt{max-width:560px;margin:24px auto;padding:32px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;box-shadow:0 4px 16px rgba(0,0,0,.08)}.header{text-align:center;border-bottom:3px solid #667eea;padding-bottom:18px;margin-bottom:20px}.school-name{font-size:1.5rem;font-weight:800;color:#1e293b}.receipt-title{font-size:.92rem;color:#667eea;font-weight:700;text-transform:uppercase;letter-spacing:.1em;margin-top:6px}.rmeta{display:flex;justify-content:space-between;font-size:.8rem;color:#475569;background:#f8fafc;border-radius:8px;padding:10px 14px;margin-bottom:18px}.sbox{background:#f0f9ff;border-radius:10px;padding:14px 18px;margin-bottom:18px;border-left:4px solid #0ea5e9}.sbox h3{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:#0369a1;font-weight:700;margin-bottom:10px}.sgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:.82rem}.sl{color:#64748b}.sv{font-weight:600;color:#1e293b}.ft{width:100%;border-collapse:collapse;margin-bottom:18px;font-size:.83rem}.ft thead tr{background:linear-gradient(135deg,#667eea,#5568d3)}.ft th{padding:9px 12px;color:#fff;text-align:left;font-weight:600;font-size:.75rem;text-transform:uppercase}.ft tbody tr:nth-child(even){background:#f8fafc}.ftr td{border-top:2px solid #e2e8f0;font-weight:700;padding:10px 12px;background:#f0fdf4}.ppill{display:flex;gap:20px;background:#eff6ff;border-radius:9px;padding:11px 16px;font-size:.83rem;margin-bottom:20px;flex-wrap:wrap}.ppill span{color:#64748b}.ppill strong{color:#1e293b}.footer{border-top:1px dashed #e2e8f0;padding-top:16px;display:flex;justify-content:space-between;align-items:flex-end}.fnote{font-size:.73rem;color:#94a3b8;line-height:1.6}.sline{border-top:1.5px solid #334155;width:140px;padding-top:5px;text-align:center;font-size:.73rem;color:#475569;margin-top:44px}.cbar{margin-bottom:16px;display:flex;gap:8px;justify-content:flex-end}.bp{background:#667eea;color:#fff;border:none;border-radius:8px;padding:8px 16px;font-size:.83rem;font-weight:600;cursor:pointer}.bc{background:#f1f5f9;color:#475569;border:none;border-radius:8px;padding:8px 14px;font-size:.83rem;cursor:pointer}@media print{.cbar{display:none}body{background:#fff}.receipt{box-shadow:none;border:none}}';
+            const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt REC-' + feeId + '</title><style>' + css + '</style></head>' +
+                '<body><div class="receipt">' +
+                '<div class="cbar"><button class="bp" onclick="window.print()">&#128424; Print</button><button class="bc" onclick="window.close()">&#215; Close</button></div>' +
+                '<div class="header"><div class="school-name">' + _escR(_sSchool) + '</div><div class="receipt-title">&#128196; Fee Payment Receipt</div></div>' +
+                '<div class="rmeta"><div><strong>Receipt No:</strong> REC-' + feeId + '</div><div><strong>Date:</strong> ' + _escR(today) + '</div></div>' +
+                '<div class="sbox"><h3>Student Details</h3><div class="sgrid">' +
+                '<div><span class="sl">Name: </span><span class="sv">' + _escR(_sName) + '</span></div>' +
+                '<div><span class="sl">Student ID: </span><span class="sv">' + _escR(_sId) + '</span></div>' +
+                '<div><span class="sl">Roll No: </span><span class="sv">' + _escR(_sRoll || '\u2014') + '</span></div>' +
+                '<div><span class="sl">Class: </span><span class="sv">' + _escR(_sCls + (_sSec ? ' - ' + _sSec : '')) + '</span></div>' +
+                '</div></div>' +
+                '<table class="ft"><thead><tr><th>Fee Type</th><th>Total (&#8377;)</th><th>Paid (&#8377;)</th><th>Balance (&#8377;)</th></tr></thead>' +
+                '<tbody>' +
+                '<tr><td style="padding:9px 12px;">' + _escR(rec.fee_type_name) + '</td><td style="padding:9px 12px;">&#8377;' + fmt(total) + '</td><td style="padding:9px 12px;color:#16a34a;font-weight:600;">&#8377;' + fmt(paid) + '</td><td style="padding:9px 12px;color:' + (balance > 0 ? '#d97706' : '#16a34a') + ';font-weight:600;">&#8377;' + fmt(balance) + '</td></tr>' +
+                '<tr class="ftr"><td><strong>TOTAL</strong></td><td>&#8377;' + fmt(total) + '</td><td style="color:#16a34a;">&#8377;' + fmt(paid) + '</td><td style="color:' + (balance > 0 ? '#d97706' : '#16a34a') + ';">&#8377;' + fmt(balance) + '</td></tr>' +
+                '</tbody></table>' +
+                '<div class="ppill"><span>Payment Mode: <strong>' + _escR(rec.payment_mode || 'Cash') + '</strong></span><span>Paid On: <strong>' + _escR(today) + '</strong></span>' + (rec.notes ? '<span>Notes: <strong>' + _escR(rec.notes) + '</strong></span>' : '') + '</div>' +
+                '<div class="footer"><div class="fnote">This is a computer-generated receipt.<br>Thank you for your payment!</div><div><div class="sline">Authorized Signatory</div></div></div>' +
+                '</div></body></html>';
+            const w = window.open('', '_blank', 'width=620,height=760,scrollbars=yes');
+            if (!w) { alert('Please allow pop-ups to print the receipt.'); return; }
+            w.document.write(html);
+            w.document.close();
+            setTimeout(() => w.print(), 600);
+        }
+        // ==================== END RECEIPT ====================
+
         // Mobile sidebar toggle
         if (window.innerWidth <= 768) {
             const menuToggle = document.createElement('button');

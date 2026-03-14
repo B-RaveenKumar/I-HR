@@ -6068,7 +6068,10 @@ def admin_student_management():
     
     # Get module enabled status
     module_enabled = get_module_enabled(school_id)
-    
+
+    school_row = db.execute('SELECT name FROM schools WHERE id = ?', (school_id,)).fetchone()
+    school_name = school_row['name'] if school_row else 'VishnoRex School'
+
     return render_template('admin_student_management.html',
                          students=students,
                          total_students=total_students,
@@ -6079,7 +6082,8 @@ def admin_student_management():
                          sections_by_class=json.dumps(sections_by_class),
                          section_id_map=json.dumps(section_id_map),
                          level_id_map=json.dumps(level_id_map),
-                         module_enabled=module_enabled)
+                         module_enabled=module_enabled,
+                         school_name=school_name)
 
 
 @app.route('/api/student-dashboard-data')
@@ -6295,15 +6299,24 @@ def api_fees_pay(fee_id):
     db = get_db()
     school_id = session['school_id']
     fee = db.execute(
-        'SELECT id FROM student_fees WHERE id = ? AND school_id = ?', (fee_id, school_id)
+        'SELECT id, student_db_id, fee_type_id, amount, paid_amount FROM student_fees WHERE id = ? AND school_id = ?',
+        (fee_id, school_id)
     ).fetchone()
     if not fee:
         return jsonify({'success': False, 'error': 'Fee record not found'}), 404
     today = datetime.date.today().strftime('%Y-%m-%d')
+    paid_delta = max(0.0, float(fee['amount'] or 0) - float(fee['paid_amount'] or 0))
     db.execute(
-        "UPDATE student_fees SET status='paid', paid_date=?, payment_mode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+        "UPDATE student_fees SET paid_amount=amount, status='paid', paid_date=?, payment_mode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
         (today, payment_mode, fee_id)
     )
+    if paid_delta > 0:
+        db.execute('''
+            INSERT INTO fee_payment_history
+            (school_id, student_db_id, student_fee_id, fee_type_id, paid_amount, payment_mode, notes, paid_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (school_id, fee['student_db_id'], fee_id, fee['fee_type_id'], paid_delta, payment_mode,
+              'Full payment recorded', session.get('user_id')))
     db.commit()
     return jsonify({'success': True})
 
@@ -6356,7 +6369,7 @@ def api_fees_pay_partial(fee_id):
     db = get_db()
     school_id = session['school_id']
     fee = db.execute(
-        'SELECT id, amount, paid_amount FROM student_fees WHERE id = ? AND school_id = ?',
+        'SELECT id, student_db_id, fee_type_id, amount, paid_amount FROM student_fees WHERE id = ? AND school_id = ?',
         (fee_id, school_id)
     ).fetchone()
     if not fee:
@@ -6377,8 +6390,135 @@ def api_fees_pay_partial(fee_id):
         "UPDATE student_fees SET paid_amount=?, status=?, paid_date=?, payment_mode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
         (new_paid, new_status, today, payment_mode, fee_id)
     )
+    credited = max(0.0, new_paid - already_paid)
+    if credited > 0:
+        db.execute('''
+            INSERT INTO fee_payment_history
+            (school_id, student_db_id, student_fee_id, fee_type_id, paid_amount, payment_mode, notes, paid_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (school_id, fee['student_db_id'], fee_id, fee['fee_type_id'], credited, payment_mode,
+              'Partial payment recorded', session.get('user_id')))
     db.commit()
     return jsonify({'success': True, 'new_paid': new_paid, 'status': new_status, 'total': total_amount})
+
+
+@app.route('/api/fees/pay-selected', methods=['POST'])
+@csrf.exempt
+def api_fees_pay_selected():
+    """Record payments for multiple selected fee rows of a student"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    data = request.get_json() or {}
+    school_id = session['school_id']
+    payment_mode = (data.get('payment_mode') or 'Cash').strip()
+
+    try:
+        student_db_id = int(data.get('student_db_id'))
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Invalid student'}), 400
+
+    payments = data.get('payments') or []
+    if not isinstance(payments, list) or not payments:
+        return jsonify({'success': False, 'error': 'No fee items selected'}), 400
+
+    parsed = []
+    seen_fee_ids = set()
+    for item in payments:
+        try:
+            fee_id = int(item.get('fee_id'))
+            amount = float(item.get('amount'))
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Invalid selected fee amount'}), 400
+        if fee_id in seen_fee_ids:
+            return jsonify({'success': False, 'error': 'Duplicate fee item selected'}), 400
+        if amount <= 0:
+            return jsonify({'success': False, 'error': 'Amount must be greater than 0'}), 400
+        seen_fee_ids.add(fee_id)
+        parsed.append({'fee_id': fee_id, 'amount': amount})
+
+    db = get_db()
+    placeholders = ','.join(['?'] * len(parsed))
+    rows = db.execute(f'''
+        SELECT id, student_db_id, fee_type_id, amount, paid_amount, status
+        FROM student_fees
+        WHERE school_id = ? AND id IN ({placeholders})
+    ''', [school_id] + [p['fee_id'] for p in parsed]).fetchall()
+
+    if len(rows) != len(parsed):
+        return jsonify({'success': False, 'error': 'One or more selected fee records were not found'}), 404
+
+    row_by_id = {r['id']: r for r in rows}
+    today = datetime.date.today().strftime('%Y-%m-%d')
+    total_deducted = 0.0
+    updated_count = 0
+
+    try:
+        for item in parsed:
+            fee = row_by_id[item['fee_id']]
+            if fee['student_db_id'] != student_db_id:
+                raise ValueError('Selected fee does not belong to the chosen student')
+
+            total_amount = float(fee['amount'] or 0)
+            already_paid = float(fee['paid_amount'] or 0)
+            remaining = max(0.0, total_amount - already_paid)
+            pay_now = float(item['amount'])
+
+            if remaining <= 0 or fee['status'] in ('paid', 'waived'):
+                raise ValueError('One or more selected fees are not payable')
+            if pay_now > remaining:
+                raise ValueError('Entered amount cannot exceed balance for selected fee')
+
+            new_paid = already_paid + pay_now
+            new_status = 'paid' if new_paid >= total_amount else 'partial'
+
+            db.execute(
+                "UPDATE student_fees SET paid_amount=?, status=?, paid_date=?, payment_mode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                (new_paid, new_status, today, payment_mode, fee['id'])
+            )
+            db.execute('''
+                INSERT INTO fee_payment_history
+                (school_id, student_db_id, student_fee_id, fee_type_id, paid_amount, payment_mode, notes, paid_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (school_id, student_db_id, fee['id'], fee['fee_type_id'], pay_now, payment_mode,
+                  'Batch selected payment', session.get('user_id')))
+
+            total_deducted += pay_now
+            updated_count += 1
+
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        return jsonify({'success': False, 'error': str(exc)}), 400
+    except Exception:
+        db.rollback()
+        return jsonify({'success': False, 'error': 'Failed to process selected payments'}), 500
+
+    return jsonify({
+        'success': True,
+        'updated_count': updated_count,
+        'total_deducted': total_deducted
+    })
+
+
+@app.route('/api/fees/history/student/<int:student_db_id>')
+def api_fees_history_for_student(student_db_id):
+    """Get latest fee payment history for a student"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    db = get_db()
+    school_id = session['school_id']
+    rows = db.execute('''
+        SELECT fph.id, fph.student_fee_id, fph.paid_amount, fph.payment_mode, fph.notes,
+               fph.paid_at, ft.name AS fee_type_name
+        FROM fee_payment_history fph
+        LEFT JOIN fee_types ft ON ft.id = fph.fee_type_id
+        WHERE fph.school_id = ? AND fph.student_db_id = ?
+        ORDER BY fph.paid_at DESC, fph.id DESC
+        LIMIT 50
+    ''', (school_id, student_db_id)).fetchall()
+    return jsonify({'success': True, 'history': [dict(r) for r in rows]})
 
 
 @app.route('/api/fees/<int:fee_id>', methods=['DELETE'])

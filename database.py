@@ -1039,6 +1039,49 @@ def init_db(app):
         )
         ''')
 
+        # Fee payment ledger (one row per payment transaction line)
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS fee_payment_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            student_db_id INTEGER NOT NULL,
+            student_fee_id INTEGER NOT NULL,
+            fee_type_id INTEGER,
+            paid_amount REAL NOT NULL,
+            payment_mode TEXT,
+            notes TEXT,
+            paid_by INTEGER,
+            paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            FOREIGN KEY (student_db_id) REFERENCES students(id),
+            FOREIGN KEY (student_fee_id) REFERENCES student_fees(id),
+            FOREIGN KEY (fee_type_id) REFERENCES fee_types(id)
+        )
+        ''')
+
+        if _USE_MYSQL:
+            cursor.execute(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s",
+                ('fee_payment_history', 'idx_fee_payment_history_school_student')
+            )
+            idx_school_student_exists = (cursor.fetchone()[0] or 0) > 0
+            if not idx_school_student_exists:
+                cursor.execute('CREATE INDEX idx_fee_payment_history_school_student ON fee_payment_history(school_id, student_db_id)')
+
+            cursor.execute(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND INDEX_NAME = %s",
+                ('fee_payment_history', 'idx_fee_payment_history_fee')
+            )
+            idx_fee_exists = (cursor.fetchone()[0] or 0) > 0
+            if not idx_fee_exists:
+                cursor.execute('CREATE INDEX idx_fee_payment_history_fee ON fee_payment_history(student_fee_id)')
+        else:
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_fee_payment_history_school_student ON fee_payment_history(school_id, student_db_id)')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_fee_payment_history_fee ON fee_payment_history(student_fee_id)')
+
         # --- Safe column additions ---
         def ensure_column_exists(table, column_def, column_name):
             if _USE_MYSQL:
