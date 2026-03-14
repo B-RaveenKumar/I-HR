@@ -9,6 +9,7 @@ let allDepartments = [];
 let allStaff = [];
 let allLevels = [];
 let allSections = [];
+let allPeriodTimings = [];
 let currentAssignments = [];
 let currentLevelFilter = null; // Track selected academic level
 
@@ -22,6 +23,7 @@ document.addEventListener('DOMContentLoaded', function () {
     console.log('Starting data load...');
     loadAcademicLevels();
     loadAllSections();
+    loadPeriodTimings();
     loadPeriods();
     loadDepartments();
     loadStaffList();
@@ -93,7 +95,7 @@ function renderPeriodsTable() {
     const tbody = document.getElementById('periodsTableBody');
 
     if (allPeriods.length === 0) {
-        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="8" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No periods defined. Add one to get started!</td></tr>';
+        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="6" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No periods defined. Add one to get started!</td></tr>';
         return;
     }
 
@@ -101,6 +103,8 @@ function renderPeriodsTable() {
         const level = allLevels.find(l => l.id == p.level_id);
         const section = allSections.find(s => s.id == p.section_id);
         const gsLabel = level ? `${level.level_name} - ${section ? section.section_name : 'All'}` : 'Global';
+        const subjectName = p.period_name || '-';
+        const slotName = p.slot_label && p.slot_label !== p.period_name ? p.slot_label : '';
 
         const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
         const dayLabel = p.day_of_week !== null && p.day_of_week !== undefined ? DAYS[p.day_of_week] : 'All Days';
@@ -111,8 +115,10 @@ function renderPeriodsTable() {
                     <div>${gsLabel}</div>
                     <small class="text-muted"><i class="bi bi-calendar2-week"></i> ${dayLabel}</small>
                 </td>
-                <td style="padding: 1rem; font-weight: 600;">${p.period_number}</td>
-                <td style="padding: 1rem;">${p.period_name || '-'}</td>
+                <td style="padding: 1rem;">
+                    <span>${subjectName}</span>
+                    ${slotName ? `<small class="text-muted ms-2">(${slotName})</small>` : ''}
+                </td>
                 <td style="padding: 1rem;"><span class="time-display">${p.start_time}</span></td>
                 <td style="padding: 1rem;"><span class="time-display">${p.end_time}</span></td>
                 <td style="padding: 1rem;"><span class="duration-badge">${p.duration_minutes} mins</span></td>
@@ -131,19 +137,172 @@ function renderPeriodsTable() {
     }).join('');
 }
 
+function loadPeriodTimings() {
+    fetch(`/api/timetable/period-timings?school_id=${schoolId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                throw new Error(data.error || 'Failed to load period timings');
+            }
+            allPeriodTimings = data.timings || [];
+            renderPeriodTimingsTable();
+            populatePeriodTimeSlotDropdown();
+        })
+        .catch(err => {
+            console.error('Error loading period timings:', err);
+            showAlert('Failed to load period timings: ' + err.message, 'error');
+        });
+}
+
+function renderPeriodTimingsTable() {
+    const tbody = document.getElementById('periodTimingsTableBody');
+    if (!tbody) return;
+
+    if (allPeriodTimings.length === 0) {
+        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="5" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No time slots defined yet.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = allPeriodTimings.map(t => `
+        <tr>
+            <td style="padding: 1rem; font-weight: 600;">${t.slot_label}</td>
+            <td style="padding: 1rem;"><span class="time-display">${t.start_time}</span></td>
+            <td style="padding: 1rem;"><span class="time-display">${t.end_time}</span></td>
+            <td style="padding: 1rem;"><span class="duration-badge">${t.duration_minutes} mins</span></td>
+            <td style="padding: 1rem; text-align: center;">
+                <div class="action-buttons">
+                    <button class="btn-edit btn-sm" onclick="editPeriodTiming(${t.id})">
+                        <i class="bi bi-pencil"></i> Edit
+                    </button>
+                    <button class="btn-delete-action btn-sm" onclick="deletePeriodTiming(${t.id})">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function populatePeriodTimeSlotDropdown(selectedId = '') {
+    const dropdown = document.getElementById('periodTimeSlot');
+    if (!dropdown) return;
+
+    dropdown.innerHTML = '<option value="">-- Select Time Slot --</option>';
+    dropdown.innerHTML += allPeriodTimings.map(t =>
+        `<option value="${t.id}">${t.slot_label} (${t.start_time} - ${t.end_time})</option>`
+    ).join('');
+
+    if (selectedId) {
+        dropdown.value = String(selectedId);
+    }
+}
+
+function showAddTimingModal() {
+    document.getElementById('timingLabel').value = '';
+    document.getElementById('timingStart').value = '';
+    document.getElementById('timingEnd').value = '';
+    document.getElementById('periodTimingModalTitle').textContent = 'Add Time Slot';
+    document.getElementById('periodTimingModal').dataset.editId = '';
+
+    new bootstrap.Modal(document.getElementById('periodTimingModal')).show();
+}
+
+function editPeriodTiming(timingId) {
+    const timing = allPeriodTimings.find(t => t.id === timingId);
+    if (!timing) return;
+
+    document.getElementById('timingLabel').value = timing.slot_label || '';
+    document.getElementById('timingStart').value = timing.start_time || '';
+    document.getElementById('timingEnd').value = timing.end_time || '';
+    document.getElementById('periodTimingModalTitle').textContent = 'Edit Time Slot';
+    document.getElementById('periodTimingModal').dataset.editId = timingId;
+
+    new bootstrap.Modal(document.getElementById('periodTimingModal')).show();
+}
+
+function savePeriodTiming() {
+    const slotLabel = document.getElementById('timingLabel').value.trim();
+    const startTime = document.getElementById('timingStart').value;
+    const endTime = document.getElementById('timingEnd').value;
+    const editId = document.getElementById('periodTimingModal').dataset.editId;
+
+    if (!slotLabel || !startTime || !endTime) {
+        showAlert('Please fill all required fields', 'error');
+        return;
+    }
+
+    const payload = {
+        school_id: schoolId,
+        slot_label: slotLabel,
+        start_time: startTime,
+        end_time: endTime
+    };
+
+    if (editId) {
+        payload.id = parseInt(editId);
+    }
+
+    fetch('/api/timetable/period-timing/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify(payload)
+    })
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Time slot saved successfully', 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('periodTimingModal'));
+                if (modal) modal.hide();
+                loadPeriodTimings();
+                loadPeriods();
+                refreshAssignablePeriods();
+            } else {
+                showAlert(result.error || 'Failed to save time slot', 'error');
+            }
+        })
+        .catch(err => showAlert('Error saving time slot: ' + err.message, 'error'));
+}
+
+function deletePeriodTiming(timingId) {
+    if (!confirm('Are you sure you want to delete this time slot?')) return;
+
+    fetch('/api/timetable/period-timing/delete', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify({ school_id: schoolId, timing_id: timingId })
+    })
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                showAlert('Time slot deleted successfully', 'success');
+                loadPeriodTimings();
+            } else {
+                showAlert(result.error || 'Failed to delete time slot', 'error');
+            }
+        })
+        .catch(err => showAlert('Error deleting time slot: ' + err.message, 'error'));
+}
+
 function showAddPeriodModal() {
+    if (allPeriodTimings.length === 0) {
+        loadPeriodTimings();
+    }
+
     document.getElementById('periodGrade').value = '';
     document.getElementById('periodSection').innerHTML = '<option value="">-- Select Section --</option>';
     document.getElementById('periodDay').value = '';
-    document.getElementById('periodNumber').value = '';
-    document.getElementById('periodName').value = '';
-    document.getElementById('startTime').value = '';
-    document.getElementById('endTime').value = '';
+    document.getElementById('periodSubjectName').value = '';
+    populatePeriodTimeSlotDropdown();
+    document.getElementById('periodTimeSlot').value = '';
     document.getElementById('periodModalTitle').textContent = 'Add Period';
     document.getElementById('periodModal').dataset.editId = '';
-
-    document.getElementById('duplicateAlert').classList.add('d-none');
-    document.getElementById('quickFillContainer').classList.add('d-none');
+    delete document.getElementById('periodModal').dataset.periodNumber;
 
     new bootstrap.Modal(document.getElementById('periodModal')).show();
 }
@@ -152,19 +311,27 @@ function editPeriod(periodId) {
     const period = allPeriods.find(p => p.id === periodId);
     if (!period) return;
 
+    if (allPeriodTimings.length === 0) {
+        loadPeriodTimings();
+    }
+
     document.getElementById('periodGrade').value = period.level_id || '';
     onPeriodGradeChange(period.section_id);
 
     document.getElementById('periodDay').value = period.day_of_week === null || period.day_of_week === undefined ? '' : period.day_of_week;
-    document.getElementById('periodNumber').value = period.period_number;
-    document.getElementById('periodName').value = period.period_name || '';
-    document.getElementById('startTime').value = period.start_time;
-    document.getElementById('endTime').value = period.end_time;
+    document.getElementById('periodSubjectName').value = period.period_name || '';
+    populatePeriodTimeSlotDropdown(period.time_slot_id);
+
+    if (!period.time_slot_id) {
+        const fallbackTiming = allPeriodTimings.find(t => t.start_time === period.start_time && t.end_time === period.end_time);
+        if (fallbackTiming) {
+            document.getElementById('periodTimeSlot').value = String(fallbackTiming.id);
+        }
+    }
+
     document.getElementById('periodModalTitle').textContent = 'Edit Period';
     document.getElementById('periodModal').dataset.editId = periodId;
-
-    document.getElementById('duplicateAlert').classList.add('d-none');
-    document.getElementById('quickFillContainer').classList.add('d-none');
+    document.getElementById('periodModal').dataset.periodNumber = period.period_number;
 
     new bootstrap.Modal(document.getElementById('periodModal')).show();
 }
@@ -173,13 +340,12 @@ function savePeriod() {
     const levelId = document.getElementById('periodGrade').value;
     const sectionId = document.getElementById('periodSection').value;
     const dayOfWeek = document.getElementById('periodDay').value;
-    const periodNumber = document.getElementById('periodNumber').value;
-    const periodName = document.getElementById('periodName').value;
-    const startTime = document.getElementById('startTime').value;
-    const endTime = document.getElementById('endTime').value;
+    const subjectName = document.getElementById('periodSubjectName').value.trim();
+    const periodNumber = document.getElementById('periodModal').dataset.periodNumber;
+    const timeSlotId = document.getElementById('periodTimeSlot').value;
     const editId = document.getElementById('periodModal').dataset.editId;
 
-    if (!periodNumber || !startTime || !endTime) {
+    if (!timeSlotId) {
         showAlert('Please fill all required fields', 'error');
         return;
     }
@@ -189,11 +355,13 @@ function savePeriod() {
         level_id: levelId || null,
         section_id: sectionId || null,
         day_of_week: dayOfWeek === '' ? null : parseInt(dayOfWeek),
-        period_number: parseInt(periodNumber),
-        period_name: periodName,
-        start_time: startTime,
-        end_time: endTime
+        period_name: subjectName,
+        time_slot_id: parseInt(timeSlotId)
     };
+
+    if (periodNumber) {
+        data.period_number = parseInt(periodNumber);
+    }
 
     // Include ID if editing
     if (editId && editId !== '') {
@@ -216,6 +384,7 @@ function savePeriod() {
                 modal.hide();
                 // Clear the editId after successful save
                 delete document.getElementById('periodModal').dataset.editId;
+                delete document.getElementById('periodModal').dataset.periodNumber;
                 loadPeriods();
             } else {
                 showAlert(result.error || 'Failed to save period', 'error');
@@ -627,12 +796,9 @@ function onPeriodGradeChange(selectedSectionId = null) {
         if (selectedSectionId) sectionSelect.value = selectedSectionId;
     }
 
-    fetchNextPeriodNumber();
 }
 
 function onPeriodSectionChange() {
-    fetchNextPeriodNumber();
-    checkDuplicatePeriodName();
 }
 
 /**
@@ -775,11 +941,16 @@ function refreshAssignablePeriods() {
 }
 
 function fetchNextPeriodNumber() {
+    const periodNumberInput = document.getElementById('periodNumber');
+    if (!periodNumberInput) {
+        return;
+    }
+
     const levelId = document.getElementById('periodGrade').value;
     const sectionId = document.getElementById('periodSection').value;
 
     if (!levelId || !sectionId) {
-        document.getElementById('periodNumber').value = '';
+        periodNumberInput.value = '';
         return;
     }
 
@@ -787,91 +958,9 @@ function fetchNextPeriodNumber() {
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                document.getElementById('periodNumber').value = data.next_period_number;
+                periodNumberInput.value = data.next_period_number;
             }
         });
-}
-
-let duplicateCheckTimer = null;
-function checkDuplicatePeriodName() {
-    if (duplicateCheckTimer) clearTimeout(duplicateCheckTimer);
-
-    duplicateCheckTimer = setTimeout(() => {
-        const name = document.getElementById('periodName').value;
-        const levelId = document.getElementById('periodGrade').value;
-        const sectionId = document.getElementById('periodSection').value;
-
-        if (name.length < 2) {
-            document.getElementById('duplicateAlert').classList.add('d-none');
-            document.getElementById('quickFillContainer').classList.add('d-none');
-            return;
-        }
-
-        // Check duplicates
-        fetch(`/api/timetable/period/check-duplicate?level_id=${levelId}&section_id=${sectionId}&period_name=${encodeURIComponent(name)}`)
-            .then(r => r.json())
-            .then(data => {
-                const alert = document.getElementById('duplicateAlert');
-                if (data.success && data.is_duplicate) {
-                    alert.classList.remove('d-none');
-                    alert.dataset.existingPeriod = JSON.stringify(data.period);
-                } else {
-                    alert.classList.add('d-none');
-                    fetchSimilarPeriods(name);
-                }
-            });
-    }, 500);
-}
-
-function fetchSimilarPeriods(name) {
-    fetch(`/api/timetable/similar-periods?period_name=${encodeURIComponent(name)}`)
-        .then(r => r.json())
-        .then(data => {
-            const container = document.getElementById('quickFillContainer');
-            const chips = document.getElementById('suggestionChips');
-
-            if (data.success && data.suggestions.length > 0) {
-                container.classList.remove('d-none');
-                chips.innerHTML = data.suggestions.map(s => `
-                    <div class="suggestion-chip" onclick="applySuggestion('${s.start_time}', '${s.end_time}')" 
-                         style="cursor: pointer; background: #e9ecef; padding: 4px 12px; border-radius: 16px; font-size: 0.8rem;">
-                        <i class="bi bi-magic"></i> ${s.start_time}-${s.end_time} (${s.source})
-                    </div>
-                `).join('');
-            } else {
-                container.classList.add('d-none');
-            }
-        });
-}
-
-function applySuggestion(start, end) {
-    document.getElementById('startTime').value = start;
-    document.getElementById('endTime').value = end;
-    showAlert('Timings applied from suggestion', 'success');
-}
-
-function cloneExistingPeriod() {
-    const alert = document.getElementById('duplicateAlert');
-    const existing = JSON.parse(alert.dataset.existingPeriod);
-
-    document.getElementById('startTime').value = existing.start_time;
-    document.getElementById('endTime').value = existing.end_time;
-    alert.classList.add('d-none');
-    showAlert('Timings cloned from existing period', 'success');
-}
-
-function editExistingPeriod() {
-    const alert = document.getElementById('duplicateAlert');
-    const existing = JSON.parse(alert.dataset.existingPeriod);
-
-    document.getElementById('periodModal').dataset.editId = existing.id;
-    document.getElementById('periodNumber').value = existing.period_number;
-    document.getElementById('startTime').value = existing.start_time;
-    document.getElementById('endTime').value = existing.end_time;
-    document.getElementById('periodModalTitle').textContent = 'Edit Period';
-
-    alert.classList.add('d-none');
-    showAlert('Now editing the existing period', 'info');
 }
 
 function deletePeriod(periodId) {

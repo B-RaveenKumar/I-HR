@@ -773,6 +773,7 @@ def init_db(app):
             start_time TIME NOT NULL,
             end_time TIME NOT NULL,
             duration_minutes INTEGER,
+            time_slot_id INTEGER,
             is_active BOOLEAN DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -780,6 +781,23 @@ def init_db(app):
             FOREIGN KEY (level_id) REFERENCES timetable_academic_levels(id),
             FOREIGN KEY (section_id) REFERENCES timetable_sections(id),
             UNIQUE(school_id, level_id, section_id, period_number)
+        )
+        ''')
+
+        # Reusable master time slots used by timetable_periods.time_slot_id
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS timetable_period_timings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            slot_label VARCHAR(255) NOT NULL,
+            start_time TIME NOT NULL,
+            end_time TIME NOT NULL,
+            duration_minutes INTEGER,
+            is_active BOOLEAN DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            UNIQUE(school_id, slot_label, start_time, end_time)
         )
         ''')
 
@@ -1075,9 +1093,52 @@ def init_db(app):
         ensure_column_exists('timetable_periods', 'level_id INTEGER', 'level_id')
         ensure_column_exists('timetable_periods', 'section_id INTEGER', 'section_id')
         ensure_column_exists('timetable_periods', 'day_of_week INTEGER', 'day_of_week')
+        ensure_column_exists('timetable_periods', 'time_slot_id INTEGER', 'time_slot_id')
         
         # Add reason_if_unavailable to timetable_conflict_logs
         ensure_column_exists('timetable_conflict_logs', 'reason_if_unavailable TEXT', 'reason_if_unavailable')
+
+        # Backfill reusable period timings from existing timetable_periods rows.
+        cursor.execute('''
+            SELECT id, school_id, period_number, period_name, start_time, end_time, duration_minutes, time_slot_id
+            FROM timetable_periods
+            WHERE start_time IS NOT NULL AND end_time IS NOT NULL
+        ''')
+
+        period_rows = cursor.fetchall()
+        for row in period_rows:
+            if row['time_slot_id']:
+                continue
+
+            school_id = row['school_id']
+            slot_label = (row['period_name'] or '').strip() or f"Period {row['period_number']}"
+            start_time = row['start_time']
+            end_time = row['end_time']
+            duration_minutes = row['duration_minutes']
+
+            cursor.execute('''
+                SELECT id
+                FROM timetable_period_timings
+                WHERE school_id = ? AND slot_label = ? AND start_time = ? AND end_time = ?
+                LIMIT 1
+            ''', (school_id, slot_label, start_time, end_time))
+            existing_slot = cursor.fetchone()
+
+            if existing_slot:
+                slot_id = existing_slot['id']
+            else:
+                cursor.execute('''
+                    INSERT INTO timetable_period_timings
+                    (school_id, slot_label, start_time, end_time, duration_minutes, is_active)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                ''', (school_id, slot_label, start_time, end_time, duration_minutes))
+                slot_id = cursor.lastrowid
+
+            cursor.execute('''
+                UPDATE timetable_periods
+                SET time_slot_id = ?
+                WHERE id = ?
+            ''', (slot_id, row['id']))
 
         # Add student management columns
         ensure_column_exists('students', 'age INTEGER', 'age')

@@ -7,7 +7,7 @@ from flask import Blueprint, request, jsonify, session
 from database import get_db
 from functools import wraps
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 
 timetable_api = Blueprint('timetable_api', __name__)
 
@@ -30,6 +30,29 @@ def admin_required(f):
             return jsonify({'success': False, 'error': 'Unauthorized access'}), 403
         return f(*args, **kwargs)
     return decorated_function
+
+
+def _time_to_hhmm(value):
+    """Normalize DB time-like values (str/time/timedelta) to HH:MM for JSON."""
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        return value[:5] if len(value) >= 5 else value
+
+    if isinstance(value, datetime):
+        return value.strftime('%H:%M')
+
+    if isinstance(value, timedelta):
+        total_seconds = int(value.total_seconds())
+        hours = (total_seconds // 3600) % 24
+        minutes = (total_seconds % 3600) // 60
+        return f"{hours:02d}:{minutes:02d}"
+
+    if hasattr(value, 'hour') and hasattr(value, 'minute'):
+        return f"{value.hour:02d}:{value.minute:02d}"
+
+    return str(value)
 
 
 # ==================== COMPANY ADMIN ENDPOINTS ====================
@@ -234,6 +257,156 @@ def check_timetable_access():
 
 # ==================== PERIOD MANAGEMENT ENDPOINTS ====================
 
+@timetable_api.route('/api/timetable/period-timings', methods=['GET'])
+def get_period_timings():
+    """Get active period timing slots for a school in chronological order"""
+    try:
+        school_id = request.args.get('school_id') or session.get('school_id')
+
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+
+        db = get_db()
+        cursor = db.cursor()
+
+        cursor.execute('''
+            SELECT id, slot_label, start_time, end_time, duration_minutes, is_active
+            FROM timetable_period_timings
+            WHERE school_id = ? AND is_active = 1
+            ORDER BY start_time ASC, id ASC
+        ''', (school_id,))
+
+        timings = []
+        for row in cursor.fetchall():
+            timings.append({
+                'id': row['id'],
+                'slot_label': row['slot_label'],
+                'start_time': _time_to_hhmm(row['start_time']),
+                'end_time': _time_to_hhmm(row['end_time']),
+                'duration_minutes': row['duration_minutes'],
+                'is_active': bool(row['is_active'])
+            })
+
+        return jsonify({'success': True, 'timings': timings})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/period-timing/save', methods=['POST'])
+@admin_required
+def save_period_timing():
+    """Create or update a reusable timing slot"""
+    try:
+        data = request.get_json() or {}
+        timing_id = data.get('id')
+        school_id = data.get('school_id') or session.get('school_id')
+        slot_label = (data.get('slot_label') or '').strip()
+        start_time = data.get('start_time')
+        end_time = data.get('end_time')
+
+        if not all([school_id, slot_label, start_time, end_time]):
+            return jsonify({'success': False, 'error': 'slot_label, start_time and end_time are required'}), 400
+
+        try:
+            start = datetime.strptime(start_time, '%H:%M')
+            end = datetime.strptime(end_time, '%H:%M')
+            duration = int((end - start).total_seconds() / 60)
+            if duration <= 0:
+                return jsonify({'success': False, 'error': 'End time must be after start time'}), 400
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid time format. Use HH:MM'}), 400
+
+        db = get_db()
+        cursor = db.cursor()
+
+        # Prevent duplicate labels within a school
+        if timing_id:
+            cursor.execute('''
+                SELECT id FROM timetable_period_timings
+                WHERE school_id = ? AND LOWER(slot_label) = LOWER(?) AND id != ?
+            ''', (school_id, slot_label, timing_id))
+        else:
+            cursor.execute('''
+                SELECT id FROM timetable_period_timings
+                WHERE school_id = ? AND LOWER(slot_label) = LOWER(?)
+            ''', (school_id, slot_label))
+
+        if cursor.fetchone():
+            return jsonify({'success': False, 'error': 'A time slot with this label already exists'}), 400
+
+        if timing_id:
+            cursor.execute('''
+                UPDATE timetable_period_timings
+                SET slot_label = ?, start_time = ?, end_time = ?, duration_minutes = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND school_id = ?
+            ''', (slot_label, start_time, end_time, duration, timing_id, school_id))
+
+            if cursor.rowcount == 0:
+                return jsonify({'success': False, 'error': 'Time slot not found'}), 404
+
+            # Keep linked schedule rows in sync for backward-compatible columns
+            cursor.execute('''
+                UPDATE timetable_periods
+                SET start_time = ?, end_time = ?, duration_minutes = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE school_id = ? AND time_slot_id = ?
+            ''', (start_time, end_time, duration, school_id, timing_id))
+        else:
+            cursor.execute('''
+                INSERT INTO timetable_period_timings
+                (school_id, slot_label, start_time, end_time, duration_minutes)
+                VALUES (?, ?, ?, ?, ?)
+            ''', (school_id, slot_label, start_time, end_time, duration))
+
+        db.commit()
+        return jsonify({'success': True, 'message': 'Time slot saved successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/period-timing/delete', methods=['POST'])
+@admin_required
+def delete_period_timing():
+    """Soft delete a reusable timing slot if not linked to schedules"""
+    try:
+        data = request.get_json() or {}
+        school_id = data.get('school_id') or session.get('school_id')
+        timing_id = data.get('timing_id')
+
+        if not school_id or not timing_id:
+            return jsonify({'success': False, 'error': 'timing_id is required'}), 400
+
+        db = get_db()
+        cursor = db.cursor()
+
+        cursor.execute('''
+            SELECT COUNT(*) AS cnt
+            FROM timetable_periods
+            WHERE school_id = ? AND time_slot_id = ?
+        ''', (school_id, timing_id))
+
+        linked_count = cursor.fetchone()['cnt']
+        if linked_count > 0:
+            return jsonify({
+                'success': False,
+                'error': 'This time slot is used in schedules. Update schedules first.'
+            }), 400
+
+        cursor.execute('''
+            UPDATE timetable_period_timings
+            SET is_active = 0, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND school_id = ?
+        ''', (timing_id, school_id))
+
+        if cursor.rowcount == 0:
+            return jsonify({'success': False, 'error': 'Time slot not found'}), 404
+
+        db.commit()
+        return jsonify({'success': True, 'message': 'Time slot deleted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @timetable_api.route('/api/timetable/periods', methods=['GET'])
 def get_periods():
     """Get all periods for a school, optionally filtered by level/section"""
@@ -252,23 +425,35 @@ def get_periods():
         cursor = db.cursor()
         
         query = '''
-            SELECT id, period_number, period_name, start_time, end_time, duration_minutes, level_id, section_id, day_of_week
-            FROM timetable_periods 
-            WHERE school_id = ?
+            SELECT
+                tp.id,
+                tp.period_number,
+                tp.period_name AS period_name,
+                pt.slot_label AS slot_label,
+                COALESCE(pt.start_time, tp.start_time) AS start_time,
+                COALESCE(pt.end_time, tp.end_time) AS end_time,
+                COALESCE(pt.duration_minutes, tp.duration_minutes) AS duration_minutes,
+                tp.level_id,
+                tp.section_id,
+                tp.day_of_week,
+                tp.time_slot_id
+            FROM timetable_periods tp
+            LEFT JOIN timetable_period_timings pt ON tp.time_slot_id = pt.id
+            WHERE tp.school_id = ?
         '''
         params = [school_id]
         
         if level_id and level_id != 'null':
-            query += ' AND level_id = ?'
+            query += ' AND tp.level_id = ?'
             params.append(level_id)
         if section_id and section_id != 'null':
-            query += ' AND section_id = ?'
+            query += ' AND tp.section_id = ?'
             params.append(section_id)
         if day_of_week and day_of_week != 'null':
-            query += ' AND day_of_week = ?'
+            query += ' AND tp.day_of_week = ?'
             params.append(day_of_week)
             
-        query += ' ORDER BY day_of_week, period_number'
+        query += ' ORDER BY tp.day_of_week, tp.period_number'
         
         cursor.execute(query, params)
         
@@ -278,12 +463,14 @@ def get_periods():
                 'id': row['id'],
                 'period_number': row['period_number'],
                 'period_name': row['period_name'],
-                'start_time': row['start_time'],
-                'end_time': row['end_time'],
+                'slot_label': row['slot_label'],
+                'start_time': _time_to_hhmm(row['start_time']),
+                'end_time': _time_to_hhmm(row['end_time']),
                 'duration_minutes': row['duration_minutes'],
                 'level_id': row['level_id'],
                 'section_id': row['section_id'],
-                'day_of_week': row['day_of_week']
+                'day_of_week': row['day_of_week'],
+                'time_slot_id': row['time_slot_id']
             })
         
         print(f"[DEBUG] Returning {len(periods)} periods for school {school_id}")
@@ -303,18 +490,32 @@ def save_period():
         period_id = data.get('id')  # Check if this is an edit
         school_id = data.get('school_id') or session.get('school_id')
         period_number = data.get('period_number')
-        period_name = data.get('period_name')
-        start_time = data.get('start_time')
-        end_time = data.get('end_time')
+        custom_period_name = (data.get('period_name') or '').strip()
+        time_slot_id = data.get('time_slot_id')
         level_id = data.get('level_id')
         section_id = data.get('section_id')
         day_of_week = data.get('day_of_week')
-        
-        if not all([school_id, start_time, end_time]):
-            return jsonify({'success': False, 'error': 'Missing required fields: start_time, end_time'}), 400
+
+        if not school_id or not time_slot_id:
+            return jsonify({'success': False, 'error': 'school_id and time_slot_id are required'}), 400
 
         db = get_db()
         cursor = db.cursor()
+
+        cursor.execute('''
+            SELECT slot_label, start_time, end_time, duration_minutes
+            FROM timetable_period_timings
+            WHERE id = ? AND school_id = ? AND is_active = 1
+        ''', (time_slot_id, school_id))
+
+        slot = cursor.fetchone()
+        if not slot:
+            return jsonify({'success': False, 'error': 'Selected time slot is invalid or inactive'}), 400
+
+        period_name = custom_period_name or slot['slot_label']
+        start_time = slot['start_time']
+        end_time = slot['end_time']
+        duration = slot['duration_minutes']
 
         if not period_number:
             # Auto-generate next period number
@@ -326,14 +527,6 @@ def save_period():
             ''', (school_id, level_id, section_id, day_of_week))
             max_val = cursor.fetchone()[0]
             period_number = (max_val or 0) + 1
-            
-        # Calculate duration
-        try:
-            start = datetime.strptime(start_time, '%H:%M')
-            end = datetime.strptime(end_time, '%H:%M')
-            duration = int((end - start).total_seconds() / 60)
-        except ValueError:
-            return jsonify({'success': False, 'error': 'Invalid time format. Use HH:MM'}), 400
 
         # If period_id is provided, update existing record
         if period_id:
@@ -341,12 +534,12 @@ def save_period():
             cursor.execute('''
                 UPDATE timetable_periods SET
                 period_name = ?, start_time = ?, end_time = ?, 
-                duration_minutes = ?, period_number = ?, 
+                duration_minutes = ?, period_number = ?, time_slot_id = ?,
                 level_id = ?, section_id = ?, day_of_week = ?,
                 updated_at = CURRENT_TIMESTAMP
                 WHERE id = ? AND school_id = ?
             ''', (period_name, start_time, end_time, duration, period_number,
-                  level_id, section_id, day_of_week, period_id, school_id))
+                  time_slot_id, level_id, section_id, day_of_week, period_id, school_id))
             
             if cursor.rowcount == 0:
                 return jsonify({'success': False, 'error': 'Period not found or access denied'}), 404
@@ -367,9 +560,9 @@ def save_period():
             # Insert new period
             cursor.execute('''
                 INSERT INTO timetable_periods 
-                (school_id, level_id, section_id, day_of_week, period_number, period_name, start_time, end_time, duration_minutes)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (school_id, level_id, section_id, day_of_week, period_number, period_name, start_time, end_time, duration))
+                (school_id, level_id, section_id, day_of_week, period_number, period_name, start_time, end_time, duration_minutes, time_slot_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (school_id, level_id, section_id, day_of_week, period_number, period_name, start_time, end_time, duration, time_slot_id))
             
         db.commit()
         return jsonify({'success': True, 'message': 'Period saved successfully'})
@@ -435,8 +628,8 @@ def check_duplicate_period():
                 'period': {
                     'id': existing['id'],
                     'period_number': existing['period_number'],
-                    'start_time': existing['start_time'],
-                    'end_time': existing['end_time']
+                    'start_time': _time_to_hhmm(existing['start_time']),
+                    'end_time': _time_to_hhmm(existing['end_time'])
                 }
             })
         
@@ -473,8 +666,8 @@ def get_similar_periods():
         for row in cursor.fetchall():
             source = f"{row['level_name'] or ''} {row['section_name'] or ''}".strip() or "Global"
             suggestions.append({
-                'start_time': row['start_time'],
-                'end_time': row['end_time'],
+                'start_time': _time_to_hhmm(row['start_time']),
+                'end_time': _time_to_hhmm(row['end_time']),
                 'source': source
             })
             

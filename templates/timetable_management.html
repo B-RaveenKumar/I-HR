@@ -483,6 +483,48 @@
                     </div>
                 </div>
 
+                <!-- Period Timings Card -->
+                <div class="salary-filters-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-stopwatch"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Period Timings</h5>
+                            <p class="card-subtitle">Define reusable institution-wide time slots for all schedules</p>
+                        </div>
+                        <div class="header-actions">
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Timetable', {}).get('edit') %}
+                            <button type="button" class="btn btn-primary btn-sm" onclick="showAddTimingModal()">
+                                <i class="bi bi-plus-circle"></i> Add Time Slot
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table salary-results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Label</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
+                                        <th>Duration</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="periodTimingsTableBody">
+                                    <tr style="background: #f8f9fa;">
+                                        <td colspan="5" style="padding: 2rem; text-align: center; color: white;">
+                                            <i class="bi bi-inbox"></i> No time slots defined yet.
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Periods Management Card -->
                 <div class="salary-filters-card">
                     <div class="card-header">
@@ -526,8 +568,7 @@
                                 <thead>
                                     <tr>
                                         <th>Grade/Section</th>
-                                        <th>Period #</th>
-                                        <th>Name</th>
+                                        <th>Subject</th>
                                         <th>Start Time</th>
                                         <th>End Time</th>
                                         <th>Duration</th>
@@ -536,7 +577,7 @@
                                 </thead>
                                 <tbody id="periodsTableBody">
                                     <tr style="background: #f8f9fa;">
-                                        <td colspan="8" style="padding: 2rem; text-align: center; color: white;">
+                                        <td colspan="6" style="padding: 2rem; text-align: center; color: white;">
                                             <i class="bi bi-inbox"></i> No periods defined. Add one to get started!
                                         </td>
                                     </tr>
@@ -898,56 +939,56 @@
                             </select>
                         </div>
                         <div class="col-md-6 mb-3">
-                            <label class="form-label">Period Name</label>
-                            <input type="text" id="periodName" class="form-control" placeholder="e.g., Mathematics"
-                                oninput="checkDuplicatePeriodName()">
+                            <label class="form-label">Subject Name</label>
+                            <input type="text" id="periodSubjectName" class="form-control"
+                                placeholder="e.g., Mathematics, English, Physics">
                         </div>
                     </div>
                     <div class="row">
                         <div class="col-md-12 mb-3">
-                            <label class="form-label">Period Number / Sequence</label>
-                            <div class="input-group">
-                                <span class="input-group-text">#</span>
-                                <input type="number" id="periodNumber" class="form-control"
-                                    placeholder="Enter period number (e.g. 1, 2, 3...)">
-                            </div>
-                            <small class="text-muted">Customizable period sequence</small>
+                            <label class="form-label">Select Time Slot</label>
+                            <select id="periodTimeSlot" class="form-select">
+                                <option value="">-- Select Time Slot --</option>
+                            </select>
                         </div>
                     </div>
 
-                    <div id="duplicateAlert" class="alert alert-warning d-none">
-                        <div class="d-flex justify-content-between align-items-center">
-                            <span><i class="bi bi-exclamation-triangle"></i> This period already exists!</span>
-                            <div class="btn-group btn-group-sm">
-                                <button type="button" class="btn btn-warning"
-                                    onclick="cloneExistingPeriod()">Clone</button>
-                                <button type="button" class="btn btn-outline-dark"
-                                    onclick="editExistingPeriod()">Edit</button>
-                            </div>
-                        </div>
-                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="savePeriod()">Save Period</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
-                    <div id="quickFillContainer" class="mb-3 d-none">
-                        <label class="form-label d-block small text-muted">Quick Fill Suggestions:</label>
-                        <div id="suggestionChips" class="d-flex flex-wrap gap-2">
-                            <!-- Chips will be inserted here -->
-                        </div>
+    <!-- Add/Edit Period Timing Modal -->
+    <div class="modal fade" id="periodTimingModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="periodTimingModalTitle">Add Time Slot</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Time Slot Label</label>
+                        <input type="text" id="timingLabel" class="form-control" placeholder="e.g., Period 1, Lunch Break">
                     </div>
-
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Start Time</label>
-                            <input type="time" id="startTime" class="form-control">
+                            <input type="time" id="timingStart" class="form-control">
                         </div>
                         <div class="col-md-6 mb-3">
                             <label class="form-label">End Time</label>
-                            <input type="time" id="endTime" class="form-control">
+                            <input type="time" id="timingEnd" class="form-control">
                         </div>
                     </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="savePeriod()">Save Period</button>
+                    <button type="button" class="btn btn-primary" onclick="savePeriodTiming()">Save Time Slot</button>
                 </div>
             </div>
         </div>
