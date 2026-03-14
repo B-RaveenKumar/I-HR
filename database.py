@@ -790,6 +790,7 @@ def init_db(app):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             school_id INTEGER NOT NULL,
             slot_label VARCHAR(255) NOT NULL,
+            period_sequence INTEGER,
             start_time TIME NOT NULL,
             end_time TIME NOT NULL,
             duration_minutes INTEGER,
@@ -1137,6 +1138,7 @@ def init_db(app):
         ensure_column_exists('timetable_periods', 'section_id INTEGER', 'section_id')
         ensure_column_exists('timetable_periods', 'day_of_week INTEGER', 'day_of_week')
         ensure_column_exists('timetable_periods', 'time_slot_id INTEGER', 'time_slot_id')
+        ensure_column_exists('timetable_period_timings', 'period_sequence INTEGER', 'period_sequence')
         
         # Add reason_if_unavailable to timetable_conflict_logs
         ensure_column_exists('timetable_conflict_logs', 'reason_if_unavailable TEXT', 'reason_if_unavailable')
@@ -1160,7 +1162,7 @@ def init_db(app):
             duration_minutes = row['duration_minutes']
 
             cursor.execute('''
-                SELECT id
+                SELECT id, period_sequence
                 FROM timetable_period_timings
                 WHERE school_id = ? AND slot_label = ? AND start_time = ? AND end_time = ?
                 LIMIT 1
@@ -1169,12 +1171,18 @@ def init_db(app):
 
             if existing_slot:
                 slot_id = existing_slot['id']
+                if not existing_slot['period_sequence'] and row['period_number']:
+                    cursor.execute('''
+                        UPDATE timetable_period_timings
+                        SET period_sequence = ?, updated_at = CURRENT_TIMESTAMP
+                        WHERE id = ?
+                    ''', (row['period_number'], slot_id))
             else:
                 cursor.execute('''
                     INSERT INTO timetable_period_timings
-                    (school_id, slot_label, start_time, end_time, duration_minutes, is_active)
-                    VALUES (?, ?, ?, ?, ?, 1)
-                ''', (school_id, slot_label, start_time, end_time, duration_minutes))
+                    (school_id, slot_label, period_sequence, start_time, end_time, duration_minutes, is_active)
+                    VALUES (?, ?, ?, ?, ?, ?, 1)
+                ''', (school_id, slot_label, row['period_number'], start_time, end_time, duration_minutes))
                 slot_id = cursor.lastrowid
 
             cursor.execute('''
@@ -1182,6 +1190,12 @@ def init_db(app):
                 SET time_slot_id = ?
                 WHERE id = ?
             ''', (slot_id, row['id']))
+
+        cursor.execute('''
+            UPDATE timetable_period_timings
+            SET period_sequence = id
+            WHERE period_sequence IS NULL OR period_sequence <= 0
+        ''')
 
         # Add student management columns
         ensure_column_exists('students', 'age INTEGER', 'age')

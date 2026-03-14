@@ -114,6 +114,114 @@
         .view-section { display: none; }
         .view-section.active { display: block; }
 
+        .attendance-rule-card {
+            background: #ffffff;
+            border-radius: 14px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+            overflow: hidden;
+        }
+
+        .attendance-rule-header {
+            background: linear-gradient(135deg, #164e63 0%, #1e6b84 100%);
+            color: #ffffff;
+            padding: 1.15rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .attendance-rule-title {
+            display: flex;
+            align-items: center;
+            gap: .65rem;
+        }
+
+        .attendance-rule-title h5 {
+            margin: 0;
+            font-weight: 700;
+        }
+
+        .attendance-rule-title p {
+            margin: 0;
+            font-size: .82rem;
+            opacity: .88;
+        }
+
+        .attendance-rule-body {
+            padding: 1.25rem 1.5rem 1.5rem;
+        }
+
+        .attendance-mode-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .attendance-mode-pill {
+            border: 1px solid #dbe2ea;
+            border-radius: 999px;
+            padding: .45rem .85rem;
+            background: #f8fafc;
+            display: inline-flex;
+            align-items: center;
+            gap: .45rem;
+            font-size: .88rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .period-picker-wrap {
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            background: #fbfdff;
+            padding: .95rem;
+        }
+
+        .period-picker-title {
+            font-size: .88rem;
+            font-weight: 700;
+            color: #164e63;
+            margin-bottom: .65rem;
+        }
+
+        .period-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: .55rem;
+        }
+
+        .period-chip {
+            border: 1px solid #d9e2ec;
+            background: #ffffff;
+            border-radius: 9px;
+            padding: .55rem .65rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            font-size: .84rem;
+        }
+
+        .period-chip .meta {
+            color: #64748b;
+            font-size: .74rem;
+        }
+
+        .attendance-rule-actions {
+            display: flex;
+            align-items: center;
+            gap: .75rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+
+        .attendance-rule-feedback {
+            font-size: .86rem;
+            font-weight: 600;
+        }
+
         /* Student Dashboard */
         .student-dashboard-header {
             background: linear-gradient(135deg, #164e63 0%, #1e6b84 100%);
@@ -986,6 +1094,12 @@
                             <div class="glass-label">Overview</div>
                         </div>
                         <div class="glass-divider"></div>
+                        <div class="glass-stat" onclick="switchView('attendance')">
+                            <div class="glass-icon"><i class="bi bi-calendar-check"></i></div>
+                            <div class="glass-value">Attendance</div>
+                            <div class="glass-label">Daily Track</div>
+                        </div>
+                        <div class="glass-divider"></div>
                         <div class="glass-stat active" onclick="switchView('students')">
                             <div class="glass-icon"><i class="bi bi-mortarboard"></i></div>
                             <div class="glass-value">Students</div>
@@ -1025,6 +1139,52 @@
                             <button type="button" class="btn btn-info" title="Export student data">
                                 <i class="bi bi-download"></i> Export
                             </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====== ATTENDANCE RULES VIEW ====== -->
+                <div id="view-attendance" class="view-section">
+                    <div class="attendance-rule-card">
+                        <div class="attendance-rule-header">
+                            <div class="attendance-rule-title">
+                                <i class="bi bi-sliders" style="font-size:1.3rem;"></i>
+                                <div>
+                                    <h5>Attendance Rules</h5>
+                                    <p>Choose whether attendance is counted for all time slots or selected time slots only.</p>
+                                </div>
+                            </div>
+                            <div>
+                                <button type="button" class="btn btn-light btn-sm" onclick="loadAttendanceRules()">
+                                    <i class="bi bi-arrow-clockwise"></i> Reload
+                                </button>
+                            </div>
+                        </div>
+                        <div class="attendance-rule-body">
+                            <div class="attendance-mode-row">
+                                <label class="attendance-mode-pill">
+                                    <input type="radio" name="attendanceMode" value="all" id="attendanceModeAll">
+                                    All Time Slots
+                                </label>
+                                <label class="attendance-mode-pill">
+                                    <input type="radio" name="attendanceMode" value="selected" id="attendanceModeSelected">
+                                    Selected Time Slots
+                                </label>
+                            </div>
+
+                            <div class="period-picker-wrap" id="periodPickerWrap">
+                                <div class="period-picker-title">Available Time Slots</div>
+                                <div class="period-grid" id="attendancePeriodGrid">
+                                    <div class="text-muted" style="font-size:.85rem;">Loading time slot settings...</div>
+                                </div>
+                            </div>
+
+                            <div class="attendance-rule-actions">
+                                <button type="button" class="btn btn-primary" id="saveAttendanceRulesBtn" onclick="saveAttendanceRules()">
+                                    <i class="bi bi-save"></i> Save Rules
+                                </button>
+                                <span class="attendance-rule-feedback" id="attendanceRulesFeedback"></span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -2865,14 +3025,156 @@ showStep(currentStep);
             document.querySelectorAll('.glass-overlay .glass-stat').forEach(s => {
                 const val = s.querySelector('.glass-value');
                 if (val) {
-                    const map = {'Dashboard':'dashboard','Students':'students','Timetable':'timetable','Fees':'fees'};
+                    const map = {'Dashboard':'dashboard','Attendance':'attendance','Students':'students','Timetable':'timetable','Fees':'fees'};
                     if (map[val.textContent.trim()] === viewName) s.classList.add('active');
                 }
             });
 
             // Load dashboard data when switching to dashboard
             if (viewName === 'dashboard') loadDashboardData();
+            if (viewName === 'attendance') loadAttendanceRules();
         }
+
+        let attendanceRuleState = {
+            mode: 'all',
+            time_slot_ids: [],
+            available_time_slots: []
+        };
+
+        function setAttendanceRulesFeedback(message, isError = false) {
+            const feedback = document.getElementById('attendanceRulesFeedback');
+            if (!feedback) return;
+            feedback.textContent = message;
+            feedback.style.color = isError ? '#b91c1c' : '#166534';
+        }
+
+        function updateAttendanceRulesModeUI() {
+            const mode = attendanceRuleState.mode || 'all';
+            const allRadio = document.getElementById('attendanceModeAll');
+            const selectedRadio = document.getElementById('attendanceModeSelected');
+            const wrap = document.getElementById('periodPickerWrap');
+
+            if (allRadio) allRadio.checked = mode === 'all';
+            if (selectedRadio) selectedRadio.checked = mode === 'selected';
+            if (wrap) {
+                wrap.style.opacity = mode === 'selected' ? '1' : '.55';
+                wrap.style.pointerEvents = mode === 'selected' ? 'auto' : 'none';
+            }
+        }
+
+        function renderAttendancePeriodOptions() {
+            const grid = document.getElementById('attendancePeriodGrid');
+            if (!grid) return;
+
+            const timeSlots = attendanceRuleState.available_time_slots || [];
+            const selectedSet = new Set((attendanceRuleState.time_slot_ids || []).map(Number));
+
+            if (!timeSlots.length) {
+                grid.innerHTML = '<div class="text-muted" style="font-size:.85rem;">No active time slots found. Configure timetable slots first.</div>';
+                return;
+            }
+
+            grid.innerHTML = timeSlots.map((timeSlot) => {
+                const slotId = Number(timeSlot.time_slot_id);
+                const checked = selectedSet.has(slotId) ? 'checked' : '';
+                const sequenceLabel = Number(timeSlot.period_sequence) > 0 ? `Period ${Number(timeSlot.period_sequence)}` : '';
+                const slotLabel = escapeHtml(timeSlot.slot_label || `Time Slot ${slotId}`);
+                const start = escapeHtml((timeSlot.start_time || '').slice(0, 5));
+                const end = escapeHtml((timeSlot.end_time || '').slice(0, 5));
+                const meta = start && end ? `${start} - ${end}` : 'Time not set';
+                return `
+                    <label class="period-chip">
+                        <input type="checkbox" class="attendance-period-checkbox" value="${slotId}" ${checked}>
+                        <div>
+                            <div><strong>${sequenceLabel ? `${escapeHtml(sequenceLabel)} - ` : ''}${slotLabel}</strong></div>
+                            <div class="meta">${escapeHtml(meta)}</div>
+                        </div>
+                    </label>
+                `;
+            }).join('');
+        }
+
+        function readSelectedAttendancePeriods() {
+            return Array.from(document.querySelectorAll('.attendance-period-checkbox:checked'))
+                .map((box) => Number(box.value))
+                .filter((value) => Number.isInteger(value))
+                .sort((a, b) => a - b);
+        }
+
+        function loadAttendanceRules() {
+            setAttendanceRulesFeedback('Loading attendance rules...', false);
+            fetch('/api/student-attendance-rules')
+                .then((response) => response.json())
+                .then((data) => {
+                    if (!data.success) {
+                        setAttendanceRulesFeedback(data.error || 'Failed to load rules', true);
+                        return;
+                    }
+
+                    const incomingRule = data.rule || {};
+                    attendanceRuleState.mode = incomingRule.mode === 'selected' ? 'selected' : 'all';
+                    attendanceRuleState.time_slot_ids = Array.isArray(incomingRule.time_slot_ids) ? incomingRule.time_slot_ids.map(Number) : [];
+                    attendanceRuleState.available_time_slots = Array.isArray(data.available_time_slots) ? data.available_time_slots : [];
+
+                    renderAttendancePeriodOptions();
+                    updateAttendanceRulesModeUI();
+                    setAttendanceRulesFeedback('Attendance rules loaded', false);
+                })
+                .catch(() => {
+                    setAttendanceRulesFeedback('Could not load attendance rules', true);
+                });
+        }
+
+        function saveAttendanceRules() {
+            const mode = document.getElementById('attendanceModeSelected')?.checked ? 'selected' : 'all';
+            const selectedTimeSlots = mode === 'selected' ? readSelectedAttendancePeriods() : [];
+
+            if (mode === 'selected' && selectedTimeSlots.length === 0) {
+                setAttendanceRulesFeedback('Select at least one time slot for selected mode', true);
+                return;
+            }
+
+            setAttendanceRulesFeedback('Saving attendance rules...', false);
+
+            fetch('/api/student-attendance-rules', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || ''
+                },
+                body: JSON.stringify({
+                    mode: mode,
+                    time_slot_ids: selectedTimeSlots
+                })
+            })
+            .then((response) => response.json())
+            .then((data) => {
+                if (!data.success) {
+                    setAttendanceRulesFeedback(data.error || 'Failed to save attendance rules', true);
+                    return;
+                }
+
+                attendanceRuleState.mode = data.rule?.mode || mode;
+                attendanceRuleState.time_slot_ids = Array.isArray(data.rule?.time_slot_ids) ? data.rule.time_slot_ids : selectedTimeSlots;
+                attendanceRuleState.available_time_slots = Array.isArray(data.available_time_slots) ? data.available_time_slots : attendanceRuleState.available_time_slots;
+                renderAttendancePeriodOptions();
+                updateAttendanceRulesModeUI();
+                setAttendanceRulesFeedback('Attendance rules saved successfully', false);
+            })
+            .catch(() => {
+                setAttendanceRulesFeedback('Network error while saving rules', true);
+            });
+        }
+
+        document.getElementById('attendanceModeAll')?.addEventListener('change', () => {
+            attendanceRuleState.mode = 'all';
+            updateAttendanceRulesModeUI();
+        });
+
+        document.getElementById('attendanceModeSelected')?.addEventListener('change', () => {
+            attendanceRuleState.mode = 'selected';
+            updateAttendanceRulesModeUI();
+        });
 
         // ======== TIMETABLE ========
         const _sectionIdMap = {{ section_id_map | safe }};

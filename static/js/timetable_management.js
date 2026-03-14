@@ -159,12 +159,13 @@ function renderPeriodTimingsTable() {
     if (!tbody) return;
 
     if (allPeriodTimings.length === 0) {
-        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="5" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No time slots defined yet.</td></tr>';
+        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="6" style="padding: 2rem; text-align: center; color: white;"><i class="bi bi-inbox"></i> No time slots defined yet.</td></tr>';
         return;
     }
 
     tbody.innerHTML = allPeriodTimings.map(t => `
         <tr>
+            <td style="padding: 1rem;"><span class="duration-badge">P${t.period_sequence || '-'}</span></td>
             <td style="padding: 1rem; font-weight: 600;">${t.slot_label}</td>
             <td style="padding: 1rem;"><span class="time-display">${t.start_time}</span></td>
             <td style="padding: 1rem;"><span class="time-display">${t.end_time}</span></td>
@@ -189,7 +190,7 @@ function populatePeriodTimeSlotDropdown(selectedId = '') {
 
     dropdown.innerHTML = '<option value="">-- Select Time Slot --</option>';
     dropdown.innerHTML += allPeriodTimings.map(t =>
-        `<option value="${t.id}">${t.slot_label} (${t.start_time} - ${t.end_time})</option>`
+        `<option value="${t.id}">Period ${t.period_sequence || '?'} - ${t.slot_label} (${t.start_time} - ${t.end_time})</option>`
     ).join('');
 
     if (selectedId) {
@@ -230,6 +231,7 @@ function to24HourTime(timeValue, meridiem) {
 
 function showAddTimingModal() {
     document.getElementById('timingLabel').value = '';
+    document.getElementById('timingSequence').value = '';
     document.getElementById('timingStart').value = '';
     document.getElementById('timingEnd').value = '';
     document.getElementById('timingStartMeridiem').value = 'AM';
@@ -245,6 +247,7 @@ function editPeriodTiming(timingId) {
     if (!timing) return;
 
     document.getElementById('timingLabel').value = timing.slot_label || '';
+    document.getElementById('timingSequence').value = timing.period_sequence || '';
     document.getElementById('timingStart').value = timing.start_time || '';
     document.getElementById('timingEnd').value = timing.end_time || '';
     document.getElementById('timingStartMeridiem').value = getMeridiemFromTime(timing.start_time || '');
@@ -257,13 +260,14 @@ function editPeriodTiming(timingId) {
 
 function savePeriodTiming() {
     const slotLabel = document.getElementById('timingLabel').value.trim();
+    const periodSequence = parseInt(document.getElementById('timingSequence').value, 10);
     const startTime = document.getElementById('timingStart').value;
     const endTime = document.getElementById('timingEnd').value;
     const startMeridiem = document.getElementById('timingStartMeridiem').value;
     const endMeridiem = document.getElementById('timingEndMeridiem').value;
     const editId = document.getElementById('periodTimingModal').dataset.editId;
 
-    if (!slotLabel || !startTime || !endTime) {
+    if (!slotLabel || !Number.isInteger(periodSequence) || periodSequence <= 0 || !startTime || !endTime) {
         showAlert('Please fill all required fields', 'error');
         return;
     }
@@ -274,6 +278,7 @@ function savePeriodTiming() {
     const payload = {
         school_id: schoolId,
         slot_label: slotLabel,
+        period_sequence: periodSequence,
         start_time: normalizedStartTime,
         end_time: normalizedEndTime
     };

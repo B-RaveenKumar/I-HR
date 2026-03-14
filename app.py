@@ -6157,6 +6157,183 @@ def api_student_dashboard_data():
     })
 
 
+@app.route('/api/student-attendance-rules', methods=['GET', 'POST'])
+def api_student_attendance_rules():
+    """Get and update admin-configurable student attendance time-slot rules."""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    try:
+        db = get_db()
+        school_id = session['school_id']
+        setting_key = f"student_attendance_rule_school_{school_id}"
+
+        from database import get_system_setting, set_system_setting
+
+        def _serialize_time(value):
+            """Convert DB time values to JSON-safe string representation."""
+            if value is None:
+                return ''
+            if isinstance(value, str):
+                return value
+            try:
+                return value.strftime('%H:%M:%S')
+            except Exception:
+                try:
+                    return value.isoformat()
+                except Exception:
+                    return str(value)
+
+        available_time_slots = []
+
+        # Preferred source: explicit timetable time slots.
+        try:
+            slot_rows = db.execute('''
+                SELECT id, slot_label, period_sequence, start_time, end_time
+                FROM timetable_period_timings
+                WHERE school_id = ? AND is_active = 1
+                ORDER BY COALESCE(period_sequence, 9999) ASC, start_time ASC, id ASC
+            ''', (school_id,)).fetchall()
+
+            for row in slot_rows:
+                slot_id = int(row['id'])
+                available_time_slots.append({
+                    'time_slot_id': slot_id,
+                    'slot_label': row['slot_label'] or f"Time Slot {slot_id}",
+                    'period_sequence': row['period_sequence'],
+                    'start_time': _serialize_time(row['start_time']),
+                    'end_time': _serialize_time(row['end_time'])
+                })
+        except Exception:
+            # Backward-compatible fallback for older databases: infer slots from timetable_periods.
+            period_rows = db.execute('''
+                SELECT DISTINCT period_number, period_name, start_time, end_time
+                FROM timetable_periods
+                WHERE school_id = ?
+                ORDER BY period_number ASC
+            ''', (school_id,)).fetchall()
+
+            for row in period_rows:
+                slot_id = int(row['period_number'])
+                available_time_slots.append({
+                    'time_slot_id': slot_id,
+                    'slot_label': row['period_name'] or f"Period {slot_id}",
+                    'period_sequence': slot_id,
+                    'start_time': _serialize_time(row['start_time']),
+                    'end_time': _serialize_time(row['end_time'])
+                })
+
+        raw_setting = get_system_setting(setting_key, None)
+        rule = {'mode': 'all', 'time_slot_ids': []}
+        if raw_setting:
+            try:
+                parsed = json.loads(raw_setting)
+                mode = str(parsed.get('mode', 'all')).lower()
+                slot_ids = parsed.get('time_slot_ids', None)
+                # Backward compatibility for older data saved with period_numbers.
+                if slot_ids is None:
+                    slot_ids = parsed.get('period_numbers', [])
+                if mode in ['all', 'selected'] and isinstance(slot_ids, list):
+                    rule['mode'] = mode
+                    unique_slot_ids = []
+                    for item in slot_ids:
+                        try:
+                            slot_id = int(item)
+                        except (TypeError, ValueError):
+                            continue
+                        if slot_id not in unique_slot_ids:
+                            unique_slot_ids.append(slot_id)
+                    rule['time_slot_ids'] = unique_slot_ids
+            except (TypeError, ValueError, json.JSONDecodeError):
+                pass
+
+        valid_time_slot_ids = {slot['time_slot_id'] for slot in available_time_slots}
+        rule['time_slot_ids'] = [slot_id for slot_id in rule['time_slot_ids'] if slot_id in valid_time_slot_ids]
+
+        if request.method == 'POST':
+            data = request.get_json(silent=True) or {}
+            mode = str(data.get('mode', 'all')).lower()
+            time_slot_ids = data.get('time_slot_ids', [])
+
+            if mode not in ['all', 'selected']:
+                return jsonify({'success': False, 'error': 'Invalid attendance mode'}), 400
+
+            if not isinstance(time_slot_ids, list):
+                return jsonify({'success': False, 'error': 'Invalid time slot selection'}), 400
+
+            clean_time_slot_ids = []
+            for item in time_slot_ids:
+                try:
+                    slot_id = int(item)
+                except (TypeError, ValueError):
+                    continue
+                if slot_id in valid_time_slot_ids and slot_id not in clean_time_slot_ids:
+                    clean_time_slot_ids.append(slot_id)
+
+            if mode == 'selected' and not clean_time_slot_ids:
+                return jsonify({'success': False, 'error': 'Select at least one time slot'}), 400
+
+            if mode == 'all':
+                clean_time_slot_ids = []
+
+            rule = {
+                'mode': mode,
+                'time_slot_ids': clean_time_slot_ids
+            }
+
+            description = 'Student attendance rule per school: all time slots or selected time slots'
+            serialized_rule = json.dumps(rule)
+
+            save_ok = set_system_setting(setting_key, serialized_rule, description)
+
+            # Fallback path: direct update/insert for environments where helper upsert can fail.
+            if not save_ok:
+                try:
+                    existing_setting = db.execute('''
+                        SELECT id FROM system_settings WHERE setting_key = ?
+                    ''', (setting_key,)).fetchone()
+
+                    current_time = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
+
+                    if existing_setting:
+                        db.execute('''
+                            UPDATE system_settings
+                            SET setting_value = ?,
+                                description = COALESCE(?, description),
+                                updated_at = ?
+                            WHERE setting_key = ?
+                        ''', (serialized_rule, description, current_time, setting_key))
+                    else:
+                        db.execute('''
+                            INSERT INTO system_settings (setting_key, setting_value, description, updated_at)
+                            VALUES (?, ?, ?, ?)
+                        ''', (setting_key, serialized_rule, description, current_time))
+
+                    db.commit()
+                    save_ok = True
+                except Exception as save_error:
+                    db.rollback()
+                    return jsonify({'success': False, 'error': f'Could not save attendance rules: {str(save_error)}'}), 500
+
+            if not save_ok:
+                return jsonify({'success': False, 'error': 'Could not save attendance rules'}), 500
+
+            return jsonify({
+                'success': True,
+                'message': 'Attendance rules updated successfully',
+                'rule': rule,
+                'available_time_slots': available_time_slots
+            })
+
+        return jsonify({
+            'success': True,
+            'rule': rule,
+            'available_time_slots': available_time_slots
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Could not load attendance rules: {str(e)}'}), 500
+
+
 # ========================= FEE MANAGEMENT APIs =========================
 
 def _fee_print_user_authorized():
@@ -17430,11 +17607,163 @@ def staff_mark_student_attendance():
     """Staff interface for marking student attendance"""
     if 'user_id' not in session or session.get('user_type') not in ['admin', 'staff']:
         return redirect(url_for('index'))
-    
+
     db = get_db()
     school_id = session['school_id']
     staff_id = session['user_id']
     today = datetime.date.today().strftime('%Y-%m-%d')
+    is_admin_user = session.get('user_type') == 'admin'
+
+    def _to_day_of_week(date_str):
+        """Map date to timetable day index (Mon=1 ... Sat=6, Sun=0)."""
+        date_obj = datetime.date.fromisoformat(date_str)
+        day_number = date_obj.weekday() + 1
+        return 0 if day_number == 7 else day_number
+
+    def _get_attendance_rule_for_school():
+        """Return attendance scope rule: all time slots or selected time slots."""
+        default_rule = {'mode': 'all', 'time_slot_ids': []}
+        if is_admin_user:
+            return default_rule
+
+        setting_key = f"student_attendance_rule_school_{school_id}"
+        raw_setting = get_system_setting(setting_key, None)
+        if not raw_setting:
+            return default_rule
+
+        try:
+            parsed = json.loads(raw_setting)
+            mode = str(parsed.get('mode', 'all')).lower()
+            slot_ids = parsed.get('time_slot_ids', None)
+            if slot_ids is None:
+                slot_ids = parsed.get('period_numbers', [])
+
+            if mode not in ['all', 'selected'] or not isinstance(slot_ids, list):
+                return default_rule
+
+            cleaned_slot_ids = []
+            for item in slot_ids:
+                try:
+                    value = int(item)
+                except (TypeError, ValueError):
+                    continue
+                if value not in cleaned_slot_ids:
+                    cleaned_slot_ids.append(value)
+
+            return {'mode': mode, 'time_slot_ids': cleaned_slot_ids}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            return default_rule
+
+    def _get_allowed_period_numbers(attendance_rule):
+        """Resolve selected time slots into timetable period numbers."""
+        if attendance_rule['mode'] != 'selected':
+            return None
+
+        selected_slot_ids = attendance_rule.get('time_slot_ids', [])
+        if not selected_slot_ids:
+            return []
+
+        slot_placeholders = ','.join('?' for _ in selected_slot_ids)
+        sequence_rows = db.execute(f'''
+            SELECT id, period_sequence
+            FROM timetable_period_timings
+            WHERE school_id = ?
+              AND id IN ({slot_placeholders})
+              AND is_active = 1
+        ''', (school_id, *selected_slot_ids)).fetchall()
+
+        selected_sequences = []
+        for row in sequence_rows:
+            try:
+                sequence_value = int(row['period_sequence'])
+            except (TypeError, ValueError):
+                continue
+            if sequence_value not in selected_sequences:
+                selected_sequences.append(sequence_value)
+
+        fallback_sql = ''
+        fallback_params = []
+        if selected_sequences:
+            sequence_placeholders = ','.join('?' for _ in selected_sequences)
+            fallback_sql = f' OR (time_slot_id IS NULL AND period_number IN ({sequence_placeholders})) '
+            fallback_params = selected_sequences
+
+        rows = db.execute(f'''
+            SELECT DISTINCT period_number
+            FROM timetable_periods
+            WHERE school_id = ?
+              AND is_active = 1
+              AND (time_slot_id IN ({slot_placeholders}){fallback_sql})
+            ORDER BY period_number
+        ''', (school_id, *selected_slot_ids, *fallback_params)).fetchall()
+
+        return [int(row['period_number']) for row in rows]
+
+    def _get_accessible_students(date_str):
+        """Return students this user can mark attendance for on the given date."""
+        if is_admin_user:
+            all_students = db.execute('''
+                SELECT id, student_id, full_name, `class`, section, roll_number
+                FROM students
+                WHERE school_id = ?
+                ORDER BY `class`, section, roll_number
+            ''', (school_id,)).fetchall()
+            return all_students, 'Admin scope: all classes'
+
+        attendance_rule = _get_attendance_rule_for_school()
+        allowed_period_numbers = _get_allowed_period_numbers(attendance_rule)
+
+        if attendance_rule['mode'] == 'selected' and not allowed_period_numbers:
+            return [], 'Selected time slot rule has no mapped periods for this school'
+
+        period_filter_sql = ''
+        period_params = []
+        if allowed_period_numbers is not None:
+            placeholders = ','.join('?' for _ in allowed_period_numbers)
+            period_filter_sql = f' AND ha.period_number IN ({placeholders}) '
+            period_params = allowed_period_numbers
+
+        students = db.execute(f'''
+            SELECT DISTINCT s.id, s.student_id, s.full_name, s.`class`, s.section, s.roll_number
+            FROM students s
+            JOIN timetable_academic_levels tal
+              ON tal.school_id = s.school_id
+             AND tal.level_name = s.`class`
+             AND tal.is_active = 1
+            JOIN timetable_sections ts
+              ON ts.school_id = s.school_id
+             AND ts.level_id = tal.id
+             AND ts.section_name = s.section
+             AND ts.is_active = 1
+            JOIN timetable_hierarchical_assignments ha
+              ON ha.school_id = s.school_id
+             AND ha.level_id = tal.id
+             AND ha.section_id = ts.id
+            WHERE s.school_id = ?
+              AND ha.staff_id = ?
+              {period_filter_sql}
+            ORDER BY s.`class`, s.section, s.roll_number
+        ''', (school_id, staff_id, *period_params)).fetchall()
+
+        assigned_classes = db.execute(f'''
+            SELECT DISTINCT tal.level_name AS class_name, ts.section_name AS section_name
+            FROM timetable_hierarchical_assignments ha
+            JOIN timetable_academic_levels tal ON ha.level_id = tal.id
+            JOIN timetable_sections ts ON ha.section_id = ts.id
+            WHERE ha.school_id = ?
+              AND ha.staff_id = ?
+              {period_filter_sql}
+            ORDER BY tal.level_number, ts.section_name
+        ''', (school_id, staff_id, *period_params)).fetchall()
+
+        rule_label = 'all time slots' if attendance_rule['mode'] == 'all' else 'selected time slots'
+        if assigned_classes:
+            class_text = ', '.join([f"{row['class_name']}-{row['section_name']}" for row in assigned_classes])
+            scope_text = f"Scope: {rule_label}; assigned classes: {class_text}"
+        else:
+            scope_text = f"Scope: {rule_label}; no classes assigned to you"
+
+        return students, scope_text
 
     selected_date = request.args.get('date', today)
     try:
@@ -17445,7 +17774,7 @@ def staff_mark_student_attendance():
     selected_session = request.args.get('session_type', 'morning')
     if selected_session not in ['morning', 'afternoon']:
         selected_session = 'morning'
-    
+
     if request.method == 'POST':
         date = request.form.get('date', today)
         try:
@@ -17472,23 +17801,21 @@ def staff_mark_student_attendance():
 
         current_time = datetime.datetime.now().strftime('%H:%M:%S')
 
-        students = db.execute('''
-            SELECT id
-            FROM students
-            WHERE school_id = ?
-            ORDER BY `class`, section, roll_number
-        ''', (school_id,)).fetchall()
-
+        students, _ = _get_accessible_students(date)
         student_ids = [student['id'] for student in students]
+
         if not student_ids:
-            flash('No students found for this school', 'error')
+            flash('No eligible students are assigned for your attendance scope', 'error')
             return redirect(url_for('staff_mark_student_attendance', date=date, session_type=session_type))
 
-        existing_records = db.execute('''
+        placeholders = ','.join('?' for _ in student_ids)
+        existing_records = db.execute(f'''
             SELECT id, student_id
             FROM student_attendance
-            WHERE school_id = ? AND attendance_date = ?
-        ''', (school_id, date)).fetchall()
+            WHERE school_id = ?
+              AND attendance_date = ?
+              AND student_id IN ({placeholders})
+        ''', (school_id, date, *student_ids)).fetchall()
         existing_map = {record['student_id']: record['id'] for record in existing_records}
 
         marked_count = 0
@@ -17500,7 +17827,7 @@ def staff_mark_student_attendance():
                 if session_type == 'morning':
                     db.execute('''
                         UPDATE student_attendance
-                        SET morning_status = ?, morning_time = ?, 
+                        SET morning_status = ?, morning_time = ?,
                             morning_marked_by = ?, morning_notes = ?,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE student_id = ? AND attendance_date = ?
@@ -17508,7 +17835,7 @@ def staff_mark_student_attendance():
                 else:
                     db.execute('''
                         UPDATE student_attendance
-                        SET afternoon_status = ?, afternoon_time = ?, 
+                        SET afternoon_status = ?, afternoon_time = ?,
                             afternoon_marked_by = ?, afternoon_notes = ?,
                             updated_at = CURRENT_TIMESTAMP
                         WHERE student_id = ? AND attendance_date = ?
@@ -17517,14 +17844,14 @@ def staff_mark_student_attendance():
                 if session_type == 'morning':
                     db.execute('''
                         INSERT INTO student_attendance (
-                            student_id, school_id, attendance_date, 
+                            student_id, school_id, attendance_date,
                             morning_status, morning_time, morning_marked_by, morning_notes
                         ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', (student_id, school_id, date, status, current_time, staff_id, notes))
                 else:
                     db.execute('''
                         INSERT INTO student_attendance (
-                            student_id, school_id, attendance_date, 
+                            student_id, school_id, attendance_date,
                             afternoon_status, afternoon_time, afternoon_marked_by, afternoon_notes
                         ) VALUES (?, ?, ?, ?, ?, ?, ?)
                     ''', (student_id, school_id, date, status, current_time, staff_id, notes))
@@ -17536,20 +17863,22 @@ def staff_mark_student_attendance():
         return redirect(url_for('staff_mark_student_attendance', date=date, session_type=session_type))
 
     # GET request - show form
-    students = db.execute('''
-        SELECT id, student_id, full_name, `class`, section, roll_number
-        FROM students
-        WHERE school_id = ?
-        ORDER BY `class`, section, roll_number
-    ''', (school_id,)).fetchall()
+    students, attendance_scope_text = _get_accessible_students(selected_date)
+    student_ids = [student['id'] for student in students]
 
-    attendance_records = db.execute('''
-        SELECT sa.*, s.student_id, s.full_name, s.`class`, s.section, s.roll_number
-        FROM student_attendance sa
-        JOIN students s ON sa.student_id = s.id
-        WHERE sa.school_id = ? AND sa.attendance_date = ?
-        ORDER BY s.`class`, s.section, s.roll_number
-    ''', (school_id, selected_date)).fetchall()
+    if student_ids:
+        placeholders = ','.join('?' for _ in student_ids)
+        attendance_records = db.execute(f'''
+            SELECT sa.*, s.student_id, s.full_name, s.`class`, s.section, s.roll_number
+            FROM student_attendance sa
+            JOIN students s ON sa.student_id = s.id
+            WHERE sa.school_id = ?
+              AND sa.attendance_date = ?
+              AND s.id IN ({placeholders})
+            ORDER BY s.`class`, s.section, s.roll_number
+        ''', (school_id, selected_date, *student_ids)).fetchall()
+    else:
+        attendance_records = []
 
     attendance_map = {record['student_id']: record for record in attendance_records}
     prepared_students = []
@@ -17567,7 +17896,8 @@ def staff_mark_student_attendance():
                          today_attendance=attendance_records,
                          current_date=selected_date,
                          selected_session=selected_session,
-                         max_date=today)
+                         max_date=today,
+                         attendance_scope_text=attendance_scope_text)
 
 
 # ===============================================================================

@@ -270,10 +270,10 @@ def get_period_timings():
         cursor = db.cursor()
 
         cursor.execute('''
-            SELECT id, slot_label, start_time, end_time, duration_minutes, is_active
+            SELECT id, slot_label, period_sequence, start_time, end_time, duration_minutes, is_active
             FROM timetable_period_timings
             WHERE school_id = ? AND is_active = 1
-            ORDER BY start_time ASC, id ASC
+            ORDER BY COALESCE(period_sequence, 9999) ASC, start_time ASC, id ASC
         ''', (school_id,))
 
         timings = []
@@ -281,6 +281,7 @@ def get_period_timings():
             timings.append({
                 'id': row['id'],
                 'slot_label': row['slot_label'],
+                'period_sequence': row['period_sequence'],
                 'start_time': _time_to_hhmm(row['start_time']),
                 'end_time': _time_to_hhmm(row['end_time']),
                 'duration_minutes': row['duration_minutes'],
@@ -301,11 +302,19 @@ def save_period_timing():
         timing_id = data.get('id')
         school_id = data.get('school_id') or session.get('school_id')
         slot_label = (data.get('slot_label') or '').strip()
+        period_sequence = data.get('period_sequence')
         start_time = data.get('start_time')
         end_time = data.get('end_time')
 
-        if not all([school_id, slot_label, start_time, end_time]):
-            return jsonify({'success': False, 'error': 'slot_label, start_time and end_time are required'}), 400
+        if not all([school_id, slot_label, start_time, end_time]) or period_sequence in [None, '']:
+            return jsonify({'success': False, 'error': 'slot_label, period_sequence, start_time and end_time are required'}), 400
+
+        try:
+            period_sequence = int(period_sequence)
+            if period_sequence <= 0:
+                raise ValueError()
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Period sequence must be a positive number'}), 400
 
         try:
             start = datetime.strptime(start_time, '%H:%M')
@@ -336,11 +345,25 @@ def save_period_timing():
 
         if timing_id:
             cursor.execute('''
+                SELECT id FROM timetable_period_timings
+                WHERE school_id = ? AND period_sequence = ? AND id != ? AND is_active = 1
+            ''', (school_id, period_sequence, timing_id))
+        else:
+            cursor.execute('''
+                SELECT id FROM timetable_period_timings
+                WHERE school_id = ? AND period_sequence = ? AND is_active = 1
+            ''', (school_id, period_sequence))
+
+        if cursor.fetchone():
+            return jsonify({'success': False, 'error': 'A time slot with this period sequence already exists'}), 400
+
+        if timing_id:
+            cursor.execute('''
                 UPDATE timetable_period_timings
-                SET slot_label = ?, start_time = ?, end_time = ?, duration_minutes = ?,
+                SET slot_label = ?, period_sequence = ?, start_time = ?, end_time = ?, duration_minutes = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE id = ? AND school_id = ?
-            ''', (slot_label, start_time, end_time, duration, timing_id, school_id))
+            ''', (slot_label, period_sequence, start_time, end_time, duration, timing_id, school_id))
 
             if cursor.rowcount == 0:
                 return jsonify({'success': False, 'error': 'Time slot not found'}), 404
@@ -348,16 +371,16 @@ def save_period_timing():
             # Keep linked schedule rows in sync for backward-compatible columns
             cursor.execute('''
                 UPDATE timetable_periods
-                SET start_time = ?, end_time = ?, duration_minutes = ?,
+                SET start_time = ?, end_time = ?, duration_minutes = ?, period_number = ?,
                     updated_at = CURRENT_TIMESTAMP
                 WHERE school_id = ? AND time_slot_id = ?
-            ''', (start_time, end_time, duration, school_id, timing_id))
+            ''', (start_time, end_time, duration, period_sequence, school_id, timing_id))
         else:
             cursor.execute('''
                 INSERT INTO timetable_period_timings
-                (school_id, slot_label, start_time, end_time, duration_minutes)
-                VALUES (?, ?, ?, ?, ?)
-            ''', (school_id, slot_label, start_time, end_time, duration))
+                (school_id, slot_label, period_sequence, start_time, end_time, duration_minutes)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (school_id, slot_label, period_sequence, start_time, end_time, duration))
 
         db.commit()
         return jsonify({'success': True, 'message': 'Time slot saved successfully'})
@@ -503,7 +526,7 @@ def save_period():
         cursor = db.cursor()
 
         cursor.execute('''
-            SELECT slot_label, start_time, end_time, duration_minutes
+            SELECT slot_label, period_sequence, start_time, end_time, duration_minutes
             FROM timetable_period_timings
             WHERE id = ? AND school_id = ? AND is_active = 1
         ''', (time_slot_id, school_id))
@@ -516,17 +539,20 @@ def save_period():
         start_time = slot['start_time']
         end_time = slot['end_time']
         duration = slot['duration_minutes']
+        slot_sequence = slot['period_sequence']
 
         if not period_number:
-            # Auto-generate next period number
-            cursor.execute('''
-                SELECT MAX(period_number) FROM timetable_periods
-                WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0)
-                AND COALESCE(section_id, 0) = COALESCE(?, 0)
-                AND COALESCE(day_of_week, -1) = COALESCE(?, -1)
-            ''', (school_id, level_id, section_id, day_of_week))
-            max_val = cursor.fetchone()[0]
-            period_number = (max_val or 0) + 1
+            if slot_sequence:
+                period_number = slot_sequence
+            else:
+                cursor.execute('''
+                    SELECT MAX(period_number) FROM timetable_periods
+                    WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0)
+                    AND COALESCE(section_id, 0) = COALESCE(?, 0)
+                    AND COALESCE(day_of_week, -1) = COALESCE(?, -1)
+                ''', (school_id, level_id, section_id, day_of_week))
+                max_val = cursor.fetchone()[0]
+                period_number = (max_val or 0) + 1
 
         # If period_id is provided, update existing record
         if period_id:

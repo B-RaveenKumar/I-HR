@@ -506,6 +506,7 @@
                             <table class="table salary-results-table">
                                 <thead>
                                     <tr>
+                                        <th>Sequence</th>
                                         <th>Label</th>
                                         <th>Start Time</th>
                                         <th>End Time</th>
@@ -515,7 +516,7 @@
                                 </thead>
                                 <tbody id="periodTimingsTableBody">
                                     <tr style="background: #f8f9fa;">
-                                        <td colspan="5" style="padding: 2rem; text-align: center; color: white;">
+                                        <td colspan="6" style="padding: 2rem; text-align: center; color: white;">
                                             <i class="bi bi-inbox"></i> No time slots defined yet.
                                         </td>
                                     </tr>
@@ -974,6 +975,11 @@
                     <div class="mb-3">
                         <label class="form-label">Time Slot Label</label>
                         <input type="text" id="timingLabel" class="form-control" placeholder="e.g., Period 1, Lunch Break">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Period Sequence</label>
+                        <input type="number" id="timingSequence" class="form-control" min="1" step="1" placeholder="e.g., 1">
+                        <div class="form-text">Used as the master period number when this time slot is assigned.</div>
                     </div>
                     <div class="row">
                         <div class="col-md-6 mb-3">
