@@ -6345,7 +6345,8 @@ def _build_fee_receipt_text(receipt):
         center('FEE PAYMENT RECEIPT'),
         '-' * width,
         f"Receipt : {esc(receipt.get('receiptNo'))}",
-        f"Date    : {esc(receipt.get('paidDate') or datetime.date.today().strftime('%Y-%m-%d'))}",
+        f"Paid On : {esc(receipt.get('paidDate') or '-')}",
+        f"Printed : {esc(receipt.get('printedAt') or '-')}",
         f"Student : {esc(receipt.get('studentName'))}",
         f"ID      : {esc(receipt.get('studentId'))}",
         f"Class   : {esc(receipt.get('classSection'))}",
@@ -6354,7 +6355,9 @@ def _build_fee_receipt_text(receipt):
 
     for idx, fee in enumerate(fees, start=1):
         fee_type = esc((fee or {}).get('feeType'))
-        lines.append(f"{idx}. {fee_type}"[:width])
+        fee_note = esc((fee or {}).get('notes'))
+        fee_label = f"{fee_type} ({fee_note})" if fee_note else fee_type
+        lines.append(f"{idx}. {fee_label}"[:width])
         lines.append(f"   Total:{money((fee or {}).get('total'))}  Paid:{money((fee or {}).get('paid'))}  Bal:{money((fee or {}).get('balance'))}")
 
     lines.extend([
@@ -6603,11 +6606,11 @@ def api_fees_pay(fee_id):
     ).fetchone()
     if not fee:
         return jsonify({'success': False, 'error': 'Fee record not found'}), 404
-    today = datetime.date.today().strftime('%Y-%m-%d')
+    paid_ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     paid_delta = max(0.0, float(fee['amount'] or 0) - float(fee['paid_amount'] or 0))
     db.execute(
         "UPDATE student_fees SET paid_amount=amount, status='paid', paid_date=?, payment_mode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-        (today, payment_mode, fee_id)
+        (paid_ts, payment_mode, fee_id)
     )
     if paid_delta > 0:
         db.execute('''
@@ -6683,11 +6686,11 @@ def api_fees_pay_partial(fee_id):
     already_paid = float(fee['paid_amount'] or 0)
     new_paid = min(already_paid + paid_now, total_amount)
     payment_mode = (data.get('payment_mode') or 'Cash').strip()
-    today = datetime.date.today().strftime('%Y-%m-%d')
+    paid_ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     new_status = 'paid' if new_paid >= total_amount else 'partial'
     db.execute(
         "UPDATE student_fees SET paid_amount=?, status=?, paid_date=?, payment_mode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-        (new_paid, new_status, today, payment_mode, fee_id)
+        (new_paid, new_status, paid_ts, payment_mode, fee_id)
     )
     credited = max(0.0, new_paid - already_paid)
     if credited > 0:
@@ -6748,7 +6751,7 @@ def api_fees_pay_selected():
         return jsonify({'success': False, 'error': 'One or more selected fee records were not found'}), 404
 
     row_by_id = {r['id']: r for r in rows}
-    today = datetime.date.today().strftime('%Y-%m-%d')
+    paid_ts = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     total_deducted = 0.0
     updated_count = 0
 
@@ -6773,7 +6776,7 @@ def api_fees_pay_selected():
 
             db.execute(
                 "UPDATE student_fees SET paid_amount=?, status=?, paid_date=?, payment_mode=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
-                (new_paid, new_status, today, payment_mode, fee['id'])
+                (new_paid, new_status, paid_ts, payment_mode, fee['id'])
             )
             db.execute('''
                 INSERT INTO fee_payment_history
@@ -6850,7 +6853,14 @@ def api_fees_student_list():
     query = '''
         SELECT sf.id, sf.student_db_id, s.student_id, s.full_name, s.`class`, s.section,
                s.roll_number, ft.name as fee_type_name, ft.id as fee_type_id,
-               sf.amount, sf.paid_amount, sf.due_date, sf.status, sf.paid_date, sf.payment_mode, sf.notes
+               sf.amount, sf.paid_amount, sf.due_date, sf.status, sf.paid_date, sf.payment_mode, sf.notes,
+               (
+                   SELECT fph.paid_at
+                   FROM fee_payment_history fph
+                   WHERE fph.school_id = sf.school_id AND fph.student_fee_id = sf.id
+                   ORDER BY fph.paid_at DESC, fph.id DESC
+                   LIMIT 1
+               ) AS paid_at
         FROM student_fees sf
         JOIN students s ON sf.student_db_id = s.id
         JOIN fee_types ft ON sf.fee_type_id = ft.id

@@ -1310,6 +1310,13 @@
                                 <button class="btn btn-sm" style="background:#06b6d4;color:#fff;border-radius:8px;" onclick="loadFeeRecords()">
                                     <i class="bi bi-arrow-clockwise"></i> Refresh
                                 </button>
+                                <select id="feeExportTemplate" class="form-select form-select-sm" style="min-width:170px;">
+                                    <option value="current">Morden Template</option>
+                                    <option value="previous">Vintage Template</option>
+                                </select>
+                                <button class="btn btn-sm" style="background:#0f766e;color:#fff;border-radius:8px;" onclick="exportFeeRecordsReport()">
+                                    <i class="bi bi-download"></i> Export Report
+                                </button>
                             </div>
                         </div>
                         <!-- Summary counters -->
@@ -3520,6 +3527,10 @@ showStep(currentStep);
                     const feeBalance = Math.max(0, totalAmount - paidAmount);
                     const canPay = feeBalance > 0 && f.status !== 'waived';
                     const amountInputId = `fee-pay-amount-${f.id}`;
+                    const noteText = (f.notes || '').trim();
+                    const feeTypeWithNote = noteText
+                        ? `${escapeHtml(f.fee_type_name)} <span style="color:#64748b;font-weight:500;">(${escapeHtml(noteText)})</span>`
+                        : `${escapeHtml(f.fee_type_name)}`;
 
                     return `
                         <tr style="border-bottom:1px solid #e2e8f0;">
@@ -3532,7 +3543,7 @@ showStep(currentStep);
                                        ${canPay ? '' : 'disabled'}
                                        onchange="onFeeCheckboxChange(${g.student_db_id}, ${f.id})">
                             </td>
-                            <td style="padding:6px 8px;font-weight:600;">${escapeHtml(f.fee_type_name)}</td>
+                            <td style="padding:6px 8px;font-weight:600;">${feeTypeWithNote}</td>
                             <td style="padding:6px 8px;">₹${totalAmount.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
                             <td style="padding:6px 8px;color:#16a34a;">₹${paidAmount.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
                             <td style="padding:6px 8px;color:${feeBalance > 0 ? '#d97706' : '#16a34a'};font-weight:600;">₹${feeBalance.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
@@ -3563,6 +3574,9 @@ showStep(currentStep);
                         <td style="padding:10px;color:${g.balance > 0 ? '#d97706' : '#16a34a'};font-weight:700;">₹${g.balance.toLocaleString('en-IN',{minimumFractionDigits:2})}</td>
                         <td style="padding:10px;">${g.fees.length} item(s)</td>
                         <td style="padding:10px;white-space:nowrap;">
+                            <button class="btn btn-sm" style="background:#0f766e;color:#fff;border-radius:8px;font-size:0.76rem;padding:4px 9px;margin-right:6px;" onclick="exportStudentFeeReport(${g.student_db_id})">
+                                <i class="bi bi-download"></i> Export
+                            </button>
                             <button class="btn btn-sm" style="background:${isExpanded ? '#334155' : '#0ea5e9'};color:#fff;border-radius:8px;font-size:0.76rem;padding:4px 9px;" onclick="toggleFeeStudentDetails(${g.student_db_id})">
                                 <i class="bi ${isExpanded ? 'bi-chevron-up' : 'bi-chevron-down'}"></i> ${isExpanded ? 'Hide' : 'Manage'}
                             </button>
@@ -3680,6 +3694,229 @@ showStep(currentStep);
             _recalculateSelectedFeeTotal(studentDbId);
         }
 
+        function _feeXlsEsc(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function _getFeeExportTemplate() {
+            return document.getElementById('feeExportTemplate')?.value || 'current';
+        }
+
+        function _csvEscape(value) {
+            const s = String(value ?? '');
+            if (/[",\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+            return s;
+        }
+
+        function _downloadFeeCsv(filename, rows) {
+            const csv = rows.map(r => r.map(_csvEscape).join(',')).join('\n');
+            const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function _buildFeeExportRowsFlat(fees) {
+            const cls = document.getElementById('feeRecordsClass')?.value || 'All';
+            const sec = document.getElementById('feeRecordsSection')?.value || 'All';
+            const search = (document.getElementById('feeRecordsSearch')?.value || '').trim() || 'None';
+            const generatedAt = new Date().toLocaleString();
+            const rows = [
+                ['School', _SCHOOL_NAME],
+                ['Class Filter', cls],
+                ['Section Filter', sec],
+                ['Search Filter', search],
+                ['Generated At', generatedAt],
+                [],
+                ['Student Name', 'Student ID', 'Roll Number', 'Class', 'Section', 'Fee Type', 'Total Amount', 'Paid Amount', 'Balance Amount', 'Status', 'Due Date', 'Paid Date', 'Payment Mode', 'Notes']
+            ];
+
+            fees.forEach(f => {
+                const totalAmount = parseFloat(f.amount || 0);
+                const paidAmount = parseFloat(f.paid_amount || 0);
+                const balAmount = Math.max(0, totalAmount - paidAmount);
+                rows.push([
+                    f.full_name || '',
+                    f.student_id || '',
+                    f.roll_number || '',
+                    f['class'] || '',
+                    f.section || '',
+                    f.fee_type_name || '',
+                    totalAmount.toFixed(2),
+                    paidAmount.toFixed(2),
+                    balAmount.toFixed(2),
+                    f.status || '',
+                    f.due_date || '',
+                    f.paid_date || '',
+                    f.payment_mode || '',
+                    f.notes || ''
+                ]);
+            });
+
+            return rows;
+        }
+
+        function _downloadFeeExcel(filename, fees, reportTitle) {
+            const cls = document.getElementById('feeRecordsClass')?.value || 'All';
+            const sec = document.getElementById('feeRecordsSection')?.value || 'All';
+            const search = (document.getElementById('feeRecordsSearch')?.value || '').trim() || 'None';
+            const generatedAt = new Date().toLocaleString();
+
+            const grouped = groupFeeRecordsByStudent(fees);
+            const total = fees.reduce((a, f) => a + parseFloat(f.amount || 0), 0);
+            const paidAmt = fees.reduce((a, f) => a + parseFloat(f.paid_amount || 0), 0);
+            const balance = Math.max(0, total - paidAmt);
+
+            let bodyRows = '';
+            grouped.forEach((g) => {
+                bodyRows += `
+                    <tr style="background:#eef6ff;font-weight:700;">
+                        <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(g.full_name)}</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(g.student_id || '-')}</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(g.roll_number || '-')}</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(g.class_name || '')}</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(g.section || '')}</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">STUDENT TOTAL</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">${g.total.toFixed(2)}</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">${g.paid.toFixed(2)}</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">${g.balance.toFixed(2)}</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">-</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">-</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">-</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">-</td>
+                        <td style="border:1px solid #cbd5e1;padding:6px;">-</td>
+                    </tr>`;
+
+                g.fees.forEach((f) => {
+                    const t = parseFloat(f.amount || 0);
+                    const p = parseFloat(f.paid_amount || 0);
+                    const b = Math.max(0, t - p);
+                    bodyRows += `
+                        <tr>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.full_name || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.student_id || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.roll_number || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f['class'] || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.section || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.fee_type_name || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${t.toFixed(2)}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${p.toFixed(2)}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${b.toFixed(2)}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.status || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.due_date || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.paid_date || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.payment_mode || '')}</td>
+                            <td style="border:1px solid #cbd5e1;padding:6px;">${_feeXlsEsc(f.notes || '')}</td>
+                        </tr>`;
+                });
+            });
+
+            const html = `
+                <html>
+                <head>
+                    <meta charset="UTF-8" />
+                    <style>
+                        table { border-collapse: collapse; font-family: Segoe UI, Arial, sans-serif; font-size: 12px; }
+                        th { background: #e2e8f0; border: 1px solid #cbd5e1; padding: 6px; text-align: left; }
+                        td { border: 1px solid #cbd5e1; padding: 6px; }
+                    </style>
+                </head>
+                <body>
+                    <h3>${_feeXlsEsc(reportTitle)}</h3>
+                    <table style="margin-bottom:10px;">
+                        <tr><td><strong>School</strong></td><td>${_feeXlsEsc(_SCHOOL_NAME)}</td></tr>
+                        <tr><td><strong>Class Filter</strong></td><td>${_feeXlsEsc(cls)}</td></tr>
+                        <tr><td><strong>Section Filter</strong></td><td>${_feeXlsEsc(sec)}</td></tr>
+                        <tr><td><strong>Search Filter</strong></td><td>${_feeXlsEsc(search)}</td></tr>
+                        <tr><td><strong>Generated At</strong></td><td>${_feeXlsEsc(generatedAt)}</td></tr>
+                        <tr><td><strong>Total Billed</strong></td><td>${total.toFixed(2)}</td></tr>
+                        <tr><td><strong>Total Paid</strong></td><td>${paidAmt.toFixed(2)}</td></tr>
+                        <tr><td><strong>Total Balance</strong></td><td>${balance.toFixed(2)}</td></tr>
+                    </table>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Student Name</th>
+                                <th>Student ID</th>
+                                <th>Roll Number</th>
+                                <th>Class</th>
+                                <th>Section</th>
+                                <th>Fee Type</th>
+                                <th>Total Amount</th>
+                                <th>Paid Amount</th>
+                                <th>Balance Amount</th>
+                                <th>Status</th>
+                                <th>Due Date</th>
+                                <th>Paid Date</th>
+                                <th>Payment Mode</th>
+                                <th>Notes</th>
+                            </tr>
+                        </thead>
+                        <tbody>${bodyRows}</tbody>
+                    </table>
+                </body>
+                </html>`;
+
+            const blob = new Blob(['\ufeff' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function exportFeeRecordsReport() {
+            const source = (_feeRenderedRecords && _feeRenderedRecords.length) ? _feeRenderedRecords : _feeRecords;
+            if (!source || !source.length) {
+                showFeesMsg('warning', 'No fee records available to export.');
+                return;
+            }
+            const cls = document.getElementById('feeRecordsClass')?.value || 'All';
+            const sec = document.getElementById('feeRecordsSection')?.value || 'All';
+            const dateStamp = new Date().toISOString().slice(0, 10);
+            const mode = _getFeeExportTemplate();
+            if (mode === 'previous') {
+                const fileName = `fee_report_${cls}_${sec}_${dateStamp}.csv`.replace(/\s+/g, '_');
+                _downloadFeeCsv(fileName, _buildFeeExportRowsFlat(source));
+            } else {
+                const fileName = `fee_report_${cls}_${sec}_${dateStamp}.xls`.replace(/\s+/g, '_');
+                _downloadFeeExcel(fileName, source, 'Fee Records Report');
+            }
+            showFeesMsg('success', `Exported ${source.length} fee record(s).`);
+        }
+
+        function exportStudentFeeReport(studentDbId) {
+            const source = (_feeRenderedRecords && _feeRenderedRecords.length) ? _feeRenderedRecords : _feeRecords;
+            const studentFees = (source || []).filter(f => parseInt(f.student_db_id) === parseInt(studentDbId));
+            if (!studentFees.length) {
+                showFeesMsg('warning', 'No fee records found for this student.');
+                return;
+            }
+            const studentName = (studentFees[0].full_name || 'student').replace(/[^a-z0-9_\- ]/gi, '').trim().replace(/\s+/g, '_') || 'student';
+            const dateStamp = new Date().toISOString().slice(0, 10);
+            const mode = _getFeeExportTemplate();
+            if (mode === 'previous') {
+                const fileName = `fee_report_${studentName}_${dateStamp}.csv`;
+                _downloadFeeCsv(fileName, _buildFeeExportRowsFlat(studentFees));
+            } else {
+                const fileName = `fee_report_${studentName}_${dateStamp}.xls`;
+                _downloadFeeExcel(fileName, studentFees, `Fee Records Report - ${studentFees[0].full_name || 'Student'}`);
+            }
+            showFeesMsg('success', `Exported ${studentFees.length} fee record(s) for ${studentFees[0].full_name || 'student'}.`);
+        }
+
         function submitSelectedFeePayments(studentDbId) {
             const checkboxes = document.querySelectorAll(`.fee-select-checkbox[data-student-id="${studentDbId}"]:checked`);
             if (!checkboxes.length) {
@@ -3746,16 +3983,39 @@ showStep(currentStep);
             return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
 
+        function _fmtLocalDateTime(value) {
+            if (!value) return '-';
+            if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value.trim())) return value;
+            if (typeof value === 'string') {
+                const m = value.trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+                if (m) {
+                    const d = new Date(
+                        parseInt(m[1], 10),
+                        parseInt(m[2], 10) - 1,
+                        parseInt(m[3], 10),
+                        parseInt(m[4], 10),
+                        parseInt(m[5], 10),
+                        parseInt(m[6] || '0', 10)
+                    );
+                    if (!isNaN(d.getTime())) return d.toLocaleString('en-IN');
+                }
+            }
+            const d = new Date(value);
+            if (!isNaN(d.getTime())) return d.toLocaleString('en-IN');
+            return String(value);
+        }
+
         function generateReceiptHTML(data) {
             const fmt = n => parseFloat(n || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 });
-            const today = data.paidDate || new Date().toISOString().slice(0, 10);
+            const printedAt = data.printedAt || new Date().toLocaleString('en-IN');
+            const paidOn = _fmtLocalDateTime(data.paidDate);
             const totalBilled  = data.fees.reduce((a, f) => a + f.total, 0);
             const totalPaid    = data.fees.reduce((a, f) => a + f.paid, 0);
             const totalBalance = data.fees.reduce((a, f) => a + f.balance, 0);
             const feeRowsHtml = data.fees.map((f, i) =>
                 '<tr>' +
                 '<td style="padding:8px 12px;">' + (i+1) + '</td>' +
-                '<td style="padding:8px 12px;">' + _esc(f.feeType) + '</td>' +
+                '<td style="padding:8px 12px;">' + _esc(f.feeType) + (f.notes ? ' <span style="color:#64748b;">(' + _esc(f.notes) + ')</span>' : '') + '</td>' +
                 '<td style="padding:8px 12px;">&#8377;' + fmt(f.total) + '</td>' +
                 '<td style="padding:8px 12px;color:#16a34a;font-weight:600;">&#8377;' + fmt(f.paid) + '</td>' +
                 '<td style="padding:8px 12px;color:' + (f.balance > 0 ? '#d97706' : '#16a34a') + ';font-weight:600;">&#8377;' + fmt(f.balance) + '</td>' +
@@ -3766,7 +4026,7 @@ showStep(currentStep);
                 '<body><div class="receipt">' +
                 '<div class="cbar"><button class="bp" onclick="window.print()">&#128424; Print</button><button class="bc" onclick="window.close()">&#215; Close</button></div>' +
                 '<div class="header"><div class="school-name">' + _esc(data.schoolName) + '</div><div class="receipt-title">&#128196; Fee Payment Receipt</div></div>' +
-                '<div class="rmeta"><div><strong>Receipt No:</strong> ' + _esc(data.receiptNo) + '</div><div><strong>Date:</strong> ' + _esc(today) + '</div></div>' +
+                '<div class="rmeta"><div><strong>Receipt No:</strong> ' + _esc(data.receiptNo) + '</div><div><strong>Paid On:</strong> ' + _esc(paidOn) + '</div></div>' +
                 '<div class="sbox"><h3>Student Details</h3><div class="sgrid">' +
                 '<div><span class="sl">Name: </span><span class="sv">' + _esc(data.studentName) + '</span></div>' +
                 '<div><span class="sl">Student ID: </span><span class="sv">' + _esc(data.studentId) + '</span></div>' +
@@ -3777,7 +4037,7 @@ showStep(currentStep);
                 '<tbody>' + feeRowsHtml +
                 '<tr class="ftr"><td colspan="2">TOTAL</td><td>&#8377;' + fmt(totalBilled) + '</td><td style="color:#16a34a;">&#8377;' + fmt(totalPaid) + '</td><td style="color:' + (totalBalance > 0 ? '#d97706' : '#16a34a') + ';">&#8377;' + fmt(totalBalance) + '</td></tr>' +
                 '</tbody></table>' +
-                '<div class="ppill"><span>Payment Mode: <strong>' + _esc(data.paymentMode || 'Cash') + '</strong></span><span>Paid On: <strong>' + _esc(today) + '</strong></span>' + (data.notes ? '<span>Notes: <strong>' + _esc(data.notes) + '</strong></span>' : '') + '</div>' +
+                '<div class="ppill"><span>Payment Mode: <strong>' + _esc(data.paymentMode || 'Cash') + '</strong></span><span>Printed On: <strong>' + _esc(printedAt) + '</strong></span>' + (data.notes ? '<span>Notes: <strong>' + _esc(data.notes) + '</strong></span>' : '') + '</div>' +
                 '<div class="footer"><div class="fnote">This is a computer-generated receipt.<br>Thank you for your payment!</div><div><div class="sline">Authorized Signatory</div></div></div>' +
                 '</div></body></html>';
         }
@@ -3873,6 +4133,7 @@ showStep(currentStep);
         }
 
         function _doThermalPrint(data) {
+            data.printedAt = data.printedAt || new Date().toLocaleString('en-IN');
             fetch('/api/fees/auto-print', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || '' },
@@ -3891,6 +4152,7 @@ showStep(currentStep);
         }
 
         function _doBrowserPrint(data) {
+            data.printedAt = new Date().toLocaleString('en-IN');
             const w = window.open('', '_blank', 'width=660,height=780,scrollbars=yes');
             if (!w) { alert('Please allow pop-ups to print the receipt.'); return; }
             w.document.write(generateReceiptHTML(data));
@@ -3900,6 +4162,7 @@ showStep(currentStep);
 
         function printFeeReceipt(data) {
             data.schoolName = data.schoolName || _SCHOOL_NAME;
+            data.printedAt = data.printedAt || new Date().toLocaleString('en-IN');
             _showPrinterModal(
                 () => _doThermalPrint(data),
                 () => _doBrowserPrint(data)
@@ -3917,9 +4180,9 @@ showStep(currentStep);
                 studentId: rec.student_id || '\u2014',
                 roll: rec.roll_number || '\u2014',
                 classSection: (rec['class'] || '') + (rec.section ? ' - ' + rec.section : ''),
-                fees: [{ feeType: rec.fee_type_name, total, paid, balance: Math.max(0, total - paid) }],
+                fees: [{ feeType: rec.fee_type_name, total, paid, balance: Math.max(0, total - paid), notes: rec.notes || '' }],
                 paymentMode: rec.payment_mode || 'Cash',
-                paidDate: rec.paid_date || new Date().toISOString().slice(0, 10),
+                paidDate: rec.paid_at || rec.paid_date || '-',
                 notes: rec.notes || ''
             });
         }
@@ -3937,7 +4200,7 @@ showStep(currentStep);
                 fees: groupFees.map(f => {
                     const t = parseFloat(f.amount || 0);
                     const p = parseFloat(f.paid_amount || 0);
-                    return { feeType: f.fee_type_name, total: t, paid: p, balance: Math.max(0, t - p) };
+                    return { feeType: f.fee_type_name, total: t, paid: p, balance: Math.max(0, t - p), notes: f.notes || '' };
                 }),
                 paymentMode: paymentMode || 'Cash',
                 paidDate: new Date().toISOString().slice(0, 10),
