@@ -1187,6 +1187,89 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- ====== ATTENDANCE MANUAL OVERRIDE ====== -->
+                    <div class="attendance-rule-card mt-4">
+                        <div class="attendance-rule-header" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+                            <div class="attendance-rule-title">
+                                <i class="bi bi-pencil-square" style="font-size:1.3rem;"></i>
+                                <div>
+                                    <h5>Attendance Manual Override</h5>
+                                    <p style="margin: 0; font-size: .82rem; opacity: .88;">Manually adjust student attendance system statuses.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="attendance-rule-body">
+                            <!-- Filters -->
+                            <div class="d-flex flex-wrap gap-3 mb-4 align-items-end">
+                                <div style="flex: 1; min-width: 150px;">
+                                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #475569;">Select Class</label>
+                                    <select class="form-select" id="overrideClassSelect">
+                                        <option value="">Choose Class</option>
+                                        {% for class_name in unique_classes %}
+                                        <option value="{{ class_name }}">{{ class_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div style="flex: 1; min-width: 150px;">
+                                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #475569;">Select Section</label>
+                                    <select class="form-select" id="overrideSectionSelect">
+                                        <option value="">Choose Section</option>
+                                        {% for section in unique_sections %}
+                                        <option value="{{ section }}">{{ section }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div style="flex: 1; min-width: 150px;">
+                                    <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #475569;">Date</label>
+                                    <input type="date" class="form-control" id="overrideDateSelect">
+                                </div>
+                                <div>
+                                    <button class="btn btn-primary px-4 py-2" style="background: #2563eb; border-color: #2563eb; font-weight: 600; border-radius: 8px;">
+                                        <i class="bi bi-funnel"></i> Filter
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- Table -->
+                            <div class="table-responsive" style="border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden;">
+                                <table class="table mb-0 table-hover align-middle">
+                                    <thead style="background: #f8fafc;">
+                                        <tr>
+                                            <th style="font-size: 0.8rem; color: #475569; font-weight: 600; text-transform: uppercase; padding: 1rem;">Student ID</th>
+                                            <th style="font-size: 0.8rem; color: #475569; font-weight: 600; text-transform: uppercase; padding: 1rem;">Student Name</th>
+                                            <th style="font-size: 0.8rem; color: #475569; font-weight: 600; text-transform: uppercase; padding: 1rem;">System Calculated Status</th>
+                                            <th style="font-size: 0.8rem; color: #475569; font-weight: 600; text-transform: uppercase; padding: 1rem;">Override Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <!-- Dummy row for visual representation -->
+                                        <tr>
+                                            <td style="font-weight: 600; color: #1e293b; padding: 1rem;">STU-001</td>
+                                            <td style="padding: 1rem;">
+                                                <div class="fw-semibold text-dark">John Doe</div>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <span class="badge" style="background-color: #f1f5f9; color: #475569; padding: 0.55em 0.85em; border-radius: 6px; font-weight: 600; border: 1px solid #e2e8f0;">Not Marked</span>
+                                            </td>
+                                            <td style="padding: 1rem;">
+                                                <div class="btn-group" role="group">
+                                                    <input type="radio" class="btn-check" name="override_stu1" id="stu1_present" autocomplete="off">
+                                                    <label class="btn btn-outline-success btn-sm fw-medium px-3" for="stu1_present">Present</label>
+
+                                                    <input type="radio" class="btn-check" name="override_stu1" id="stu1_absent" autocomplete="off">
+                                                    <label class="btn btn-outline-danger btn-sm fw-medium px-3" for="stu1_absent">Absent</label>
+
+                                                    <input type="radio" class="btn-check" name="override_stu1" id="stu1_late" autocomplete="off">
+                                                    <label class="btn btn-outline-warning btn-sm fw-medium px-3" for="stu1_late">Late</label>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <!-- ====== DASHBOARD VIEW ====== -->
