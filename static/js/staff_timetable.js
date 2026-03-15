@@ -399,26 +399,33 @@ function renderSwapRequests() {
         return;
     }
     
-    container.innerHTML = pendingRequests.map(req => `
-        <div class="request-card-compact">
-            <div class="request-info">
-                <div class="requester-name">
-                    <i class="bi bi-person-circle"></i> ${req.requester_name}
+    container.innerHTML = pendingRequests.map(req => {
+        const requestId = req.id ?? req.request_id ?? null;
+        const requestIdValue = requestId ?? 'null';
+        const assignmentIdValue = req.assignment_id ?? 'null';
+        const requesterIdValue = req.requester_id ?? 'null';
+
+        return `
+            <div class="request-card-compact">
+                <div class="request-info">
+                    <div class="requester-name">
+                        <i class="bi bi-person-circle"></i> ${req.requester_name}
+                    </div>
+                    <div class="request-period-info">
+                        ${req.class_subject || 'Unknown Class'} • ${req.period_name || `Period ${req.period_number}`} • ${req.start_time} - ${req.end_time}
+                    </div>
                 </div>
-                <div class="request-period-info">
-                    ${req.class_subject || 'Unknown Class'} • ${req.period_name || `Period ${req.period_number}`} • ${req.start_time} - ${req.end_time}
+                <div class="request-actions-compact">
+                    <button class="btn-icon btn-accept-icon" onclick="acceptSwapRequest(${requestIdValue}, ${assignmentIdValue}, ${requesterIdValue})" title="Accept">
+                        <i class="bi bi-check-lg"></i>
+                    </button>
+                    <button class="btn-icon btn-reject-icon" onclick="rejectSwapRequest(${requestIdValue}, ${assignmentIdValue}, ${requesterIdValue})" title="Reject">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
                 </div>
             </div>
-            <div class="request-actions-compact">
-                <button class="btn-icon btn-accept-icon" onclick="acceptSwapRequest(${req.id})" title="Accept">
-                    <i class="bi bi-check-lg"></i>
-                </button>
-                <button class="btn-icon btn-reject-icon" onclick="rejectSwapRequest(${req.id})" title="Reject">
-                    <i class="bi bi-x-lg"></i>
-                </button>
-            </div>
-        </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 function showSwapModal(assignmentId) {
@@ -551,12 +558,19 @@ function submitSwapRequest() {
     });
 }
 
-function acceptSwapRequest(requestId) {
+function acceptSwapRequest(requestId, assignmentId = null, requesterId = null) {
+    if (!requestId && (!assignmentId || !requesterId)) {
+        showAlert('Invalid swap request data. Please refresh and try again.', 'error');
+        return;
+    }
+
     if (!confirm('Accept this swap request?')) return;
     
     const data = {
         school_id: schoolId,
         request_id: requestId,
+        assignment_id: assignmentId,
+        requester_staff_id: requesterId,
         accept: true,
         response_reason: ''
     };
@@ -582,12 +596,19 @@ function acceptSwapRequest(requestId) {
     .catch(err => console.error('Error accepting request:', err));
 }
 
-function rejectSwapRequest(requestId) {
+function rejectSwapRequest(requestId, assignmentId = null, requesterId = null) {
+    if (!requestId && (!assignmentId || !requesterId)) {
+        showAlert('Invalid swap request data. Please refresh and try again.', 'error');
+        return;
+    }
+
     if (!confirm('Reject this swap request?')) return;
     
     const data = {
         school_id: schoolId,
         request_id: requestId,
+        assignment_id: assignmentId,
+        requester_staff_id: requesterId,
         accept: false,
         response_reason: 'Request rejected'
     };

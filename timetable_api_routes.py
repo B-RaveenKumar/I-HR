@@ -1306,6 +1306,7 @@ def get_swap_requests():
             
             requests.append({
                 'id': row['id'],
+                'request_id': row['id'],
                 'requester_id': row['requester_staff_id'],
                 'requester_name': row['requester_name'],
                 'requester_dept': row['requester_dept'],
@@ -1366,38 +1367,103 @@ def request_swap():
 def respond_swap():
     """Accept or reject a swap request"""
     try:
-        data = request.get_json()
-        request_id = data.get('request_id')
+        data = request.get_json(silent=True) or request.form.to_dict(flat=True) or {}
+        request_id = data.get('request_id') or data.get('id') or data.get('swap_request_id')
         accept = data.get('accept', False)
         reason = data.get('response_reason', '')
         staff_id = session.get('user_id')
-        
-        if not request_id:
-            return jsonify({'success': False, 'error': 'Request ID mandatory'}), 400
-            
+        school_id = data.get('school_id') or session.get('school_id')
+        assignment_id = data.get('assignment_id')
+        requester_staff_id = data.get('requester_staff_id') or data.get('requester_id')
+
+        try:
+            request_id = int(request_id) if request_id not in (None, '') else None
+        except (TypeError, ValueError):
+            request_id = None
+
+        try:
+            assignment_id = int(assignment_id) if assignment_id not in (None, '') else None
+        except (TypeError, ValueError):
+            assignment_id = None
+
+        try:
+            requester_staff_id = int(requester_staff_id) if requester_staff_id not in (None, '') else None
+        except (TypeError, ValueError):
+            requester_staff_id = None
+
+        if isinstance(accept, str):
+            accept = accept.strip().lower() in ('1', 'true', 'yes', 'accept', 'approve', 'approved')
+        else:
+            accept = bool(accept)
+
         db = get_db()
         cursor = db.cursor()
-        
-        # Verify target is the logged in user
-        cursor.execute('SELECT * FROM timetable_alteration_requests WHERE id = ?', (request_id,))
-        req_row = cursor.fetchone()
-        if not req_row or (req_row['target_staff_id'] is not None and int(req_row['target_staff_id']) != int(staff_id)):
-            return jsonify({'success': False, 'error': 'Unauthorized'}), 403
-            
+
         status = 'accepted' if accept else 'rejected'
-        cursor.execute('''
-            UPDATE timetable_alteration_requests 
-            SET status = ?, response_reason = ?, responded_by = ?, responded_at = CURRENT_TIMESTAMP
-            WHERE id = ?
-        ''', (status, reason, staff_id, request_id))
-        
+
+        # Preferred path: explicit request id.
+        if request_id:
+            cursor.execute('SELECT * FROM timetable_alteration_requests WHERE id = ?', (request_id,))
+            req_row = cursor.fetchone()
+            if not req_row or (req_row['target_staff_id'] is not None and int(req_row['target_staff_id']) != int(staff_id)):
+                return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+            cursor.execute('''
+                UPDATE timetable_alteration_requests
+                SET status = ?, response_reason = ?, responded_by = ?, responded_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (status, reason, staff_id, request_id))
+
+            assignment_for_swap = req_row['assignment_id']
+
+        # Fallback path: process by request context when legacy rows have NULL id.
+        elif assignment_id and requester_staff_id and school_id and staff_id:
+            cursor.execute('''
+                SELECT *
+                FROM timetable_alteration_requests
+                WHERE school_id = ?
+                  AND target_staff_id = ?
+                  AND assignment_id = ?
+                  AND requester_staff_id = ?
+                  AND status = 'pending'
+                ORDER BY created_at DESC
+                LIMIT 1
+            ''', (school_id, staff_id, assignment_id, requester_staff_id))
+            req_row = cursor.fetchone()
+
+            if not req_row:
+                return jsonify({'success': False, 'error': 'No pending request found for this assignment'}), 404
+
+            cursor.execute('''
+                UPDATE timetable_alteration_requests
+                SET status = ?, response_reason = ?, responded_by = ?, responded_at = CURRENT_TIMESTAMP
+                WHERE school_id = ?
+                  AND target_staff_id = ?
+                  AND assignment_id = ?
+                  AND requester_staff_id = ?
+                  AND status = 'pending'
+            ''', (status, reason, staff_id, school_id, staff_id, assignment_id, requester_staff_id))
+
+            assignment_for_swap = req_row['assignment_id']
+
+        else:
+            return jsonify({
+                'success': False,
+                'error': 'Request ID mandatory',
+                'received': {
+                    'request_id': data.get('request_id'),
+                    'assignment_id': assignment_id,
+                    'requester_staff_id': requester_staff_id
+                }
+            }), 400
+
         if accept:
             # Swap the staff on the assignment (use hierarchical_assignments table)
             cursor.execute('''
-                UPDATE timetable_hierarchical_assignments 
+                UPDATE timetable_hierarchical_assignments
                 SET staff_id = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-            ''', (staff_id, req_row['assignment_id']))
+            ''', (staff_id, assignment_for_swap))
             
         db.commit()
         return jsonify({'success': True, 'message': f'Request {status} successfully'})
