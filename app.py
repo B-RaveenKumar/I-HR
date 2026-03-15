@@ -6334,6 +6334,199 @@ def api_student_attendance_rules():
         return jsonify({'success': False, 'error': f'Could not load attendance rules: {str(e)}'}), 500
 
 
+@app.route('/api/student-attendance-override-data')
+def api_student_attendance_override_data():
+    """Return class/section/date scoped student attendance for admin manual override."""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    try:
+        school_id = session['school_id']
+        class_name = (request.args.get('class') or '').strip()
+        section_name = (request.args.get('section') or '').strip()
+        attendance_date = (request.args.get('date') or '').strip()
+
+        if not class_name or not section_name or not attendance_date:
+            return jsonify({'success': False, 'error': 'Class, section and date are required'}), 400
+
+        try:
+            datetime.datetime.strptime(attendance_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid date format'}), 400
+
+        db = get_db()
+        rows = db.execute('''
+            SELECT s.id, s.student_id, s.full_name, s.roll_number, s.`class`, s.section,
+                   sa.morning_status, sa.afternoon_status, sa.morning_time, sa.afternoon_time
+            FROM students s
+            LEFT JOIN student_attendance sa
+                ON sa.student_id = s.id AND sa.attendance_date = ?
+            WHERE s.school_id = ?
+              AND s.`class` = ?
+              AND s.section = ?
+            ORDER BY COALESCE(NULLIF(TRIM(s.roll_number), ''), s.student_id), s.full_name
+        ''', (attendance_date, school_id, class_name, section_name)).fetchall()
+
+        def _serialize_time_value(value):
+            if value is None:
+                return ''
+            if isinstance(value, str):
+                return value
+            try:
+                return value.strftime('%H:%M:%S')
+            except Exception:
+                try:
+                    return value.isoformat()
+                except Exception:
+                    return str(value)
+
+        students = []
+        for row in rows:
+            students.append({
+                'id': row['id'],
+                'student_id': row['student_id'],
+                'full_name': row['full_name'],
+                'roll_number': row['roll_number'] or '',
+                'class': row['class'],
+                'section': row['section'],
+                'morning_status': (row['morning_status'] or '').lower(),
+                'afternoon_status': (row['afternoon_status'] or '').lower(),
+                'morning_time': _serialize_time_value(row['morning_time']),
+                'afternoon_time': _serialize_time_value(row['afternoon_time'])
+            })
+
+        return jsonify({
+            'success': True,
+            'class': class_name,
+            'section': section_name,
+            'date': attendance_date,
+            'students': students
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Failed to load override data: {str(e)}'}), 500
+
+
+@app.route('/api/student-attendance-override-save', methods=['POST'])
+def api_student_attendance_override_save():
+    """Persist admin manual override attendance statuses for morning and afternoon sessions."""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    try:
+        payload = request.get_json(silent=True) or {}
+        attendance_date = (payload.get('date') or '').strip()
+        updates = payload.get('updates', [])
+
+        if not attendance_date:
+            return jsonify({'success': False, 'error': 'Date is required'}), 400
+        if not isinstance(updates, list) or not updates:
+            return jsonify({'success': False, 'error': 'No attendance updates provided'}), 400
+
+        try:
+            datetime.datetime.strptime(attendance_date, '%Y-%m-%d')
+        except ValueError:
+            return jsonify({'success': False, 'error': 'Invalid date format'}), 400
+
+        valid_statuses = {'', 'present', 'absent', 'late', 'leave'}
+        school_id = session['school_id']
+        session_user_id = session['user_id']
+        now_time = datetime.datetime.now().strftime('%H:%M:%S')
+
+        db = get_db()
+
+        # morning_marked_by/afternoon_marked_by reference staff.id.
+        # For admin accounts that are not present in staff, store NULL to avoid FK violations.
+        marker_row = db.execute('''
+            SELECT id
+            FROM staff
+            WHERE id = ? AND school_id = ?
+        ''', (session_user_id, school_id)).fetchone()
+        marked_by_staff_id = marker_row['id'] if marker_row else None
+
+        for item in updates:
+            try:
+                student_id = int(item.get('student_id'))
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'error': 'Invalid student id in update payload'}), 400
+
+            belongs = db.execute('''
+                SELECT id
+                FROM students
+                WHERE id = ? AND school_id = ?
+            ''', (student_id, school_id)).fetchone()
+            if not belongs:
+                return jsonify({'success': False, 'error': f'Invalid student id: {student_id}'}), 400
+
+            morning_status = (item.get('morning_status') or '').strip().lower()
+            afternoon_status = (item.get('afternoon_status') or '').strip().lower()
+
+            if morning_status not in valid_statuses or afternoon_status not in valid_statuses:
+                return jsonify({'success': False, 'error': 'Invalid attendance status supplied'}), 400
+
+            existing = db.execute('''
+                SELECT id, morning_time, afternoon_time
+                FROM student_attendance
+                WHERE student_id = ? AND attendance_date = ?
+            ''', (student_id, attendance_date)).fetchone()
+
+            morning_time = now_time if morning_status else None
+            afternoon_time = now_time if afternoon_status else None
+
+            if existing:
+                db.execute('''
+                    UPDATE student_attendance
+                    SET morning_status = ?,
+                        morning_time = ?,
+                        morning_marked_by = ?,
+                        morning_notes = ?,
+                        afternoon_status = ?,
+                        afternoon_time = ?,
+                        afternoon_marked_by = ?,
+                        afternoon_notes = ?
+                    WHERE student_id = ? AND attendance_date = ?
+                ''', (
+                    morning_status if morning_status else None,
+                    morning_time,
+                    marked_by_staff_id if morning_status else None,
+                    'Admin manual override' if morning_status else None,
+                    afternoon_status if afternoon_status else None,
+                    afternoon_time,
+                    marked_by_staff_id if afternoon_status else None,
+                    'Admin manual override' if afternoon_status else None,
+                    student_id,
+                    attendance_date
+                ))
+            else:
+                db.execute('''
+                    INSERT INTO student_attendance (
+                        student_id, school_id, attendance_date,
+                        morning_status, morning_time, morning_marked_by, morning_notes,
+                        afternoon_status, afternoon_time, afternoon_marked_by, afternoon_notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    student_id,
+                    school_id,
+                    attendance_date,
+                    morning_status if morning_status else None,
+                    morning_time,
+                    marked_by_staff_id if morning_status else None,
+                    'Admin manual override' if morning_status else None,
+                    afternoon_status if afternoon_status else None,
+                    afternoon_time,
+                    marked_by_staff_id if afternoon_status else None,
+                    'Admin manual override' if afternoon_status else None
+                ))
+
+        db.commit()
+        return jsonify({'success': True, 'message': 'Attendance override saved successfully'})
+    except Exception as e:
+        try:
+            get_db().rollback()
+        except Exception:
+            pass
+        return jsonify({'success': False, 'error': f'Failed to save attendance override: {str(e)}'}), 500
+
+
 # ========================= FEE MANAGEMENT APIs =========================
 
 def _fee_print_user_authorized():

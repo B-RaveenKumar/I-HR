@@ -1190,7 +1190,7 @@
 
                     <!-- ====== ATTENDANCE MANUAL OVERRIDE ====== -->
                     <div class="attendance-rule-card mt-4">
-                        <div class="attendance-rule-header" style="background: linear-gradient(135deg, #1e293b 0%, #334155 100%);">
+                        <div class="attendance-rule-header">
                             <div class="attendance-rule-title">
                                 <i class="bi bi-pencil-square" style="font-size:1.3rem;"></i>
                                 <div>
@@ -1201,7 +1201,7 @@
                         </div>
                         <div class="attendance-rule-body">
                             <!-- Filters -->
-                            <div class="d-flex flex-wrap gap-3 mb-4 align-items-end">
+                            <div class="d-flex flex-wrap gap-3 mb-4 align-items-start">
                                 <div style="flex: 1; min-width: 150px;">
                                     <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #475569;">Select Class</label>
                                     <select class="form-select" id="overrideClassSelect">
@@ -1223,12 +1223,12 @@
                                 <div style="flex: 1; min-width: 150px;">
                                     <label class="form-label" style="font-size: 0.8rem; font-weight: 600; color: #475569;">Date</label>
                                     <input type="date" class="form-control" id="overrideDateSelect">
+                                    <small id="overrideDayText" class="d-block mt-1" style="color:#0f766e; font-weight:600;"></small>
                                 </div>
-                                <div>
-                                    <button class="btn btn-primary px-4 py-2" style="background: #2563eb; border-color: #2563eb; font-weight: 600; border-radius: 8px;">
-                                        <i class="bi bi-funnel"></i> Filter
-                                    </button>
-                                </div>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                                <small id="overrideInfoText" class="text-muted">Select class, section and date to load attendance automatically.</small>
+                                <small id="overrideFeedback" class="text-muted"></small>
                             </div>
 
                             <!-- Table -->
@@ -1242,31 +1242,17 @@
                                             <th style="font-size: 0.8rem; color: #475569; font-weight: 600; text-transform: uppercase; padding: 1rem;">Override Action</th>
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        <!-- Dummy row for visual representation -->
+                                    <tbody id="overrideAttendanceBody">
                                         <tr>
-                                            <td style="font-weight: 600; color: #1e293b; padding: 1rem;">STU-001</td>
-                                            <td style="padding: 1rem;">
-                                                <div class="fw-semibold text-dark">John Doe</div>
-                                            </td>
-                                            <td style="padding: 1rem;">
-                                                <span class="badge" style="background-color: #f1f5f9; color: #475569; padding: 0.55em 0.85em; border-radius: 6px; font-weight: 600; border: 1px solid #e2e8f0;">Not Marked</span>
-                                            </td>
-                                            <td style="padding: 1rem;">
-                                                <div class="btn-group" role="group">
-                                                    <input type="radio" class="btn-check" name="override_stu1" id="stu1_present" autocomplete="off">
-                                                    <label class="btn btn-outline-success btn-sm fw-medium px-3" for="stu1_present">Present</label>
-
-                                                    <input type="radio" class="btn-check" name="override_stu1" id="stu1_absent" autocomplete="off">
-                                                    <label class="btn btn-outline-danger btn-sm fw-medium px-3" for="stu1_absent">Absent</label>
-
-                                                    <input type="radio" class="btn-check" name="override_stu1" id="stu1_late" autocomplete="off">
-                                                    <label class="btn btn-outline-warning btn-sm fw-medium px-3" for="stu1_late">Late</label>
-                                                </div>
-                                            </td>
+                                            <td colspan="4" class="text-center py-4 text-muted">Select class, section and date to load attendance records.</td>
                                         </tr>
                                     </tbody>
                                 </table>
+                            </div>
+                            <div class="d-flex justify-content-end mt-3">
+                                <button type="button" class="btn btn-success" id="saveOverrideAttendanceBtn" disabled>
+                                    <i class="bi bi-check2-circle me-1"></i>Save Attendance Override
+                                </button>
                             </div>
                         </div>
                     </div>
@@ -3091,6 +3077,8 @@ showStep(currentStep);
         // Initialize custom fields on page load
         document.addEventListener('DOMContentLoaded', function() {
             loadCustomFields();
+            initAttendanceOverride();
+            tryAutoLoadOverrideAttendance();
         });
 
         // ======== VIEW SWITCHING ========
@@ -3115,7 +3103,11 @@ showStep(currentStep);
 
             // Load dashboard data when switching to dashboard
             if (viewName === 'dashboard') loadDashboardData();
-            if (viewName === 'attendance') loadAttendanceRules();
+            if (viewName === 'attendance') {
+                loadAttendanceRules();
+                initAttendanceOverride();
+                tryAutoLoadOverrideAttendance();
+            }
         }
 
         let attendanceRuleState = {
@@ -3258,6 +3250,325 @@ showStep(currentStep);
             attendanceRuleState.mode = 'selected';
             updateAttendanceRulesModeUI();
         });
+
+        let attendanceOverrideState = {
+            initialized: false,
+            loading: false,
+            rows: []
+        };
+
+        function setOverrideFeedback(message, isError = false) {
+            const feedback = document.getElementById('overrideFeedback');
+            if (!feedback) return;
+            feedback.textContent = message || '';
+            feedback.style.color = isError ? '#b91c1c' : '#166534';
+        }
+
+        function statusBadgeHtml(status) {
+            const normalized = (status || '').toLowerCase();
+            if (!normalized) {
+                return '<span class="badge" style="background-color:#f1f5f9;color:#475569;padding:0.55em 0.85em;border-radius:6px;font-weight:600;border:1px solid #e2e8f0;">Not Marked</span>';
+            }
+
+            const badgeMap = {
+                present: 'success',
+                absent: 'danger',
+                late: 'warning text-dark',
+                leave: 'info'
+            };
+            const labelMap = {
+                present: 'Present',
+                absent: 'Absent',
+                late: 'Late',
+                leave: 'On Leave'
+            };
+            const cls = badgeMap[normalized] || 'secondary';
+            const label = labelMap[normalized] || 'Not Marked';
+            return `<span class="badge bg-${cls}">${label}</span>`;
+        }
+
+        function overrideSelectHtml(studentId, sessionName, selectedValue) {
+            const current = (selectedValue || '').toLowerCase();
+            const options = [
+                { value: '', label: 'Not Marked' },
+                { value: 'present', label: 'Present' },
+                { value: 'absent', label: 'Absent' },
+                { value: 'late', label: 'Late' },
+                { value: 'leave', label: 'On Leave' }
+            ];
+
+            const optionHtml = options.map((opt) => {
+                const selected = opt.value === current ? 'selected' : '';
+                return `<option value="${opt.value}" ${selected}>${opt.label}</option>`;
+            }).join('');
+
+            return `<select class="form-select form-select-sm override-status-select" data-student-id="${studentId}" data-session="${sessionName}" style="min-width:130px;">${optionHtml}</select>`;
+        }
+
+        function renderOverrideRows(students) {
+            const tbody = document.getElementById('overrideAttendanceBody');
+            const saveBtn = document.getElementById('saveOverrideAttendanceBtn');
+            if (!tbody) return;
+
+            attendanceOverrideState.rows = Array.isArray(students) ? students : [];
+
+            if (!attendanceOverrideState.rows.length) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">No students found for the selected class and section.</td></tr>';
+                if (saveBtn) saveBtn.disabled = true;
+                return;
+            }
+
+            const rowsHtml = attendanceOverrideState.rows.map((student) => {
+                const studentId = Number(student.id);
+                const rollText = student.roll_number ? ` (Roll: ${escapeHtml(student.roll_number)})` : '';
+                const morningSystemStatus = student.morning_status || '';
+                const afternoonSystemStatus = student.afternoon_status || '';
+                const morningSelect = overrideSelectHtml(studentId, 'morning', student.morning_status);
+                const afternoonSelect = overrideSelectHtml(studentId, 'afternoon', student.afternoon_status);
+
+                return `
+                    <tr>
+                        <td style="font-weight: 600; color: #1e293b; padding: 1rem;">${escapeHtml(student.student_id || '-')}</td>
+                        <td style="padding: 1rem;">
+                            <div class="fw-semibold text-dark">${escapeHtml(student.full_name || '-')}</div>
+                            <small class="text-muted">${escapeHtml((student.class || '-') + ' - ' + (student.section || '-'))}${rollText}</small>
+                        </td>
+                        <td style="padding: 1rem;">
+                            <div class="d-flex flex-column gap-1">
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted" style="min-width:68px;">Morning</small>
+                                    ${statusBadgeHtml(morningSystemStatus)}
+                                </div>
+                                <div class="d-flex align-items-center gap-2">
+                                    <small class="text-muted" style="min-width:68px;">Afternoon</small>
+                                    ${statusBadgeHtml(afternoonSystemStatus)}
+                                </div>
+                            </div>
+                        </td>
+                        <td style="padding: 1rem;">
+                            <div class="d-flex flex-wrap gap-2">
+                                <div>
+                                    <small class="text-muted d-block">Morning</small>
+                                    ${morningSelect}
+                                </div>
+                                <div>
+                                    <small class="text-muted d-block">Afternoon</small>
+                                    ${afternoonSelect}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = rowsHtml;
+            if (saveBtn) saveBtn.disabled = false;
+        }
+
+        function updateOverrideSectionOptions() {
+            const classSelect = document.getElementById('overrideClassSelect');
+            const sectionSelect = document.getElementById('overrideSectionSelect');
+            if (!classSelect || !sectionSelect) return;
+
+            const selectedClass = classSelect.value;
+            const prevSection = sectionSelect.value;
+            const sections = (_sectionsByClass && selectedClass) ? (_sectionsByClass[selectedClass] || []) : [];
+
+            sectionSelect.innerHTML = '<option value="">Choose Section</option>';
+            sections.forEach((sectionName) => {
+                const option = document.createElement('option');
+                option.value = sectionName;
+                option.textContent = sectionName;
+                sectionSelect.appendChild(option);
+            });
+
+            if (sections.includes(prevSection)) {
+                sectionSelect.value = prevSection;
+            }
+        }
+
+        function getOverrideFilters() {
+            const classSelect = document.getElementById('overrideClassSelect');
+            const sectionSelect = document.getElementById('overrideSectionSelect');
+            const dateSelect = document.getElementById('overrideDateSelect');
+
+            return {
+                className: classSelect ? classSelect.value : '',
+                sectionName: sectionSelect ? sectionSelect.value : '',
+                attendanceDate: dateSelect ? dateSelect.value : ''
+            };
+        }
+
+        function formatOverrideDateWithDay(dateValue) {
+            if (!dateValue) return '';
+            const parsed = new Date(`${dateValue}T00:00:00`);
+            if (Number.isNaN(parsed.getTime())) return dateValue;
+
+            const dayName = parsed.toLocaleDateString('en-GB', { weekday: 'long' });
+            const formattedDate = parsed.toLocaleDateString('en-GB', {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            });
+            return `${dayName}, ${formattedDate}`;
+        }
+
+        function updateOverrideDayText() {
+            const dateSelect = document.getElementById('overrideDateSelect');
+            const dayText = document.getElementById('overrideDayText');
+            if (!dateSelect || !dayText) return;
+
+            const readable = formatOverrideDateWithDay(dateSelect.value);
+            dayText.textContent = readable ? `Day: ${readable}` : '';
+        }
+
+        function tryAutoLoadOverrideAttendance() {
+            if (attendanceOverrideState.loading) return;
+
+            const filters = getOverrideFilters();
+            const infoText = document.getElementById('overrideInfoText');
+            const tbody = document.getElementById('overrideAttendanceBody');
+            const saveBtn = document.getElementById('saveOverrideAttendanceBtn');
+            updateOverrideDayText();
+
+            if (!filters.className || !filters.sectionName || !filters.attendanceDate) {
+                if (infoText) {
+                    infoText.textContent = 'Select class, section and date to load attendance automatically.';
+                }
+                if (tbody) {
+                    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Select class, section and date to load attendance records.</td></tr>';
+                }
+                if (saveBtn) saveBtn.disabled = true;
+                setOverrideFeedback('');
+                return;
+            }
+
+            if (infoText) {
+                const readableDate = formatOverrideDateWithDay(filters.attendanceDate) || filters.attendanceDate;
+                infoText.textContent = `Showing ${filters.className} - ${filters.sectionName} on ${readableDate}`;
+            }
+
+            if (tbody) {
+                tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-muted">Loading attendance records...</td></tr>';
+            }
+            if (saveBtn) saveBtn.disabled = true;
+
+            attendanceOverrideState.loading = true;
+            setOverrideFeedback('Loading attendance...', false);
+
+            const query = new URLSearchParams({
+                class: filters.className,
+                section: filters.sectionName,
+                date: filters.attendanceDate
+            });
+
+            fetch(`/api/student-attendance-override-data?${query.toString()}`)
+                .then((response) => response.json())
+                .then((data) => {
+                    if (!data.success) {
+                        throw new Error(data.error || 'Failed to load attendance data');
+                    }
+                    renderOverrideRows(data.students || []);
+                    setOverrideFeedback('Attendance loaded', false);
+                })
+                .catch((error) => {
+                    if (tbody) {
+                        tbody.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-danger">${escapeHtml(error.message || 'Failed to load attendance')}</td></tr>`;
+                    }
+                    setOverrideFeedback(error.message || 'Failed to load attendance', true);
+                })
+                .finally(() => {
+                    attendanceOverrideState.loading = false;
+                });
+        }
+
+        function saveOverrideAttendance() {
+            const filters = getOverrideFilters();
+            if (!filters.className || !filters.sectionName || !filters.attendanceDate) {
+                setOverrideFeedback('Please choose class, section and date first', true);
+                return;
+            }
+
+            const saveBtn = document.getElementById('saveOverrideAttendanceBtn');
+            const rows = Array.from(document.querySelectorAll('#overrideAttendanceBody tr'));
+            if (!rows.length || !attendanceOverrideState.rows.length) {
+                setOverrideFeedback('No students available to save', true);
+                return;
+            }
+
+            const updates = attendanceOverrideState.rows.map((student) => {
+                const morningSelect = document.querySelector(`.override-status-select[data-student-id="${student.id}"][data-session="morning"]`);
+                const afternoonSelect = document.querySelector(`.override-status-select[data-student-id="${student.id}"][data-session="afternoon"]`);
+                return {
+                    student_id: student.id,
+                    morning_status: morningSelect ? morningSelect.value : '',
+                    afternoon_status: afternoonSelect ? afternoonSelect.value : ''
+                };
+            });
+
+            if (saveBtn) saveBtn.disabled = true;
+            setOverrideFeedback('Saving attendance override...', false);
+
+            fetch('/api/student-attendance-override-save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || ''
+                },
+                body: JSON.stringify({
+                    date: filters.attendanceDate,
+                    updates: updates
+                })
+            })
+                .then((response) => response.json())
+                .then((data) => {
+                    if (!data.success) {
+                        throw new Error(data.error || 'Failed to save attendance override');
+                    }
+                    setOverrideFeedback('Attendance override saved', false);
+                    tryAutoLoadOverrideAttendance();
+                    if (typeof loadDashboardData === 'function') {
+                        loadDashboardData();
+                    }
+                })
+                .catch((error) => {
+                    setOverrideFeedback(error.message || 'Failed to save attendance override', true);
+                })
+                .finally(() => {
+                    if (saveBtn) saveBtn.disabled = false;
+                });
+        }
+
+        function initAttendanceOverride() {
+            if (attendanceOverrideState.initialized) return;
+
+            const classSelect = document.getElementById('overrideClassSelect');
+            const sectionSelect = document.getElementById('overrideSectionSelect');
+            const dateSelect = document.getElementById('overrideDateSelect');
+            const saveBtn = document.getElementById('saveOverrideAttendanceBtn');
+
+            if (!classSelect || !sectionSelect || !dateSelect || !saveBtn) return;
+
+            if (!dateSelect.value) {
+                const today = new Date();
+                const m = String(today.getMonth() + 1).padStart(2, '0');
+                const d = String(today.getDate()).padStart(2, '0');
+                dateSelect.value = `${today.getFullYear()}-${m}-${d}`;
+            }
+
+            classSelect.addEventListener('change', () => {
+                updateOverrideSectionOptions();
+                tryAutoLoadOverrideAttendance();
+            });
+
+            sectionSelect.addEventListener('change', tryAutoLoadOverrideAttendance);
+            dateSelect.addEventListener('change', tryAutoLoadOverrideAttendance);
+            saveBtn.addEventListener('click', saveOverrideAttendance);
+
+            updateOverrideSectionOptions();
+            updateOverrideDayText();
+            attendanceOverrideState.initialized = true;
+        }
 
         // ======== TIMETABLE ========
         const _sectionIdMap = {{ section_id_map | safe }};
