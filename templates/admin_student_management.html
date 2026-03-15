@@ -1117,6 +1117,12 @@
                             <div class="glass-value">Fees</div>
                             <div class="glass-label">Management</div>
                         </div>
+                        <div class="glass-divider"></div>
+                        <div class="glass-stat" onclick="switchView('exams')">
+                            <div class="glass-icon"><i class="bi bi-journal-text"></i></div>
+                            <div class="glass-value">Exams</div>
+                            <div class="glass-label">Assigner</div>
+                        </div>
                     </div>
 
                     <div class="header-content">
@@ -1672,6 +1678,129 @@
                                 <i class="bi bi-check2-circle"></i> Record Payment
                             </button>
                             <button onclick="closeFeePartialModal()" style="background:#f1f5f9;color:#475569;border:none;border-radius:10px;padding:0.75rem 1.25rem;font-weight:600;font-size:0.87rem;cursor:pointer;">Cancel</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ====== EXAMS VIEW ====== -->
+                <div id="view-exams" class="view-section">
+                    <div class="salary-filters-card">
+                        <div class="card-header">
+                            <div class="header-icon">
+                                <i class="bi bi-journal-plus"></i>
+                            </div>
+                            <div class="header-content">
+                                <h5 class="card-title">Exam Assigner</h5>
+                                <p class="card-subtitle">Assign exams to a selected class</p>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <form method="POST" action="{{ url_for('admin_student_management') }}" class="row g-3 align-items-start" id="examAssignmentForm">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="assign_exam" id="examFormAction">
+                                <input type="hidden" name="exam_id" value="" id="examEditId">
+
+                                <div class="col-md-4">
+                                    <label for="exam_class" class="form-label fw-semibold">Class <span class="text-danger">*</span></label>
+                                    <select id="exam_class" name="exam_class" class="form-select form-select-sm" required>
+                                        <option value="">Choose Class</option>
+                                        {% for class_name in unique_classes %}
+                                        <option value="{{ class_name }}">{{ class_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-8">
+                                    <label class="form-label fw-semibold">Subject &amp; Exam Dates <span class="text-danger">*</span></label>
+                                    <div id="examRowsContainer" class="d-flex flex-column gap-2">
+                                        <div class="d-flex gap-2 align-items-center exam-row">
+                                            <select name="exam_subject[]" class="form-select form-select-sm exam-subject-select" required>
+                                                <option value="">Choose Subject</option>
+                                            </select>
+                                            <input type="date" name="exam_date[]" class="form-control form-control-sm" style="max-width:160px" required>
+                                            <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeExamRow(this)" title="Remove row">
+                                                <i class="bi bi-dash"></i>
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <button type="button" class="btn btn-outline-primary btn-sm mt-2" onclick="addExamRow()">
+                                        <i class="bi bi-plus-circle me-1"></i>Add Subject + Date
+                                    </button>
+                                    <div class="mt-2">
+                                        <label for="exam_description" class="form-label fw-semibold mb-1">Description (Optional)</label>
+                                        <input type="text" id="exam_description" name="exam_description" class="form-control form-control-sm" placeholder="Add syllabus scope, duration, or instructions...">
+                                    </div>
+                                    <div class="d-flex gap-2 mt-2">
+                                        <button type="submit" class="btn btn-primary btn-sm" id="examSubmitBtn">
+                                            <i class="bi bi-send-check me-1"></i>Assign Exam
+                                        </button>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm d-none" id="cancelExamEditBtn" onclick="cancelExamEdit()">
+                                            <i class="bi bi-x-circle me-1"></i>Cancel Edit
+                                        </button>
+                                    </div>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="salary-results-card mt-4">
+                        <div class="card-header">
+                            <div class="header-icon">
+                                <i class="bi bi-journal-check"></i>
+                            </div>
+                            <div class="header-content">
+                                <h5 class="card-title">Recent Exam Assignments</h5>
+                                <p class="card-subtitle">Latest 25 class-wise exam assignments</p>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Class</th>
+                                            <th>Subject</th>
+                                            <th>Exam Date</th>
+                                            <th>Description</th>
+                                            <th class="text-end">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% if exam_assignments %}
+                                            {% for exam in exam_assignments %}
+                                            <tr>
+                                                <td><span class="badge bg-info">{{ exam.class_name }}</span></td>
+                                                <td class="fw-semibold">{{ exam.exam_title }}</td>
+                                                <td>{{ exam.exam_date }}</td>
+                                                <td>{{ exam.description or '-' }}</td>
+                                                <td class="text-end">
+                                                    <div class="d-inline-flex gap-2">
+                                                        <button type="button" class="btn btn-outline-primary btn-sm"
+                                                            onclick='startExamEdit({{ exam.id }}, {{ exam.class_name|tojson }}, {{ exam.exam_title|tojson }}, {{ exam.exam_date|tojson }}, {{ (exam.description or "")|tojson }})'>
+                                                            <i class="bi bi-pencil-square"></i>
+                                                        </button>
+                                                        <form method="POST" action="{{ url_for('admin_student_management') }}" onsubmit="return confirm('Delete this exam assignment?');" class="d-inline">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <input type="hidden" name="action" value="delete_exam">
+                                                            <input type="hidden" name="exam_id" value="{{ exam.id }}">
+                                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                            {% endfor %}
+                                        {% else %}
+                                            <tr>
+                                                <td colspan="5" class="text-center py-5">
+                                                    <i class="bi bi-journal-x" style="font-size: 2rem; opacity: 0.25;"></i>
+                                                    <p class="text-muted mt-2 mb-0">No exams assigned yet.</p>
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -3079,6 +3208,7 @@ showStep(currentStep);
             loadCustomFields();
             initAttendanceOverride();
             tryAutoLoadOverrideAttendance();
+            initExamAssigner();
         });
 
         // ======== VIEW SWITCHING ========
@@ -3096,7 +3226,7 @@ showStep(currentStep);
             document.querySelectorAll('.glass-overlay .glass-stat').forEach(s => {
                 const val = s.querySelector('.glass-value');
                 if (val) {
-                    const map = {'Dashboard':'dashboard','Attendance':'attendance','Students':'students','Timetable':'timetable','Fees':'fees'};
+                    const map = {'Dashboard':'dashboard','Attendance':'attendance','Students':'students','Timetable':'timetable','Fees':'fees','Exams':'exams'};
                     if (map[val.textContent.trim()] === viewName) s.classList.add('active');
                 }
             });
@@ -3107,6 +3237,10 @@ showStep(currentStep);
                 loadAttendanceRules();
                 initAttendanceOverride();
                 tryAutoLoadOverrideAttendance();
+            }
+            if (viewName === 'exams') {
+                initExamAssigner();
+                refreshExamSubjectRows();
             }
         }
 
@@ -3573,7 +3707,144 @@ showStep(currentStep);
         // ======== TIMETABLE ========
         const _sectionIdMap = {{ section_id_map | safe }};
         const _sectionsByClass = {{ sections_by_class | safe }};
+        const _classSubjectsByClass = {{ class_subjects_map | safe }};
         const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+
+        function buildExamSubjectOptions(className, selectedValue = '') {
+            const subjectList = (_classSubjectsByClass && className && Array.isArray(_classSubjectsByClass[className]))
+                ? _classSubjectsByClass[className]
+                : [];
+
+            let options = '<option value="">Choose Subject</option>';
+            subjectList.forEach((subjectName) => {
+                const selected = selectedValue === subjectName ? 'selected' : '';
+                options += `<option value="${escapeHtml(subjectName)}" ${selected}>${escapeHtml(subjectName)}</option>`;
+            });
+            return options;
+        }
+
+        function refreshExamSubjectRows() {
+            const classSelect = document.getElementById('exam_class');
+            const selectedClass = classSelect ? classSelect.value : '';
+            document.querySelectorAll('.exam-subject-select').forEach((subjectSelect) => {
+                const previous = subjectSelect.value || '';
+                subjectSelect.innerHTML = buildExamSubjectOptions(selectedClass, previous);
+            });
+        }
+
+        function addExamRow() {
+            const container = document.getElementById('examRowsContainer');
+            const classSelect = document.getElementById('exam_class');
+            if (!container) return;
+
+            const selectedClass = classSelect ? classSelect.value : '';
+            const row = document.createElement('div');
+            row.className = 'd-flex gap-2 align-items-center exam-row';
+            row.innerHTML = `
+                <select name="exam_subject[]" class="form-select form-select-sm exam-subject-select" required>
+                    ${buildExamSubjectOptions(selectedClass)}
+                </select>
+                <input type="date" name="exam_date[]" class="form-control form-control-sm" style="max-width:160px" required>
+                <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeExamRow(this)" title="Remove row">
+                    <i class="bi bi-dash"></i>
+                </button>
+            `;
+            container.appendChild(row);
+        }
+
+        function setExamRowValues(subjectName, examDate) {
+            const container = document.getElementById('examRowsContainer');
+            if (!container) return;
+            const firstRow = container.querySelector('.exam-row');
+            if (!firstRow) return;
+
+            const subjectSelect = firstRow.querySelector('.exam-subject-select');
+            const dateInput = firstRow.querySelector('input[name="exam_date[]"]');
+            if (subjectSelect) subjectSelect.value = subjectName || '';
+            if (dateInput) dateInput.value = examDate || '';
+        }
+
+        function resetExamRowsToSingle() {
+            const container = document.getElementById('examRowsContainer');
+            const classSelect = document.getElementById('exam_class');
+            if (!container) return;
+
+            const selectedClass = classSelect ? classSelect.value : '';
+            container.innerHTML = `
+                <div class="d-flex gap-2 align-items-center exam-row">
+                    <select name="exam_subject[]" class="form-select form-select-sm exam-subject-select" required>
+                        ${buildExamSubjectOptions(selectedClass)}
+                    </select>
+                    <input type="date" name="exam_date[]" class="form-control form-control-sm" style="max-width:160px" required>
+                    <button type="button" class="btn btn-outline-danger btn-sm" onclick="removeExamRow(this)" title="Remove row">
+                        <i class="bi bi-dash"></i>
+                    </button>
+                </div>
+            `;
+        }
+
+        function startExamEdit(examId, className, subjectName, examDate, description) {
+            const formAction = document.getElementById('examFormAction');
+            const editId = document.getElementById('examEditId');
+            const submitBtn = document.getElementById('examSubmitBtn');
+            const cancelBtn = document.getElementById('cancelExamEditBtn');
+            const classSelect = document.getElementById('exam_class');
+            const descInput = document.getElementById('exam_description');
+
+            if (formAction) formAction.value = 'update_exam';
+            if (editId) editId.value = String(examId || '');
+            if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-check2-square me-1"></i>Update Exam';
+            if (submitBtn) submitBtn.classList.replace('btn-primary', 'btn-warning');
+            if (cancelBtn) cancelBtn.classList.remove('d-none');
+
+            if (classSelect) classSelect.value = className || '';
+            resetExamRowsToSingle();
+            refreshExamSubjectRows();
+            setExamRowValues(subjectName, examDate);
+            if (descInput) descInput.value = description || '';
+        }
+
+        function cancelExamEdit() {
+            const formAction = document.getElementById('examFormAction');
+            const editId = document.getElementById('examEditId');
+            const submitBtn = document.getElementById('examSubmitBtn');
+            const cancelBtn = document.getElementById('cancelExamEditBtn');
+            const form = document.getElementById('examAssignmentForm');
+
+            if (formAction) formAction.value = 'assign_exam';
+            if (editId) editId.value = '';
+            if (submitBtn) submitBtn.innerHTML = '<i class="bi bi-send-check me-1"></i>Assign Exam';
+            if (submitBtn) submitBtn.classList.replace('btn-warning', 'btn-primary');
+            if (cancelBtn) cancelBtn.classList.add('d-none');
+
+            if (form) {
+                form.reset();
+            }
+            resetExamRowsToSingle();
+            refreshExamSubjectRows();
+        }
+
+        function removeExamRow(button) {
+            const container = document.getElementById('examRowsContainer');
+            if (!container) return;
+            const rows = container.querySelectorAll('.exam-row');
+            if (rows.length <= 1) return;
+            const row = button ? button.closest('.exam-row') : null;
+            if (row) {
+                row.remove();
+            }
+        }
+
+        function initExamAssigner() {
+            const classSelect = document.getElementById('exam_class');
+            if (!classSelect || classSelect.dataset.examInit === '1') {
+                return;
+            }
+
+            classSelect.addEventListener('change', refreshExamSubjectRows);
+            classSelect.dataset.examInit = '1';
+            refreshExamSubjectRows();
+        }
 
         function onTTClassChange() {
             const cls = document.getElementById('ttClassSelect').value;

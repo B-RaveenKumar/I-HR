@@ -338,6 +338,91 @@
             color: #0f5132;
         }
 
+        /* ── Modern compact exam card ── */
+        .exam-card-modern {
+            display: flex;
+            align-items: stretch;
+            gap: 0;
+            background: #fff;
+            border-radius: 12px;
+            border: 1px solid #e8eef4;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            margin-bottom: 10px;
+            overflow: hidden;
+            transition: box-shadow 0.2s, transform 0.2s;
+        }
+        .exam-card-modern:hover {
+            box-shadow: 0 6px 18px rgba(99,102,241,0.13);
+            transform: translateY(-2px);
+        }
+        .exam-card-accent {
+            width: 5px;
+            flex-shrink: 0;
+            background: linear-gradient(180deg, #6366f1, #8b5cf6);
+            border-radius: 12px 0 0 12px;
+        }
+        .exam-card-body {
+            flex: 1;
+            padding: 10px 14px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .exam-card-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #fff;
+            font-size: 16px;
+        }
+        .exam-card-info {
+            flex: 1;
+            min-width: 0;
+        }
+        .exam-card-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1e293b;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            line-height: 1.3;
+        }
+        .exam-card-desc {
+            font-size: 11.5px;
+            color: #64748b;
+            margin-top: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .exam-card-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 4px;
+            flex-shrink: 0;
+        }
+        .exam-card-date {
+            font-size: 11px;
+            font-weight: 600;
+            color: #6366f1;
+            background: #eef2ff;
+            border-radius: 6px;
+            padding: 3px 8px;
+            white-space: nowrap;
+        }
+        .exam-card-class {
+            font-size: 10.5px;
+            color: #94a3b8;
+            font-weight: 500;
+        }
+
         .badge-overdue {
             background: #f8d7da;
             color: #842029;
@@ -507,13 +592,34 @@
                     Upcoming Exams
                 </div>
             </div>
-            
-            <div class="empty-state">
-                <i class="bi bi-calendar-event"></i>
-                <h3>No upcoming exams</h3>
-                <p>You don't have any exams scheduled at the moment.</p>
-                <p style="margin-top: 10px;"><small>Your exam schedule will appear here when available.</small></p>
-            </div>
+
+            {% if upcoming_exams %}
+                {% for exam in upcoming_exams %}
+                <div class="exam-card-modern">
+                    <div class="exam-card-accent"></div>
+                    <div class="exam-card-body">
+                        <div class="exam-card-icon">
+                            <i class="bi bi-journal-bookmark-fill"></i>
+                        </div>
+                        <div class="exam-card-info">
+                            <div class="exam-card-title">{{ exam.exam_title }}</div>
+                            <div class="exam-card-desc">{{ exam.description or 'No additional details.' }}</div>
+                        </div>
+                        <div class="exam-card-meta">
+                            <span class="exam-card-date"><i class="bi bi-calendar3 me-1"></i>{{ exam.exam_date }}</span>
+                            <span class="exam-card-class">{{ exam.class_name }}</span>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-calendar-event"></i>
+                    <h3>No upcoming exams</h3>
+                    <p>You don't have any exams scheduled at the moment.</p>
+                    <p style="margin-top: 10px;"><small>Your exam schedule will appear here when available.</small></p>
+                </div>
+            {% endif %}
 
             <!-- Example exam items (uncomment when you have data) -->
             <!--

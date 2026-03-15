@@ -5851,6 +5851,41 @@ def admin_student_management():
     
     db = get_db()
     school_id = session['school_id']
+
+    def _ensure_exam_assignments_table():
+        """Create exam assignments table if it does not exist (MySQL/SQLite compatible fallback)."""
+        try:
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS exam_assignments (
+                    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+                    school_id INTEGER NOT NULL,
+                    class_name VARCHAR(100) NOT NULL,
+                    exam_title VARCHAR(255) NOT NULL,
+                    exam_date DATE NOT NULL,
+                    description TEXT,
+                    created_by INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            db.commit()
+            return
+        except Exception:
+            db.rollback()
+
+        # SQLite fallback (dev/test environments)
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS exam_assignments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                class_name TEXT NOT NULL,
+                exam_title TEXT NOT NULL,
+                exam_date TEXT NOT NULL,
+                description TEXT,
+                created_by INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        db.commit()
     
     # Check if student management module is enabled
     module_enabled = get_module_enabled(school_id)
@@ -5997,6 +6032,124 @@ def admin_student_management():
                           (student_id, school_id))
                 db.commit()
                 flash('Student deleted successfully!', 'success')
+
+            elif action == 'assign_exam':
+                _ensure_exam_assignments_table()
+
+                class_name = (request.form.get('exam_class') or '').strip()
+                subject_list = request.form.getlist('exam_subject[]')
+                date_list = request.form.getlist('exam_date[]')
+                description = (request.form.get('exam_description') or '').strip()
+
+                if not class_name:
+                    flash('Class is required for exam assignment.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if not isinstance(subject_list, list) or not isinstance(date_list, list) or len(subject_list) != len(date_list):
+                    flash('Invalid exam rows. Please add subject and date correctly.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                valid_rows = []
+                for idx in range(len(subject_list)):
+                    subject_name = (subject_list[idx] or '').strip()
+                    date_value = (date_list[idx] or '').strip()
+                    if not subject_name and not date_value:
+                        continue
+                    if not subject_name or not date_value:
+                        flash('Each exam row needs both subject and date.', 'error')
+                        return redirect(url_for('admin_student_management'))
+                    try:
+                        exam_date = datetime.date.fromisoformat(date_value).strftime('%Y-%m-%d')
+                    except Exception:
+                        flash(f'Invalid exam date format in row {idx + 1}.', 'error')
+                        return redirect(url_for('admin_student_management'))
+                    valid_rows.append((subject_name, exam_date))
+
+                if not valid_rows:
+                    flash('Add at least one subject and date to assign exam.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                for subject_name, exam_date in valid_rows:
+                    db.execute('''
+                        INSERT INTO exam_assignments (
+                            school_id, class_name, exam_title, exam_date, description, created_by
+                        ) VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (school_id, class_name, subject_name, exam_date, description, session.get('user_id')))
+                db.commit()
+                flash(f'{len(valid_rows)} exam assignment(s) saved for class {class_name}.', 'success')
+
+            elif action == 'update_exam':
+                _ensure_exam_assignments_table()
+
+                exam_id = (request.form.get('exam_id') or '').strip()
+                class_name = (request.form.get('exam_class') or '').strip()
+                subject_list = request.form.getlist('exam_subject[]')
+                date_list = request.form.getlist('exam_date[]')
+                description = (request.form.get('exam_description') or '').strip()
+
+                if not exam_id:
+                    flash('Exam ID is required for update.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if not class_name:
+                    flash('Class is required for exam update.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if not isinstance(subject_list, list) or not isinstance(date_list, list) or len(subject_list) != len(date_list):
+                    flash('Invalid exam rows. Please provide one subject and date for update.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                valid_rows = []
+                for idx in range(len(subject_list)):
+                    subject_name = (subject_list[idx] or '').strip()
+                    date_value = (date_list[idx] or '').strip()
+                    if not subject_name and not date_value:
+                        continue
+                    if not subject_name or not date_value:
+                        flash('Each exam row needs both subject and date.', 'error')
+                        return redirect(url_for('admin_student_management'))
+                    try:
+                        exam_date = datetime.date.fromisoformat(date_value).strftime('%Y-%m-%d')
+                    except Exception:
+                        flash(f'Invalid exam date format in row {idx + 1}.', 'error')
+                        return redirect(url_for('admin_student_management'))
+                    valid_rows.append((subject_name, exam_date))
+
+                if len(valid_rows) != 1:
+                    flash('Update mode supports exactly one subject and one date.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                subject_name, exam_date = valid_rows[0]
+                result = db.execute('''
+                    UPDATE exam_assignments
+                    SET class_name = ?, exam_title = ?, exam_date = ?, description = ?
+                    WHERE id = ? AND school_id = ?
+                ''', (class_name, subject_name, exam_date, description, exam_id, school_id))
+                db.commit()
+
+                if result.rowcount:
+                    flash('Exam assignment updated successfully.', 'success')
+                else:
+                    flash('Exam assignment not found or already removed.', 'warning')
+
+            elif action == 'delete_exam':
+                _ensure_exam_assignments_table()
+
+                exam_id = (request.form.get('exam_id') or '').strip()
+                if not exam_id:
+                    flash('Exam ID is required for delete.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                result = db.execute('''
+                    DELETE FROM exam_assignments
+                    WHERE id = ? AND school_id = ?
+                ''', (exam_id, school_id))
+                db.commit()
+
+                if result.rowcount:
+                    flash('Exam assignment deleted successfully.', 'success')
+                else:
+                    flash('Exam assignment not found or already removed.', 'warning')
                 
         except Exception as e:
             flash(f'Error: {str(e)}', 'error')
@@ -6066,6 +6219,35 @@ def admin_student_management():
     
     # Calculate total classes from academic hierarchy
     total_classes = len(academic_levels)
+
+    # Build class -> subjects map from timetable assignments
+    class_subjects_map = {}
+    subject_rows = db.execute('''
+        SELECT DISTINCT tal.level_name AS class_name, ha.subject_name
+        FROM timetable_hierarchical_assignments ha
+        JOIN timetable_academic_levels tal ON ha.level_id = tal.id
+        WHERE ha.school_id = ?
+          AND ha.subject_name IS NOT NULL
+          AND TRIM(ha.subject_name) <> ''
+        ORDER BY tal.level_name, ha.subject_name
+    ''', (school_id,)).fetchall()
+
+    for row in subject_rows:
+        cls = row['class_name']
+        sub = row['subject_name']
+        if cls not in class_subjects_map:
+            class_subjects_map[cls] = []
+        if sub not in class_subjects_map[cls]:
+            class_subjects_map[cls].append(sub)
+
+    _ensure_exam_assignments_table()
+    exam_assignments = db.execute('''
+        SELECT id, class_name, exam_title, exam_date, description, created_at
+        FROM exam_assignments
+        WHERE school_id = ?
+        ORDER BY exam_date DESC, id DESC
+        LIMIT 25
+    ''', (school_id,)).fetchall()
     
     # Get module enabled status
     module_enabled = get_module_enabled(school_id)
@@ -6078,6 +6260,8 @@ def admin_student_management():
                          total_students=total_students,
                          students_this_month=students_this_month,
                          total_classes=total_classes,
+                         exam_assignments=exam_assignments,
+                         class_subjects_map=json.dumps(class_subjects_map),
                          unique_classes=unique_classes,
                          unique_sections=unique_sections,
                          sections_by_class=json.dumps(sections_by_class),
@@ -17584,12 +17768,29 @@ def student_homework_exam():
     school = db.execute('SELECT name FROM schools WHERE id = ?', 
                        (student['school_id'],)).fetchone()
     
-    # Get upcoming exams/homework (placeholder for now - can be extended later)
-    # You can add actual homework/exam tables later
+    # Load assigned exams for this student's class
+    student_class = (student['class'] or '').strip() if student else ''
+    today_iso = datetime.date.today().strftime('%Y-%m-%d')
+    upcoming_exams = []
+
+    if student_class:
+        try:
+            upcoming_exams = db.execute('''
+                SELECT id, class_name, exam_title, exam_date, description, created_at
+                FROM exam_assignments
+                WHERE school_id = ?
+                  AND class_name = ?
+                  AND exam_date >= ?
+                ORDER BY exam_date ASC, id ASC
+            ''', (student['school_id'], student_class, today_iso)).fetchall()
+        except Exception:
+            # Table may not exist yet in a fresh environment.
+            upcoming_exams = []
     
     return render_template('student/student_homework_exam.html',
                          student=student,
-                         school_name=school['name'] if school else 'N/A')
+                         school_name=school['name'] if school else 'N/A',
+                         upcoming_exams=upcoming_exams)
 
 
 @app.route('/student/fees')
