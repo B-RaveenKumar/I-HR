@@ -1,5 +1,5 @@
 """
-Vishnorex Biometric Agent - Local Device Bridge
+iHR Biometric Agent - Local Device Bridge
 Windows desktop application for Agent_LAN connection mode
 Polls ZK devices on local network and pushes attendance to server
 """

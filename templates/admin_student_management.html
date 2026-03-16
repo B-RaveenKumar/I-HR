@@ -1753,6 +1753,17 @@
                             </div>
                         </div>
                         <div class="card-body">
+                            <div class="d-flex justify-content-end mb-2">
+                                <div style="min-width:220px;">
+                                    <label for="examAssignmentClassFilter" class="form-label fw-semibold mb-1">Filter By Class</label>
+                                    <select id="examAssignmentClassFilter" class="form-select form-select-sm" onchange="applyExamAssignmentsFilter()">
+                                        <option value="">All Classes</option>
+                                        {% for class_name in unique_classes %}
+                                        <option value="{{ class_name }}">{{ class_name }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-hover align-middle">
                                     <thead class="table-light">
@@ -1767,7 +1778,7 @@
                                     <tbody>
                                         {% if exam_assignments %}
                                             {% for exam in exam_assignments %}
-                                            <tr>
+                                            <tr class="exam-assignment-row" data-class-name="{{ exam.class_name }}">
                                                 <td><span class="badge bg-info">{{ exam.class_name }}</span></td>
                                                 <td class="fw-semibold">{{ exam.exam_title }}</td>
                                                 <td>{{ exam.exam_date }}</td>
@@ -1790,6 +1801,9 @@
                                                 </td>
                                             </tr>
                                             {% endfor %}
+                                            <tr id="examAssignmentsNoResultsRow" style="display:none;">
+                                                <td colspan="5" class="text-center py-4 text-muted">No exam assignments found for selected class.</td>
+                                            </tr>
                                         {% else %}
                                             <tr>
                                                 <td colspan="5" class="text-center py-5">
@@ -3209,6 +3223,7 @@ showStep(currentStep);
             initAttendanceOverride();
             tryAutoLoadOverrideAttendance();
             initExamAssigner();
+            initExamAssignmentsFilter();
         });
 
         // ======== VIEW SWITCHING ========
@@ -3241,6 +3256,7 @@ showStep(currentStep);
             if (viewName === 'exams') {
                 initExamAssigner();
                 refreshExamSubjectRows();
+                applyExamAssignmentsFilter();
             }
         }
 
@@ -3844,6 +3860,34 @@ showStep(currentStep);
             classSelect.addEventListener('change', refreshExamSubjectRows);
             classSelect.dataset.examInit = '1';
             refreshExamSubjectRows();
+        }
+
+        function applyExamAssignmentsFilter() {
+            const filter = document.getElementById('examAssignmentClassFilter');
+            const rows = document.querySelectorAll('.exam-assignment-row');
+            const noResultsRow = document.getElementById('examAssignmentsNoResultsRow');
+            if (!filter || !rows.length) return;
+
+            const selectedClass = (filter.value || '').trim().toLowerCase();
+            let visibleCount = 0;
+
+            rows.forEach((row) => {
+                const rowClass = (row.getAttribute('data-class-name') || '').trim().toLowerCase();
+                const show = !selectedClass || rowClass === selectedClass;
+                row.style.display = show ? '' : 'none';
+                if (show) visibleCount += 1;
+            });
+
+            if (noResultsRow) {
+                noResultsRow.style.display = visibleCount === 0 ? '' : 'none';
+            }
+        }
+
+        function initExamAssignmentsFilter() {
+            const filter = document.getElementById('examAssignmentClassFilter');
+            if (!filter || filter.dataset.examFilterInit === '1') return;
+            filter.dataset.examFilterInit = '1';
+            applyExamAssignmentsFilter();
         }
 
         function onTTClassChange() {
