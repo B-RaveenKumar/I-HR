@@ -63,12 +63,157 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Function to load and update attendance summary dynamically
     let attendanceChart = null; // Store chart instance for updates
+    let attendanceChartResizeTimer = null;
+    let attendanceSummaryData = null;
+    const validChartTypes = ['doughnut', 'pie', 'bar', 'line'];
+    const attendanceChartTypeButtons = document.querySelectorAll('.attendance-chart-type-btn');
+    let attendanceChartType = localStorage.getItem('staffAttendanceChartType') || 'doughnut';
+
+    if (!validChartTypes.includes(attendanceChartType)) {
+        attendanceChartType = 'doughnut';
+    }
+
+    function syncAttendanceChartTypeButtons() {
+        if (!attendanceChartTypeButtons.length) {
+            return;
+        }
+
+        attendanceChartTypeButtons.forEach((button) => {
+            const buttonType = button.getAttribute('data-chart-type');
+            const isActive = buttonType === attendanceChartType;
+            button.classList.toggle('active', isActive);
+            button.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+        });
+    }
+
+    syncAttendanceChartTypeButtons();
+
+    function buildAttendanceChartConfig(summaryData, chartType) {
+        const labels = ['Present', 'Absent', 'Late', 'Leave'];
+        const values = [
+            summaryData.present_days || 0,
+            summaryData.absent_days || 0,
+            summaryData.late_days || 0,
+            summaryData.leave_days || 0
+        ];
+        const colors = ['#198754', '#dc3545', '#ffc107', '#0dcaf0'];
+        const isCircular = chartType === 'doughnut' || chartType === 'pie';
+
+        const dataset = isCircular
+            ? {
+                data: values,
+                backgroundColor: colors,
+                borderWidth: 3,
+                borderColor: '#ffffff',
+                hoverBorderWidth: 4,
+                hoverOffset: 10
+            }
+            : {
+                label: 'Days',
+                data: values,
+                backgroundColor: chartType === 'line' ? 'rgba(37, 99, 235, 0.16)' : colors,
+                borderColor: chartType === 'line' ? '#2563eb' : colors,
+                borderWidth: 2.5,
+                borderRadius: chartType === 'bar' ? 8 : 0,
+                fill: chartType === 'line',
+                tension: chartType === 'line' ? 0.35 : 0,
+                pointRadius: chartType === 'line' ? 4 : 0,
+                pointHoverRadius: chartType === 'line' ? 6 : 0,
+                pointBackgroundColor: chartType === 'line' ? '#2563eb' : undefined
+            };
+
+        return {
+            type: chartType,
+            data: {
+                labels,
+                datasets: [dataset]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                resizeDelay: 120,
+                scales: isCircular ? undefined : {
+                    y: {
+                        beginAtZero: true,
+                        ticks: {
+                            precision: 0
+                        },
+                        grid: {
+                            color: 'rgba(148, 163, 184, 0.25)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 20,
+                            usePointStyle: true,
+                            font: {
+                                size: 12,
+                                weight: '500'
+                            }
+                        }
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                        titleColor: '#ffffff',
+                        bodyColor: '#ffffff',
+                        borderColor: '#ffffff',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        callbacks: {
+                            label: function(context) {
+                                const rawValue = Number(context.raw || 0);
+                                const total = values.reduce((a, b) => a + b, 0);
+                                const percentage = total > 0 ? ((rawValue * 100) / total).toFixed(1) : 0;
+                                return `${context.label}: ${rawValue} days (${percentage}%)`;
+                            }
+                        }
+                    }
+                },
+                animation: {
+                    animateRotate: true,
+                    animateScale: true,
+                    duration: 900,
+                    easing: 'easeOutQuart'
+                }
+            }
+        };
+    }
+
+    function renderAttendanceChart(summaryData) {
+        if (!summaryData) {
+            return;
+        }
+
+        const ctx = document.getElementById('attendanceSummaryChart')?.getContext('2d');
+        if (!ctx) {
+            return;
+        }
+
+        const config = buildAttendanceChartConfig(summaryData, attendanceChartType);
+
+        if (attendanceChart) {
+            attendanceChart.destroy();
+        }
+
+        attendanceChart = new Chart(ctx, config);
+    }
 
     function loadAttendanceSummary() {
         fetch('/staff/get_attendance_summary')
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    attendanceSummaryData = data;
+
                     // Update stat cards
                     const statCards = document.querySelectorAll('.attendance-stat-card .stat-value');
                     if (statCards[0]) statCards[0].textContent = data.present_days;
@@ -82,77 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         monthTitle.textContent = `${data.current_month} Summary`;
                     }
 
-                    // Update or create chart
-                    const ctx = document.getElementById('attendanceSummaryChart')?.getContext('2d');
-                    if (ctx) {
-                        const chartData = {
-                            labels: ['Present', 'Absent', 'Late', 'Leave'],
-                            datasets: [{
-                                data: [data.present_days, data.absent_days, data.late_days, data.leave_days],
-                                backgroundColor: [
-                                    '#198754',
-                                    '#dc3545',
-                                    '#ffc107',
-                                    '#0dcaf0'
-                                ],
-                                borderWidth: 3,
-                                borderColor: '#ffffff',
-                                hoverBorderWidth: 4,
-                                hoverOffset: 10
-                            }]
-                        };
-
-                        if (attendanceChart) {
-                            // Update existing chart
-                            attendanceChart.data = chartData;
-                            attendanceChart.update();
-                        } else {
-                            // Create new chart
-                            attendanceChart = new Chart(ctx, {
-                                type: 'doughnut',
-                                data: chartData,
-                                options: {
-                                    responsive: true,
-                                    maintainAspectRatio: false,
-                                    plugins: {
-                                        legend: {
-                                            position: 'bottom',
-                                            labels: {
-                                                padding: 20,
-                                                usePointStyle: true,
-                                                font: {
-                                                    size: 12,
-                                                    weight: '500'
-                                                }
-                                            }
-                                        },
-                                        tooltip: {
-                                            backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                                            titleColor: '#ffffff',
-                                            bodyColor: '#ffffff',
-                                            borderColor: '#ffffff',
-                                            borderWidth: 1,
-                                            cornerRadius: 8,
-                                            padding: 12,
-                                            callbacks: {
-                                                label: function(context) {
-                                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                                    const percentage = total > 0 ? ((context.parsed * 100) / total).toFixed(1) : 0;
-                                                    return `${context.label}: ${context.parsed} days (${percentage}%)`;
-                                                }
-                                            }
-                                        }
-                                    },
-                                    animation: {
-                                        animateRotate: true,
-                                        animateScale: true,
-                                        duration: 1000,
-                                        easing: 'easeOutQuart'
-                                    }
-                                }
-                            });
-                        }
-                    }
+                    renderAttendanceChart(data);
 
                     console.log('Attendance summary loaded successfully:', data);
                 } else {
@@ -164,8 +239,52 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
+    function resizeAttendanceChartSafely() {
+        if (!attendanceChart) return;
+
+        if (attendanceChartResizeTimer) {
+            clearTimeout(attendanceChartResizeTimer);
+        }
+
+        attendanceChartResizeTimer = setTimeout(() => {
+            attendanceChart.resize();
+            attendanceChart.update('none');
+        }, 120);
+    }
+
+    if (attendanceChartTypeButtons.length) {
+        attendanceChartTypeButtons.forEach((button) => {
+            button.addEventListener('click', function() {
+                const selectedType = this.getAttribute('data-chart-type');
+                if (!validChartTypes.includes(selectedType)) {
+                    return;
+                }
+
+                attendanceChartType = selectedType;
+                localStorage.setItem('staffAttendanceChartType', attendanceChartType);
+                syncAttendanceChartTypeButtons();
+                renderAttendanceChart(attendanceSummaryData);
+            });
+        });
+    }
+
+    if (window.matchMedia) {
+        const reduceMotionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (reduceMotionQuery.matches && attendanceChartType === 'line') {
+            // Keep default chart less visually busy for reduced motion users.
+            attendanceChartType = 'bar';
+            localStorage.setItem('staffAttendanceChartType', attendanceChartType);
+            syncAttendanceChartTypeButtons();
+            if (attendanceSummaryData) {
+                renderAttendanceChart(attendanceSummaryData);
+            }
+        }
+    }
+
     // Load attendance summary on page load
     loadAttendanceSummary();
+
+    window.addEventListener('resize', resizeAttendanceChartSafely);
 
     // Add refresh button event listener
     const refreshBtn = document.getElementById('refreshAttendanceSummary');

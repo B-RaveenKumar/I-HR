@@ -127,6 +127,175 @@
             white-space: nowrap !important;
             vertical-align: middle !important;
         }
+
+        /* Keep attendance section heading readable on light backgrounds */
+        .attendance-summary-header {
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%) !important;
+            border-bottom: 1px solid #e2e8f0;
+        }
+
+        .attendance-summary-header .header-icon {
+            background: linear-gradient(135deg, #0e7490, #155e75);
+            color: #ffffff;
+        }
+
+        .attendance-summary-header .card-title {
+            color: #0f172a !important;
+            font-weight: 700;
+            margin-bottom: 0.2rem;
+        }
+
+        .attendance-summary-header .card-subtitle {
+            color: #334155 !important;
+            font-weight: 500;
+            opacity: 1;
+            margin-bottom: 0;
+        }
+
+        .attendance-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            margin-left: auto;
+        }
+
+        .attendance-chart-type-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            flex-wrap: wrap;
+        }
+
+        .attendance-chart-type-btn {
+            height: 32px;
+            padding: 0.24rem 0.58rem;
+            border-radius: 0.5rem;
+            border: 1px solid #cbd5e1;
+            background: #ffffff;
+            color: #0f172a;
+            font-size: 0.78rem;
+            font-weight: 700;
+            line-height: 1;
+            letter-spacing: 0.02em;
+            transition: all 0.18s ease;
+        }
+
+        .attendance-chart-type-btn:hover {
+            border-color: #93c5fd;
+            background: #f8fafc;
+        }
+
+        .attendance-chart-type-btn.active {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            border-color: #1d4ed8;
+            color: #ffffff;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.24);
+        }
+
+        /* Compact modern attendance cards (3x3) */
+        .attendance-compact-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.65rem;
+            width: 100%;
+        }
+
+        .attendance-compact-card {
+            border: none;
+            border-radius: 0.8rem;
+            color: #fff;
+            min-height: 88px;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+            transition: transform 0.18s ease, box-shadow 0.18s ease;
+            overflow: hidden;
+        }
+
+        .attendance-compact-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(15, 23, 42, 0.2);
+        }
+
+        .attendance-compact-card .card-body {
+            padding: 0.7rem 0.8rem;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            gap: 0.1rem;
+        }
+
+        .attendance-compact-value {
+            font-size: 1.65rem;
+            line-height: 1;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+        }
+
+        .attendance-compact-label {
+            font-size: 0.78rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            opacity: 0.95;
+            margin-bottom: 0;
+        }
+
+        .attendance-compact-sub {
+            font-size: 0.7rem;
+            opacity: 0.85;
+        }
+
+        .attendance-card-info {
+            background: linear-gradient(135deg, #06b6d4, #0ea5e9);
+        }
+
+        .attendance-card-success {
+            background: linear-gradient(135deg, #10b981, #16a34a);
+        }
+
+        .attendance-card-warning {
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+        }
+
+        .attendance-card-danger {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .attendance-card-secondary {
+            background: linear-gradient(135deg, #64748b, #475569);
+        }
+
+        .attendance-card-primary {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+        }
+
+        .attendance-card-dark {
+            background: linear-gradient(135deg, #1f2937, #111827);
+        }
+
+        .attendance-card-violet {
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+        }
+
+        .attendance-card-teal {
+            background: linear-gradient(135deg, #0f766e, #115e59);
+        }
+
+        .attendance-chart-wrap {
+            position: relative;
+            width: 100%;
+            height: 230px;
+            min-height: 180px;
+            margin-top: 0.85rem;
+        }
+
+        .attendance-chart-wrap #attendanceSummaryChart {
+            display: block;
+            width: 100% !important;
+            height: 100% !important;
+            max-width: 100%;
+        }
         
         /* Fix application form modals auto-alignment */
         .modal-dialog {
@@ -152,6 +321,19 @@
         
         /* 🎯 Mobile responsive fixes - Remove left spacing completely */
         @media (max-width: 767.98px) {
+            .attendance-compact-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 0.55rem;
+            }
+
+            .attendance-compact-card {
+                min-height: 80px;
+            }
+
+            .attendance-compact-value {
+                font-size: 1.35rem;
+            }
+
             .enhanced-sidebar {
                 position: fixed !important;
                 top: 0;
@@ -196,6 +378,22 @@
             .salary-results-card .header-actions {
                 width: 100% !important;
                 text-align: center !important;
+            }
+
+            .attendance-header-actions {
+                width: 100%;
+                justify-content: space-between;
+                margin-left: 0;
+            }
+
+            .attendance-chart-type-group {
+                max-width: 100%;
+                row-gap: 0.3rem;
+            }
+
+            .attendance-chart-type-btn {
+                font-size: 0.72rem;
+                padding: 0.24rem 0.48rem;
             }
             
             .salary-results-card .header-actions .btn {
@@ -262,6 +460,16 @@
             
             .salary-results-card .header-actions .btn {
                 min-width: 120px !important;
+            }
+
+            .attendance-header-actions {
+                width: 100%;
+                justify-content: flex-end;
+                margin-left: 0;
+            }
+
+            .attendance-chart-type-btn {
+                font-size: 0.74rem;
             }
             
             /* Optimize table for tablet */
@@ -394,11 +602,14 @@
             }
             
             /* Make charts and calendars responsive */
-            #weeklyAttendanceCalendar,
-            #attendanceSummaryChart {
+            #weeklyAttendanceCalendar {
                 width: 100% !important;
                 height: auto !important;
                 max-width: 100% !important;
+            }
+
+            .attendance-chart-wrap {
+                height: 205px;
             }
         }
         
@@ -452,6 +663,42 @@
         
         /* 🎯 Extra small devices optimization */
         @media (max-width: 575.98px) {
+            .attendance-compact-grid {
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+            }
+
+            .attendance-compact-value {
+                font-size: 1.05rem;
+            }
+
+            .attendance-compact-label {
+                font-size: 0.62rem;
+                letter-spacing: 0.03em;
+            }
+
+            .attendance-compact-sub {
+                font-size: 0.58rem;
+            }
+
+            .attendance-chart-wrap {
+                height: 185px;
+            }
+
+            .attendance-header-actions {
+                justify-content: space-between;
+                gap: 0.4rem;
+            }
+
+            .attendance-chart-type-group {
+                gap: 0.25rem;
+            }
+
+            .attendance-chart-type-btn {
+                height: 30px;
+                font-size: 0.68rem;
+                padding: 0.2rem 0.38rem;
+            }
+
             .salary-main-content {
                 padding: 0.5rem 0.25rem !important;
             }
@@ -993,7 +1240,7 @@
 
                         <!-- Attendance Statistics -->
                         <div class="salary-results-card mt-4">
-                            <div class="card-header bg-light">
+                            <div class="card-header bg-light attendance-summary-header">
                                 <div class="header-icon">
                                     <i class="bi bi-graph-up"></i>
                                 </div>
@@ -1001,72 +1248,97 @@
                                     <h5 class="card-title">Attendance Statistics (Current Month)</h5>
                                     <p class="card-subtitle">Comprehensive attendance overview for {{ current_month }} - Total working days (Mon-Sat): {{ attendance_summary.working_days or 0 }}</p>
                                 </div>
-                                <button id="refreshAttendanceSummary" class="btn btn-sm btn-outline-primary ms-auto" title="Refresh attendance data">
-                                    <i class="bi bi-arrow-clockwise"></i>
-                                </button>
+                                <div class="attendance-header-actions">
+                                    <div class="attendance-chart-type-group" role="group" aria-label="Attendance chart type selector">
+                                        <button type="button" class="attendance-chart-type-btn" data-chart-type="bar">Bar</button>
+                                        <button type="button" class="attendance-chart-type-btn" data-chart-type="line">Graph</button>
+                                        <button type="button" class="attendance-chart-type-btn" data-chart-type="doughnut">Donut</button>
+                                        <button type="button" class="attendance-chart-type-btn" data-chart-type="pie">Pie</button>
+                                    </div>
+                                    <button id="refreshAttendanceSummary" class="btn btn-sm btn-outline-primary" title="Refresh attendance data">
+                                        <i class="bi bi-arrow-clockwise"></i>
+                                    </button>
+                                </div>
                             </div>
                             <div class="card-body">
-                                <!-- Force all 7 cards to display in a simple grid -->
-                                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; width: 100%;">
-                                    <!-- Card 1: Working Days -->
-                                    <div class="card bg-info text-white" style="min-height: 120px;">
-                                        <div class="card-body text-center p-3">
-                                            <h4 class="mb-1">{{ attendance_summary.working_days or 0 }}</h4>
-                                            <p class="mb-0 small">Working Days</p>
-                                            <small class="text-light">This Month</small>
+                                {% set working_days = attendance_summary.working_days or 0 %}
+                                {% set present_days = attendance_summary.present_days or 0 %}
+                                {% set late_days = attendance_summary.late_days or 0 %}
+                                {% set absent_days = attendance_summary.absent_days or 0 %}
+                                {% set leave_days = attendance_summary.leave_days or 0 %}
+                                {% set on_duty_days = attendance_summary.on_duty_days or 0 %}
+                                {% set holiday_days = attendance_summary.holiday_days or 0 %}
+                                {% set accounted_days = present_days + late_days + absent_days + leave_days + on_duty_days + holiday_days %}
+                                {% set attendance_percent = ((present_days + late_days + on_duty_days) * 100 / working_days) if working_days > 0 else 0 %}
+
+                                <!-- Compact 3x3 attendance cards -->
+                                <div class="attendance-compact-grid">
+                                    <div class="card attendance-compact-card attendance-card-info">
+                                        <div class="card-body">
+                                            <div class="attendance-compact-value">{{ working_days }}</div>
+                                            <p class="attendance-compact-label">Working Days</p>
+                                            <span class="attendance-compact-sub">This Month</span>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Card 2: Present Days -->
-                                    <div class="card bg-success text-white" style="min-height: 120px;">
-                                        <div class="card-body text-center p-3">
-                                            <h4 class="mb-1">{{ attendance_summary.present_days or 0 }}</h4>
-                                            <p class="mb-0 small">Present</p>
+
+                                    <div class="card attendance-compact-card attendance-card-success">
+                                        <div class="card-body">
+                                            <div class="attendance-compact-value">{{ present_days }}</div>
+                                            <p class="attendance-compact-label">Present</p>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Card 3: Late Days -->
-                                    <div class="card bg-warning text-white" style="min-height: 120px;">
-                                        <div class="card-body text-center p-3">
-                                            <h4 class="mb-1">{{ attendance_summary.late_days or 0 }}</h4>
-                                            <p class="mb-0 small">Late</p>
+
+                                    <div class="card attendance-compact-card attendance-card-warning">
+                                        <div class="card-body">
+                                            <div class="attendance-compact-value">{{ late_days }}</div>
+                                            <p class="attendance-compact-label">Late</p>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Card 4: Absent Days -->
-                                    <div class="card bg-danger text-white" style="min-height: 120px;">
-                                        <div class="card-body text-center p-3">
-                                            <h4 class="mb-1">{{ attendance_summary.absent_days or 0 }}</h4>
-                                            <p class="mb-0 small">Absent</p>
+
+                                    <div class="card attendance-compact-card attendance-card-danger">
+                                        <div class="card-body">
+                                            <div class="attendance-compact-value">{{ absent_days }}</div>
+                                            <p class="attendance-compact-label">Absent</p>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Card 5: Leave Days -->
-                                    <div class="card bg-secondary text-white" style="min-height: 120px;">
-                                        <div class="card-body text-center p-3">
-                                            <h4 class="mb-1">{{ attendance_summary.leave_days or 0 }}</h4>
-                                            <p class="mb-0 small">On Leave</p>
+
+                                    <div class="card attendance-compact-card attendance-card-secondary">
+                                        <div class="card-body">
+                                            <div class="attendance-compact-value">{{ leave_days }}</div>
+                                            <p class="attendance-compact-label">On Leave</p>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Card 6: On Duty Days -->
-                                    <div class="card bg-primary text-white" style="min-height: 120px;">
-                                        <div class="card-body text-center p-3">
-                                            <h4 class="mb-1">{{ attendance_summary.on_duty_days or 0 }}</h4>
-                                            <p class="mb-0 small">On Duty</p>
+
+                                    <div class="card attendance-compact-card attendance-card-primary">
+                                        <div class="card-body">
+                                            <div class="attendance-compact-value">{{ on_duty_days }}</div>
+                                            <p class="attendance-compact-label">On Duty</p>
                                         </div>
                                     </div>
-                                    
-                                    <!-- Card 7: Holiday Days -->
-                                    <div class="card bg-dark text-white" style="min-height: 120px;">
-                                        <div class="card-body text-center p-3">
-                                            <h4 class="mb-1">{{ attendance_summary.holiday_days or 0 }}</h4>
-                                            <p class="mb-0 small">Holiday</p>
+
+                                    <div class="card attendance-compact-card attendance-card-dark">
+                                        <div class="card-body">
+                                            <div class="attendance-compact-value">{{ holiday_days }}</div>
+                                            <p class="attendance-compact-label">Holiday</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="card attendance-compact-card attendance-card-violet">
+                                        <div class="card-body">
+                                            <div class="attendance-compact-value">{{ accounted_days }}</div>
+                                            <p class="attendance-compact-label">Tracked Days</p>
+                                        </div>
+                                    </div>
+
+                                    <div class="card attendance-compact-card attendance-card-teal">
+                                        <div class="card-body">
+                                            <div class="attendance-compact-value">{{ '%.0f'|format(attendance_percent) }}%</div>
+                                            <p class="attendance-compact-label">Attendance Rate</p>
                                         </div>
                                     </div>
                                 </div>
-                                <div class="mt-3">
-                                    <canvas id="attendanceSummaryChart" width="100%" height="200"></canvas>
+                                <div class="attendance-chart-wrap">
+                                    <canvas id="attendanceSummaryChart"></canvas>
                                 </div>
                             </div>
                         </div>
