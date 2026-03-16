@@ -5886,6 +5886,46 @@ def admin_student_management():
             )
         ''')
         db.commit()
+
+    def _ensure_student_holidays_table():
+        """Create student holiday planner table if it does not exist (MySQL/SQLite compatible fallback)."""
+        try:
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS student_holidays (
+                    id INTEGER PRIMARY KEY AUTO_INCREMENT,
+                    school_id INTEGER NOT NULL,
+                    holiday_title VARCHAR(255) NOT NULL,
+                    holiday_start_date DATE NOT NULL,
+                    holiday_end_date DATE NOT NULL,
+                    description TEXT,
+                    target_mode VARCHAR(20) NOT NULL DEFAULT 'bulk',
+                    target_class VARCHAR(100),
+                    target_section VARCHAR(100),
+                    created_by INTEGER,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            db.commit()
+            return
+        except Exception:
+            db.rollback()
+
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS student_holidays (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                holiday_title TEXT NOT NULL,
+                holiday_start_date TEXT NOT NULL,
+                holiday_end_date TEXT NOT NULL,
+                description TEXT,
+                target_mode TEXT NOT NULL DEFAULT 'bulk',
+                target_class TEXT,
+                target_section TEXT,
+                created_by INTEGER,
+                created_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        db.commit()
     
     # Check if student management module is enabled
     module_enabled = get_module_enabled(school_id)
@@ -6150,6 +6190,154 @@ def admin_student_management():
                     flash('Exam assignment deleted successfully.', 'success')
                 else:
                     flash('Exam assignment not found or already removed.', 'warning')
+
+            elif action == 'assign_student_holiday':
+                _ensure_student_holidays_table()
+
+                holiday_title = (request.form.get('holiday_title') or '').strip()
+                holiday_start_date = (request.form.get('holiday_start_date') or '').strip()
+                holiday_end_date = (request.form.get('holiday_end_date') or '').strip()
+                holiday_description = (request.form.get('holiday_description') or '').strip()
+                holiday_mode = (request.form.get('holiday_mode') or 'bulk').strip().lower()
+                holiday_class = (request.form.get('holiday_class') or '').strip()
+                holiday_section = (request.form.get('holiday_section') or '').strip()
+
+                if not holiday_title:
+                    flash('Holiday title is required.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                try:
+                    start_date = datetime.date.fromisoformat(holiday_start_date).strftime('%Y-%m-%d')
+                    end_date = datetime.date.fromisoformat(holiday_end_date).strftime('%Y-%m-%d')
+                except Exception:
+                    flash('Please provide valid holiday start and end dates.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if end_date < start_date:
+                    flash('Holiday end date cannot be earlier than start date.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if holiday_mode not in ('bulk', 'class_section'):
+                    holiday_mode = 'bulk'
+
+                if holiday_mode == 'class_section' and not holiday_class:
+                    flash('Please select class for class/section holiday mode.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                target_class_value = holiday_class if holiday_mode == 'class_section' else None
+                target_section_value = holiday_section if holiday_mode == 'class_section' and holiday_section else None
+
+                db.execute('''
+                    INSERT INTO student_holidays (
+                        school_id, holiday_title, holiday_start_date, holiday_end_date, description,
+                        target_mode, target_class, target_section, created_by
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    school_id,
+                    holiday_title,
+                    start_date,
+                    end_date,
+                    holiday_description,
+                    holiday_mode,
+                    target_class_value,
+                    target_section_value,
+                    session.get('user_id')
+                ))
+                db.commit()
+
+                if holiday_mode == 'bulk':
+                    flash('Student holiday assigned in bulk successfully.', 'success')
+                else:
+                    section_suffix = f" - {target_section_value}" if target_section_value else ' (All Sections)'
+                    flash(f'Student holiday assigned for {target_class_value}{section_suffix}.', 'success')
+
+            elif action == 'update_student_holiday':
+                _ensure_student_holidays_table()
+
+                holiday_id = (request.form.get('holiday_id') or '').strip()
+                holiday_title = (request.form.get('holiday_title') or '').strip()
+                holiday_start_date = (request.form.get('holiday_start_date') or '').strip()
+                holiday_end_date = (request.form.get('holiday_end_date') or '').strip()
+                holiday_description = (request.form.get('holiday_description') or '').strip()
+                holiday_mode = (request.form.get('holiday_mode') or 'bulk').strip().lower()
+                holiday_class = (request.form.get('holiday_class') or '').strip()
+                holiday_section = (request.form.get('holiday_section') or '').strip()
+
+                if not holiday_id:
+                    flash('Holiday ID is required for update.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if not holiday_title:
+                    flash('Holiday title is required.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                try:
+                    start_date = datetime.date.fromisoformat(holiday_start_date).strftime('%Y-%m-%d')
+                    end_date = datetime.date.fromisoformat(holiday_end_date).strftime('%Y-%m-%d')
+                except Exception:
+                    flash('Please provide valid holiday start and end dates.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if end_date < start_date:
+                    flash('Holiday end date cannot be earlier than start date.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if holiday_mode not in ('bulk', 'class_section'):
+                    holiday_mode = 'bulk'
+
+                if holiday_mode == 'class_section' and not holiday_class:
+                    flash('Please select class for class/section holiday mode.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                target_class_value = holiday_class if holiday_mode == 'class_section' else None
+                target_section_value = holiday_section if holiday_mode == 'class_section' and holiday_section else None
+
+                result = db.execute('''
+                    UPDATE student_holidays
+                    SET holiday_title = ?,
+                        holiday_start_date = ?,
+                        holiday_end_date = ?,
+                        description = ?,
+                        target_mode = ?,
+                        target_class = ?,
+                        target_section = ?
+                    WHERE id = ? AND school_id = ?
+                ''', (
+                    holiday_title,
+                    start_date,
+                    end_date,
+                    holiday_description,
+                    holiday_mode,
+                    target_class_value,
+                    target_section_value,
+                    holiday_id,
+                    school_id
+                ))
+                db.commit()
+
+                if result.rowcount:
+                    flash('Student holiday updated successfully.', 'success')
+                else:
+                    flash('Student holiday not found or already removed.', 'warning')
+
+            elif action == 'delete_student_holiday':
+                _ensure_student_holidays_table()
+
+                holiday_id = (request.form.get('holiday_id') or '').strip()
+                if not holiday_id:
+                    flash('Holiday ID is required for delete.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                result = db.execute('''
+                    DELETE FROM student_holidays
+                    WHERE id = ? AND school_id = ?
+                ''', (holiday_id, school_id))
+                db.commit()
+
+                if result.rowcount:
+                    flash('Student holiday deleted successfully.', 'success')
+                else:
+                    flash('Student holiday not found or already removed.', 'warning')
                 
         except Exception as e:
             flash(f'Error: {str(e)}', 'error')
@@ -6248,6 +6436,16 @@ def admin_student_management():
         ORDER BY exam_date DESC, id DESC
         LIMIT 25
     ''', (school_id,)).fetchall()
+
+    _ensure_student_holidays_table()
+    student_holidays = db.execute('''
+        SELECT id, holiday_title, holiday_start_date, holiday_end_date, description,
+               target_mode, target_class, target_section, created_at
+        FROM student_holidays
+        WHERE school_id = ?
+        ORDER BY holiday_start_date DESC, id DESC
+        LIMIT 25
+    ''', (school_id,)).fetchall()
     
     # Get module enabled status
     module_enabled = get_module_enabled(school_id)
@@ -6260,6 +6458,7 @@ def admin_student_management():
                          total_students=total_students,
                          students_this_month=students_this_month,
                          total_classes=total_classes,
+                         student_holidays=student_holidays,
                          exam_assignments=exam_assignments,
                          class_subjects_map=json.dumps(class_subjects_map),
                          unique_classes=unique_classes,
@@ -6280,6 +6479,20 @@ def api_student_dashboard_data():
     db = get_db()
     school_id = session['school_id']
     today = datetime.date.today().strftime('%Y-%m-%d')
+
+    def _serialize_time_value(value):
+        """Convert DB time-like values to a JSON-safe string."""
+        if value in (None, ''):
+            return '--:--:--'
+        if isinstance(value, str):
+            return value
+        try:
+            return value.strftime('%H:%M:%S')
+        except Exception:
+            try:
+                return value.isoformat()
+            except Exception:
+                return str(value)
 
     # Get all students with today's attendance
     students = db.execute('''
@@ -6326,9 +6539,9 @@ def api_student_dashboard_data():
             'roll_number': s['roll_number'],
             'gender': s['gender'] or '',
             'morning_status': morning,
-            'morning_time': s['morning_time'] or '--:--:--',
+            'morning_time': _serialize_time_value(s['morning_time']),
             'afternoon_status': afternoon,
-            'afternoon_time': s['afternoon_time'] or '--:--:--',
+            'afternoon_time': _serialize_time_value(s['afternoon_time']),
             'status': status,
             'has_photo': bool(s['photo_data'])
         })
@@ -17697,11 +17910,64 @@ def student_dashboard():
         LEFT JOIN staff s2 ON sa.afternoon_marked_by = s2.id
         WHERE sa.student_id = ? AND sa.attendance_date = ?
     ''', (session['student_id'], today)).fetchone()
+
+    # Apply holiday planner for student-facing status (bulk or class/section).
+    holiday_record = None
+    try:
+        holiday_record = db.execute('''
+            SELECT holiday_title, holiday_start_date, holiday_end_date, description
+            FROM student_holidays
+            WHERE school_id = ?
+              AND holiday_start_date <= ?
+              AND holiday_end_date >= ?
+              AND (
+                    target_mode = 'bulk'
+                    OR (
+                        target_mode = 'class_section'
+                        AND target_class = ?
+                        AND (
+                            target_section IS NULL
+                            OR TRIM(target_section) = ''
+                            OR target_section = ?
+                        )
+                    )
+              )
+            ORDER BY id DESC
+            LIMIT 1
+        ''', (student['school_id'], today, today, (student['class'] or '').strip(), (student['section'] or '').strip())).fetchone()
+    except Exception:
+        holiday_record = None
+
+    if attendance:
+        attendance = dict(attendance)
+
+    if holiday_record:
+        if not attendance:
+            attendance = {
+                'morning_status': 'holiday',
+                'afternoon_status': 'holiday',
+                'morning_time': None,
+                'afternoon_time': None,
+                'morning_notes': holiday_record['description'] or holiday_record['holiday_title'],
+                'afternoon_notes': holiday_record['description'] or holiday_record['holiday_title'],
+                'morning_marked_by_name': None,
+                'afternoon_marked_by_name': None
+            }
+        else:
+            if not attendance.get('morning_status'):
+                attendance['morning_status'] = 'holiday'
+                if not attendance.get('morning_notes'):
+                    attendance['morning_notes'] = holiday_record['description'] or holiday_record['holiday_title']
+            if not attendance.get('afternoon_status'):
+                attendance['afternoon_status'] = 'holiday'
+                if not attendance.get('afternoon_notes'):
+                    attendance['afternoon_notes'] = holiday_record['description'] or holiday_record['holiday_title']
     
     return render_template('student/student_dashboard.html',
                          student=student,
                          school_name=school['name'] if school else 'N/A',
                          attendance=attendance,
+                         current_holiday=dict(holiday_record) if holiday_record else None,
                          current_date=datetime.date.today().strftime('%d %B, %Y'))
 
 
@@ -17716,6 +17982,11 @@ def student_attendance_history():
                         (session['student_id'],)).fetchone()
     
     # Get attendance history (last 30 days)
+    today_obj = datetime.date.today()
+    start_date_obj = today_obj - datetime.timedelta(days=29)
+    start_date = start_date_obj.strftime('%Y-%m-%d')
+    end_date = today_obj.strftime('%Y-%m-%d')
+
     attendance_records = db.execute('''
         SELECT sa.*, 
                s1.full_name as morning_marked_by_name,
@@ -17723,10 +17994,89 @@ def student_attendance_history():
         FROM student_attendance sa
         LEFT JOIN staff s1 ON sa.morning_marked_by = s1.id
         LEFT JOIN staff s2 ON sa.afternoon_marked_by = s2.id
-        WHERE sa.student_id = ?
+        WHERE sa.student_id = ? AND sa.attendance_date BETWEEN ? AND ?
         ORDER BY sa.attendance_date DESC
-        LIMIT 30
-    ''', (session['student_id'],)).fetchall()
+    ''', (session['student_id'], start_date, end_date)).fetchall()
+
+    attendance_map = {}
+    for row in attendance_records:
+        row_dict = dict(row)
+        date_key = str(row_dict.get('attendance_date') or '')
+        if date_key and not row_dict.get('date'):
+            row_dict['date'] = date_key
+        if date_key:
+            attendance_map[date_key] = row_dict
+
+    holiday_rows = []
+    try:
+        holiday_rows = db.execute('''
+            SELECT holiday_title, holiday_start_date, holiday_end_date, description,
+                   target_mode, target_class, target_section
+            FROM student_holidays
+            WHERE school_id = ?
+              AND holiday_end_date >= ?
+              AND holiday_start_date <= ?
+              AND (
+                    target_mode = 'bulk'
+                    OR (
+                        target_mode = 'class_section'
+                        AND target_class = ?
+                        AND (
+                            target_section IS NULL
+                            OR TRIM(target_section) = ''
+                            OR target_section = ?
+                        )
+                    )
+              )
+            ORDER BY holiday_start_date DESC, id DESC
+        ''', (
+            student['school_id'],
+            start_date,
+            end_date,
+            (student['class'] or '').strip(),
+            (student['section'] or '').strip()
+        )).fetchall()
+    except Exception:
+        holiday_rows = []
+
+    for holiday in holiday_rows:
+        try:
+            h_start = datetime.date.fromisoformat(str(holiday['holiday_start_date']))
+            h_end = datetime.date.fromisoformat(str(holiday['holiday_end_date']))
+        except Exception:
+            continue
+
+        current = max(h_start, start_date_obj)
+        final = min(h_end, today_obj)
+        while current <= final:
+            key = current.strftime('%Y-%m-%d')
+            if key in attendance_map:
+                if not attendance_map[key].get('morning_status'):
+                    attendance_map[key]['morning_status'] = 'holiday'
+                    attendance_map[key]['morning_notes'] = attendance_map[key].get('morning_notes') or holiday['description'] or holiday['holiday_title']
+                if not attendance_map[key].get('afternoon_status'):
+                    attendance_map[key]['afternoon_status'] = 'holiday'
+                    attendance_map[key]['afternoon_notes'] = attendance_map[key].get('afternoon_notes') or holiday['description'] or holiday['holiday_title']
+            else:
+                attendance_map[key] = {
+                    'attendance_date': key,
+                    'date': key,
+                    'morning_status': 'holiday',
+                    'morning_time': None,
+                    'morning_notes': holiday['description'] or holiday['holiday_title'],
+                    'morning_marked_by_name': None,
+                    'afternoon_status': 'holiday',
+                    'afternoon_time': None,
+                    'afternoon_notes': holiday['description'] or holiday['holiday_title'],
+                    'afternoon_marked_by_name': None
+                }
+            current += datetime.timedelta(days=1)
+
+    attendance_records = sorted(
+        attendance_map.values(),
+        key=lambda item: str(item.get('attendance_date') or item.get('date') or ''),
+        reverse=True
+    )[:30]
     
     school = db.execute('SELECT name FROM schools WHERE id = ?', 
                        (student['school_id'],)).fetchone()

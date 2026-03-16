@@ -320,6 +320,12 @@
             font-weight: 600;
         }
 
+        .status-holiday {
+            background: #dbeafe;
+            color: #1d4ed8;
+            font-weight: 700;
+        }
+
         .status-not-marked {
             background: var(--text-secondary);
             color: var(--bg-secondary);
@@ -339,6 +345,85 @@
             background: var(--bg-primary);
             border-radius: 8px;
             font-size: 14px;
+        }
+
+        .holiday-ticker {
+            position: relative;
+            overflow: hidden;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.45);
+            background: linear-gradient(135deg, rgba(255,255,255,0.34) 0%, rgba(191,219,254,0.22) 100%);
+            backdrop-filter: blur(14px) saturate(1.25);
+            -webkit-backdrop-filter: blur(14px) saturate(1.25);
+            padding: 12px 0;
+            margin-bottom: 18px;
+            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.10), inset 0 1px 0 rgba(255,255,255,0.55);
+            cursor: pointer;
+        }
+
+        .holiday-ticker::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(90deg, rgba(248,250,252,0.94) 0%, rgba(248,250,252,0) 12%, rgba(248,250,252,0) 88%, rgba(248,250,252,0.94) 100%);
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .holiday-ticker.is-paused {
+            box-shadow: 0 14px 30px rgba(37, 99, 235, 0.14), inset 0 1px 0 rgba(255,255,255,0.65), 0 0 0 1px rgba(147,197,253,0.35);
+        }
+
+        .holiday-ticker-track {
+            display: inline-flex;
+            align-items: center;
+            gap: 28px;
+            white-space: nowrap;
+            padding-left: 100%;
+            animation: holidayTickerMove 28s linear infinite;
+            color: #1e3a8a;
+            font-weight: 700;
+            position: relative;
+            z-index: 0;
+        }
+
+        .holiday-ticker.is-paused .holiday-ticker-track {
+            animation-play-state: paused;
+        }
+
+        .holiday-ticker-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.95rem;
+        }
+
+        .holiday-ticker-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(37,99,235,0.88), rgba(29,78,216,0.82));
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+            box-shadow: 0 8px 20px rgba(37, 99, 235, 0.18);
+        }
+
+        .holiday-ticker-muted {
+            font-weight: 600;
+            color: #475569;
+        }
+
+        @keyframes holidayTickerMove {
+            0% {
+                transform: translateX(-100%);
+            }
+            100% {
+                transform: translateX(100%);
+            }
         }
 
         .btn {
@@ -489,7 +574,7 @@
                 {% if attendance and attendance.morning_status %}
                 <div class="attendance-status">
                     <span class="status-badge status-{{ attendance.morning_status }}">
-                        <i class="bi bi-{{ 'check-circle' if attendance.morning_status == 'present' else 'x-circle' if attendance.morning_status == 'absent' else 'clock' if attendance.morning_status == 'late' else 'file-text' }}"></i>
+                        <i class="bi bi-{{ 'check-circle' if attendance.morning_status == 'present' else 'x-circle' if attendance.morning_status == 'absent' else 'clock' if attendance.morning_status == 'late' else 'calendar2-week' if attendance.morning_status == 'holiday' else 'file-text' }}"></i>
                         {{ attendance.morning_status.upper() }}
                     </span>
                 </div>
@@ -536,7 +621,7 @@
                 {% if attendance and attendance.afternoon_status %}
                 <div class="attendance-status">
                     <span class="status-badge status-{{ attendance.afternoon_status }}">
-                        <i class="bi bi-{{ 'check-circle' if attendance.afternoon_status == 'present' else 'x-circle' if attendance.afternoon_status == 'absent' else 'clock' if attendance.afternoon_status == 'late' else 'file-text' }}"></i>
+                        <i class="bi bi-{{ 'check-circle' if attendance.afternoon_status == 'present' else 'x-circle' if attendance.afternoon_status == 'absent' else 'clock' if attendance.afternoon_status == 'late' else 'calendar2-week' if attendance.afternoon_status == 'holiday' else 'file-text' }}"></i>
                         {{ attendance.afternoon_status.upper() }}
                     </span>
                 </div>
@@ -575,6 +660,24 @@
             <div class="card-header">
                 <h3>Today's Information</h3>
             </div>
+            {% if current_holiday %}
+            <div class="holiday-ticker">
+                <div class="holiday-ticker-track">
+                    <div class="holiday-ticker-item">
+                        <span class="holiday-ticker-icon"><i class="bi bi-calendar2-heart"></i></span>
+                        <span>Holiday Today: {{ current_holiday.holiday_title }}</span>
+                        <span class="holiday-ticker-muted">{{ current_holiday.holiday_start_date }} to {{ current_holiday.holiday_end_date }}</span>
+                        <span>{{ current_holiday.description or 'Enjoy your scheduled holiday.' }}</span>
+                    </div>
+                    <div class="holiday-ticker-item" aria-hidden="true">
+                        <span class="holiday-ticker-icon"><i class="bi bi-stars"></i></span>
+                        <span>Holiday Today: {{ current_holiday.holiday_title }}</span>
+                        <span class="holiday-ticker-muted">{{ current_holiday.holiday_start_date }} to {{ current_holiday.holiday_end_date }}</span>
+                        <span>{{ current_holiday.description or 'Enjoy your scheduled holiday.' }}</span>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
                 <div style="text-align: center;">
                     <i class="bi bi-calendar-date" style="font-size: 32px; color: var(--accent-color);"></i>
@@ -594,6 +697,24 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <script>
+
+        const holidayTicker = document.querySelector('.holiday-ticker');
+        if (holidayTicker) {
+            let holidayTickerPauseTimeout = null;
+
+            holidayTicker.addEventListener('click', function() {
+                holidayTicker.classList.add('is-paused');
+
+                if (holidayTickerPauseTimeout) {
+                    clearTimeout(holidayTickerPauseTimeout);
+                }
+
+                holidayTickerPauseTimeout = setTimeout(() => {
+                    holidayTicker.classList.remove('is-paused');
+                    holidayTickerPauseTimeout = null;
+                }, 10000);
+            });
+        }
 
 
         // Mobile sidebar toggle
