@@ -7710,6 +7710,480 @@ def staff_timetable():
         return redirect(url_for('index'))
     return render_template('staff_timetable.html')
 
+@app.route('/staff/homework-assigner', methods=['GET', 'POST'])
+def staff_homework_assigner():
+    """Staff homework assigner page."""
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
+        return redirect(url_for('index'))
+
+    db = get_db()
+    staff_id = session.get('user_id')
+    school_id = session.get('school_id')
+    today_date = datetime.date.today()
+    day_of_week = today_date.weekday() + 1  # Mon=1 ... Sun=7
+    if day_of_week == 7:
+        day_of_week = 0  # Keep app convention: Sunday=0
+
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS staff_homework_assignments (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            staff_id INTEGER NOT NULL,
+            level_id INTEGER,
+            section_id INTEGER,
+            class_name TEXT NOT NULL,
+            section_name TEXT NOT NULL,
+            subject_name TEXT NOT NULL,
+            period_number INTEGER,
+            homework_text TEXT NOT NULL,
+            due_date TEXT,
+            assigned_date TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS student_homework_completion (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            homework_id INTEGER NOT NULL,
+            student_id INTEGER NOT NULL,
+            school_id INTEGER NOT NULL,
+            staff_id INTEGER NOT NULL,
+            completed_at TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(homework_id, student_id)
+        )
+    ''')
+
+    # Backward-compatible schema updates for existing databases.
+    existing_columns = set()
+    try:
+        column_rows = db.execute("PRAGMA table_info(staff_homework_assignments)").fetchall()
+        existing_columns = {row['name'] for row in column_rows}
+    except Exception:
+        existing_columns = set()
+
+    if 'attachment_path' not in existing_columns:
+        try:
+            db.execute('ALTER TABLE staff_homework_assignments ADD COLUMN attachment_path TEXT')
+        except Exception:
+            pass
+
+    if 'updated_at' not in existing_columns:
+        try:
+            db.execute('ALTER TABLE staff_homework_assignments ADD COLUMN updated_at TIMESTAMP')
+        except Exception:
+            pass
+
+    def _delete_attachment_file(path_value):
+        if not path_value:
+            return
+        try:
+            full_path = os.path.join(os.getcwd(), path_value)
+            if os.path.isfile(full_path):
+                os.remove(full_path)
+        except Exception:
+            # Attachment cleanup failure should not block the main operation.
+            pass
+
+    def _save_attachment(file_obj):
+        if not file_obj or not getattr(file_obj, 'filename', ''):
+            return None
+
+        allowed_ext = {'pdf', 'doc', 'docx', 'ppt', 'pptx', 'xls', 'xlsx', 'txt', 'jpg', 'jpeg', 'png', 'zip'}
+        safe_original = secure_filename(file_obj.filename)
+        if not safe_original:
+            raise ValueError('Invalid file name.')
+
+        ext = safe_original.rsplit('.', 1)[-1].lower() if '.' in safe_original else ''
+        if ext not in allowed_ext:
+            raise ValueError('Unsupported file type. Use PDF, DOCX, PPT, XLSX, TXT, image, or ZIP.')
+
+        upload_dir = os.path.join('static', 'uploads', 'homework', f'school_{school_id}')
+        os.makedirs(upload_dir, exist_ok=True)
+
+        stamp = datetime.datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_name = f"hw_{staff_id}_{stamp}_{int(time.time() * 1000) % 100000}_{safe_original}"
+        relative_path = os.path.join(upload_dir, unique_name).replace('\\', '/')
+
+        file_obj.save(relative_path)
+        return relative_path
+
+    if request.method == 'POST':
+        action = (request.form.get('action') or 'assign_homework').strip()
+
+        if action == 'mark_homework_completed':
+            homework_id_raw = (request.form.get('homework_id') or '').strip()
+            selected_student_ids = request.form.getlist('completed_student_ids')
+
+            try:
+                homework_id = int(homework_id_raw)
+            except (TypeError, ValueError):
+                flash('Invalid homework record selected for completion.', 'warning')
+                return redirect(url_for('staff_homework_assigner'))
+
+            assignment = db.execute('''
+                SELECT id, class_name, section_name
+                FROM staff_homework_assignments
+                WHERE id = ? AND school_id = ? AND staff_id = ?
+            ''', (homework_id, school_id, staff_id)).fetchone()
+
+            if not assignment:
+                flash('Homework record not found or access denied.', 'warning')
+                return redirect(url_for('staff_homework_assigner'))
+
+            valid_students = db.execute('''
+                SELECT id
+                FROM students
+                WHERE school_id = ?
+                  AND LOWER(TRIM(`class`)) = LOWER(TRIM(?))
+                  AND LOWER(TRIM(section)) = LOWER(TRIM(?))
+            ''', (school_id, assignment['class_name'], assignment['section_name'])).fetchall()
+            valid_student_ids = {str(row['id']) for row in valid_students}
+
+            clean_selected_ids = []
+            for student_id_value in selected_student_ids:
+                student_id_value = str(student_id_value).strip()
+                if student_id_value in valid_student_ids and student_id_value not in clean_selected_ids:
+                    clean_selected_ids.append(student_id_value)
+
+            if not clean_selected_ids:
+                flash('Select at least one student to mark homework as completed.', 'warning')
+                return redirect(url_for('staff_homework_assigner'))
+
+            try:
+                completion_date = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                for student_id_value in clean_selected_ids:
+                    student_id_int = int(student_id_value)
+
+                    existing_completion = db.execute('''
+                        SELECT id
+                        FROM student_homework_completion
+                        WHERE homework_id = ? AND student_id = ?
+                    ''', (homework_id, student_id_int)).fetchone()
+
+                    if existing_completion:
+                        db.execute('''
+                            UPDATE student_homework_completion
+                            SET school_id = ?,
+                                staff_id = ?,
+                                completed_at = ?
+                            WHERE id = ?
+                        ''', (school_id, staff_id, completion_date, existing_completion['id']))
+                    else:
+                        db.execute('''
+                            INSERT INTO student_homework_completion (
+                                homework_id, student_id, school_id, staff_id, completed_at
+                            ) VALUES (?, ?, ?, ?, ?)
+                        ''', (homework_id, student_id_int, school_id, staff_id, completion_date))
+
+                db.commit()
+                flash(f'Marked homework as completed for {len(clean_selected_ids)} student(s).', 'success')
+            except Exception as exc:
+                db.rollback()
+                flash(f'Unable to save completion status: {str(exc)}', 'danger')
+
+            return redirect(url_for('staff_homework_assigner'))
+
+        if action == 'delete_homework':
+            homework_id_raw = (request.form.get('homework_id') or '').strip()
+            try:
+                homework_id = int(homework_id_raw)
+            except (TypeError, ValueError):
+                flash('Invalid homework record selected.', 'warning')
+                return redirect(url_for('staff_homework_assigner'))
+
+            record = db.execute('''
+                SELECT id, attachment_path
+                FROM staff_homework_assignments
+                WHERE id = ? AND school_id = ? AND staff_id = ?
+            ''', (homework_id, school_id, staff_id)).fetchone()
+
+            if not record:
+                flash('Homework record not found or access denied.', 'warning')
+                return redirect(url_for('staff_homework_assigner'))
+
+            try:
+                db.execute('''
+                    DELETE FROM staff_homework_assignments
+                    WHERE id = ? AND school_id = ? AND staff_id = ?
+                ''', (homework_id, school_id, staff_id))
+                db.commit()
+                _delete_attachment_file(record['attachment_path'])
+                flash('Homework deleted successfully.', 'success')
+            except Exception as exc:
+                db.rollback()
+                flash(f'Unable to delete homework: {str(exc)}', 'danger')
+
+            return redirect(url_for('staff_homework_assigner'))
+
+        homework_id_raw = (request.form.get('homework_id') or '').strip()
+        is_edit = action == 'update_homework' and homework_id_raw
+
+        class_name = (request.form.get('class_name') or '').strip()
+        section_name = (request.form.get('section_name') or '').strip()
+        subject_name = (request.form.get('subject_name') or '').strip()
+        homework_text = (request.form.get('homework_text') or '').strip()
+        due_date = (request.form.get('due_date') or '').strip()
+        remove_attachment = (request.form.get('remove_attachment') or '').strip() == '1'
+        homework_file = request.files.get('homework_file')
+
+        level_id_raw = (request.form.get('level_id') or '').strip()
+        section_id_raw = (request.form.get('section_id') or '').strip()
+        period_number_raw = (request.form.get('period_number') or '').strip()
+
+        try:
+            level_id = int(level_id_raw) if level_id_raw else None
+            section_id = int(section_id_raw) if section_id_raw else None
+            period_number = int(period_number_raw) if period_number_raw else None
+        except (TypeError, ValueError):
+            flash('Invalid period or class details. Please choose a period card again.', 'danger')
+            return redirect(url_for('staff_homework_assigner'))
+
+        if not class_name or not section_name or not subject_name or not homework_text:
+            flash('Please select a class period and enter homework details.', 'warning')
+            return redirect(url_for('staff_homework_assigner'))
+
+        if due_date:
+            try:
+                datetime.date.fromisoformat(due_date)
+            except ValueError:
+                flash('Invalid due date format.', 'danger')
+                return redirect(url_for('staff_homework_assigner'))
+
+        edit_record = None
+        homework_id = None
+        if is_edit:
+            try:
+                homework_id = int(homework_id_raw)
+            except (TypeError, ValueError):
+                flash('Invalid homework ID for edit.', 'danger')
+                return redirect(url_for('staff_homework_assigner'))
+
+            edit_record = db.execute('''
+                SELECT id, attachment_path
+                FROM staff_homework_assignments
+                WHERE id = ? AND school_id = ? AND staff_id = ?
+            ''', (homework_id, school_id, staff_id)).fetchone()
+
+            if not edit_record:
+                flash('Homework record not found for edit.', 'warning')
+                return redirect(url_for('staff_homework_assigner'))
+
+        try:
+            new_attachment_path = _save_attachment(homework_file)
+        except ValueError as ve:
+            flash(str(ve), 'warning')
+            return redirect(url_for('staff_homework_assigner'))
+        except Exception as exc:
+            flash(f'Unable to upload file: {str(exc)}', 'danger')
+            return redirect(url_for('staff_homework_assigner'))
+
+        try:
+            if is_edit:
+                final_attachment_path = edit_record['attachment_path']
+                if remove_attachment:
+                    final_attachment_path = None
+                if new_attachment_path:
+                    final_attachment_path = new_attachment_path
+
+                db.execute('''
+                    UPDATE staff_homework_assignments
+                    SET level_id = ?,
+                        section_id = ?,
+                        class_name = ?,
+                        section_name = ?,
+                        subject_name = ?,
+                        period_number = ?,
+                        homework_text = ?,
+                        due_date = ?,
+                        attachment_path = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                      AND school_id = ?
+                      AND staff_id = ?
+                ''', (
+                    level_id,
+                    section_id,
+                    class_name,
+                    section_name,
+                    subject_name,
+                    period_number,
+                    homework_text,
+                    due_date if due_date else None,
+                    final_attachment_path,
+                    homework_id,
+                    school_id,
+                    staff_id
+                ))
+                db.commit()
+
+                if (remove_attachment or new_attachment_path) and edit_record['attachment_path']:
+                    _delete_attachment_file(edit_record['attachment_path'])
+
+                flash('Homework updated successfully.', 'success')
+            else:
+                db.execute('''
+                    INSERT INTO staff_homework_assignments (
+                        school_id, staff_id, level_id, section_id,
+                        class_name, section_name, subject_name, period_number,
+                        homework_text, due_date, assigned_date, attachment_path
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    school_id,
+                    staff_id,
+                    level_id,
+                    section_id,
+                    class_name,
+                    section_name,
+                    subject_name,
+                    period_number,
+                    homework_text,
+                    due_date if due_date else None,
+                    today_date.strftime('%Y-%m-%d'),
+                    new_attachment_path
+                ))
+                db.commit()
+                flash(f'Homework assigned for {class_name}-{section_name} ({subject_name}) successfully.', 'success')
+        except Exception as exc:
+            db.rollback()
+            if new_attachment_path:
+                _delete_attachment_file(new_attachment_path)
+            flash(f'Unable to assign homework right now: {str(exc)}', 'danger')
+
+        return redirect(url_for('staff_homework_assigner'))
+
+    day_names = {
+        0: 'Sunday',
+        1: 'Monday',
+        2: 'Tuesday',
+        3: 'Wednesday',
+        4: 'Thursday',
+        5: 'Friday',
+        6: 'Saturday'
+    }
+
+    today_periods = []
+    if day_of_week != 0:
+        today_periods = db.execute('''
+            SELECT
+                ha.level_id,
+                ha.section_id,
+                tal.level_name AS class_name,
+                ts.section_name,
+                ha.subject_name,
+                ha.period_number,
+                COALESCE(
+                    (
+                        SELECT tp.period_name
+                        FROM timetable_periods tp
+                        WHERE tp.school_id = ha.school_id
+                          AND tp.period_number = ha.period_number
+                          AND tp.is_active = 1
+                          AND (tp.level_id IS NULL OR tp.level_id = ha.level_id)
+                          AND (tp.section_id IS NULL OR tp.section_id = ha.section_id)
+                        ORDER BY
+                            CASE WHEN tp.level_id = ha.level_id THEN 0 ELSE 1 END,
+                            CASE WHEN tp.section_id = ha.section_id THEN 0 ELSE 1 END
+                        LIMIT 1
+                    ),
+                    'Period ' || ha.period_number
+                ) AS period_name,
+                (
+                    SELECT tp.start_time
+                    FROM timetable_periods tp
+                    WHERE tp.school_id = ha.school_id
+                      AND tp.period_number = ha.period_number
+                      AND tp.is_active = 1
+                      AND (tp.level_id IS NULL OR tp.level_id = ha.level_id)
+                      AND (tp.section_id IS NULL OR tp.section_id = ha.section_id)
+                    ORDER BY
+                        CASE WHEN tp.level_id = ha.level_id THEN 0 ELSE 1 END,
+                        CASE WHEN tp.section_id = ha.section_id THEN 0 ELSE 1 END
+                    LIMIT 1
+                ) AS start_time,
+                (
+                    SELECT tp.end_time
+                    FROM timetable_periods tp
+                    WHERE tp.school_id = ha.school_id
+                      AND tp.period_number = ha.period_number
+                      AND tp.is_active = 1
+                      AND (tp.level_id IS NULL OR tp.level_id = ha.level_id)
+                      AND (tp.section_id IS NULL OR tp.section_id = ha.section_id)
+                    ORDER BY
+                        CASE WHEN tp.level_id = ha.level_id THEN 0 ELSE 1 END,
+                        CASE WHEN tp.section_id = ha.section_id THEN 0 ELSE 1 END
+                    LIMIT 1
+                ) AS end_time
+            FROM timetable_hierarchical_assignments ha
+            JOIN timetable_academic_levels tal
+              ON tal.id = ha.level_id
+             AND tal.school_id = ha.school_id
+             AND tal.is_active = 1
+            JOIN timetable_sections ts
+              ON ts.id = ha.section_id
+             AND ts.school_id = ha.school_id
+             AND ts.is_active = 1
+            WHERE ha.school_id = ?
+              AND ha.staff_id = ?
+              AND ha.day_of_week = ?
+            ORDER BY ha.period_number, tal.level_name, ts.section_name
+        ''', (school_id, staff_id, day_of_week)).fetchall()
+
+    recent_assignments = db.execute('''
+        SELECT hwa.id, hwa.class_name, hwa.section_name, hwa.subject_name, hwa.period_number,
+               hwa.homework_text, hwa.due_date, hwa.assigned_date, hwa.created_at,
+               hwa.attachment_path,
+               COALESCE((
+                   SELECT COUNT(*)
+                   FROM student_homework_completion shc
+                   WHERE shc.homework_id = hwa.id
+               ), 0) AS completed_count
+        FROM staff_homework_assignments hwa
+        WHERE hwa.school_id = ?
+          AND hwa.staff_id = ?
+        ORDER BY hwa.assigned_date DESC, hwa.created_at DESC
+        LIMIT 20
+    ''', (school_id, staff_id)).fetchall()
+
+    assignment_students_map = {}
+    for assignment in recent_assignments:
+        students = db.execute('''
+            SELECT id, student_id, full_name, roll_number
+            FROM students
+            WHERE school_id = ?
+              AND LOWER(TRIM(`class`)) = LOWER(TRIM(?))
+              AND LOWER(TRIM(section)) = LOWER(TRIM(?))
+            ORDER BY roll_number ASC, full_name ASC
+        ''', (school_id, assignment['class_name'], assignment['section_name'])).fetchall()
+
+        completed_students = db.execute('''
+            SELECT student_id
+            FROM student_homework_completion
+            WHERE homework_id = ?
+        ''', (assignment['id'],)).fetchall()
+        completed_student_ids = {row['student_id'] for row in completed_students}
+
+        assignment_students_map[str(assignment['id'])] = [
+            {
+                'id': row['id'],
+                'student_id': row['student_id'],
+                'full_name': row['full_name'],
+                'roll_number': row['roll_number'],
+                'completed': row['id'] in completed_student_ids
+            }
+            for row in students
+        ]
+
+    return render_template(
+        'staff_homework_assigner.html',
+        today_periods=today_periods,
+        today_name=day_names.get(day_of_week, 'Today'),
+        today_date=today_date.strftime('%Y-%m-%d'),
+        recent_assignments=recent_assignments,
+        assignment_students_map=assignment_students_map
+    )
+
 @app.route('/admin/staff-period-assignment')
 def staff_period_assignment():
     """Admin Staff Period Assignment page"""
@@ -18110,18 +18584,37 @@ def student_homework_exam():
     """Student homework and exam corner"""
     if 'student_id' not in session or session.get('user_type') != 'student':
         return redirect(url_for('student_login'))
-    
+
     db = get_db()
-    student = db.execute('SELECT * FROM students WHERE id = ?', 
+    student = db.execute('SELECT * FROM students WHERE id = ?',
                         (session['student_id'],)).fetchone()
-    
-    school = db.execute('SELECT name FROM schools WHERE id = ?', 
+
+    if not student:
+        return redirect(url_for('student_login'))
+
+    school = db.execute('SELECT name FROM schools WHERE id = ?',
                        (student['school_id'],)).fetchone()
-    
+
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS student_homework_completion (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            homework_id INTEGER NOT NULL,
+            student_id INTEGER NOT NULL,
+            school_id INTEGER NOT NULL,
+            staff_id INTEGER NOT NULL,
+            completed_at TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(homework_id, student_id)
+        )
+    ''')
+
     # Load assigned exams for this student's class
-    student_class = (student['class'] or '').strip() if student else ''
+    student_class = (student['class'] or '').strip()
+    student_section = (student['section'] or '').strip()
     today_iso = datetime.date.today().strftime('%Y-%m-%d')
     upcoming_exams = []
+    pending_homework = []
+    completed_homework = []
 
     if student_class:
         try:
@@ -18136,11 +18629,88 @@ def student_homework_exam():
         except Exception:
             # Table may not exist yet in a fresh environment.
             upcoming_exams = []
-    
+
+        # Load homework assigned by staff for this student's class/section.
+    try:
+        if student_section:
+            pending_homework = db.execute('''
+                                SELECT sha.id, sha.class_name, sha.section_name, sha.subject_name, sha.period_number,
+                                             sha.homework_text, sha.due_date, sha.assigned_date, sha.attachment_path
+                                FROM staff_homework_assignments sha
+                                WHERE sha.school_id = ?
+                                    AND LOWER(TRIM(sha.class_name)) = LOWER(TRIM(?))
+                                    AND LOWER(TRIM(sha.section_name)) = LOWER(TRIM(?))
+                                    AND NOT EXISTS (
+                                            SELECT 1
+                                            FROM student_homework_completion shc
+                                            WHERE shc.homework_id = sha.id
+                                                AND shc.student_id = ?
+                                    )
+                ORDER BY
+                                        CASE WHEN sha.due_date IS NULL THEN 1 ELSE 0 END,
+                                        sha.due_date ASC,
+                                        sha.assigned_date DESC,
+                                        sha.id DESC
+                        ''', (student['school_id'], student_class, student_section, student['id'])).fetchall()
+
+            completed_homework = db.execute('''
+                                SELECT sha.id, sha.class_name, sha.section_name, sha.subject_name, sha.period_number,
+                                             sha.homework_text, sha.due_date, sha.assigned_date, sha.attachment_path,
+                                             shc.completed_at
+                                FROM staff_homework_assignments sha
+                                JOIN student_homework_completion shc
+                                    ON shc.homework_id = sha.id
+                                 AND shc.student_id = ?
+                                WHERE sha.school_id = ?
+                                    AND LOWER(TRIM(sha.class_name)) = LOWER(TRIM(?))
+                                    AND LOWER(TRIM(sha.section_name)) = LOWER(TRIM(?))
+                                ORDER BY shc.completed_at DESC, sha.assigned_date DESC, sha.id DESC
+                LIMIT 30
+                        ''', (student['id'], student['school_id'], student_class, student_section)).fetchall()
+        else:
+            pending_homework = db.execute('''
+                                SELECT sha.id, sha.class_name, sha.section_name, sha.subject_name, sha.period_number,
+                                             sha.homework_text, sha.due_date, sha.assigned_date, sha.attachment_path
+                                FROM staff_homework_assignments sha
+                                WHERE sha.school_id = ?
+                                    AND LOWER(TRIM(sha.class_name)) = LOWER(TRIM(?))
+                                    AND NOT EXISTS (
+                                            SELECT 1
+                                            FROM student_homework_completion shc
+                                            WHERE shc.homework_id = sha.id
+                                                AND shc.student_id = ?
+                                    )
+                ORDER BY
+                                        CASE WHEN sha.due_date IS NULL THEN 1 ELSE 0 END,
+                                        sha.due_date ASC,
+                                        sha.assigned_date DESC,
+                                        sha.id DESC
+                        ''', (student['school_id'], student_class, student['id'])).fetchall()
+
+            completed_homework = db.execute('''
+                                SELECT sha.id, sha.class_name, sha.section_name, sha.subject_name, sha.period_number,
+                                             sha.homework_text, sha.due_date, sha.assigned_date, sha.attachment_path,
+                                             shc.completed_at
+                                FROM staff_homework_assignments sha
+                                JOIN student_homework_completion shc
+                                    ON shc.homework_id = sha.id
+                                 AND shc.student_id = ?
+                                WHERE sha.school_id = ?
+                                    AND LOWER(TRIM(sha.class_name)) = LOWER(TRIM(?))
+                                ORDER BY shc.completed_at DESC, sha.assigned_date DESC, sha.id DESC
+                LIMIT 30
+                        ''', (student['id'], student['school_id'], student_class)).fetchall()
+    except Exception:
+        # Homework table may not exist yet in a fresh environment.
+        pending_homework = []
+        completed_homework = []
+
     return render_template('student/student_homework_exam.html',
                          student=student,
                          school_name=school['name'] if school else 'N/A',
-                         upcoming_exams=upcoming_exams)
+                         upcoming_exams=upcoming_exams,
+                         pending_homework=pending_homework,
+                         completed_homework=completed_homework)
 
 
 @app.route('/student/fees')

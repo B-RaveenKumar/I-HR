@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Homework Assigner - iHR</title>
+
+    <link rel="icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="shortcut icon" type="image/x-icon" href="{{ url_for('static', filename='images/favicon.ico') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/salary_management.css') }}">
+    <style>
+        .container-fluid {
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+
+        .container-fluid > .row {
+            margin: 0;
+            height: fit-content !important;
+            min-height: unset !important;
+            display: flex;
+            flex-wrap: nowrap;
+        }
+
+        .page-summary {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            margin-bottom: 0.9rem;
+        }
+
+        .summary-chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            border-radius: 999px;
+            padding: 0.45rem 0.75rem;
+            border: 1px solid #dbe6f2;
+            background: #ffffff;
+            color: #0f172a;
+            font-size: 0.82rem;
+            font-weight: 600;
+            box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+        }
+
+        .summary-chip i {
+            color: #0ea5e9;
+        }
+
+        nav.enhanced-sidebar,
+        .enhanced-sidebar {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 250px !important;
+            height: 100vh !important;
+            overflow-y: auto !important;
+            overflow-x: hidden !important;
+            z-index: 1000 !important;
+            display: block !important;
+            transform: translateX(0) !important;
+            background: #164e63 !important;
+            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
+        }
+
+        main.salary-main-content,
+        .salary-main-content {
+            margin-left: 250px !important;
+            width: calc(100% - 250px) !important;
+            min-height: 100vh;
+            padding: 1.5rem 1rem !important;
+            overflow-x: hidden;
+            background: linear-gradient(135deg, #f0f9ff 0%, #f8fafc 42%, #eef2ff 100%);
+        }
+
+        .col-md-2,
+        .col-md-10 {
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        @media (max-width: 1024px) {
+            nav.enhanced-sidebar,
+            .enhanced-sidebar {
+                width: 280px !important;
+                transform: translateX(-100%) !important;
+                transition: transform 0.3s ease !important;
+                z-index: 1050 !important;
+            }
+
+            nav.enhanced-sidebar.show,
+            .enhanced-sidebar.show {
+                transform: translateX(0) !important;
+            }
+
+            main.salary-main-content,
+            .salary-main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding: 1rem 0.65rem !important;
+                padding-top: 4rem !important;
+            }
+        }
+
+        .sidebar-toggle {
+            display: none;
+        }
+
+        @media (max-width: 1024px) {
+            .sidebar-toggle {
+                display: flex;
+                align-items: center !important;
+                justify-content: center !important;
+                position: fixed !important;
+                top: 1rem !important;
+                left: 1rem !important;
+                z-index: 1100 !important;
+                background: #221e66 !important;
+                color: #fff !important;
+                border: none !important;
+                border-radius: 0.5rem !important;
+                padding: 0.75rem !important;
+                font-size: 1.25rem !important;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+            }
+        }
+
+        .period-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.65rem;
+            align-items: flex-start;
+        }
+
+        .period-card {
+            border: 1px solid #dbe6f2;
+            border-radius: 12px;
+            background: #fff;
+            padding: 0.55rem 0.65rem;
+            box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
+            cursor: pointer;
+            transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+            width: 360px;
+            max-width: 100%;
+        }
+
+        .period-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.09);
+            border-color: #60a5fa;
+        }
+
+        .period-card.active {
+            border-color: #2563eb;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.14);
+            background: linear-gradient(180deg, #ffffff 0%, #f5f9ff 100%);
+        }
+
+        .period-top {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            margin-bottom: 0;
+        }
+
+        .period-title {
+            margin: 0;
+            font-size: 0.84rem;
+            font-weight: 700;
+            color: #0f172a;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .period-meta-inline {
+            font-size: 0.75rem;
+            color: #475569;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.2rem;
+            min-width: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .period-divider {
+            color: #94a3b8;
+            font-size: 0.72rem;
+            flex: 0 0 auto;
+        }
+
+        .period-inline-content {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            min-width: 0;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .helper-note {
+            font-size: 0.78rem;
+            color: #64748b;
+            margin-top: 0.4rem;
+        }
+
+        #homeworkForm.row {
+            display: flex;
+            flex-wrap: wrap;
+        }
+
+        .selection-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.35rem 0.55rem;
+            border-radius: 999px;
+            background: #e0f2fe;
+            color: #075985;
+            font-size: 0.74rem;
+            font-weight: 700;
+            margin-bottom: 0.7rem;
+        }
+
+        .recent-text {
+            max-width: 360px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .student-completion-list {
+            max-height: 360px;
+            overflow-y: auto;
+            border: 1px solid #dbe6f2;
+            border-radius: 12px;
+            background: #fff;
+        }
+
+        .student-completion-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.75rem;
+            padding: 0.75rem 0.9rem;
+            border-bottom: 1px solid #eef2f7;
+        }
+
+        .student-completion-item:last-child {
+            border-bottom: none;
+        }
+
+        .student-completion-meta {
+            min-width: 0;
+        }
+
+        .student-completion-name {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .student-completion-sub {
+            font-size: 0.76rem;
+            color: #64748b;
+        }
+
+        .completion-summary-box {
+            border-radius: 12px;
+            border: 1px solid #dbe6f2;
+            background: linear-gradient(180deg, #f8fbff 0%, #ffffff 100%);
+            padding: 0.8rem 0.95rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .flash-toast-stack {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+            width: min(420px, calc(100vw - 1.5rem));
+        }
+
+        .flash-toast {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            border: 0;
+            border-radius: 14px;
+            padding: 0.9rem 1rem;
+            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.16);
+            backdrop-filter: blur(10px);
+        }
+
+        .flash-toast .btn-close {
+            margin-left: auto;
+        }
+
+        .flash-toast-icon {
+            width: 34px;
+            height: 34px;
+            border-radius: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+            font-size: 1rem;
+        }
+
+        .flash-toast-body {
+            min-width: 0;
+        }
+
+        .flash-toast-title {
+            font-size: 0.92rem;
+            font-weight: 700;
+            line-height: 1.2;
+            margin-bottom: 0.15rem;
+        }
+
+        .flash-toast-text {
+            font-size: 0.82rem;
+            line-height: 1.4;
+        }
+
+        .flash-toast.alert-success {
+            background: rgba(236, 253, 245, 0.96);
+            color: #166534;
+            border-left: 4px solid #16a34a;
+        }
+
+        .flash-toast.alert-success .flash-toast-icon {
+            background: #dcfce7;
+            color: #16a34a;
+        }
+
+        .flash-toast.alert-danger,
+        .flash-toast.alert-warning {
+            background: rgba(255, 251, 235, 0.97);
+            color: #92400e;
+            border-left: 4px solid #f59e0b;
+        }
+
+        .flash-toast.alert-danger .flash-toast-icon,
+        .flash-toast.alert-warning .flash-toast-icon {
+            background: #fef3c7;
+            color: #d97706;
+        }
+
+        .flash-toast.alert-info {
+            background: rgba(239, 246, 255, 0.97);
+            color: #1d4ed8;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .flash-toast.alert-info .flash-toast-icon {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+
+        @media (max-width: 768px) {
+            .flash-toast-stack {
+                top: 0.75rem;
+                right: 0.75rem;
+                left: 0.75rem;
+                width: auto;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .period-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+
+            .period-card {
+                width: 100%;
+                padding: 0.5rem 0.55rem;
+            }
+
+            .recent-text {
+                max-width: 220px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
+    <meta name="theme-color" content="#0d6efd">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="VishnoRex">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+</head>
+<body>
+    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar">
+        <i class="bi bi-list"></i>
+    </button>
+
+    <div class="container-fluid">
+        <div class="row">
+            <nav class="col-md-2 enhanced-sidebar" id="enhanced-sidebar">
+                <div class="sidebar-header">
+                    <div class="brand-logo">
+                        {% if institution.branding_enabled and institution.logo_path %}
+                            <img src="/{{ institution.logo_path }}" alt="Institution Logo" class="institution-logo">
+                        {% else %}
+                            <div class="logo-icon">
+                                <i class="bi bi-person-workspace"></i>
+                            </div>
+                        {% endif %}
+                        <div class="brand-text">
+                            {% if institution.branding_enabled and institution.name %}
+                                <h6 class="brand-title">{{ institution.name }}</h6>
+                                <small class="brand-subtitle">Staff Panel</small>
+                            {% else %}
+                                <h6 class="brand-title">VishnoRex</h6>
+                                <small class="brand-subtitle">Staff Panel</small>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="sidebar-content">
+                    <div class="user-profile">
+                        <div class="user-avatar">
+                            <i class="bi bi-person-circle"></i>
+                        </div>
+                        <div class="user-info">
+                            <div class="user-name">{{ session.get('full_name', 'Staff Member') }}</div>
+                            <div class="user-role">Staff</div>
+                        </div>
+                    </div>
+
+                    <div class="nav-section">
+                        <div class="nav-section-title">
+                            <i class="bi bi-grid-3x3-gap"></i>
+                            <span>Main Menu</span>
+                        </div>
+                        <ul class="nav-menu">
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_dashboard') }}">
+                                    <div class="nav-icon"><i class="bi bi-house-door"></i></div>
+                                    <span class="nav-text">Dashboard</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_profile_page') }}">
+                                    <div class="nav-icon"><i class="bi bi-person"></i></div>
+                                    <span class="nav-text">My Profile</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_timetable') }}">
+                                    <div class="nav-icon"><i class="bi bi-calendar2-week"></i></div>
+                                    <span class="nav-text">My Timetable</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link" href="{{ url_for('staff_mark_student_attendance') }}">
+                                    <div class="nav-icon"><i class="bi bi-clipboard-check"></i></div>
+                                    <span class="nav-text">Mark Student Attendance</span>
+                                </a>
+                            </li>
+                            <li class="nav-item">
+                                <a class="nav-link active" href="{{ url_for('staff_homework_assigner') }}">
+                                    <div class="nav-icon"><i class="bi bi-journal-plus"></i></div>
+                                    <span class="nav-text">Homework Assigner</span>
+                                </a>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="sidebar-footer">
+                        <div class="footer-stats">
+                            <div class="stat-item">
+                                <i class="bi bi-calendar-day"></i>
+                                <span id="currentDate">-</span>
+                            </div>
+                        </div>
+                        <button type="button" class="logout-btn" onclick="logout()" title="Logout" aria-label="Logout from staff panel">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </button>
+                    </div>
+                </div>
+            </nav>
+
+            <main class="col-md-10 ms-sm-auto px-md-4 salary-main-content">
+                <div class="salary-header">
+                    <div class="header-content">
+                        <div class="header-title">
+                            <div class="title-icon">
+                                <i class="bi bi-journal-plus"></i>
+                            </div>
+                            <div class="title-text">
+                                <h1 class="main-title">Homework Assigner</h1>
+                                <p class="subtitle">Pick a period from today's timetable and assign homework in one click</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {% with messages = get_flashed_messages(with_categories=true) %}
+                    {% if messages %}
+                        <div class="flash-toast-stack">
+                            {% for category, message in messages %}
+                                {% set resolved = 'danger' if category == 'error' else category %}
+                                <div class="alert alert-{{ resolved }} alert-dismissible fade show flash-toast" role="alert" data-auto-dismiss="{{ 'true' if resolved == 'success' else 'false' }}">
+                                    <span class="flash-toast-icon">
+                                        <i class="bi {{ 'bi-check2-circle' if resolved == 'success' else 'bi-exclamation-circle' if resolved in ['danger', 'warning'] else 'bi-info-circle' }}"></i>
+                                    </span>
+                                    <div class="flash-toast-body">
+                                        <div class="flash-toast-title">{{ 'Completed Updated' if 'Marked homework as completed' in message else 'Homework Notice' }}</div>
+                                        <div class="flash-toast-text">{{ message }}</div>
+                                    </div>
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                                </div>
+                            {% endfor %}
+                        </div>
+                    {% endif %}
+                {% endwith %}
+
+                <div class="page-summary">
+                    <span class="summary-chip">
+                        <i class="bi bi-calendar-date"></i>
+                        {{ today_name }} ({{ today_date }})
+                    </span>
+                    <span class="summary-chip">
+                        <i class="bi bi-clock-history"></i>
+                        {{ today_periods|length }} period{{ '' if today_periods|length == 1 else 's' }} today
+                    </span>
+                </div>
+
+                <div class="salary-filters-card mb-3">
+                    <div class="card-header">
+                        <div class="header-icon"><i class="bi bi-calendar-week"></i></div>
+                        <div class="header-content">
+                            <h5 class="card-title">Today's Periods</h5>
+                            <p class="card-subtitle">Click any class-period card below to load it in the assigner form</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if today_periods %}
+                            <div class="period-grid" id="periodGrid">
+                                {% for period in today_periods %}
+                                    <div class="period-card"
+                                        data-level-id="{{ period.level_id }}"
+                                        data-section-id="{{ period.section_id }}"
+                                        data-class-name="{{ period.class_name }}"
+                                        data-section-name="{{ period.section_name }}"
+                                        data-subject-name="{{ period.subject_name }}"
+                                        data-period-number="{{ period.period_number }}"
+                                        data-period-name="{{ period.period_name }}"
+                                        data-start-time="{{ period.start_time or '' }}"
+                                        data-end-time="{{ period.end_time or '' }}"
+                                        onclick="selectPeriodCard(this)">
+                                        <div class="period-top">
+                                            <div class="period-inline-content">
+                                                <h6 class="period-title">{{ period.class_name }} - {{ period.section_name }}</h6>
+                                                <span class="period-divider">|</span>
+                                                <span class="period-meta-inline"><i class="bi bi-book"></i>{{ period.subject_name }}</span>
+                                                <span class="period-divider">|</span>
+                                                <span class="period-meta-inline"><i class="bi bi-clock"></i>{{ period.start_time or '--:--' }} to {{ period.end_time or '--:--' }}</span>
+                                            </div>
+                                            <span class="badge text-bg-primary">P{{ period.period_number }}</span>
+                                        </div>
+                                    </div>
+                                {% endfor %}
+                            </div>
+                        {% else %}
+                            <div class="alert alert-info mb-0">
+                                <i class="bi bi-info-circle"></i>
+                                No timetable periods assigned for today.
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <div class="salary-results-card mb-3">
+                    <div class="card-header">
+                        <div class="header-icon"><i class="bi bi-pencil-square"></i></div>
+                        <div class="header-content">
+                            <h5 class="card-title">Assign Homework</h5>
+                            <p class="card-subtitle">Selected period details auto-fill here</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div id="selectionPill" class="selection-pill d-none">
+                            <i class="bi bi-check2-circle"></i>
+                            <span id="selectionText">Period selected</span>
+                        </div>
+
+                        <form method="POST" action="{{ url_for('staff_homework_assigner') }}" id="homeworkForm" class="row g-3" enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" id="homework_action" name="action" value="assign_homework">
+                            <input type="hidden" id="homework_id" name="homework_id" value="">
+                            <input type="hidden" id="remove_attachment" name="remove_attachment" value="0">
+                            <input type="hidden" id="level_id" name="level_id">
+                            <input type="hidden" id="section_id" name="section_id">
+                            <input type="hidden" id="class_name" name="class_name">
+                            <input type="hidden" id="section_name" name="section_name">
+                            <input type="hidden" id="subject_name" name="subject_name">
+                            <input type="hidden" id="period_number" name="period_number">
+
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Class</label>
+                                <input type="text" id="selected_class" class="form-control form-control-sm" placeholder="Click a period card" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold">Section</label>
+                                <input type="text" id="selected_section" class="form-control form-control-sm" placeholder="Auto" readonly>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label fw-semibold">Subject</label>
+                                <input type="text" id="selected_subject" class="form-control form-control-sm" placeholder="Auto" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label fw-semibold">Period</label>
+                                <input type="text" id="selected_period" class="form-control form-control-sm" placeholder="Auto" readonly>
+                            </div>
+                            <div class="col-md-2">
+                                <label for="due_date" class="form-label fw-semibold">Due Date</label>
+                                <input type="date" id="due_date" name="due_date" class="form-control form-control-sm">
+                            </div>
+
+                            <div class="col-12">
+                                <label for="homework_text" class="form-label fw-semibold">Homework Details <span class="text-danger">*</span></label>
+                                <textarea id="homework_text" name="homework_text" class="form-control" rows="4" placeholder="Write homework instructions, pages, questions, submission format..." required></textarea>
+                                <div class="helper-note">Tip: Select a period card first to auto-fill class, section and subject.</div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="homework_file" class="form-label fw-semibold">Attachment (Optional)</label>
+                                <input type="file" id="homework_file" name="homework_file" class="form-control form-control-sm" accept=".pdf,.doc,.docx,.ppt,.pptx,.xls,.xlsx,.txt,.jpg,.jpeg,.png,.zip">
+                                <div class="helper-note">Allowed: PDF, DOCX, PPT, XLSX, TXT, JPG, PNG, ZIP</div>
+                            </div>
+
+                            <div class="col-md-6 d-flex align-items-end">
+                                <div class="form-check mt-2">
+                                    <input class="form-check-input" type="checkbox" value="1" id="removeAttachmentCheck" onchange="toggleRemoveAttachment(this)">
+                                    <label class="form-check-label" for="removeAttachmentCheck">
+                                        Remove current attachment while updating
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="col-12 d-flex gap-2 flex-wrap">
+                                <button type="submit" class="btn btn-primary" id="submitHomeworkBtn">
+                                    <i class="bi bi-send-check me-1"></i>Assign Homework
+                                </button>
+                                <button type="button" class="btn btn-success d-none" id="updateHomeworkBtn" onclick="submitUpdateHomework()">
+                                    <i class="bi bi-pencil-square me-1"></i>Update Homework
+                                </button>
+                                <button type="button" class="btn btn-outline-secondary" onclick="clearSelection()">
+                                    <i class="bi bi-x-circle me-1"></i>Clear Selection
+                                </button>
+                                <button type="button" class="btn btn-outline-dark d-none" id="cancelEditBtn" onclick="cancelHomeworkEdit()">
+                                    <i class="bi bi-arrow-counterclockwise me-1"></i>Cancel Edit
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <div class="salary-results-card">
+                    <div class="card-header">
+                        <div class="header-icon"><i class="bi bi-clock-history"></i></div>
+                        <div class="header-content">
+                            <h5 class="card-title">Recent Homework Assignments</h5>
+                            <p class="card-subtitle">Your latest 20 homework entries</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover align-middle mb-0">
+                                <thead>
+                                    <tr>
+                                        <th>Date</th>
+                                        <th>Class</th>
+                                        <th>Subject</th>
+                                        <th>Period</th>
+                                        <th>Homework</th>
+                                        <th>File</th>
+                                        <th>Due Date</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% if recent_assignments %}
+                                        {% for hw in recent_assignments %}
+                                            <tr id="hw-row-{{ hw.id }}"
+                                                data-homework-id="{{ hw.id }}"
+                                                data-class-name="{{ hw.class_name }}"
+                                                data-section-name="{{ hw.section_name }}"
+                                                data-subject-name="{{ hw.subject_name }}"
+                                                data-period-number="{{ hw.period_number or '' }}"
+                                                data-homework-text="{{ hw.homework_text | e }}"
+                                                data-due-date="{{ hw.due_date or '' }}"
+                                                data-level-id=""
+                                                data-section-id=""
+                                                data-attachment="{{ hw.attachment_path or '' }}">
+                                                <td>{{ hw.assigned_date }}</td>
+                                                <td>{{ hw.class_name }} - {{ hw.section_name }}</td>
+                                                <td>{{ hw.subject_name }}</td>
+                                                <td>P{{ hw.period_number or '-' }}</td>
+                                                <td class="recent-text" title="{{ hw.homework_text }}">{{ hw.homework_text }}</td>
+                                                <td>
+                                                    {% if hw.attachment_path %}
+                                                        <a href="/{{ hw.attachment_path }}" target="_blank" class="btn btn-outline-primary btn-sm">
+                                                            <i class="bi bi-paperclip"></i> View
+                                                        </a>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>{{ hw.due_date or '-' }}</td>
+                                                <td>
+                                                    <div class="d-flex gap-1">
+                                                        <button type="button" class="btn btn-outline-success btn-sm" data-homework-id="{{ hw.id }}" onclick="startHomeworkEditFromButton(this)">
+                                                            <i class="bi bi-pencil"></i>
+                                                        </button>
+                                                        <button type="button" class="btn btn-outline-primary btn-sm" data-homework-id="{{ hw.id }}" onclick="openCompletionModal(this)" title="Mark students completed">
+                                                            <i class="bi bi-clipboard2-check"></i>
+                                                            {% if hw.completed_count %}<span class="ms-1">{{ hw.completed_count }}</span>{% endif %}
+                                                        </button>
+                                                        <form method="POST" action="{{ url_for('staff_homework_assigner') }}" onsubmit="return confirm('Delete this homework assignment?')">
+                                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                            <input type="hidden" name="action" value="delete_homework">
+                                                            <input type="hidden" name="homework_id" value="{{ hw.id }}">
+                                                            <button type="submit" class="btn btn-outline-danger btn-sm">
+                                                                <i class="bi bi-trash"></i>
+                                                            </button>
+                                                        </form>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        {% endfor %}
+                                    {% else %}
+                                        <tr>
+                                            <td colspan="8" class="text-center text-muted py-3">No homework assigned yet.</td>
+                                        </tr>
+                                    {% endif %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <div class="modal fade" id="completionModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <form method="POST" action="{{ url_for('staff_homework_assigner') }}" id="completionForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="mark_homework_completed">
+                    <input type="hidden" name="homework_id" id="completionHomeworkId" value="">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title"><i class="bi bi-clipboard2-check me-2"></i>Mark Homework Completed</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="completion-summary-box">
+                            <div class="fw-semibold" id="completionAssignmentTitle">Assignment</div>
+                            <div class="text-muted small" id="completionAssignmentMeta">Select students from this class/section.</div>
+                        </div>
+
+                        <div class="form-check mb-3">
+                            <input class="form-check-input" type="checkbox" id="completionSelectAll">
+                            <label class="form-check-label fw-semibold" for="completionSelectAll">Select all students</label>
+                        </div>
+
+                        <div class="student-completion-list" id="completionStudentList"></div>
+                        <div class="helper-note mt-2">Checked students will appear in the student panel under Completed Homework.</div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="saveCompletionBtn">
+                            <i class="bi bi-check2-circle me-1"></i>Save Completion
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script id="assignmentStudentsData" type="application/json">{{ assignment_students_map | tojson }}</script>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const assignmentStudentsMap = JSON.parse(document.getElementById('assignmentStudentsData').textContent || '{}');
+        const completionModal = new bootstrap.Modal(document.getElementById('completionModal'));
+
+        document.querySelectorAll('.flash-toast[data-auto-dismiss="true"]').forEach(function(alertEl) {
+            window.setTimeout(function() {
+                const alertInstance = bootstrap.Alert.getOrCreateInstance(alertEl);
+                alertInstance.close();
+            }, 3800);
+        });
+
+        document.getElementById('currentDate').textContent = new Date().toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric'
+        });
+
+        document.getElementById('sidebarToggle')?.addEventListener('click', function() {
+            const sidebar = document.getElementById('enhanced-sidebar');
+            sidebar.classList.toggle('show');
+        });
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                window.location.href = '/logout';
+            }
+        }
+
+        function selectPeriodCard(card) {
+            document.querySelectorAll('.period-card').forEach(function(item) {
+                item.classList.remove('active');
+            });
+            card.classList.add('active');
+
+            const className = card.dataset.className || '';
+            const sectionName = card.dataset.sectionName || '';
+            const subjectName = card.dataset.subjectName || '';
+            const periodNumber = card.dataset.periodNumber || '';
+            const periodName = card.dataset.periodName || '';
+            const timeText = (card.dataset.startTime || '--:--') + ' to ' + (card.dataset.endTime || '--:--');
+
+            document.getElementById('level_id').value = card.dataset.levelId || '';
+            document.getElementById('section_id').value = card.dataset.sectionId || '';
+            document.getElementById('class_name').value = className;
+            document.getElementById('section_name').value = sectionName;
+            document.getElementById('subject_name').value = subjectName;
+            document.getElementById('period_number').value = periodNumber;
+
+            document.getElementById('selected_class').value = className;
+            document.getElementById('selected_section').value = sectionName;
+            document.getElementById('selected_subject').value = subjectName;
+            document.getElementById('selected_period').value = 'P' + periodNumber + ' - ' + periodName + ' (' + timeText + ')';
+
+            const selectionPill = document.getElementById('selectionPill');
+            const selectionText = document.getElementById('selectionText');
+            selectionText.textContent = className + '-' + sectionName + ' | ' + subjectName + ' | P' + periodNumber;
+            selectionPill.classList.remove('d-none');
+
+            document.getElementById('homework_text').focus();
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.period-card').forEach(function(item) {
+                item.classList.remove('active');
+            });
+
+            ['level_id', 'section_id', 'class_name', 'section_name', 'subject_name', 'period_number'].forEach(function(id) {
+                document.getElementById(id).value = '';
+            });
+
+            ['selected_class', 'selected_section', 'selected_subject', 'selected_period'].forEach(function(id) {
+                document.getElementById(id).value = '';
+            });
+
+            document.getElementById('selectionPill').classList.add('d-none');
+        }
+
+        function toggleRemoveAttachment(checkbox) {
+            document.getElementById('remove_attachment').value = checkbox.checked ? '1' : '0';
+        }
+
+        function startHomeworkEditFromButton(buttonEl) {
+            const idValue = (buttonEl && buttonEl.dataset && buttonEl.dataset.homeworkId) ? buttonEl.dataset.homeworkId : '';
+            const homeworkId = parseInt(idValue, 10);
+            if (!homeworkId) {
+                return;
+            }
+
+            const row = document.getElementById('hw-row-' + homeworkId);
+            if (!row) {
+                return;
+            }
+
+            document.getElementById('homework_action').value = 'update_homework';
+            document.getElementById('homework_id').value = String(homeworkId);
+
+            document.getElementById('class_name').value = row.dataset.className || '';
+            document.getElementById('section_name').value = row.dataset.sectionName || '';
+            document.getElementById('subject_name').value = row.dataset.subjectName || '';
+            document.getElementById('period_number').value = row.dataset.periodNumber || '';
+
+            document.getElementById('selected_class').value = row.dataset.className || '';
+            document.getElementById('selected_section').value = row.dataset.sectionName || '';
+            document.getElementById('selected_subject').value = row.dataset.subjectName || '';
+            document.getElementById('selected_period').value = row.dataset.periodNumber ? ('P' + row.dataset.periodNumber) : '';
+
+            document.getElementById('due_date').value = row.dataset.dueDate || '';
+            document.getElementById('homework_text').value = row.dataset.homeworkText || '';
+            document.getElementById('removeAttachmentCheck').checked = false;
+            document.getElementById('remove_attachment').value = '0';
+
+            document.getElementById('selectionText').textContent = (row.dataset.className || '') + '-' + (row.dataset.sectionName || '') + ' | ' + (row.dataset.subjectName || '') + ' | P' + (row.dataset.periodNumber || '-');
+            document.getElementById('selectionPill').classList.remove('d-none');
+
+            document.getElementById('submitHomeworkBtn').classList.add('d-none');
+            document.getElementById('updateHomeworkBtn').classList.remove('d-none');
+            document.getElementById('cancelEditBtn').classList.remove('d-none');
+
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            document.getElementById('homework_text').focus();
+        }
+
+        function submitUpdateHomework() {
+            document.getElementById('homeworkForm').requestSubmit();
+        }
+
+        function cancelHomeworkEdit() {
+            document.getElementById('homework_action').value = 'assign_homework';
+            document.getElementById('homework_id').value = '';
+            document.getElementById('submitHomeworkBtn').classList.remove('d-none');
+            document.getElementById('updateHomeworkBtn').classList.add('d-none');
+            document.getElementById('cancelEditBtn').classList.add('d-none');
+            document.getElementById('homework_file').value = '';
+            document.getElementById('removeAttachmentCheck').checked = false;
+            document.getElementById('remove_attachment').value = '0';
+            clearSelection();
+            document.getElementById('homework_text').value = '';
+            document.getElementById('due_date').value = '';
+        }
+
+        function openCompletionModal(buttonEl) {
+            const homeworkId = (buttonEl && buttonEl.dataset && buttonEl.dataset.homeworkId) ? String(buttonEl.dataset.homeworkId) : '';
+            const row = document.getElementById('hw-row-' + homeworkId);
+            if (!homeworkId || !row) {
+                return;
+            }
+
+            const students = assignmentStudentsMap[homeworkId] || [];
+            const title = (row.dataset.className || '') + ' - ' + (row.dataset.sectionName || '') + ' | ' + (row.dataset.subjectName || '');
+            const meta = 'Period ' + (row.dataset.periodNumber || '-') + ' • Select each student or use Select all';
+
+            document.getElementById('completionHomeworkId').value = homeworkId;
+            document.getElementById('completionAssignmentTitle').textContent = title;
+            document.getElementById('completionAssignmentMeta').textContent = meta;
+
+            const list = document.getElementById('completionStudentList');
+            if (!students.length) {
+                list.innerHTML = '<div class="p-3 text-muted">No students found for this class and section.</div>';
+            } else {
+                list.innerHTML = students.map(function(student) {
+                    return '' +
+                        '<label class="student-completion-item">' +
+                            '<span class="student-completion-meta">' +
+                                '<span class="student-completion-name">' + student.full_name + '</span>' +
+                                '<span class="student-completion-sub">Roll: ' + (student.roll_number || '-') + ' • ID: ' + (student.student_id || '-') + '</span>' +
+                            '</span>' +
+                            '<span class="d-flex align-items-center gap-2">' +
+                                (student.completed ? '<span class="badge text-bg-success">Completed</span>' : '') +
+                                '<input class="form-check-input completion-student-checkbox" type="checkbox" name="completed_student_ids" value="' + student.id + '" ' + (student.completed ? 'checked' : '') + '>' +
+                            '</span>' +
+                        '</label>';
+                }).join('');
+            }
+
+            const selectAll = document.getElementById('completionSelectAll');
+            const checkboxes = Array.from(document.querySelectorAll('.completion-student-checkbox'));
+            selectAll.checked = checkboxes.length > 0 && checkboxes.every(function(box) { return box.checked; });
+            completionModal.show();
+        }
+
+        document.getElementById('completionSelectAll').addEventListener('change', function() {
+            const checked = this.checked;
+            document.querySelectorAll('.completion-student-checkbox').forEach(function(box) {
+                box.checked = checked;
+            });
+        });
+
+        document.getElementById('completionForm').addEventListener('submit', function(event) {
+            const checkedStudents = document.querySelectorAll('.completion-student-checkbox:checked');
+            if (!checkedStudents.length) {
+                event.preventDefault();
+                alert('Select at least one student to mark homework as completed.');
+                return;
+            }
+
+            const btn = document.getElementById('saveCompletionBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Saving...';
+        });
+
+        document.getElementById('homeworkForm').addEventListener('submit', function(event) {
+            if (!document.getElementById('class_name').value || !document.getElementById('section_name').value || !document.getElementById('subject_name').value) {
+                event.preventDefault();
+                alert('Please click a period card first before assigning homework.');
+                return;
+            }
+
+            const btn = document.getElementById('submitHomeworkBtn');
+            btn.disabled = true;
+            if (document.getElementById('homework_action').value === 'update_homework') {
+                document.getElementById('updateHomeworkBtn').disabled = true;
+                document.getElementById('updateHomeworkBtn').innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Updating...';
+            } else {
+                btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Assigning...';
+            }
+        });
+    </script>
+</body>
+</html>

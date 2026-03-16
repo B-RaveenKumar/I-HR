@@ -2854,9 +2854,14 @@
                                                     <button class="btn btn-outline-primary" onclick="editStudent({{ student.id }})" title="Edit">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
-                                                    <button class="btn btn-outline-danger" onclick="deleteStudent({{ student.id }}, '{{ student.first_name }} {{ student.last_name }}')" title="Delete">
-                                                        <i class="bi bi-trash"></i>
-                                                    </button>
+                                                    <form method="POST" action="{{ url_for('admin_student_management') }}" class="d-inline" onsubmit="return confirm('Delete this student?');">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <input type="hidden" name="action" value="delete">
+                                                        <input type="hidden" name="student_id" value="{{ student.id }}">
+                                                        <button type="submit" class="btn btn-outline-danger" title="Delete">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
                                                 </div>
                                             </td>
                                         </tr>
@@ -3529,25 +3534,6 @@
                         alert('Error loading student data');
                     }
                 });
-        }
-
-        // Delete student
-        function deleteStudent(studentId, studentName) {
-            if (confirm(`Are you sure you want to delete ${studentName}?`)) {
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = '{{ url_for("admin_student_management") }}';
-                
-                const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
-                form.innerHTML = `
-                    <input type="hidden" name="csrf_token" value="${csrfToken}">
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="student_id" value="${studentId}">
-                `;
-                
-                document.body.appendChild(form);
-                form.submit();
-            }
         }
 
         // Update filter section dropdown when class filter changes

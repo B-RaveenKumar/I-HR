@@ -555,33 +555,38 @@
                     Pending Homework
                 </div>
             </div>
-            
-            <div class="empty-state">
-                <i class="bi bi-check-circle"></i>
-                <h3>All caught up!</h3>
-                <p>No pending homework assignments at the moment.</p>
-                <p style="margin-top: 10px;"><small>Check back later for new assignments from your teachers.</small></p>
-            </div>
 
-            <!-- Example homework items (uncomment when you have data) -->
-            <!--
-            <div class="homework-item">
-                <div class="item-header">
-                    <div>
-                        <div class="item-title">Complete Chapter 5 Exercises</div>
-                        <div class="item-subject">Mathematics</div>
+            {% if pending_homework %}
+                {% for hw in pending_homework %}
+                <div class="homework-item">
+                    <div class="item-header">
+                        <div>
+                            <div class="item-title">Period {{ hw.period_number or '-' }} Homework</div>
+                            <div class="item-subject">{{ hw.subject_name }} • Class {{ hw.class_name }} - {{ hw.section_name }}</div>
+                        </div>
+                        <span class="item-badge badge-pending">Pending</span>
                     </div>
-                    <span class="item-badge badge-pending">Pending</span>
+                    <div class="item-description">{{ hw.homework_text }}</div>
+                    <div class="item-footer">
+                        <span><i class="bi bi-calendar2-check"></i> Due: {{ hw.due_date or 'No due date' }}</span>
+                        <span><i class="bi bi-calendar-event"></i> Assigned: {{ hw.assigned_date }}</span>
+                        {% if hw.attachment_path %}
+                        <span>
+                            <i class="bi bi-paperclip"></i>
+                            <a href="/{{ hw.attachment_path }}" target="_blank" rel="noopener">Attachment</a>
+                        </span>
+                        {% endif %}
+                    </div>
                 </div>
-                <div class="item-description">
-                    Complete exercises 1-10 from Chapter 5: Algebra basics. Submit in your notebook.
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-check-circle"></i>
+                    <h3>All caught up!</h3>
+                    <p>No pending homework assignments at the moment.</p>
+                    <p style="margin-top: 10px;"><small>Check back later for new assignments from your teachers.</small></p>
                 </div>
-                <div class="item-footer">
-                    <span><i class="bi bi-calendar"></i> Due: March 12, 2026</span>
-                    <span><i class="bi bi-person"></i> Mr. Sharma</span>
-                </div>
-            </div>
-            -->
+            {% endif %}
         </div>
 
         <!-- Upcoming Exams Section -->
@@ -650,12 +655,38 @@
                     Completed Homework
                 </div>
             </div>
-            
-            <div class="empty-state">
-                <i class="bi bi-inbox"></i>
-                <h3>No completed homework yet</h3>
-                <p>Completed assignments will appear here.</p>
-            </div>
+
+            {% if completed_homework %}
+                {% for hw in completed_homework %}
+                <div class="homework-item">
+                    <div class="item-header">
+                        <div>
+                            <div class="item-title">Period {{ hw.period_number or '-' }} Homework</div>
+                            <div class="item-subject">{{ hw.subject_name }} • Class {{ hw.class_name }} - {{ hw.section_name }}</div>
+                        </div>
+                        <span class="item-badge badge-completed">Completed</span>
+                    </div>
+                    <div class="item-description">{{ hw.homework_text }}</div>
+                    <div class="item-footer">
+                        <span><i class="bi bi-calendar2-check"></i> Due: {{ hw.due_date }}</span>
+                        <span><i class="bi bi-check2-circle"></i> Completed: {{ hw.completed_at }}</span>
+                        <span><i class="bi bi-calendar-event"></i> Assigned: {{ hw.assigned_date }}</span>
+                        {% if hw.attachment_path %}
+                        <span>
+                            <i class="bi bi-paperclip"></i>
+                            <a href="/{{ hw.attachment_path }}" target="_blank" rel="noopener">Attachment</a>
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <h3>No completed homework yet</h3>
+                    <p>Completed assignments will appear here.</p>
+                </div>
+            {% endif %}
         </div>
     </div>
 
