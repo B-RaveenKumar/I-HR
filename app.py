@@ -12702,6 +12702,8 @@ def staff_profile_page():
     db = get_db()
     staff_id = session['user_id']
     today = datetime.date.today()
+    one_week_ago = today - datetime.timedelta(days=7)
+    one_week_ago_str = one_week_ago.strftime('%Y-%m-%d')
 
     # 🚀 OPTIMIZATION 1: Single combined query for staff info and basic data
     staff_basic_data = db.execute('''
@@ -12725,29 +12727,32 @@ def staff_profile_page():
 
     # 🚀 OPTIMIZATION 2: Combined applications query with UNION for efficiency
     all_applications = db.execute('''
-        SELECT 'leave' as app_type, id, leave_type as type_detail, start_date, end_date, 
-               NULL as location, reason, status, applied_at, NULL as duration_hours
-        FROM leave_applications 
-        WHERE staff_id = ?
-        
-        UNION ALL
-        
-        SELECT 'on_duty' as app_type, id, duty_type as type_detail, start_date, end_date,
-               location, COALESCE(reason, purpose) as reason, status, applied_at, NULL as duration_hours
-        FROM on_duty_applications 
-        WHERE staff_id = ?
-        
-        UNION ALL
-        
-        SELECT 'permission' as app_type, id, permission_type as type_detail, 
-               permission_date as start_date, permission_date as end_date, NULL as location,
-               reason, status, applied_at, duration_hours
-        FROM permission_applications 
-        WHERE staff_id = ?
-        
-        ORDER BY applied_at DESC
+         SELECT *
+         FROM (
+             SELECT 'leave' as app_type, id, leave_type as type_detail, start_date, end_date,
+                 NULL as location, reason, status, applied_at, NULL as duration_hours
+             FROM leave_applications
+             WHERE staff_id = ?
+
+             UNION ALL
+
+             SELECT 'on_duty' as app_type, id, duty_type as type_detail, start_date, end_date,
+                 location, COALESCE(reason, purpose) as reason, status, applied_at, NULL as duration_hours
+             FROM on_duty_applications
+             WHERE staff_id = ?
+
+             UNION ALL
+
+             SELECT 'permission' as app_type, id, permission_type as type_detail,
+                 permission_date as start_date, permission_date as end_date, NULL as location,
+                 reason, status, applied_at, duration_hours
+             FROM permission_applications
+             WHERE staff_id = ?
+         ) recent_apps
+         WHERE DATE(COALESCE(applied_at, start_date)) >= DATE(?)
+         ORDER BY COALESCE(applied_at, start_date) DESC
         LIMIT 30
-    ''', (staff_id, staff_id, staff_id)).fetchall()
+        ''', (staff_id, staff_id, staff_id, one_week_ago_str)).fetchall()
 
     # Separate applications by type for template
     leave_applications = []
