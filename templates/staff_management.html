@@ -489,6 +489,14 @@
                                 <i class="bi bi-key"></i> Password Reset Requests
                                 <span class="badge bg-danger ms-2 d-none" id="resetRequestCount">0</span>
                             </button>
+                            <button type="button" class="btn btn-outline-light" id="downloadStaffTemplateBtn"
+                                title="Download sample Excel sheet">
+                                <i class="bi bi-file-earmark-arrow-down"></i> Sample Sheet
+                            </button>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                                data-bs-target="#bulkUploadStaffModal" title="Bulk upload staff from Excel or CSV">
+                                <i class="bi bi-upload"></i> Bulk Upload
+                            </button>
                             <button type="button" class="btn btn-success" data-bs-toggle="modal"
                                 data-bs-target="#addStaffModal" title="Add new staff member">
                                 <i class="bi bi-person-plus"></i> Add Staff
@@ -1058,6 +1066,55 @@
                             </div>
                         </div>
 
+                        <!-- Bank & Tax Details Section -->
+                        <div class="rules-section">
+                            <h6 class="section-title">
+                                <i class="bi bi-bank text-primary"></i> Bank & Tax Details (Payroll)
+                            </h6>
+                            <div class="rules-grid">
+                                <div class="rule-item">
+                                    <label for="addBankAccountName" class="form-label">
+                                        <i class="bi bi-person-vcard"></i> Account Holder Name
+                                    </label>
+                                    <input type="text" class="form-control" id="addBankAccountName" name="bank_account_name"
+                                        title="Enter account holder name">
+                                    <small class="form-text">Name as per bank account</small>
+                                </div>
+                                <div class="rule-item">
+                                    <label for="addBankName" class="form-label">
+                                        <i class="bi bi-building"></i> Bank Name
+                                    </label>
+                                    <input type="text" class="form-control" id="addBankName" name="bank_name"
+                                        title="Enter bank name">
+                                    <small class="form-text">Bank name for salary transfer</small>
+                                </div>
+                                <div class="rule-item">
+                                    <label for="addBankAccountNumber" class="form-label">
+                                        <i class="bi bi-credit-card-2-front"></i> Account Number
+                                    </label>
+                                    <input type="text" class="form-control" id="addBankAccountNumber" name="bank_account_number"
+                                        inputmode="numeric" title="Enter account number">
+                                    <small class="form-text">Bank account number for payroll</small>
+                                </div>
+                                <div class="rule-item">
+                                    <label for="addIfscCode" class="form-label">
+                                        <i class="bi bi-upc-scan"></i> IFSC Code
+                                    </label>
+                                    <input type="text" class="form-control" id="addIfscCode" name="ifsc_code"
+                                        style="text-transform: uppercase;" maxlength="11" title="Enter IFSC code">
+                                    <small class="form-text">11-character IFSC code</small>
+                                </div>
+                                <div class="rule-item">
+                                    <label for="addPanNumber" class="form-label">
+                                        <i class="bi bi-file-earmark-text"></i> PAN Number
+                                    </label>
+                                    <input type="text" class="form-control" id="addPanNumber" name="pan_number"
+                                        style="text-transform: uppercase;" maxlength="10" title="Enter PAN number">
+                                    <small class="form-text">10-character PAN for payroll compliance</small>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Salary Information Section -->
                         <div class="rules-section">
                             <h6 class="section-title">
@@ -1175,6 +1232,49 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                         <button type="submit" class="btn btn-success">
                             <i class="bi bi-check-circle"></i> Add Staff Member
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Upload Staff Modal -->
+    <div class="modal fade" id="bulkUploadStaffModal" tabindex="-1" aria-labelledby="bulkUploadStaffModalLabel"
+        aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="bulkUploadStaffModalLabel">
+                        <i class="bi bi-upload"></i> Bulk Upload Staff
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <form id="bulkUploadStaffForm">
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            Download the sample sheet first, fill staff details, then upload the file.
+                            Supported formats: <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong>.
+                        </div>
+                        <div class="mb-3">
+                            <label for="bulkStaffFile" class="form-label">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Upload Staff File
+                            </label>
+                            <input type="file" class="form-control" id="bulkStaffFile" name="file"
+                                accept=".xlsx,.xls,.csv" required>
+                            <small class="form-text text-muted">Keep column names exactly as in the sample sheet.</small>
+                        </div>
+                        <div id="bulkUploadResult" class="d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-light" id="downloadTemplateInModalBtn">
+                            <i class="bi bi-download"></i> Download Sample Sheet
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="bulkUploadSubmitBtn">
+                            <i class="bi bi-cloud-upload"></i> Upload Staff
                         </button>
                     </div>
                 </form>

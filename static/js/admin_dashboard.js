@@ -2359,6 +2359,11 @@ document.addEventListener('DOMContentLoaded', function () {
         const currentCheckinTimeDisplay = document.getElementById('currentCheckinTime');
         const currentCheckoutTimeDisplay = document.getElementById('currentCheckoutTime');
 
+        // This module is optional on some dashboard variants; skip when elements are absent.
+        if (!checkinTimeInput || !checkoutTimeInput) {
+            return;
+        }
+
         // Load current institution timings on page load
         function loadCurrentTimings() {
             fetch('/api/get_institution_timings', {
@@ -2378,8 +2383,12 @@ document.addEventListener('DOMContentLoaded', function () {
                     checkoutTimeInput.value = checkoutTime;
                     
                     // Update display cards
-                    currentCheckinTimeDisplay.textContent = formatTimeToAMPM(checkinTime);
-                    currentCheckoutTimeDisplay.textContent = formatTimeToAMPM(checkoutTime);
+                    if (currentCheckinTimeDisplay) {
+                        currentCheckinTimeDisplay.textContent = formatTimeToAMPM(checkinTime);
+                    }
+                    if (currentCheckoutTimeDisplay) {
+                        currentCheckoutTimeDisplay.textContent = formatTimeToAMPM(checkoutTime);
+                    }
                 }
             })
             .catch(error => {
@@ -2424,9 +2433,15 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Hide all messages
         function hideAllMessages() {
-            successMessage.style.display = 'none';
-            errorMessage.style.display = 'none';
-            validationMessage.style.display = 'none';
+            if (successMessage) {
+                successMessage.style.display = 'none';
+            }
+            if (errorMessage) {
+                errorMessage.style.display = 'none';
+            }
+            if (validationMessage) {
+                validationMessage.style.display = 'none';
+            }
         }
 
         // Event listeners for time validation
@@ -2451,9 +2466,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 
                 // Disable submit button
                 const submitBtn = document.getElementById('saveTimingBtn');
-                const originalText = submitBtn.innerHTML;
-                submitBtn.disabled = true;
-                submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+                const originalText = submitBtn ? submitBtn.innerHTML : '';
+                if (submitBtn) {
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="bi bi-hourglass-split"></i> Saving...';
+                }
                 
                 fetch('/api/update_institution_timings', {
                     method: 'POST',
@@ -2473,29 +2490,49 @@ document.addEventListener('DOMContentLoaded', function () {
                                 <br>• <strong>Early departure</strong> if check-out before ${formatTimeToAMPM(checkoutTimeInput.value)}
                             </small>
                         `;
-                        successMessage.style.display = 'block';
+                        if (successMessage) {
+                            successMessage.style.display = 'block';
+                        }
                         
                         // Update display cards
-                        currentCheckinTimeDisplay.textContent = formatTimeToAMPM(checkinTimeInput.value);
-                        currentCheckoutTimeDisplay.textContent = formatTimeToAMPM(checkoutTimeInput.value);
+                        if (currentCheckinTimeDisplay) {
+                            currentCheckinTimeDisplay.textContent = formatTimeToAMPM(checkinTimeInput.value);
+                        }
+                        if (currentCheckoutTimeDisplay) {
+                            currentCheckoutTimeDisplay.textContent = formatTimeToAMPM(checkoutTimeInput.value);
+                        }
                         
                         // Auto-hide success message after 6 seconds (more time to read)
                         setTimeout(() => {
-                            successMessage.style.display = 'none';
+                            if (successMessage) {
+                                successMessage.style.display = 'none';
+                            }
                         }, 6000);
                     } else {
-                        errorMessage.style.display = 'block';
-                        document.getElementById('errorMessageText').textContent = data.message || 'Failed to update timings. Please try again.';
+                        if (errorMessage) {
+                            errorMessage.style.display = 'block';
+                        }
+                        const errorMessageText = document.getElementById('errorMessageText');
+                        if (errorMessageText) {
+                            errorMessageText.textContent = data.message || 'Failed to update timings. Please try again.';
+                        }
                     }
                 })
                 .catch(error => {
                     console.error('Error updating timings:', error);
-                    errorMessage.style.display = 'block';
-                    document.getElementById('errorMessageText').textContent = 'Network error. Please try again.';
+                    if (errorMessage) {
+                        errorMessage.style.display = 'block';
+                    }
+                    const errorMessageText = document.getElementById('errorMessageText');
+                    if (errorMessageText) {
+                        errorMessageText.textContent = 'Network error. Please try again.';
+                    }
                 })
                 .finally(() => {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalText;
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    }
                 });
             });
         }

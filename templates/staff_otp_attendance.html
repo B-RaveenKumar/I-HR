@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OTP Attendance - iHR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body { background: #f4f7fb; }
+        .otp-card { max-width: 760px; margin: 2rem auto; border-radius: 14px; box-shadow: 0 12px 28px rgba(17, 38, 78, 0.14); }
+        .otp-input { font-size: 1.4rem; letter-spacing: 0.25rem; text-align: center; font-weight: 700; }
+    </style>
+</head>
+<body>
+    <div class="container py-4">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0"><i class="bi bi-shield-lock"></i> OTP Attendance</h4>
+            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('staff_dashboard') }}"><i class="bi bi-arrow-left"></i> Back</a>
+        </div>
+
+        <div class="card otp-card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="fw-bold">Request and verify attendance OTP</div>
+                    <small class="text-muted">OTP expires in {{ otp_config.ttl_seconds or 180 }} seconds</small>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if not available_channels %}
+                <div class="alert alert-warning mb-0">
+                    No OTP channel is currently available for your school. Please contact admin.
+                </div>
+                {% else %}
+                <div class="mb-3">
+                    <label class="form-label">Delivery channel</label>
+                    <select id="otpChannel" class="form-select">
+                        {% if 'email' in available_channels %}
+                        <option value="email">Email</option>
+                        {% endif %}
+                        {% if 'sms' in available_channels %}
+                        <option value="sms">SMS</option>
+                        {% endif %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="officeOtpCode" class="form-label">Enter Office OTP (4-digit)</label>
+                    <input id="officeOtpCode" type="text" maxlength="4" class="form-control" placeholder="0000" inputmode="numeric" autocomplete="one-time-code">
+                    <small class="text-muted">Use the 4-digit OTP currently shown on admin OTP display screen.</small>
+                    <div class="small mt-1" id="officeOtpCountdown">Office OTP refresh in: --s</div>
+                </div>
+
+                <div class="d-flex gap-2 mb-3">
+                    <button id="requestOtpBtn" class="btn btn-primary"><i class="bi bi-send"></i> Request OTP</button>
+                    <span id="requestStatus" class="small text-muted align-self-center"></span>
+                </div>
+
+                <div class="mb-2">
+                    <label for="otpCode" class="form-label">Enter OTP</label>
+                    <input id="otpCode" type="text" maxlength="6" class="form-control otp-input" placeholder="000000" inputmode="numeric" autocomplete="one-time-code">
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button id="verifyOtpBtn" class="btn btn-success"><i class="bi bi-check2-circle"></i> Verify and Mark Attendance</button>
+                </div>
+
+                <div id="otpResult" class="mt-3"></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const requestBtn = document.getElementById('requestOtpBtn');
+        const verifyBtn = document.getElementById('verifyOtpBtn');
+        const channelEl = document.getElementById('otpChannel');
+        const officeOtpEl = document.getElementById('officeOtpCode');
+        const otpEl = document.getElementById('otpCode');
+        const requestStatus = document.getElementById('requestStatus');
+        const resultEl = document.getElementById('otpResult');
+        const officeOtpCountdownEl = document.getElementById('officeOtpCountdown');
+        let officeOtpExpiresAtMs = 0;
+        let officeOtpTickTimer = null;
+        let officeOtpPollTimer = null;
+
+        function showResult(message, ok = true) {
+            resultEl.innerHTML = `<div class="alert ${ok ? 'alert-success' : 'alert-danger'} mb-0">${message}</div>`;
+        }
+
+        function updateOfficeOtpCountdown() {
+            if (!officeOtpCountdownEl) return;
+            if (!officeOtpExpiresAtMs) {
+                officeOtpCountdownEl.textContent = 'Office OTP refresh in: --s';
+                officeOtpCountdownEl.className = 'small mt-1 text-muted';
+                return;
+            }
+
+            const remaining = Math.max(0, Math.ceil((officeOtpExpiresAtMs - Date.now()) / 1000));
+            officeOtpCountdownEl.textContent = `Office OTP refresh in: ${remaining}s`;
+            officeOtpCountdownEl.className = remaining <= 5 ? 'small mt-1 text-danger fw-semibold' : 'small mt-1 text-muted';
+        }
+
+        async function fetchOfficeOtpStatus() {
+            if (!officeOtpCountdownEl) return;
+            try {
+                const response = await fetch('/api/attendance/otp/office-status');
+                const data = await response.json();
+                if (!data.success || !data.expires_at) {
+                    officeOtpExpiresAtMs = 0;
+                    officeOtpCountdownEl.textContent = data.error || 'Waiting for admin OTP display...';
+                    officeOtpCountdownEl.className = 'small mt-1 text-warning';
+                    return;
+                }
+
+                officeOtpExpiresAtMs = new Date(data.expires_at).getTime();
+                updateOfficeOtpCountdown();
+            } catch (err) {
+                officeOtpExpiresAtMs = 0;
+                officeOtpCountdownEl.textContent = 'Unable to fetch office OTP timer.';
+                officeOtpCountdownEl.className = 'small mt-1 text-warning';
+            }
+        }
+
+        function startOfficeOtpTimers() {
+            if (officeOtpTickTimer) clearInterval(officeOtpTickTimer);
+            if (officeOtpPollTimer) clearInterval(officeOtpPollTimer);
+
+            officeOtpTickTimer = setInterval(updateOfficeOtpCountdown, 1000);
+            officeOtpPollTimer = setInterval(fetchOfficeOtpStatus, 5000);
+            fetchOfficeOtpStatus();
+        }
+
+        async function requestOtp() {
+            const officeOtp = (officeOtpEl?.value || '').trim();
+            if (!officeOtp || officeOtp.length !== 4 || !/^\d{4}$/.test(officeOtp)) {
+                requestStatus.textContent = 'Please enter valid 4-digit office OTP.';
+                officeOtpEl?.focus();
+                return;
+            }
+
+            requestBtn.disabled = true;
+            requestStatus.textContent = 'Requesting OTP...';
+            try {
+                const response = await fetch('/api/attendance/otp/request', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel: channelEl.value, office_otp: officeOtp })
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    requestStatus.textContent = data.error || 'Failed to request OTP.';
+                    return;
+                }
+                requestStatus.textContent = data.message || 'OTP sent.';
+                otpEl.focus();
+            } catch (err) {
+                requestStatus.textContent = 'Network error while requesting OTP.';
+            } finally {
+                requestBtn.disabled = false;
+            }
+        }
+
+        async function verifyOtp() {
+            const otp = (otpEl.value || '').trim();
+            if (!otp) {
+                showResult('Please enter OTP.', false);
+                return;
+            }
+
+            verifyBtn.disabled = true;
+            try {
+                const response = await fetch('/api/attendance/otp/verify', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ otp })
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    showResult(data.error || 'OTP verification failed.', false);
+                    return;
+                }
+                showResult(data.message || 'Attendance marked successfully.');
+                otpEl.value = '';
+            } catch (err) {
+                showResult('Network error while verifying OTP.', false);
+            } finally {
+                verifyBtn.disabled = false;
+            }
+        }
+
+        if (requestBtn) requestBtn.addEventListener('click', requestOtp);
+        if (verifyBtn) verifyBtn.addEventListener('click', verifyOtp);
+        if (officeOtpEl) {
+            officeOtpEl.addEventListener('input', () => {
+                officeOtpEl.value = officeOtpEl.value.replace(/[^0-9]/g, '').slice(0, 4);
+            });
+        }
+        if (otpEl) {
+            otpEl.addEventListener('input', () => {
+                otpEl.value = otpEl.value.replace(/[^0-9]/g, '').slice(0, 6);
+            });
+            otpEl.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    verifyOtp();
+                }
+            });
+        }
+
+        startOfficeOtpTimers();
+    </script>
+</body>
+</html>

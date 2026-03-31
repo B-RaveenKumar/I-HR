@@ -997,6 +997,17 @@
                                 <p class="card-subtitle">{{ today.strftime('%d %b %Y') }} - Track your daily attendance
                                 </p>
                             </div>
+                            <div class="header-actions">
+                                {% if attendance_mode == 'dynamic_qr' %}
+                                <a href="{{ url_for('staff_qr_scanner_page') }}" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-camera"></i> Scan QR
+                                </a>
+                                {% elif attendance_mode == 'otp' %}
+                                <a href="{{ url_for('staff_otp_attendance_page') }}" class="btn btn-primary btn-sm">
+                                    <i class="bi bi-shield-lock"></i> Enter OTP
+                                </a>
+                                {% endif %}
+                            </div>
                         </div>
                         <div class="card-body">
                             <div class="filters-grid">
@@ -1867,6 +1878,61 @@
                     // Set current staff ID for JavaScript access
                     window.currentStaffId = '{{ staff_info.staff_id if staff_info else "" }}';
                     window.staffDbId = '{{ session.get("user_id", "") }}';
+
+                    function getStatusBadgeClass(statusValue) {
+                        const status = (statusValue || '').toLowerCase();
+                        if (status === 'present') return 'bg-success';
+                        if (status === 'late') return 'bg-warning text-dark';
+                        if (status === 'on leave' || status === 'leave') return 'bg-primary';
+                        if (status === 'on duty') return 'bg-info text-dark';
+                        if (status === 'on permission') return 'bg-warning text-dark';
+                        if (status === 'holiday') return 'bg-dark';
+                        if (status === 'absent') return 'bg-danger';
+                        return 'bg-secondary';
+                    }
+
+                    function updateTodayAttendanceCard() {
+                        fetch('/get_today_attendance_status')
+                            .then(response => response.json())
+                            .then(data => {
+                                if (!data.success) {
+                                    return;
+                                }
+
+                                const attendance = data.attendance || null;
+                                const statusElement = document.getElementById('currentStatus');
+                                const inElement = document.getElementById('timeIn');
+                                const outElement = document.getElementById('timeOut');
+                                const totalElement = document.getElementById('totalHours');
+
+                                if (!statusElement || !inElement || !outElement || !totalElement) {
+                                    return;
+                                }
+
+                                if (attendance) {
+                                    const statusText = attendance.status || 'present';
+                                    inElement.textContent = attendance.time_in || '--:--:--';
+                                    outElement.textContent = attendance.time_out || '--:--:--';
+                                    totalElement.textContent = data.total_hours || '--:--';
+                                    statusElement.textContent = statusText.charAt(0).toUpperCase() + statusText.slice(1);
+                                    statusElement.className = `badge ${getStatusBadgeClass(statusText)}`;
+                                } else {
+                                    inElement.textContent = '--:--:--';
+                                    outElement.textContent = '--:--:--';
+                                    totalElement.textContent = '--:--';
+                                    statusElement.textContent = 'Not Marked';
+                                    statusElement.className = 'badge bg-secondary';
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error refreshing today attendance:', error);
+                            });
+                    }
+
+                    document.addEventListener('DOMContentLoaded', function () {
+                        updateTodayAttendanceCard();
+                        setInterval(updateTodayAttendanceCard, 30000);
+                    });
 
                     // Pay Slip Modal Functionality
                     document.addEventListener('DOMContentLoaded', function () {

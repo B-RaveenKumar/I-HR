@@ -140,6 +140,22 @@
                 <i class="bi bi-person-plus"></i>
                 <span>Add Staff</span>
             </button>
+            {% if attendance_mode == 'dynamic_qr' %}
+            <a class="btn-modern btn-warning-modern" href="{{ url_for('admin_dynamic_qr_screen') }}">
+                <i class="bi bi-qr-code"></i>
+                <span>QR Display</span>
+            </a>
+            {% elif attendance_mode == 'id_scan' %}
+            <a class="btn-modern btn-warning-modern" href="{{ url_for('admin_id_scan_kiosk') }}">
+                <i class="bi bi-upc-scan"></i>
+                <span>ID Kiosk</span>
+            </a>
+            {% elif attendance_mode == 'otp' %}
+            <a class="btn-modern btn-warning-modern" href="{{ url_for('admin_otp_display_screen') }}">
+                <i class="bi bi-123"></i>
+                <span>OTP Display</span>
+            </a>
+            {% endif %}
             <button class="btn-modern btn-secondary-modern" onclick="exportAttendance()">
                 <i class="bi bi-download"></i>
                 <span>Export Data</span>

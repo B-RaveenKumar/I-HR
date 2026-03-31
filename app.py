@@ -29,6 +29,12 @@ import os
 import json
 import subprocess
 import calendar
+import base64
+import hashlib
+import hmac
+import secrets
+import urllib.parse
+import urllib.request
 
 # Import cloud modules (with fallback for backward compatibility)
 try:
@@ -58,7 +64,15 @@ scheduler.start()
 atexit.register(lambda: scheduler.shutdown())
 
 # Auto-sync configuration (interval in minutes) - Load from database
-from database import get_system_setting
+from database import (
+    DATABASE_URL,
+    get_system_setting,
+    set_system_setting,
+    get_school_attendance_mode,
+    set_school_attendance_mode,
+    get_attendance_config,
+    set_attendance_config,
+)
 AUTO_SYNC_INTERVAL_MINUTES = int(get_system_setting('auto_sync_interval_minutes', 15))
 
 # Helper function to get module settings for a school
@@ -318,8 +332,25 @@ def ensure_on_duty_permission_table():
         ''')
         db.commit()
 
+
+def ensure_system_settings_capacity():
+    """Ensure system_settings columns can hold JSON payloads (MySQL legacy fix)."""
+    try:
+        if not str(DATABASE_URL).startswith('mysql'):
+            return
+
+        db = get_db()
+        # Older deployments use varchar(255), which truncates JSON settings.
+        db.execute('ALTER TABLE system_settings MODIFY setting_value TEXT NULL')
+        db.execute('ALTER TABLE system_settings MODIFY description TEXT NULL')
+        db.commit()
+    except Exception as exc:
+        # Non-fatal: app can run, but large settings may still truncate.
+        print(f'Startup system_settings capacity check warning: {exc}')
+
 with app.app_context():
     ensure_on_duty_permission_table()
+    ensure_system_settings_capacity()
     # Expand department_shift_mappings CHECK constraint + seed overtime shift
     try:
         from database import migrate_department_shift_constraint
@@ -1059,6 +1090,45 @@ def school_details(school_id):
         'student_management': get_column_value(school, 'student_management_enabled'),
     }
 
+    attendance_mode = get_school_attendance_mode(school_id)
+    attendance_qr_config = get_attendance_config(
+        f'attendance_qr_config_school_{school_id}',
+        {
+            'rotation_seconds': 30,
+            'screen_name': 'Main Attendance Display',
+            'auto_start': True
+        }
+    )
+    attendance_id_scan_config = get_attendance_config(
+        f'attendance_idscan_config_school_{school_id}',
+        {
+            'match_priority': 'staff_id_then_card_uid',
+            'allow_continuous_scan': True,
+            'kiosk_label': 'ID Scan Kiosk'
+        }
+    )
+    attendance_otp_config = get_attendance_config(
+        f'attendance_otp_config_school_{school_id}',
+        {
+            'ttl_seconds': 180,
+            'max_attempts': 3,
+            'channels': ['email', 'sms']
+        }
+    )
+    otp_provider_config = get_attendance_config(
+        'company_otp_provider_config',
+        {
+            'smtp_enabled': False,
+            'smtp_username': '',
+            'smtp_password': '',
+            'smtp_use_tls': True,
+            'smtp_from_email': '',
+            'twilio_enabled': False,
+            'twilio_sid': '',
+            'twilio_from_number': ''
+        }
+    )
+
     return render_template('school_details.html',
                          school=school,
                          admins=admins,
@@ -1066,7 +1136,1236 @@ def school_details(school_id):
                          attendance_summary=attendance_summary,
                          pending_leaves=pending_leaves,
                          module_settings=module_settings,
+                         attendance_mode=attendance_mode,
+                         attendance_qr_config=attendance_qr_config,
+                         attendance_id_scan_config=attendance_id_scan_config,
+                         attendance_otp_config=attendance_otp_config,
+                         otp_provider_config=otp_provider_config,
                          today=today)
+
+
+@csrf.exempt
+@app.route('/api/attendance/settings/<int:school_id>', methods=['GET', 'POST'])
+def attendance_settings_api(school_id):
+    if 'user_id' not in session or session.get('user_type') != 'company_admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    db = get_db()
+    school = db.execute('SELECT id FROM schools WHERE id = ?', (school_id,)).fetchone()
+    if not school:
+        return jsonify({'success': False, 'error': 'School not found'}), 404
+
+    allowed_modes = {'biometric', 'dynamic_qr', 'id_scan', 'otp'}
+    default_payload = {
+        'mode': get_school_attendance_mode(school_id),
+        'qr_config': get_attendance_config(
+            f'attendance_qr_config_school_{school_id}',
+            {'rotation_seconds': 30, 'screen_name': 'Main Attendance Display', 'auto_start': True}
+        ),
+        'id_scan_config': get_attendance_config(
+            f'attendance_idscan_config_school_{school_id}',
+            {'match_priority': 'staff_id_then_card_uid', 'allow_continuous_scan': True, 'kiosk_label': 'ID Scan Kiosk'}
+        ),
+        'otp_config': get_attendance_config(
+            f'attendance_otp_config_school_{school_id}',
+            {'ttl_seconds': 180, 'max_attempts': 3, 'channels': ['email', 'sms']}
+        )
+    }
+
+    if request.method == 'GET':
+        return jsonify({'success': True, 'settings': default_payload})
+
+    data = request.get_json(silent=True) or {}
+    mode = str(data.get('mode', default_payload['mode'])).strip().lower()
+    if mode not in allowed_modes:
+        return jsonify({'success': False, 'error': 'Invalid attendance mode'}), 400
+
+    qr_config = data.get('qr_config') if isinstance(data.get('qr_config'), dict) else default_payload['qr_config']
+    id_scan_config = data.get('id_scan_config') if isinstance(data.get('id_scan_config'), dict) else default_payload['id_scan_config']
+    otp_config = data.get('otp_config') if isinstance(data.get('otp_config'), dict) else default_payload['otp_config']
+
+    # Guardrails for secure defaults.
+    qr_rotation = int(qr_config.get('rotation_seconds', 30) or 30)
+    qr_config['rotation_seconds'] = max(30, min(120, qr_rotation))
+
+    otp_ttl = int(otp_config.get('ttl_seconds', 180) or 180)
+    otp_attempts = int(otp_config.get('max_attempts', 3) or 3)
+    otp_config['ttl_seconds'] = max(60, min(600, otp_ttl))
+    otp_config['max_attempts'] = max(1, min(10, otp_attempts))
+
+    if mode == 'otp':
+        provider = data.get('otp_provider_config') if isinstance(data.get('otp_provider_config'), dict) else None
+        if provider is None:
+            provider = get_attendance_config('company_otp_provider_config', {})
+
+        has_email = _as_bool(provider.get('smtp_enabled'))
+        has_sms = _as_bool(provider.get('twilio_enabled'))
+        if not (has_email or has_sms):
+            return jsonify({
+                'success': False,
+                'error': 'OTP mode cannot be enabled until at least one provider (SMTP or Twilio) is configured.'
+            }), 400
+
+        if has_email and not str(provider.get('smtp_from_email', '')).strip():
+            return jsonify({'success': False, 'error': 'SMTP from email is required when SMTP is enabled.'}), 400
+        if has_email and not str(provider.get('smtp_host', '')).strip():
+            return jsonify({'success': False, 'error': 'SMTP host is required when SMTP is enabled.'}), 400
+        if has_email and not int(provider.get('smtp_port', 587) or 587):
+            return jsonify({'success': False, 'error': 'SMTP port is required when SMTP is enabled.'}), 400
+        if has_email and not str(provider.get('smtp_password', '')).strip():
+            return jsonify({'success': False, 'error': 'SMTP app password is required when SMTP is enabled.'}), 400
+        if has_sms and (
+            not str(provider.get('twilio_sid', '')).strip() or
+            not str(provider.get('twilio_auth_token', '')).strip() or
+            not str(provider.get('twilio_from_number', '')).strip()
+        ):
+            return jsonify({'success': False, 'error': 'Twilio SID, Auth Token, and From Number are required when Twilio is enabled.'}), 400
+
+        # If provider config is submitted together with attendance settings,
+        # persist it atomically in the same save flow.
+        if isinstance(data.get('otp_provider_config'), dict):
+            provider_save_ok = set_attendance_config(
+                'company_otp_provider_config',
+                {
+                    'smtp_enabled': _as_bool(provider.get('smtp_enabled')),
+                    'smtp_username': str(provider.get('smtp_username', '')).strip(),
+                    'smtp_password': str(provider.get('smtp_password', '')).strip(),
+                    'smtp_use_tls': _as_bool(provider.get('smtp_use_tls', True)),
+                    'smtp_from_email': str(provider.get('smtp_from_email', '')).strip(),
+                    'smtp_host': str(provider.get('smtp_host', '')).strip(),
+                    'smtp_port': int(provider.get('smtp_port', 587) or 587),
+                    'twilio_enabled': _as_bool(provider.get('twilio_enabled')),
+                    'twilio_sid': str(provider.get('twilio_sid', '')).strip(),
+                    'twilio_auth_token': str(provider.get('twilio_auth_token', '')).strip(),
+                    'twilio_from_number': str(provider.get('twilio_from_number', '')).strip()
+                },
+                'Company-level OTP provider settings for attendance verification'
+            )
+            if not provider_save_ok:
+                return jsonify({'success': False, 'error': 'Unable to persist OTP provider settings. Please try again.'}), 500
+
+    set_school_attendance_mode(school_id, mode)
+    set_attendance_config(
+        f'attendance_qr_config_school_{school_id}',
+        qr_config,
+        'Per-school dynamic QR attendance config'
+    )
+    set_attendance_config(
+        f'attendance_idscan_config_school_{school_id}',
+        id_scan_config,
+        'Per-school ID scan attendance config'
+    )
+    set_attendance_config(
+        f'attendance_otp_config_school_{school_id}',
+        otp_config,
+        'Per-school OTP attendance config'
+    )
+
+    return jsonify({
+        'success': True,
+        'message': 'Attendance settings updated successfully',
+        'settings': {
+            'mode': mode,
+            'qr_config': qr_config,
+            'id_scan_config': id_scan_config,
+            'otp_config': otp_config
+        }
+    })
+
+
+@csrf.exempt
+@app.route('/api/company/otp-provider-settings', methods=['GET', 'POST'])
+def company_otp_provider_settings_api():
+    if 'user_id' not in session or session.get('user_type') != 'company_admin':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    defaults = {
+        'smtp_enabled': False,
+        'smtp_username': '',
+        'smtp_password': '',
+        'smtp_use_tls': True,
+        'smtp_from_email': '',
+        'smtp_host': '',
+        'smtp_port': 587,
+        'twilio_enabled': False,
+        'twilio_sid': '',
+        'twilio_auth_token': '',
+        'twilio_from_number': ''
+    }
+
+    if request.method == 'GET':
+        config = get_attendance_config('company_otp_provider_config', defaults)
+        masked = dict(defaults)
+        masked.update(config)
+
+        sid = str(masked.get('twilio_sid') or '')
+        token = str(masked.get('twilio_auth_token') or '')
+        smtp_password = str(masked.get('smtp_password') or '')
+        masked['twilio_sid'] = (sid[:4] + '...' + sid[-4:]) if len(sid) > 8 else sid
+        masked['twilio_auth_token'] = '********' if token else ''
+        masked['smtp_password_set'] = bool(smtp_password)
+        masked['smtp_password'] = ''
+        return jsonify({'success': True, 'settings': masked})
+
+    data = request.get_json(silent=True) or {}
+    existing_config = get_attendance_config('company_otp_provider_config', defaults)
+    config = dict(defaults)
+    config.update({
+        'smtp_enabled': _as_bool(data.get('smtp_enabled', False)),
+        'smtp_username': str(data.get('smtp_username', '')).strip(),
+        'smtp_password': str(data.get('smtp_password', '')).strip(),
+        'smtp_use_tls': _as_bool(data.get('smtp_use_tls', True)),
+        'smtp_from_email': str(data.get('smtp_from_email', '')).strip(),
+        'smtp_host': str(data.get('smtp_host', '')).strip(),
+        'smtp_port': int(data.get('smtp_port', 587) or 587),
+        'twilio_enabled': _as_bool(data.get('twilio_enabled', False)),
+        'twilio_sid': str(data.get('twilio_sid', '')).strip(),
+        'twilio_auth_token': str(data.get('twilio_auth_token', '')).strip(),
+        'twilio_from_number': str(data.get('twilio_from_number', '')).strip()
+    })
+
+    # Preserve existing secrets unless explicitly replaced.
+    if config['smtp_enabled'] and not config['smtp_password']:
+        config['smtp_password'] = str(existing_config.get('smtp_password', '')).strip()
+    if config['twilio_enabled'] and not config['twilio_auth_token']:
+        config['twilio_auth_token'] = str(existing_config.get('twilio_auth_token', '')).strip()
+
+    if config['smtp_enabled'] and not config['smtp_from_email']:
+        return jsonify({'success': False, 'error': 'SMTP from email is required when SMTP is enabled.'}), 400
+    if config['smtp_enabled'] and not config['smtp_host']:
+        return jsonify({'success': False, 'error': 'SMTP host is required when SMTP is enabled.'}), 400
+    if config['smtp_enabled'] and not config['smtp_password']:
+        return jsonify({'success': False, 'error': 'SMTP app password is required when SMTP is enabled.'}), 400
+    if config['twilio_enabled'] and (not config['twilio_sid'] or not config['twilio_auth_token'] or not config['twilio_from_number']):
+        return jsonify({'success': False, 'error': 'Twilio SID, Auth Token, and From Number are required when Twilio is enabled.'}), 400
+
+    save_ok = set_attendance_config(
+        'company_otp_provider_config',
+        config,
+        'Company-level OTP provider settings for attendance verification'
+    )
+    if not save_ok:
+        return jsonify({'success': False, 'error': 'Unable to persist OTP provider settings. Please try again.'}), 500
+
+    return jsonify({'success': True, 'message': 'OTP provider settings saved successfully'})
+
+
+def _ensure_attendance_selection_runtime_tables():
+    """Ensure runtime tables for QR/OTP challenges exist."""
+    db = get_db()
+    if str(DATABASE_URL).startswith('mysql'):
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS attendance_qr_tokens (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                school_id INT NOT NULL,
+                token_jti VARCHAR(128) NOT NULL,
+                token_hash VARCHAR(128) NOT NULL,
+                issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                used_by_staff_id INT,
+                used_at TIMESTAMP NULL,
+                status VARCHAR(32) DEFAULT 'active'
+            )
+        ''')
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS attendance_otp_challenges (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                school_id INT NOT NULL,
+                staff_id INT NOT NULL,
+                channel VARCHAR(24) NOT NULL,
+                otp_hash VARCHAR(128) NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                attempts INT DEFAULT 0,
+                max_attempts INT DEFAULT 3,
+                verified_at TIMESTAMP NULL,
+                status VARCHAR(32) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS attendance_office_otp_codes (
+                id INT PRIMARY KEY AUTO_INCREMENT,
+                school_id INT NOT NULL,
+                otp_hash VARCHAR(128) NOT NULL,
+                issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                status VARCHAR(32) DEFAULT 'active'
+            )
+        ''')
+    else:
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS attendance_qr_tokens (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                token_jti TEXT NOT NULL,
+                token_hash TEXT NOT NULL,
+                issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                used_by_staff_id INTEGER,
+                used_at TIMESTAMP,
+                status TEXT DEFAULT 'active'
+            )
+        ''')
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS attendance_otp_challenges (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                staff_id INTEGER NOT NULL,
+                channel TEXT NOT NULL,
+                otp_hash TEXT NOT NULL,
+                expires_at TIMESTAMP NOT NULL,
+                attempts INTEGER DEFAULT 0,
+                max_attempts INTEGER DEFAULT 3,
+                verified_at TIMESTAMP,
+                status TEXT DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        ''')
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS attendance_office_otp_codes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                otp_hash TEXT NOT NULL,
+                issued_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL,
+                status TEXT DEFAULT 'active'
+            )
+        ''')
+    db.commit()
+
+
+def _hash_secure_value(raw_value):
+    return hashlib.sha256(str(raw_value).encode('utf-8')).hexdigest()
+
+
+def _as_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {'1', 'true', 'yes', 'on', 'enabled'}
+    return bool(value)
+
+
+def _smtp_provider_ready(provider_config):
+    smtp_enabled = _as_bool(provider_config.get('smtp_enabled'))
+    smtp_host = str(provider_config.get('smtp_host', '')).strip()
+    smtp_from = str(provider_config.get('smtp_from_email', '')).strip()
+    smtp_password = str(provider_config.get('smtp_password', '')).strip()
+    smtp_port = int(provider_config.get('smtp_port', 587) or 587)
+
+    complete = bool(smtp_host and smtp_from and smtp_password and smtp_port)
+    return smtp_enabled or complete
+
+
+def _twilio_provider_ready(provider_config):
+    twilio_enabled = _as_bool(provider_config.get('twilio_enabled'))
+    sid = str(provider_config.get('twilio_sid', '')).strip()
+    token = str(provider_config.get('twilio_auth_token', '')).strip()
+    from_number = str(provider_config.get('twilio_from_number', '')).strip()
+
+    complete = bool(sid and token and from_number)
+    return twilio_enabled or complete
+
+
+def _send_smtp_email(provider_config, to_email, subject, body_text):
+    """Send email via configured SMTP provider settings."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+
+    smtp_host = str(provider_config.get('smtp_host', '')).strip()
+    smtp_port = int(provider_config.get('smtp_port', 587) or 587)
+    smtp_from = str(provider_config.get('smtp_from_email', '')).strip()
+    smtp_username = str(provider_config.get('smtp_username', '')).strip() or smtp_from
+    smtp_password = str(provider_config.get('smtp_password', '')).strip()
+    smtp_use_tls = _as_bool(provider_config.get('smtp_use_tls', True))
+    smtp_use_ssl = _as_bool(provider_config.get('smtp_use_ssl', False))
+
+    # Auto-select implicit SSL when using SMTPS port unless explicitly overridden.
+    if smtp_port == 465 and 'smtp_use_ssl' not in provider_config:
+        smtp_use_ssl = True
+        smtp_use_tls = False
+
+    if not smtp_host or not smtp_port or not smtp_from or not smtp_password:
+        return {'success': False, 'error': 'SMTP provider settings are incomplete'}
+
+    msg = MIMEMultipart('alternative')
+    msg['From'] = smtp_from
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body_text, 'plain'))
+
+    try:
+        if smtp_use_ssl:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=20)
+            server.ehlo()
+        else:
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=20)
+            server.ehlo()
+            if smtp_use_tls:
+                server.starttls()
+                server.ehlo()
+        server.login(smtp_username, smtp_password)
+        server.sendmail(smtp_from, [to_email], msg.as_string())
+        server.quit()
+        return {'success': True}
+    except Exception as exc:
+        return {'success': False, 'error': f'SMTP OTP delivery failed: {exc}'}
+
+
+def _send_twilio_sms(provider_config, to_number, body_text):
+    """Send SMS via Twilio REST API without requiring external SDK."""
+    sid = str(provider_config.get('twilio_sid', '')).strip()
+    token = str(provider_config.get('twilio_auth_token', '')).strip()
+    from_number = str(provider_config.get('twilio_from_number', '')).strip()
+
+    if not sid or not token or not from_number:
+        return {'success': False, 'error': 'Twilio credentials are incomplete'}
+
+    endpoint = f'https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json'
+    form_data = urllib.parse.urlencode({
+        'From': from_number,
+        'To': to_number,
+        'Body': body_text
+    }).encode('utf-8')
+
+    request_obj = urllib.request.Request(endpoint, data=form_data, method='POST')
+    basic_token = base64.b64encode(f'{sid}:{token}'.encode('utf-8')).decode('utf-8')
+    request_obj.add_header('Authorization', f'Basic {basic_token}')
+    request_obj.add_header('Content-Type', 'application/x-www-form-urlencoded')
+
+    try:
+        with urllib.request.urlopen(request_obj, timeout=15) as response:
+            status_code = getattr(response, 'status', 200)
+            payload = response.read().decode('utf-8')
+            if status_code >= 300:
+                return {'success': False, 'error': f'Twilio rejected request ({status_code})', 'details': payload}
+            return {'success': True, 'details': payload}
+    except Exception as exc:
+        return {'success': False, 'error': f'Twilio SMS delivery failed: {exc}'}
+
+
+def _build_signed_qr_token(school_id, ttl_seconds):
+    now = datetime.datetime.utcnow()
+    expires_at = now + datetime.timedelta(seconds=int(ttl_seconds))
+    payload = {
+        'school_id': int(school_id),
+        'mode': 'dynamic_qr',
+        'jti': secrets.token_urlsafe(12),
+        'iat': int(now.timestamp()),
+        'exp': int(expires_at.timestamp())
+    }
+    payload_json = json.dumps(payload, separators=(',', ':'), sort_keys=True)
+    payload_b64 = base64.urlsafe_b64encode(payload_json.encode('utf-8')).decode('utf-8')
+    signature = hmac.new(
+        app.secret_key.encode('utf-8'),
+        payload_json.encode('utf-8'),
+        hashlib.sha256
+    ).hexdigest()
+    token = f'{payload_b64}.{signature}'
+    return token, payload, expires_at
+
+
+def _decode_signed_qr_token(token):
+    try:
+        payload_b64, signature = token.split('.', 1)
+        payload_json = base64.urlsafe_b64decode(payload_b64.encode('utf-8')).decode('utf-8')
+        expected = hmac.new(
+            app.secret_key.encode('utf-8'),
+            payload_json.encode('utf-8'),
+            hashlib.sha256
+        ).hexdigest()
+        if not hmac.compare_digest(signature, expected):
+            return None, 'Invalid token signature'
+        payload = json.loads(payload_json)
+        exp = int(payload.get('exp', 0) or 0)
+        if exp <= int(datetime.datetime.utcnow().timestamp()):
+            return None, 'Token expired'
+        return payload, None
+    except Exception:
+        return None, 'Malformed token'
+
+
+def _build_qr_svg(raw_text):
+    """Render QR as SVG bytes using server-side library fallback."""
+    import qrcode
+    import qrcode.image.svg
+
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=2,
+    )
+    qr.add_data(raw_text)
+    qr.make(fit=True)
+    img = qr.make_image(image_factory=qrcode.image.svg.SvgImage)
+    return img.to_string()
+
+
+def _issue_office_otp_code(school_id, ttl_seconds=30):
+    """Issue a short-lived 4-digit office OTP shown on admin panel."""
+    db = get_db()
+    ttl = max(30, min(120, int(ttl_seconds or 30)))
+    otp_code = f'{secrets.randbelow(10000):04d}'
+    now = datetime.datetime.now()
+    expires_at = now + datetime.timedelta(seconds=ttl)
+
+    db.execute(
+        'UPDATE attendance_office_otp_codes SET status = ? WHERE school_id = ? AND status = ?',
+        ('expired', school_id, 'active')
+    )
+    db.execute(
+        '''
+        INSERT INTO attendance_office_otp_codes
+        (school_id, otp_hash, issued_at, expires_at, status)
+        VALUES (?, ?, ?, ?, 'active')
+        ''',
+        (school_id, _hash_secure_value(otp_code), now, expires_at)
+    )
+    db.commit()
+
+    return {
+        'otp_code': otp_code,
+        'issued_at': now,
+        'expires_at': expires_at,
+        'ttl_seconds': ttl
+    }
+
+
+def _is_valid_office_otp_code(school_id, office_otp):
+    """Validate entered office OTP against latest unexpired school code."""
+    db = get_db()
+    row = db.execute(
+        '''
+        SELECT id, otp_hash, expires_at
+        FROM attendance_office_otp_codes
+        WHERE school_id = ? AND status = 'active'
+        ORDER BY id DESC
+        LIMIT 1
+        ''',
+        (school_id,)
+    ).fetchone()
+
+    if not row:
+        return False
+
+    expires_at = row['expires_at']
+    if isinstance(expires_at, str):
+        try:
+            expires_at = datetime.datetime.fromisoformat(expires_at.replace('Z', ''))
+        except ValueError:
+            try:
+                expires_at = datetime.datetime.strptime(expires_at, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                expires_at = datetime.datetime.now() - datetime.timedelta(seconds=1)
+
+    if expires_at and expires_at < datetime.datetime.now():
+        db.execute('UPDATE attendance_office_otp_codes SET status = ? WHERE id = ?', ('expired', row['id']))
+        db.commit()
+        return False
+
+    return hmac.compare_digest(_hash_secure_value(office_otp), row['otp_hash'])
+
+
+def _record_mode_attendance(staff_db_id, school_id, mode_name, event_time=None):
+    db = get_db()
+    timestamp = event_time or datetime.datetime.now()
+    event_date = timestamp.date()
+    current_time = timestamp.strftime('%H:%M:%S')
+    existing = db.execute(
+        '''
+        SELECT id, time_in, time_out, status
+        FROM attendance
+        WHERE staff_id = ? AND school_id = ? AND date = ?
+        ORDER BY
+            CASE
+                WHEN COALESCE(time_in, '') <> '' AND COALESCE(time_out, '') = '' THEN 0
+                WHEN COALESCE(time_in, '') = '' THEN 1
+                ELSE 2
+            END,
+            COALESCE(time_in, '') DESC
+        LIMIT 1
+        ''',
+        (staff_db_id, school_id, event_date)
+    ).fetchone()
+
+    def _update_attendance_row(set_sql_with_mode, params_with_mode, set_sql_fallback, params_fallback, is_checkout=False):
+        """Update by primary id when available; fallback to staff/date scoped update for legacy schemas."""
+        target_id = existing['id'] if existing and existing['id'] else None
+
+        if target_id:
+            try:
+                db.execute(set_sql_with_mode + ' WHERE id = ?', params_with_mode + (target_id,))
+                return
+            except Exception:
+                db.execute(set_sql_fallback + ' WHERE id = ?', params_fallback + (target_id,))
+                return
+
+        if is_checkout:
+            where_clause = '''
+                WHERE staff_id = ? AND school_id = ? AND date = ?
+                  AND COALESCE(time_in, '') <> ''
+                  AND (time_out IS NULL OR time_out = '')
+            '''
+        else:
+            where_clause = '''
+                WHERE staff_id = ? AND school_id = ? AND date = ?
+                  AND (time_in IS NULL OR time_in = '')
+            '''
+
+        where_params = (staff_db_id, school_id, event_date)
+        try:
+            db.execute(set_sql_with_mode + where_clause, params_with_mode + where_params)
+        except Exception:
+            db.execute(set_sql_fallback + where_clause, params_fallback + where_params)
+
+    if existing and existing['time_in'] and existing['time_out']:
+        return {'success': False, 'message': 'Already checked in and checked out for today'}
+
+    try:
+        if not existing:
+            try:
+                db.execute(
+                    '''
+                    INSERT INTO attendance
+                    (staff_id, school_id, date, time_in, status, notes, attendance_mode)
+                    VALUES (?, ?, ?, ?, 'present', ?, ?)
+                    ''',
+                    (staff_db_id, school_id, event_date, current_time, f'Attendance via {mode_name}', mode_name)
+                )
+            except Exception:
+                db.execute(
+                    '''
+                    INSERT INTO attendance
+                    (staff_id, school_id, date, time_in, status, notes)
+                    VALUES (?, ?, ?, ?, 'present', ?)
+                    ''',
+                    (staff_db_id, school_id, event_date, current_time, f'Attendance via {mode_name}')
+                )
+            action = 'check-in'
+        elif not existing['time_in']:
+            _update_attendance_row(
+                'UPDATE attendance SET time_in = ?, attendance_mode = ?, notes = ?',
+                (current_time, mode_name, f'Attendance via {mode_name}'),
+                'UPDATE attendance SET time_in = ?, notes = ?',
+                (current_time, f'Attendance via {mode_name}')
+            )
+            action = 'check-in'
+        else:
+            _update_attendance_row(
+                'UPDATE attendance SET time_out = ?, attendance_mode = ?, notes = ?',
+                (current_time, mode_name, f'Attendance via {mode_name}'),
+                'UPDATE attendance SET time_out = ?, notes = ?',
+                (current_time, f'Attendance via {mode_name}'),
+                is_checkout=True
+            )
+            action = 'check-out'
+
+        db.commit()
+        return {'success': True, 'message': f'{action.title()} recorded via {mode_name}', 'action': action}
+    except Exception as exc:
+        db.rollback()
+        return {'success': False, 'message': f'Attendance write failed: {exc}'}
+
+
+@csrf.exempt
+@app.route('/api/attendance/qr/issue', methods=['POST'])
+def attendance_qr_issue():
+    if 'user_id' not in session or session.get('user_type') not in ['admin']:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    school_id = session.get('school_id')
+    if not school_id:
+        return jsonify({'success': False, 'error': 'School context missing'}), 400
+
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'dynamic_qr':
+        return jsonify({'success': False, 'error': f'Dynamic QR is disabled for this school (current mode: {mode}).'}), 400
+
+    _ensure_attendance_selection_runtime_tables()
+    qr_config = get_attendance_config(
+        f'attendance_qr_config_school_{school_id}',
+        {'rotation_seconds': 30}
+    )
+    ttl_seconds = max(30, min(120, int(qr_config.get('rotation_seconds', 30) or 30)))
+
+    token, payload, expires_at = _build_signed_qr_token(school_id, ttl_seconds)
+    db = get_db()
+    db.execute(
+        '''
+        INSERT INTO attendance_qr_tokens (school_id, token_jti, token_hash, expires_at, status)
+        VALUES (?, ?, ?, ?, 'active')
+        ''',
+        (school_id, payload['jti'], _hash_secure_value(token), expires_at)
+    )
+    db.commit()
+
+    return jsonify({
+        'success': True,
+        'token': token,
+        'expires_at': expires_at.isoformat(),
+        'rotation_seconds': ttl_seconds
+    })
+
+
+@csrf.exempt
+@app.route('/api/attendance/qr/verify', methods=['POST'])
+def attendance_qr_verify():
+    if 'user_id' not in session or session.get('user_type') != 'staff':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'dynamic_qr':
+        return jsonify({'success': False, 'error': f'Dynamic QR is disabled for this school (current mode: {mode}).'}), 400
+
+    request_payload = request.get_json(silent=True) or {}
+    token = request_payload.get('token') or request_payload.get('qr_token')
+    if not token:
+        return jsonify({'success': False, 'error': 'Token is required'}), 400
+
+    _ensure_attendance_selection_runtime_tables()
+    payload, error = _decode_signed_qr_token(token)
+    if error:
+        return jsonify({'success': False, 'error': error}), 400
+    if int(payload.get('school_id', 0)) != int(school_id):
+        return jsonify({'success': False, 'error': 'Token does not belong to this school'}), 400
+
+    db = get_db()
+    token_hash = _hash_secure_value(token)
+    row = db.execute(
+        '''
+        SELECT id, status, expires_at
+        FROM attendance_qr_tokens
+        WHERE school_id = ? AND token_jti = ? AND token_hash = ?
+        ORDER BY id DESC
+        LIMIT 1
+        ''',
+        (school_id, payload.get('jti'), token_hash)
+    ).fetchone()
+    if not row:
+        return jsonify({'success': False, 'error': 'Unknown QR token'}), 400
+    if row['status'] != 'active':
+        return jsonify({'success': False, 'error': 'QR token already used'}), 400
+
+    attendance_result = _record_mode_attendance(session['user_id'], school_id, 'dynamic_qr')
+    if not attendance_result['success']:
+        return jsonify({'success': False, 'error': attendance_result['message']}), 400
+
+    db.execute(
+        'UPDATE attendance_qr_tokens SET status = ?, used_by_staff_id = ?, used_at = ? WHERE id = ?',
+        ('used', session['user_id'], datetime.datetime.now(), row['id'])
+    )
+    db.commit()
+
+    return jsonify({
+        'success': True,
+        'message': attendance_result['message'],
+        'action': attendance_result['action'],
+        'mode': 'dynamic_qr',
+        'server_time': datetime.datetime.utcnow().isoformat() + 'Z',
+        'client': request_payload.get('client', 'web')
+    })
+
+
+@app.route('/api/attendance/qr/render', methods=['GET'])
+def attendance_qr_render():
+    if 'user_id' not in session or session.get('user_type') not in ['admin']:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'dynamic_qr':
+        return jsonify({'success': False, 'error': f'Dynamic QR is disabled for this school (current mode: {mode}).'}), 400
+
+    token = str(request.args.get('token', '')).strip()
+    if not token:
+        return jsonify({'success': False, 'error': 'token query parameter is required'}), 400
+    if len(token) > 4096:
+        return jsonify({'success': False, 'error': 'token is too long'}), 400
+
+    svg_bytes = _build_qr_svg(token)
+    response = make_response(svg_bytes)
+    response.headers['Content-Type'] = 'image/svg+xml'
+    response.headers['Cache-Control'] = 'no-store, max-age=0'
+    return response
+
+
+@csrf.exempt
+@app.route('/api/attendance/idscan/punch', methods=['POST'])
+def attendance_idscan_punch():
+    if 'user_id' not in session or session.get('user_type') not in ['admin']:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'id_scan':
+        return jsonify({'success': False, 'error': f'ID Scan is disabled for this school (current mode: {mode}).'}), 400
+
+    data = request.get_json(silent=True) or {}
+    scan_value = str(data.get('scan_value', '')).strip()
+    if not scan_value:
+        return jsonify({'success': False, 'error': 'scan_value is required'}), 400
+
+    db = get_db()
+    staff_row = db.execute(
+        '''
+        SELECT id, staff_id, full_name
+        FROM staff
+        WHERE school_id = ? AND (staff_id = ? OR card_uid = ?)
+        ORDER BY CASE WHEN staff_id = ? THEN 0 ELSE 1 END, id ASC
+        LIMIT 1
+        ''',
+        (school_id, scan_value, scan_value, scan_value)
+    ).fetchone()
+
+    if not staff_row:
+        return jsonify({'success': False, 'error': 'No matching staff for scanned value'}), 404
+
+    attendance_result = _record_mode_attendance(staff_row['id'], school_id, 'id_scan')
+    if not attendance_result['success']:
+        return jsonify({'success': False, 'error': attendance_result['message']}), 400
+
+    return jsonify({
+        'success': True,
+        'message': attendance_result['message'],
+        'action': attendance_result['action'],
+        'staff': {
+            'id': staff_row['id'],
+            'staff_id': staff_row['staff_id'],
+            'full_name': staff_row['full_name']
+        }
+    })
+
+
+@csrf.exempt
+@app.route('/api/attendance/otp/request', methods=['POST'])
+def attendance_otp_request():
+    if 'user_id' not in session or session.get('user_type') != 'staff':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'otp':
+        return jsonify({'success': False, 'error': f'OTP mode is disabled for this school (current mode: {mode}).'}), 400
+
+    data = request.get_json(silent=True) or {}
+    channel = str(data.get('channel', 'email')).strip().lower()
+    office_otp = str(data.get('office_otp', '')).strip()
+    if channel not in ['email', 'sms']:
+        return jsonify({'success': False, 'error': 'Invalid channel'}), 400
+    if len(office_otp) != 4 or not office_otp.isdigit():
+        return jsonify({'success': False, 'error': '4-digit office OTP is required'}), 400
+
+    _ensure_attendance_selection_runtime_tables()
+    if not _is_valid_office_otp_code(school_id, office_otp):
+        return jsonify({'success': False, 'error': 'Invalid or expired office OTP. Please use latest OTP shown in admin panel.'}), 400
+
+    provider_config = get_attendance_config('company_otp_provider_config', {})
+    email_ready = _smtp_provider_ready(provider_config)
+    sms_ready = _twilio_provider_ready(provider_config)
+
+    db = get_db()
+    staff_row = db.execute('SELECT email, phone, full_name FROM staff WHERE id = ?', (session['user_id'],)).fetchone()
+    staff_email = str(staff_row['email']).strip() if staff_row and staff_row['email'] else ''
+    staff_phone = str(staff_row['phone']).strip() if staff_row and staff_row['phone'] else ''
+
+    requested_channel = channel
+    if channel == 'email':
+        if not email_ready or not staff_email:
+            if sms_ready and staff_phone:
+                channel = 'sms'
+            else:
+                if not email_ready:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Email OTP provider is not configured. Please set SMTP host, port, from email, and app password.'
+                    }), 400
+                return jsonify({'success': False, 'error': 'Staff email is not configured'}), 400
+    else:
+        if not sms_ready or not staff_phone:
+            if email_ready and staff_email:
+                channel = 'email'
+            else:
+                if not sms_ready:
+                    return jsonify({
+                        'success': False,
+                        'error': 'SMS OTP provider is not configured. Please set Twilio SID, Auth Token, and From Number.'
+                    }), 400
+                return jsonify({'success': False, 'error': 'Staff phone number is not configured'}), 400
+
+    otp_config = get_attendance_config(
+        f'attendance_otp_config_school_{school_id}',
+        {'ttl_seconds': 180, 'max_attempts': 3, 'channels': ['email', 'sms']}
+    )
+    ttl_seconds = max(60, min(600, int(otp_config.get('ttl_seconds', 180) or 180)))
+    max_attempts = max(1, min(10, int(otp_config.get('max_attempts', 3) or 3)))
+
+    otp_code = f'{secrets.randbelow(1000000):06d}'
+    expires_at = datetime.datetime.now() + datetime.timedelta(seconds=ttl_seconds)
+
+    db.execute(
+        '''
+        INSERT INTO attendance_otp_challenges
+        (school_id, staff_id, channel, otp_hash, expires_at, attempts, max_attempts, status)
+        VALUES (?, ?, ?, ?, ?, 0, ?, 'pending')
+        ''',
+        (school_id, session['user_id'], channel, _hash_secure_value(otp_code), expires_at, max_attempts)
+    )
+    db.commit()
+
+    # Delivery implementation starts with email; SMS integration placeholder is tracked.
+    delivery_message = 'OTP generated.'
+    if channel == 'email':
+        email_result = _send_smtp_email(
+            provider_config,
+            staff_email,
+            'Attendance OTP',
+            f'Hello {staff_row["full_name"]}, your attendance OTP is {otp_code}. It expires in {ttl_seconds} seconds.'
+        )
+        if not email_result.get('success'):
+            return jsonify({'success': False, 'error': email_result.get('error', 'Unable to send OTP email')}), 500
+        delivery_message = 'OTP sent to your email.'
+    else:
+        sms_body = f'Your attendance OTP is {otp_code}. It expires in {ttl_seconds} seconds.'
+        sms_result = _send_twilio_sms(provider_config, staff_phone, sms_body)
+        if not sms_result.get('success'):
+            return jsonify({'success': False, 'error': sms_result.get('error', 'Unable to send SMS OTP')}), 500
+        delivery_message = 'OTP sent to your mobile number.'
+
+    if requested_channel != channel:
+        delivery_message = f'{delivery_message} (Auto-switched from {requested_channel} to {channel} due to availability.)'
+
+    return jsonify({'success': True, 'message': delivery_message, 'expires_in_seconds': ttl_seconds})
+
+
+@csrf.exempt
+@app.route('/api/attendance/otp/verify', methods=['POST'])
+def attendance_otp_verify():
+    if 'user_id' not in session or session.get('user_type') != 'staff':
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'otp':
+        return jsonify({'success': False, 'error': f'OTP mode is disabled for this school (current mode: {mode}).'}), 400
+
+    data = request.get_json(silent=True) or {}
+    otp_code = str(data.get('otp', '')).strip()
+    if not otp_code:
+        return jsonify({'success': False, 'error': 'OTP is required'}), 400
+
+    _ensure_attendance_selection_runtime_tables()
+    db = get_db()
+    challenge = db.execute(
+        '''
+        SELECT *
+        FROM attendance_otp_challenges
+        WHERE school_id = ? AND staff_id = ? AND status = 'pending'
+        ORDER BY id DESC
+        LIMIT 1
+        ''',
+        (school_id, session['user_id'])
+    ).fetchone()
+
+    if not challenge:
+        return jsonify({'success': False, 'error': 'No active OTP challenge found'}), 404
+
+    expires_at = challenge['expires_at']
+    if isinstance(expires_at, str):
+        try:
+            expires_at = datetime.datetime.fromisoformat(expires_at.replace('Z', ''))
+        except ValueError:
+            try:
+                expires_at = datetime.datetime.strptime(expires_at, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                expires_at = datetime.datetime.now() - datetime.timedelta(seconds=1)
+
+    if expires_at and expires_at < datetime.datetime.now():
+        db.execute('UPDATE attendance_otp_challenges SET status = ? WHERE id = ?', ('expired', challenge['id']))
+        db.commit()
+        return jsonify({'success': False, 'error': 'OTP has expired'}), 400
+    if challenge['attempts'] >= challenge['max_attempts']:
+        db.execute('UPDATE attendance_otp_challenges SET status = ? WHERE id = ?', ('locked', challenge['id']))
+        db.commit()
+        return jsonify({'success': False, 'error': 'Maximum OTP attempts exceeded'}), 400
+
+    if _hash_secure_value(otp_code) != challenge['otp_hash']:
+        db.execute(
+            'UPDATE attendance_otp_challenges SET attempts = attempts + 1 WHERE id = ?',
+            (challenge['id'],)
+        )
+        db.commit()
+        return jsonify({'success': False, 'error': 'Invalid OTP'}), 400
+
+    attendance_result = _record_mode_attendance(session['user_id'], school_id, 'otp')
+    if not attendance_result['success']:
+        return jsonify({'success': False, 'error': attendance_result['message']}), 400
+
+    db.execute(
+        'UPDATE attendance_otp_challenges SET status = ?, verified_at = ? WHERE id = ?',
+        ('verified', datetime.datetime.now(), challenge['id'])
+    )
+    db.commit()
+
+    return jsonify({'success': True, 'message': attendance_result['message'], 'action': attendance_result['action']})
+
+
+@app.route('/admin/attendance/dynamic-qr')
+def admin_dynamic_qr_screen():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return redirect(url_for('index'))
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'dynamic_qr':
+        flash(f'Dynamic QR screen is unavailable because attendance mode is {mode}.', 'warning')
+        return redirect(url_for('admin_dashboard'))
+
+    qr_config = get_attendance_config(
+        f'attendance_qr_config_school_{school_id}',
+        {'rotation_seconds': 30, 'screen_name': 'Main Attendance Display'}
+    )
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+    return render_template(
+        'admin_dynamic_qr_attendance.html',
+        school_id=school_id,
+        module_enabled=module_enabled,
+        qr_config=qr_config,
+        rotation_seconds=max(30, min(120, int(qr_config.get('rotation_seconds', 30) or 30)))
+    )
+
+
+@csrf.exempt
+@app.route('/api/attendance/otp/office-issue', methods=['POST'])
+def attendance_office_otp_issue():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'otp':
+        return jsonify({'success': False, 'error': f'OTP mode is disabled for this school (current mode: {mode}).'}), 400
+
+    _ensure_attendance_selection_runtime_tables()
+    issued = _issue_office_otp_code(school_id, 30)
+    return jsonify({
+        'success': True,
+        'office_otp': issued['otp_code'],
+        'expires_at': issued['expires_at'].isoformat(),
+        'ttl_seconds': issued['ttl_seconds']
+    })
+
+
+@app.route('/api/attendance/otp/office-status', methods=['GET'])
+def attendance_office_otp_status():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    if session.get('user_type') not in ['admin', 'staff'] and not session.get('is_sub_admin'):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'otp':
+        return jsonify({'success': False, 'error': f'OTP mode is disabled for this school (current mode: {mode}).'}), 400
+
+    _ensure_attendance_selection_runtime_tables()
+    db = get_db()
+    row = db.execute(
+        '''
+        SELECT id, expires_at, status
+        FROM attendance_office_otp_codes
+        WHERE school_id = ? AND status = 'active'
+        ORDER BY id DESC
+        LIMIT 1
+        ''',
+        (school_id,)
+    ).fetchone()
+
+    if not row:
+        return jsonify({'success': False, 'error': 'No active office OTP. Ask admin to open OTP display.'}), 404
+
+    expires_at = row['expires_at']
+    if isinstance(expires_at, str):
+        try:
+            expires_at = datetime.datetime.fromisoformat(expires_at.replace('Z', ''))
+        except ValueError:
+            try:
+                expires_at = datetime.datetime.strptime(expires_at, '%Y-%m-%d %H:%M:%S')
+            except ValueError:
+                expires_at = datetime.datetime.now() - datetime.timedelta(seconds=1)
+
+    now = datetime.datetime.now()
+    if expires_at and expires_at < now:
+        db.execute('UPDATE attendance_office_otp_codes SET status = ? WHERE id = ?', ('expired', row['id']))
+        db.commit()
+        return jsonify({'success': False, 'error': 'Office OTP expired. Waiting for next refresh.'}), 404
+
+    remaining_seconds = int(max(0, (expires_at - now).total_seconds())) if expires_at else 0
+    return jsonify({
+        'success': True,
+        'expires_at': expires_at.isoformat() if expires_at else None,
+        'remaining_seconds': remaining_seconds
+    })
+
+
+@app.route('/admin/attendance/otp-display')
+def admin_otp_display_screen():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return redirect(url_for('index'))
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'otp':
+        flash(f'Office OTP screen is unavailable because attendance mode is {mode}.', 'warning')
+        return redirect(url_for('admin_dashboard'))
+
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+    return render_template(
+        'admin_otp_display.html',
+        school_id=school_id,
+        module_enabled=module_enabled,
+        rotation_seconds=30
+    )
+
+
+@csrf.exempt
+@app.route('/api/admin/dynamic-qr/verify-password', methods=['POST'])
+def verify_dynamic_qr_exit_password():
+    """Require password re-auth before leaving Dynamic QR admin screen."""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 403
+
+    payload = request.get_json(silent=True) or {}
+    password = str(payload.get('password', '')).strip()
+    if not password:
+        return jsonify({'success': False, 'error': 'Password is required'}), 400
+
+    db = get_db()
+    user_id = session.get('user_id')
+    school_id = session.get('school_id')
+
+    # School admin authentication.
+    if session.get('user_type') == 'admin':
+        admin = db.execute(
+            'SELECT password FROM admins WHERE id = ? AND school_id = ? LIMIT 1',
+            (user_id, school_id)
+        ).fetchone()
+        if not admin or not check_password_hash(admin['password'], password):
+            return jsonify({'success': False, 'error': 'Invalid admin password'}), 401
+        return jsonify({'success': True})
+
+    # Sub-admin (staff) authentication fallback.
+    staff = db.execute(
+        'SELECT password_hash, password FROM staff WHERE id = ? AND school_id = ? LIMIT 1',
+        (user_id, school_id)
+    ).fetchone()
+    if not staff:
+        return jsonify({'success': False, 'error': 'Staff account not found'}), 404
+
+    password_hash = ''
+    if 'password_hash' in staff.keys() and staff['password_hash']:
+        password_hash = staff['password_hash']
+    elif 'password' in staff.keys() and staff['password']:
+        password_hash = staff['password']
+
+    if not password_hash or not check_password_hash(password_hash, password):
+        return jsonify({'success': False, 'error': 'Invalid admin password'}), 401
+
+    return jsonify({'success': True})
+
+
+@app.route('/admin/attendance/id-scan-kiosk')
+def admin_id_scan_kiosk():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return redirect(url_for('index'))
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'id_scan':
+        flash(f'ID Scan kiosk is unavailable because attendance mode is {mode}.', 'warning')
+        return redirect(url_for('admin_dashboard'))
+
+    id_scan_config = get_attendance_config(
+        f'attendance_idscan_config_school_{school_id}',
+        {'kiosk_label': 'ID Scan Kiosk', 'allow_continuous_scan': True}
+    )
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+    return render_template(
+        'admin_id_scan_kiosk.html',
+        school_id=school_id,
+        module_enabled=module_enabled,
+        id_scan_config=id_scan_config
+    )
+
+
+@app.route('/staff/attendance/qr-scanner')
+def staff_qr_scanner_page():
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
+        return redirect(url_for('index'))
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'dynamic_qr':
+        flash(f'QR scanner is unavailable because attendance mode is {mode}.', 'warning')
+        return redirect(url_for('staff_dashboard'))
+
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+    return render_template('staff_qr_scanner.html', module_enabled=module_enabled, school_id=school_id)
+
+
+@app.route('/staff/attendance/otp')
+def staff_otp_attendance_page():
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
+        return redirect(url_for('index'))
+
+    school_id = session.get('school_id')
+    mode = get_school_attendance_mode(school_id)
+    if mode != 'otp':
+        flash(f'OTP attendance is unavailable because attendance mode is {mode}.', 'warning')
+        return redirect(url_for('staff_dashboard'))
+
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+    otp_config = get_attendance_config(
+        f'attendance_otp_config_school_{school_id}',
+        {'ttl_seconds': 180, 'max_attempts': 3, 'channels': ['email', 'sms']}
+    )
+    provider_config = get_attendance_config('company_otp_provider_config', {})
+
+    available_channels = []
+    if _as_bool(provider_config.get('smtp_enabled')):
+        available_channels.append('email')
+    if _as_bool(provider_config.get('twilio_enabled')):
+        available_channels.append('sms')
+
+    # Enforce per-school channel selection as well.
+    configured_channels = otp_config.get('channels')
+    if not isinstance(configured_channels, list) or not configured_channels:
+        configured_channels = ['email', 'sms']
+
+    available_channels = [ch for ch in available_channels if ch in configured_channels]
+
+    if not available_channels:
+        # Final fallback: keep UI usable and let request endpoint return precise
+        # provider errors (e.g. SMTP not enabled) if channel is unavailable.
+        available_channels = [ch for ch in configured_channels if ch in ('email', 'sms')]
+
+    if not available_channels:
+        available_channels = ['email', 'sms']
+
+    return render_template(
+        'staff_otp_attendance.html',
+        module_enabled=module_enabled,
+        school_id=school_id,
+        otp_config=otp_config,
+        available_channels=available_channels
+    )
 
 @app.route('/get_attendance_summary')
 def get_attendance_summary():
@@ -1265,16 +2564,54 @@ def get_today_attendance_status():
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
     staff_id = session['user_id']
+    school_id = session.get('school_id')
     today = datetime.date.today()
 
     db = get_db()
 
     # Get today's attendance
     attendance = db.execute('''
-        SELECT time_in, time_out, status
+        SELECT
+            MIN(time_in) AS time_in,
+            MAX(time_out) AS time_out,
+            MAX(
+                CASE
+                    WHEN LOWER(COALESCE(status, '')) = 'late' THEN 2
+                    WHEN LOWER(COALESCE(status, '')) = 'present' THEN 1
+                    ELSE 0
+                END
+            ) AS status_rank
         FROM attendance
-        WHERE staff_id = ? AND date = ?
-    ''', (staff_id, today)).fetchone()
+        WHERE staff_id = ? AND school_id = ? AND date = ?
+    ''', (staff_id, school_id, today)).fetchone()
+
+    attendance_record = None
+    total_hours = '--:--'
+    if attendance and (attendance['time_in'] or attendance['time_out'] or (attendance['status_rank'] or 0) > 0):
+        if (attendance['status_rank'] or 0) >= 2:
+            status_value = 'late'
+        elif (attendance['status_rank'] or 0) == 1:
+            status_value = 'present'
+        else:
+            status_value = 'present' if attendance['time_in'] else 'absent'
+
+        attendance_record = {
+            'time_in': attendance['time_in'],
+            'time_out': attendance['time_out'],
+            'status': status_value
+        }
+
+        if attendance['time_in'] and attendance['time_out']:
+            try:
+                start_dt = datetime.datetime.strptime(attendance['time_in'], '%H:%M:%S')
+                end_dt = datetime.datetime.strptime(attendance['time_out'], '%H:%M:%S')
+                if end_dt < start_dt:
+                    end_dt += datetime.timedelta(days=1)
+                diff = end_dt - start_dt
+                total_minutes = int(diff.total_seconds() // 60)
+                total_hours = f"{total_minutes // 60:02d}:{total_minutes % 60:02d}"
+            except Exception:
+                total_hours = '--:--'
 
     # Get today's verifications
     verifications = db.execute('''
@@ -1291,19 +2628,21 @@ def get_today_attendance_status():
     available_actions.append('check-out')
 
     # Format attendance times to 12-hour format
-    formatted_attendance = format_attendance_times_to_12hr(attendance) if attendance else None
+    formatted_attendance = format_attendance_times_to_12hr(attendance_record) if attendance_record else None
 
     # Debug information
     debug_info = {
         'staff_id': staff_id,
+        'school_id': school_id,
         'today': str(today),
-        'attendance_found': attendance is not None,
-        'raw_attendance': dict(attendance) if attendance else None
+        'attendance_found': attendance_record is not None,
+        'raw_attendance': attendance_record
     }
 
     return jsonify({
         'success': True,
         'attendance': formatted_attendance,
+        'total_hours': total_hours,
         'verifications': [dict(v) for v in verifications],
         'available_actions': available_actions,
         'debug': debug_info
@@ -1377,9 +2716,19 @@ def get_staff_status_for_date(staff_id, date, school_id, db):
     
     # No approved applications found, check attendance record
     attendance = db.execute('''
-        SELECT time_in, time_out, status FROM attendance 
-        WHERE staff_id = ? AND date = ?
-    ''', (staff_id, date.isoformat())).fetchone()
+        SELECT
+            MIN(time_in) AS time_in,
+            MAX(time_out) AS time_out,
+            MAX(
+                CASE
+                    WHEN LOWER(COALESCE(status, '')) = 'late' THEN 2
+                    WHEN LOWER(COALESCE(status, '')) = 'present' THEN 1
+                    ELSE 0
+                END
+            ) AS status_rank
+        FROM attendance
+        WHERE staff_id = ? AND school_id = ? AND date = ?
+    ''', (staff_id, school_id, date.isoformat())).fetchone()
     
     if attendance and attendance['time_in']:
         # Get staff shift type for accurate status calculation
@@ -1426,7 +2775,11 @@ def get_staff_status_for_date(staff_id, date, school_id, db):
         except Exception as e:
             # Fall back to stored status if calculation fails
             print(f"Status calculation error for staff {staff_id}: {e}")
-            return attendance['status'] if attendance['status'] else "present"
+            if attendance and (attendance['status_rank'] or 0) >= 2:
+                return 'late'
+            if attendance and (attendance['status_rank'] or 0) == 1:
+                return 'present'
+            return "present"
     else:
         return "absent"  # Default status if no attendance record
 
@@ -1446,10 +2799,17 @@ def get_realtime_attendance():
         SELECT s.id as staff_id, s.staff_id as staff_number, s.full_name, s.department,
                a.time_in, a.time_out
         FROM staff s
-        LEFT JOIN attendance a ON s.id = a.staff_id AND a.date = ?
+        LEFT JOIN (
+            SELECT staff_id,
+                   MIN(time_in) AS time_in,
+                   MAX(time_out) AS time_out
+            FROM attendance
+            WHERE date = ? AND school_id = ?
+            GROUP BY staff_id
+        ) a ON s.id = a.staff_id
         WHERE s.school_id = ?
         ORDER BY CAST(s.staff_id AS INTEGER) ASC
-    ''', (today, school_id)).fetchall()
+    ''', (today, school_id, school_id)).fetchall()
 
     # Build attendance data with correct status logic
     attendance_data = []
@@ -1746,25 +3106,87 @@ def download_staff_template():
     import pandas as pd
     from io import BytesIO
 
-    # Sample data for template
+    # Sample data for template: includes all Add Staff form fields
     template_data = {
         'staff_id': ['EMP001', 'EMP002'],
-        'full_name': ['John Doe', 'Jane Smith'],
-        'email': ['john.doe@example.com', 'jane.smith@example.com'],
-        'phone': ['1234567890', '0987654321'],
+        'first_name': ['John', 'Jane'],
+        'last_name': ['Doe', 'Smith'],
+        'date_of_birth': ['1990-01-01', '1988-06-20'],
+        'date_of_joining': ['2023-01-01', '2023-02-01'],
         'department': ['IT', 'HR'],
-        'position': ['Developer', 'Manager'],
+        'destination': ['Developer', 'HR Manager'],
         'gender': ['Male', 'Female'],
-        'date_of_birth': ['1990-01-01', '1985-05-15'],
-        'date_of_joining': ['2023-01-01', '2023-02-01']
+        'phone': ['9876543210', '9123456780'],
+        'email': ['john.doe@example.com', 'jane.smith@example.com'],
+        'shift_type': ['general', 'general'],
+        'password': ['password123', 'password123'],
+        'basic_salary': [35000, 42000],
+        'hra': [8000, 10000],
+        'transport_allowance': [2000, 2500],
+        'other_allowances': [1000, 1200],
+        'pf_deduction': [1800, 2000],
+        'esi_deduction': [750, 850],
+        'professional_tax': [200, 200],
+        'other_deductions': [0, 0],
+        'bank_account_name': ['John Doe', 'Jane Smith'],
+        'bank_name': ['State Bank of India', 'HDFC Bank'],
+        'bank_account_number': ['123456789012', '987654321098'],
+        'ifsc_code': ['SBIN0001234', 'HDFC0001234'],
+        'pan_number': ['ABCDE1234F', 'PQRSX6789Z']
     }
 
     df = pd.DataFrame(template_data)
+
+    instructions_data = {
+        'Field': [
+            'staff_id', 'first_name', 'last_name', 'date_of_birth', 'date_of_joining',
+            'department', 'destination', 'gender', 'phone', 'email', 'shift_type',
+            'password', 'basic_salary', 'hra', 'transport_allowance', 'other_allowances',
+            'pf_deduction', 'esi_deduction', 'professional_tax', 'other_deductions',
+            'bank_account_name', 'bank_name', 'bank_account_number', 'ifsc_code', 'pan_number'
+        ],
+        'Required': [
+            'Yes', 'Yes', 'Yes', 'No', 'No',
+            'No', 'Yes', 'No', 'No', 'No', 'No',
+            'Yes', 'Yes', 'No', 'No', 'No',
+            'No', 'No', 'No', 'No',
+            'No', 'No', 'No', 'No', 'No'
+        ],
+        'Format / Notes': [
+            'Unique staff code per school',
+            'Text',
+            'Text',
+            'YYYY-MM-DD',
+            'YYYY-MM-DD',
+            'Department name',
+            'Position / role',
+            'Male/Female/Other',
+            'Phone number',
+            'Email address',
+            'general/morning/afternoon/evening/night/overtime',
+            'Required login password for staff account',
+            'Required numeric amount',
+            'Numeric amount',
+            'Numeric amount',
+            'Numeric amount',
+            'Numeric amount',
+            'Numeric amount',
+            'Numeric amount',
+            'Numeric amount',
+            'Name as per bank account',
+            'Bank name',
+            'Account number',
+            '11-char IFSC code',
+            '10-char PAN'
+        ]
+    }
+    instructions_df = pd.DataFrame(instructions_data)
 
     # Create Excel file in memory
     output = BytesIO()
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, sheet_name='Staff Template', index=False)
+        instructions_df.to_excel(writer, sheet_name='Instructions', index=False)
 
     output.seek(0)
 
@@ -5149,6 +6571,7 @@ def staff_dashboard():
 
     # Get module settings for navigation (staff can see limited nav based on admin settings)
     module_enabled = get_module_enabled(school_id) if school_id else {}
+    attendance_mode = get_school_attendance_mode(school_id) if school_id else 'biometric'
 
     return render_template('staff_dashboard.html',
                          attendance=attendance,
@@ -5156,6 +6579,7 @@ def staff_dashboard():
                          on_duty_applications=on_duty_applications,
                          permission_applications=permission_applications,
                          module_enabled=module_enabled,
+                         attendance_mode=attendance_mode,
                          today=today,
                          staff_info=staff_info)
 
@@ -5737,10 +7161,17 @@ def admin_dashboard():
         SELECT s.id as staff_id, s.staff_id as staff_number, s.full_name, s.department,
                a.time_in, a.time_out, s.photo_url
         FROM staff s
-        LEFT JOIN attendance a ON s.id = a.staff_id AND a.date = ?
+        LEFT JOIN (
+            SELECT staff_id,
+                   MIN(time_in) AS time_in,
+                   MAX(time_out) AS time_out
+            FROM attendance
+            WHERE date = ? AND school_id = ?
+            GROUP BY staff_id
+        ) a ON s.id = a.staff_id
         WHERE s.school_id = ?
         ORDER BY CAST(s.staff_id AS INTEGER) ASC
-    ''', (today, school_id)).fetchall()
+    ''', (today, school_id, school_id)).fetchall()
     
     # Calculate attendance summary with correct status logic
     status_counts = {
@@ -5801,6 +7232,7 @@ def admin_dashboard():
 
     # Get module enabled settings for navigation
     module_enabled = get_module_enabled(school_id)
+    attendance_mode = get_school_attendance_mode(school_id)
 
     if use_modern_ui:
         return render_template('admin_dashboard_modern.html',
@@ -5812,6 +7244,7 @@ def admin_dashboard():
                              today_attendance=today_attendance,
                              today=today,
                              timetable_enabled=timetable_enabled,
+                             attendance_mode=attendance_mode,
                              module_enabled=module_enabled,
                              recent_activities=[],  # Add recent activities data
                              performance={},  # Add performance metrics
@@ -5827,6 +7260,7 @@ def admin_dashboard():
                              today_attendance=today_attendance,
                              today=today,
                              timetable_enabled=timetable_enabled,
+                             attendance_mode=attendance_mode,
                              module_enabled=module_enabled)
 
 
@@ -6468,6 +7902,346 @@ def admin_student_management():
                          level_id_map=json.dumps(level_id_map),
                          module_enabled=module_enabled,
                          school_name=school_name)
+
+
+@app.route('/admin/students/download-template')
+def download_student_template():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    import pandas as pd
+    from io import BytesIO
+
+    # Includes all Add Student form details except direct photo file upload.
+    template_data = {
+        'admission_number': ['ADM1001', 'ADM1002'],
+        'roll_number': ['1', '2'],
+        'student_type': ['Day Scholar', 'Hostel'],
+        'first_name': ['Arun', 'Meena'],
+        'last_name': ['Kumar', 'Ravi'],
+        'date_of_birth': ['2010-06-12', '2011-09-03'],
+        'age': [15, 14],
+        'gender': ['Male', 'Female'],
+        'class': ['Grade 10', 'Grade 9'],
+        'section': ['A', 'B'],
+        'academic_year': ['2025-2026', '2025-2026'],
+        'student_mobile': ['9876543210', '9123456780'],
+        'address': ['12, Lake Road, City', '45, Park Street, City'],
+        'tenth_is_diploma': ['No', 'No'],
+        'tenth_marks': ['450/500', '430/500'],
+        'tenth_percentage': [90.0, 86.0],
+        'twelfth_is_diploma': ['No', 'No'],
+        'twelfth_marks': ['', ''],
+        'twelfth_percentage': ['', ''],
+        'skills': ['Coding, Chess', 'Drawing, Music'],
+        'parent_name': ['Kumar', 'Ravi'],
+        'parent_mobile': ['9876500001', '9876500002'],
+        'parent_email': ['kumar.parent@example.com', 'ravi.parent@example.com'],
+        'mother_name': ['Lakshmi', 'Saroja'],
+        'mother_phone': ['9876501001', '9876501002'],
+        'parent_occupation': ['Engineer', 'Teacher'],
+        'tc_number': ['TC-2025-10', 'TC-2025-11'],
+        'aadhar_number': ['123456789012', '234567890123'],
+        'custom_fields_json': ['{"blood_group":"B+"}', '{"blood_group":"O+"}']
+    }
+
+    instructions_data = {
+        'Field': [
+            'admission_number', 'roll_number', 'student_type', 'first_name', 'last_name',
+            'date_of_birth', 'age', 'gender', 'class', 'section', 'academic_year',
+            'student_mobile', 'address', 'tenth_is_diploma', 'tenth_marks', 'tenth_percentage',
+            'twelfth_is_diploma', 'twelfth_marks', 'twelfth_percentage', 'skills', 'parent_name',
+            'parent_mobile', 'parent_email', 'mother_name', 'mother_phone', 'parent_occupation',
+            'tc_number', 'aadhar_number', 'custom_fields_json'
+        ],
+        'Required': [
+            'Either admission_number or roll_number',
+            'Either admission_number or roll_number',
+            'Yes', 'Yes', 'Yes',
+            'Yes', 'No', 'Yes', 'Yes', 'Yes', 'Yes',
+            'No', 'Yes', 'No', 'No', 'No',
+            'No', 'No', 'No', 'No', 'Yes',
+            'Yes', 'No', 'No', 'No', 'No',
+            'No', 'No', 'No'
+        ],
+        'Format / Notes': [
+            'Text; used to generate student login ID',
+            'Text; used when admission_number is empty',
+            'Day Scholar or Hostel',
+            'Text',
+            'Text',
+            'YYYY-MM-DD',
+            'Optional; auto-calculated if blank',
+            'Male/Female/Other',
+            'Must match configured class name in system',
+            'Must match configured section for the selected class',
+            'Example: 2025-2026',
+            '10-digit mobile',
+            'Complete address',
+            'Yes/No',
+            'Example: 450/500',
+            'Numeric',
+            'Yes/No',
+            'Example: 480/500',
+            'Numeric',
+            'Comma-separated free text',
+            'Father/Guardian name',
+            '10-digit mobile',
+            'Email',
+            'Text',
+            '10-digit mobile',
+            'Text',
+            'Text',
+            '12-digit Aadhaar',
+            'JSON object for custom fields (optional)'
+        ]
+    }
+
+    template_df = pd.DataFrame(template_data)
+    instructions_df = pd.DataFrame(instructions_data)
+
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        template_df.to_excel(writer, sheet_name='Student Template', index=False)
+        instructions_df.to_excel(writer, sheet_name='Instructions', index=False)
+
+    output.seek(0)
+    response = make_response(output.getvalue())
+    response.headers['Content-Disposition'] = 'attachment; filename=student_import_template.xlsx'
+    response.headers['Content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+@app.route('/admin/students/bulk-upload', methods=['POST'])
+def bulk_upload_students():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'No file uploaded'})
+
+    file = request.files['file']
+    if not file or not file.filename:
+        return jsonify({'success': False, 'error': 'No file selected'})
+
+    filename = file.filename.lower()
+    if not (filename.endswith('.xlsx') or filename.endswith('.xls') or filename.endswith('.csv')):
+        return jsonify({'success': False, 'error': 'Unsupported file format. Use .xlsx, .xls, or .csv'})
+
+    import pandas as pd
+    import json
+
+    try:
+        if filename.endswith('.csv'):
+            df = pd.read_csv(file)
+        else:
+            df = pd.read_excel(file)
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Unable to read file: {e}'})
+
+    if df.empty:
+        return jsonify({'success': False, 'error': 'Uploaded file is empty'})
+
+    df.columns = [str(c).strip().lower() for c in df.columns]
+
+    school_id = session['school_id']
+    db = get_db()
+    columns = db.execute('PRAGMA table_info(students)').fetchall()
+    column_names = {col['name'] for col in columns}
+
+    def clean_text(value):
+        if pd.isna(value):
+            return ''
+        text = str(value).strip()
+        if text.lower() in {'nan', 'none', 'null'}:
+            return ''
+        return text
+
+    def clean_mobile(value):
+        raw = clean_text(value)
+        if not raw:
+            return ''
+        digits = ''.join(ch for ch in raw if ch.isdigit())
+        return digits[:10] if digits else ''
+
+    def clean_date(value):
+        if pd.isna(value):
+            return ''
+        if isinstance(value, (datetime.datetime, datetime.date, pd.Timestamp)):
+            return pd.to_datetime(value).strftime('%Y-%m-%d')
+        text = clean_text(value)
+        if not text:
+            return ''
+        try:
+            return pd.to_datetime(text).strftime('%Y-%m-%d')
+        except Exception:
+            return ''
+
+    def clean_int(value):
+        if pd.isna(value):
+            return None
+        text = clean_text(value)
+        if not text:
+            return None
+        try:
+            return int(float(text))
+        except Exception:
+            return None
+
+    def clean_float(value):
+        if pd.isna(value):
+            return None
+        text = clean_text(value)
+        if not text:
+            return None
+        try:
+            return float(text)
+        except Exception:
+            return None
+
+    def quote_col(name):
+        return f'`{name}`'
+
+    imported_count = 0
+    errors = []
+
+    for idx, row in df.iterrows():
+        row_no = idx + 2
+        try:
+            admission_number = clean_text(row.get('admission_number'))
+            roll_number = clean_text(row.get('roll_number'))
+            student_type = clean_text(row.get('student_type')) or 'Day Scholar'
+            first_name = clean_text(row.get('first_name'))
+            last_name = clean_text(row.get('last_name'))
+            date_of_birth = clean_date(row.get('date_of_birth'))
+            age = clean_int(row.get('age'))
+            gender = clean_text(row.get('gender'))
+            class_name = clean_text(row.get('class'))
+            section = clean_text(row.get('section'))
+            academic_year = clean_text(row.get('academic_year'))
+            student_mobile = clean_mobile(row.get('student_mobile'))
+            address = clean_text(row.get('address'))
+
+            tenth_marks = clean_text(row.get('tenth_marks'))
+            tenth_percentage = clean_float(row.get('tenth_percentage'))
+            twelfth_marks = clean_text(row.get('twelfth_marks'))
+            twelfth_percentage = clean_float(row.get('twelfth_percentage'))
+            skills = clean_text(row.get('skills'))
+
+            parent_name = clean_text(row.get('parent_name'))
+            parent_mobile = clean_mobile(row.get('parent_mobile'))
+            parent_email = clean_text(row.get('parent_email'))
+            mother_name = clean_text(row.get('mother_name'))
+            mother_phone = clean_mobile(row.get('mother_phone'))
+            parent_occupation = clean_text(row.get('parent_occupation'))
+
+            tc_number = clean_text(row.get('tc_number'))
+            aadhar_number = ''.join(ch for ch in clean_text(row.get('aadhar_number')) if ch.isdigit())
+
+            custom_fields_json = clean_text(row.get('custom_fields_json'))
+            if custom_fields_json:
+                try:
+                    json.loads(custom_fields_json)
+                except Exception:
+                    errors.append(f'Row {row_no}: custom_fields_json must be valid JSON')
+                    continue
+
+            if not admission_number and not roll_number:
+                errors.append(f'Row {row_no}: either admission_number or roll_number is required')
+                continue
+            if not first_name or not last_name:
+                errors.append(f'Row {row_no}: first_name and last_name are required')
+                continue
+            if not date_of_birth:
+                errors.append(f'Row {row_no}: date_of_birth is required in YYYY-MM-DD')
+                continue
+            if not gender:
+                errors.append(f'Row {row_no}: gender is required')
+                continue
+            if not class_name or not section:
+                errors.append(f'Row {row_no}: class and section are required')
+                continue
+            if not academic_year:
+                errors.append(f'Row {row_no}: academic_year is required')
+                continue
+            if not address:
+                errors.append(f'Row {row_no}: address is required')
+                continue
+            if not parent_name or not parent_mobile:
+                errors.append(f'Row {row_no}: parent_name and parent_mobile are required')
+                continue
+
+            student_id = f"STU{admission_number}" if admission_number else f"STU{roll_number}"
+            full_name = f"{first_name} {last_name}".strip()
+
+            existing = db.execute('''
+                SELECT id FROM students
+                WHERE school_id = ? AND (student_id = ? OR admission_number = ? OR roll_number = ?)
+            ''', (school_id, student_id, admission_number, roll_number)).fetchone()
+
+            if existing:
+                errors.append(f'Row {row_no}: student with same student_id/admission_number/roll_number already exists')
+                continue
+
+            insert_map = {
+                'school_id': school_id,
+                'student_id': student_id,
+                'password': generate_password_hash('student123'),
+                'full_name': full_name,
+                'first_name': first_name,
+                'last_name': last_name,
+                'admission_number': admission_number,
+                'roll_number': roll_number,
+                'student_type': student_type,
+                'date_of_birth': date_of_birth,
+                'age': age,
+                'gender': gender,
+                'address': address,
+                'class': class_name,
+                'section': section,
+                'academic_year': academic_year,
+                'parent_name': parent_name,
+                'parent_phone': parent_mobile,
+                'parent_email': parent_email,
+                'mother_name': mother_name,
+                'mother_phone': mother_phone,
+                'parent_occupation': parent_occupation,
+                'tenth_marks': tenth_marks,
+                'tenth_percentage': tenth_percentage,
+                'twelfth_marks': twelfth_marks,
+                'twelfth_percentage': twelfth_percentage,
+                'skills': skills,
+                'tc_number': tc_number,
+                'aadhar_number': aadhar_number,
+                'custom_fields': custom_fields_json,
+                'created_at': datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            }
+
+            # Support either legacy phone or explicit student_mobile column.
+            if 'student_mobile' in column_names:
+                insert_map['student_mobile'] = student_mobile
+            elif 'phone' in column_names:
+                insert_map['phone'] = student_mobile
+
+            filtered = {k: v for k, v in insert_map.items() if k in column_names and v is not None}
+            columns_sql = ', '.join(quote_col(c) for c in filtered.keys())
+            values = list(filtered.values())
+            placeholders = ', '.join(['?' for _ in values])
+            query = f'INSERT INTO students ({columns_sql}) VALUES ({placeholders})'
+            db.execute(query, values)
+            imported_count += 1
+
+        except Exception as e:
+            errors.append(f'Row {row_no}: {e}')
+
+    db.commit()
+
+    return jsonify({
+        'success': True,
+        'imported_count': imported_count,
+        'errors': errors,
+        'total_rows': len(df)
+    })
 
 
 @app.route('/api/student-dashboard-data')
@@ -8671,7 +10445,13 @@ def check_device_verification():
             return jsonify({'success': False, 'error': 'Staff ID required for admin verification'})
 
     school_id = session['school_id']
-    
+    active_mode = get_school_attendance_mode(school_id)
+    if active_mode != 'biometric':
+        return jsonify({
+            'success': False,
+            'error': f'Device biometric verification is disabled for this school (current mode: {active_mode}).'
+        })
+
     # Get device for this institution
     device_ip, device_port = get_institution_device()
     if not device_ip:
@@ -9720,6 +11500,11 @@ def add_staff_enhanced():
     gender = request.form.get('gender')
     phone = request.form.get('phone')
     email = request.form.get('email')
+    bank_account_name = (request.form.get('bank_account_name') or '').strip()
+    bank_name = (request.form.get('bank_name') or '').strip()
+    bank_account_number = (request.form.get('bank_account_number') or '').strip()
+    ifsc_code = (request.form.get('ifsc_code') or '').strip().upper()
+    pan_number = (request.form.get('pan_number') or '').strip().upper()
     shift_type = request.form.get('shift_type', 'general')
     password = generate_password_hash(request.form.get('password'))
 
@@ -9829,6 +11614,21 @@ def add_staff_enhanced():
         if 'email' in column_names and email:
             insert_columns.append('email')
             insert_values.append(email)
+        if 'bank_account_name' in column_names and bank_account_name:
+            insert_columns.append('bank_account_name')
+            insert_values.append(bank_account_name)
+        if 'bank_name' in column_names and bank_name:
+            insert_columns.append('bank_name')
+            insert_values.append(bank_name)
+        if 'bank_account_number' in column_names and bank_account_number:
+            insert_columns.append('bank_account_number')
+            insert_values.append(bank_account_number)
+        if 'ifsc_code' in column_names and ifsc_code:
+            insert_columns.append('ifsc_code')
+            insert_values.append(ifsc_code)
+        if 'pan_number' in column_names and pan_number:
+            insert_columns.append('pan_number')
+            insert_values.append(pan_number)
         if 'shift_type' in column_names:
             insert_columns.append('shift_type')
             insert_values.append(shift_type)
@@ -9875,6 +11675,11 @@ def add_staff():
     esi_deduction = float(request.form.get('esi_deduction', 0))
     professional_tax = float(request.form.get('professional_tax', 0))
     other_deductions = float(request.form.get('other_deductions', 0))
+    bank_account_name = (request.form.get('bank_account_name') or '').strip()
+    bank_name = (request.form.get('bank_name') or '').strip()
+    bank_account_number = (request.form.get('bank_account_number') or '').strip()
+    ifsc_code = (request.form.get('ifsc_code') or '').strip().upper()
+    pan_number = (request.form.get('pan_number') or '').strip().upper()
 
     # biometric_enrolled = request.form.get('biometric_enrolled', 'false').lower() == 'true'  # Not used currently
 
@@ -9938,10 +11743,12 @@ def add_staff():
         db.execute('''
             INSERT INTO staff
             (school_id, staff_id, password_hash, full_name, email, phone, department, position, destination, photo_url, created_at,
-             basic_salary, hra, transport_allowance, other_allowances, pf_deduction, esi_deduction, professional_tax, other_deductions)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                         basic_salary, hra, transport_allowance, other_allowances, pf_deduction, esi_deduction, professional_tax, other_deductions,
+                         bank_account_name, bank_name, bank_account_number, ifsc_code, pan_number)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (school_id, staff_id, password, full_name, email, phone, department, position, position, photo_url, created_at,
-              basic_salary, hra, transport_allowance, other_allowances, pf_deduction, esi_deduction, professional_tax, other_deductions))
+                            basic_salary, hra, transport_allowance, other_allowances, pf_deduction, esi_deduction, professional_tax, other_deductions,
+                            bank_account_name, bank_name, bank_account_number, ifsc_code, pan_number))
 
         db.commit()
         return jsonify({'success': True})
@@ -10021,7 +11828,8 @@ def get_staff_details_enhanced():
                date_of_birth, date_of_joining, department, destination,
                position, gender, phone, email, shift_type, photo_url,
                basic_salary, hra, transport_allowance, other_allowances,
-               pf_deduction, esi_deduction, professional_tax, other_deductions
+               pf_deduction, esi_deduction, professional_tax, other_deductions,
+               bank_account_name, bank_name, bank_account_number, ifsc_code, pan_number
         FROM staff
         WHERE id = ?
     ''', (staff_id,)).fetchone()
@@ -10050,6 +11858,11 @@ def update_staff_enhanced():
     gender = request.form.get('gender')
     phone = request.form.get('phone')
     email = request.form.get('email')
+    bank_account_name = (request.form.get('bank_account_name') or '').strip()
+    bank_name = (request.form.get('bank_name') or '').strip()
+    bank_account_number = (request.form.get('bank_account_number') or '').strip()
+    ifsc_code = (request.form.get('ifsc_code') or '').strip().upper()
+    pan_number = (request.form.get('pan_number') or '').strip().upper()
     shift_type = request.form.get('shift_type', 'general')
 
     # Salary fields
@@ -10130,6 +11943,21 @@ def update_staff_enhanced():
         if 'email' in column_names:
             update_parts.append('email = ?')
             update_values.append(email)
+        if 'bank_account_name' in column_names:
+            update_parts.append('bank_account_name = ?')
+            update_values.append(bank_account_name)
+        if 'bank_name' in column_names:
+            update_parts.append('bank_name = ?')
+            update_values.append(bank_name)
+        if 'bank_account_number' in column_names:
+            update_parts.append('bank_account_number = ?')
+            update_values.append(bank_account_number)
+        if 'ifsc_code' in column_names:
+            update_parts.append('ifsc_code = ?')
+            update_values.append(ifsc_code)
+        if 'pan_number' in column_names:
+            update_parts.append('pan_number = ?')
+            update_values.append(pan_number)
         
         # Shift type delayed logic
         if 'shift_type' in column_names:
@@ -10947,6 +12775,7 @@ def search_staff():
 
     # Get today's attendance summary
     today = datetime.date.today()
+    attendance_mode = get_school_attendance_mode(session['school_id'])
     attendance_summary = db.execute('''
         SELECT
             COUNT(*) as total_staff,
@@ -10966,6 +12795,7 @@ def search_staff():
                          staff=staff,
                          pending_leaves=pending_leaves,
                          attendance_summary=attendance_summary,
+                         attendance_mode=attendance_mode,
                          today=today)
 
 # Update in app.py

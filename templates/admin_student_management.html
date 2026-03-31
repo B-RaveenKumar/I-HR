@@ -1882,6 +1882,12 @@
                             <button type="button" class="btn btn-outline-primary" onclick="location.reload()" title="Refresh data">
                                 <i class="bi bi-arrow-clockwise"></i> Refresh
                             </button>
+                            <button type="button" class="btn btn-outline-light" id="downloadStudentTemplateBtn" title="Download sample student sheet">
+                                <i class="bi bi-file-earmark-arrow-down"></i> Sample Sheet
+                            </button>
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#bulkUploadStudentModal" title="Bulk upload students from Excel/CSV">
+                                <i class="bi bi-upload"></i> Bulk Upload
+                            </button>
                             <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#addStudentModal" title="Add new student">
                                 <i class="bi bi-person-plus"></i> Add Student
                             </button>
@@ -2881,6 +2887,46 @@
                 </div>
                 </div><!-- end view-students -->
             </main>
+        </div>
+    </div>
+
+    <!-- Bulk Upload Student Modal -->
+    <div class="modal fade" id="bulkUploadStudentModal" tabindex="-1" aria-labelledby="bulkUploadStudentModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="bulkUploadStudentModalLabel">
+                        <i class="bi bi-upload"></i> Bulk Upload Students
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="bulkUploadStudentForm">
+                    <div class="modal-body">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i>
+                            Download the sample sheet first, fill all required fields, and upload.
+                            Supported formats: <strong>.xlsx</strong>, <strong>.xls</strong>, <strong>.csv</strong>.
+                        </div>
+                        <div class="mb-3">
+                            <label for="bulkStudentFile" class="form-label">
+                                <i class="bi bi-file-earmark-spreadsheet"></i> Upload Student File
+                            </label>
+                            <input type="file" class="form-control" id="bulkStudentFile" name="file" accept=".xlsx,.xls,.csv" required>
+                            <small class="form-text text-muted">Use the same column names as in the sample sheet.</small>
+                        </div>
+                        <div id="bulkStudentUploadResult" class="d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-light" id="downloadStudentTemplateInModalBtn">
+                            <i class="bi bi-download"></i> Download Sample Sheet
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="bulkStudentUploadSubmitBtn">
+                            <i class="bi bi-cloud-upload"></i> Upload Students
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -6423,6 +6469,97 @@ showStep(currentStep);
             // Advanced Mode submission is handled by the wizard reaching step 4
             return true;
         });
+
+        function downloadStudentTemplate() {
+            window.location.href = "{{ url_for('download_student_template') }}";
+        }
+
+        function initStudentBulkUpload() {
+            const headerDownloadBtn = document.getElementById('downloadStudentTemplateBtn');
+            const modalDownloadBtn = document.getElementById('downloadStudentTemplateInModalBtn');
+            const form = document.getElementById('bulkUploadStudentForm');
+            const submitBtn = document.getElementById('bulkStudentUploadSubmitBtn');
+            const resultBox = document.getElementById('bulkStudentUploadResult');
+
+            if (headerDownloadBtn) {
+                headerDownloadBtn.addEventListener('click', downloadStudentTemplate);
+            }
+            if (modalDownloadBtn) {
+                modalDownloadBtn.addEventListener('click', downloadStudentTemplate);
+            }
+
+            if (!form || !submitBtn || !resultBox) return;
+
+            form.addEventListener('submit', async function(e) {
+                e.preventDefault();
+
+                const fileInput = document.getElementById('bulkStudentFile');
+                if (!fileInput || !fileInput.files || !fileInput.files.length) {
+                    resultBox.className = 'alert alert-warning';
+                    resultBox.textContent = 'Please select a file to upload.';
+                    resultBox.classList.remove('d-none');
+                    return;
+                }
+
+                const formData = new FormData(form);
+                const originalHtml = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+                resultBox.classList.add('d-none');
+                resultBox.innerHTML = '';
+
+                try {
+                    const response = await fetch("{{ url_for('bulk_upload_students') }}", {
+                        method: 'POST',
+                        body: formData,
+                        headers: {
+                            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+                        }
+                    });
+
+                    const data = await response.json();
+                    if (!data.success) {
+                        resultBox.className = 'alert alert-danger';
+                        resultBox.textContent = data.error || 'Bulk upload failed.';
+                        resultBox.classList.remove('d-none');
+                        return;
+                    }
+
+                    const imported = data.imported_count || 0;
+                    const total = data.total_rows || 0;
+                    const errors = Array.isArray(data.errors) ? data.errors : [];
+                    const failed = Math.max(total - imported, 0);
+
+                    let detailsHtml = '';
+                    if (errors.length) {
+                        const top = errors.slice(0, 10).map(err => `<li>${err}</li>`).join('');
+                        const more = errors.length > 10 ? `<li>...and ${errors.length - 10} more error(s)</li>` : '';
+                        detailsHtml = `<hr><p class="mb-1"><strong>Issues:</strong></p><ul class="mb-0">${top}${more}</ul>`;
+                    }
+
+                    resultBox.className = errors.length ? 'alert alert-warning' : 'alert alert-success';
+                    resultBox.innerHTML = `
+                        <div><strong>Bulk upload completed.</strong></div>
+                        <div>Imported: ${imported} | Failed: ${failed} | Total rows: ${total}</div>
+                        ${detailsHtml}
+                    `;
+                    resultBox.classList.remove('d-none');
+
+                    if (imported > 0) {
+                        setTimeout(() => location.reload(), 1800);
+                    }
+                } catch (err) {
+                    resultBox.className = 'alert alert-danger';
+                    resultBox.textContent = `Upload failed: ${err.message}`;
+                    resultBox.classList.remove('d-none');
+                } finally {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalHtml;
+                }
+            });
+        }
+
+        initStudentBulkUpload();
     </script>
 </body>
 </html>

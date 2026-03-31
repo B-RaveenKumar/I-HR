@@ -23,6 +23,7 @@ from database import get_db
 from flask import current_app
 import csv
 from typing import List, Dict, Optional, Tuple
+from werkzeug.security import generate_password_hash
 
 
 class StaffManager:
@@ -43,48 +44,183 @@ class StaffManager:
                 df = pd.read_csv(file_path)
             else:
                 return {'success': False, 'error': 'Unsupported file format'}
-            
-            # Validate required columns
-            required_columns = ['staff_id', 'full_name', 'email', 'phone', 'department']
-            missing_columns = [col for col in required_columns if col not in df.columns]
-            if missing_columns:
-                return {'success': False, 'error': f'Missing columns: {", ".join(missing_columns)}'}
+
+            # Normalize headers for flexible matching
+            df.columns = [str(col).strip().lower() for col in df.columns]
+
+            if 'staff_id' not in df.columns:
+                return {'success': False, 'error': 'Missing required column: staff_id'}
+
+            def clean_text(value, upper=False):
+                if pd.isna(value):
+                    return ''
+                text = str(value).strip()
+                if text.lower() in {'nan', 'none', 'null'}:
+                    return ''
+                return text.upper() if upper else text
+
+            def clean_staff_id(value):
+                if pd.isna(value):
+                    return ''
+                # Excel may convert numeric IDs to float (e.g. 1001.0)
+                if isinstance(value, float) and value.is_integer():
+                    return str(int(value))
+                return clean_text(value)
+
+            def clean_date(value):
+                if pd.isna(value):
+                    return ''
+                if isinstance(value, (datetime, pd.Timestamp)):
+                    return value.strftime('%Y-%m-%d')
+                text = clean_text(value)
+                if not text:
+                    return ''
+                try:
+                    return pd.to_datetime(text).strftime('%Y-%m-%d')
+                except Exception:
+                    return ''
+
+            def clean_amount(value):
+                if pd.isna(value):
+                    return 0.0
+                text = str(value).strip()
+                if not text:
+                    return 0.0
+                try:
+                    return float(text)
+                except Exception:
+                    return 0.0
             
             db = get_db()
+            columns = db.execute("PRAGMA table_info(staff)").fetchall()
+            column_names = {col['name'] for col in columns}
             imported_count = 0
             errors = []
             
             for index, row in df.iterrows():
                 try:
+                    staff_id = clean_staff_id(row.get('staff_id'))
+                    if not staff_id:
+                        errors.append(f"Row {index + 2}: staff_id is required")
+                        continue
+
+                    first_name = clean_text(row.get('first_name'))
+                    last_name = clean_text(row.get('last_name'))
+                    full_name = clean_text(row.get('full_name'))
+                    if not full_name:
+                        full_name = f"{first_name} {last_name}".strip()
+
+                    if not full_name:
+                        errors.append(f"Row {index + 2}: full_name or first_name/last_name is required")
+                        continue
+
                     # Check if staff already exists
                     existing = db.execute(
                         'SELECT id FROM staff WHERE school_id = ? AND staff_id = ?',
-                        (school_id, row['staff_id'])
+                        (school_id, staff_id)
                     ).fetchone()
                     
                     if existing:
-                        errors.append(f"Row {index + 2}: Staff ID {row['staff_id']} already exists")
+                        errors.append(f"Row {index + 2}: Staff ID {staff_id} already exists")
                         continue
-                    
-                    # Insert new staff member
-                    db.execute('''
-                        INSERT INTO staff (
-                            school_id, staff_id, full_name, email, phone, department,
-                            position, gender, date_of_birth, date_of_joining, password
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ''', (
-                        school_id,
-                        row['staff_id'],
-                        row['full_name'],
-                        row.get('email', ''),
-                        row.get('phone', ''),
-                        row.get('department', ''),
-                        row.get('position', ''),
-                        row.get('gender', ''),
-                        row.get('date_of_birth', ''),
-                        row.get('date_of_joining', datetime.now().strftime('%Y-%m-%d')),
-                        'password123'  # Default password
-                    ))
+
+                    destination = clean_text(row.get('destination')) or clean_text(row.get('position'))
+                    shift_type = clean_text(row.get('shift_type')) or 'general'
+                    raw_password = clean_text(row.get('password')) or 'password123'
+                    password_hash = generate_password_hash(raw_password)
+
+                    insert_columns = ['school_id', 'staff_id', 'full_name']
+                    insert_values = [school_id, staff_id, full_name]
+
+                    if 'password_hash' in column_names:
+                        insert_columns.append('password_hash')
+                        insert_values.append(password_hash)
+                    if 'password' in column_names:
+                        insert_columns.append('password')
+                        insert_values.append(raw_password)
+                    if 'first_name' in column_names:
+                        insert_columns.append('first_name')
+                        insert_values.append(first_name)
+                    if 'last_name' in column_names:
+                        insert_columns.append('last_name')
+                        insert_values.append(last_name)
+                    if 'date_of_birth' in column_names:
+                        insert_columns.append('date_of_birth')
+                        insert_values.append(clean_date(row.get('date_of_birth')))
+                    if 'date_of_joining' in column_names:
+                        insert_columns.append('date_of_joining')
+                        insert_values.append(clean_date(row.get('date_of_joining')) or datetime.now().strftime('%Y-%m-%d'))
+                    if 'department' in column_names:
+                        insert_columns.append('department')
+                        insert_values.append(clean_text(row.get('department')))
+                    if 'destination' in column_names:
+                        insert_columns.append('destination')
+                        insert_values.append(destination)
+                    if 'position' in column_names:
+                        insert_columns.append('position')
+                        insert_values.append(destination)
+                    if 'gender' in column_names:
+                        insert_columns.append('gender')
+                        insert_values.append(clean_text(row.get('gender')))
+                    if 'phone' in column_names:
+                        insert_columns.append('phone')
+                        insert_values.append(clean_text(row.get('phone')))
+                    if 'email' in column_names:
+                        insert_columns.append('email')
+                        insert_values.append(clean_text(row.get('email')))
+                    if 'shift_type' in column_names:
+                        insert_columns.append('shift_type')
+                        insert_values.append(shift_type)
+
+                    # Salary
+                    if 'basic_salary' in column_names:
+                        insert_columns.append('basic_salary')
+                        insert_values.append(clean_amount(row.get('basic_salary')))
+                    if 'hra' in column_names:
+                        insert_columns.append('hra')
+                        insert_values.append(clean_amount(row.get('hra')))
+                    if 'transport_allowance' in column_names:
+                        insert_columns.append('transport_allowance')
+                        insert_values.append(clean_amount(row.get('transport_allowance')))
+                    if 'other_allowances' in column_names:
+                        insert_columns.append('other_allowances')
+                        insert_values.append(clean_amount(row.get('other_allowances')))
+                    if 'pf_deduction' in column_names:
+                        insert_columns.append('pf_deduction')
+                        insert_values.append(clean_amount(row.get('pf_deduction')))
+                    if 'esi_deduction' in column_names:
+                        insert_columns.append('esi_deduction')
+                        insert_values.append(clean_amount(row.get('esi_deduction')))
+                    if 'professional_tax' in column_names:
+                        insert_columns.append('professional_tax')
+                        insert_values.append(clean_amount(row.get('professional_tax')))
+                    if 'other_deductions' in column_names:
+                        insert_columns.append('other_deductions')
+                        insert_values.append(clean_amount(row.get('other_deductions')))
+
+                    # Payroll details
+                    if 'bank_account_name' in column_names:
+                        insert_columns.append('bank_account_name')
+                        insert_values.append(clean_text(row.get('bank_account_name')))
+                    if 'bank_name' in column_names:
+                        insert_columns.append('bank_name')
+                        insert_values.append(clean_text(row.get('bank_name')))
+                    if 'bank_account_number' in column_names:
+                        insert_columns.append('bank_account_number')
+                        insert_values.append(clean_text(row.get('bank_account_number')))
+                    if 'ifsc_code' in column_names:
+                        insert_columns.append('ifsc_code')
+                        insert_values.append(clean_text(row.get('ifsc_code'), upper=True))
+                    if 'pan_number' in column_names:
+                        insert_columns.append('pan_number')
+                        insert_values.append(clean_text(row.get('pan_number'), upper=True))
+                    if 'created_at' in column_names:
+                        insert_columns.append('created_at')
+                        insert_values.append(datetime.now().strftime('%Y-%m-%d %H:%M:%S'))
+
+                    placeholders = ', '.join(['?' for _ in insert_values])
+                    query = f"INSERT INTO staff ({', '.join(insert_columns)}) VALUES ({placeholders})"
+                    db.execute(query, insert_values)
                     imported_count += 1
                     
                 except Exception as e:

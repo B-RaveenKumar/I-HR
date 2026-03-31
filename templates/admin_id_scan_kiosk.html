@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ID Scan Kiosk - iHR</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    <style>
+        body { background: #0f172a; color: #e2e8f0; }
+        .kiosk-wrap { max-width: 900px; margin: 2rem auto; }
+        .kiosk-card { border: 1px solid #1e293b; background: #111827; border-radius: 14px; }
+        .scan-input { font-size: 1.4rem; height: 62px; font-weight: 700; letter-spacing: 0.02em; }
+        .result-log { max-height: 320px; overflow-y: auto; }
+    </style>
+</head>
+<body>
+    <div class="container kiosk-wrap">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4 class="mb-0"><i class="bi bi-upc-scan"></i> {{ id_scan_config.kiosk_label or 'ID Scan Kiosk' }}</h4>
+            <a class="btn btn-outline-light btn-sm" href="{{ url_for('admin_dashboard') }}"><i class="bi bi-arrow-left"></i> Back</a>
+        </div>
+
+        <div class="card kiosk-card">
+            <div class="card-body p-4">
+                <label for="scanInput" class="form-label text-info">Scan staff card/barcode now</label>
+                <input type="text" id="scanInput" class="form-control scan-input" autocomplete="off" placeholder="Waiting for scanner input...">
+                <div class="small text-muted mt-2">Tip: hardware scanner usually submits Enter automatically. This kiosk supports continuous scan stream.</div>
+
+                <hr class="border-secondary my-4">
+
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h6 class="mb-0">Recent scans</h6>
+                    <button class="btn btn-outline-secondary btn-sm" id="clearLogBtn">Clear</button>
+                </div>
+                <div class="result-log" id="resultLog"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scanInput = document.getElementById('scanInput');
+        const resultLog = document.getElementById('resultLog');
+
+        function addLog(message, ok = true) {
+            const row = document.createElement('div');
+            row.className = `alert ${ok ? 'alert-success' : 'alert-danger'} py-2 px-3 mb-2`;
+            row.innerHTML = `<div class="d-flex justify-content-between"><span>${message}</span><small>${new Date().toLocaleTimeString()}</small></div>`;
+            resultLog.prepend(row);
+        }
+
+        async function submitScan(value) {
+            try {
+                const response = await fetch('/api/attendance/idscan/punch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ scan_value: value })
+                });
+                const data = await response.json();
+                if (!data.success) {
+                    addLog(data.error || 'Scan failed', false);
+                    return;
+                }
+                const staff = data.staff || {};
+                addLog(`${staff.full_name || 'Staff'} (${staff.staff_id || '-'}) - ${data.action || 'punch'}`);
+            } catch (err) {
+                addLog('Network error while sending scan', false);
+            }
+        }
+
+        scanInput.addEventListener('keydown', async (event) => {
+            if (event.key !== 'Enter') return;
+            event.preventDefault();
+            const value = scanInput.value.trim();
+            if (!value) return;
+            scanInput.value = '';
+            await submitScan(value);
+            scanInput.focus();
+        });
+
+        document.getElementById('clearLogBtn').addEventListener('click', () => { resultLog.innerHTML = ''; scanInput.focus(); });
+        window.addEventListener('load', () => scanInput.focus());
+        window.addEventListener('click', () => scanInput.focus());
+    </script>
+</body>
+</html>

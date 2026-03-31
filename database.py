@@ -2,6 +2,7 @@
 import sqlite3
 from flask import g
 import os
+import json
 
 # ---------------------------------------------------------------------------
 # DATABASE BACKEND CONFIGURATION
@@ -412,6 +413,11 @@ def init_db(app):
             esi_deduction DECIMAL(10,2) DEFAULT 0.00,
             professional_tax DECIMAL(10,2) DEFAULT 0.00,
             other_deductions DECIMAL(10,2) DEFAULT 0.00,
+            bank_account_name TEXT,
+            bank_name TEXT,
+            bank_account_number TEXT,
+            ifsc_code TEXT,
+            pan_number TEXT,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (school_id) REFERENCES schools(id),
             UNIQUE(school_id, staff_id)
@@ -1113,6 +1119,11 @@ def init_db(app):
         ensure_column_exists('staff', 'date_of_joining DATE', 'date_of_joining')
         ensure_column_exists('staff', 'destination TEXT', 'destination')
         ensure_column_exists('staff', 'gender TEXT CHECK(gender IN ("Male", "Female", "Other"))', 'gender')
+        ensure_column_exists('staff', 'bank_account_name TEXT', 'bank_account_name')
+        ensure_column_exists('staff', 'bank_name TEXT', 'bank_name')
+        ensure_column_exists('staff', 'bank_account_number TEXT', 'bank_account_number')
+        ensure_column_exists('staff', 'ifsc_code TEXT', 'ifsc_code')
+        ensure_column_exists('staff', 'pan_number TEXT', 'pan_number')
 
         # Enhanced attendance tracking columns
         ensure_column_exists('attendance', 'late_duration_minutes INTEGER DEFAULT 0', 'late_duration_minutes')
@@ -3380,23 +3391,133 @@ def set_system_setting(key, value, description=None):
         import datetime
         db = get_db()
         cursor = db.cursor()
-        
+
         current_time = datetime.datetime.utcnow().strftime('%Y-%m-%d %H:%M:%S')
-        
-        cursor.execute('''
-            INSERT INTO system_settings (setting_key, setting_value, description, updated_at)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(setting_key) DO UPDATE SET
-                setting_value = excluded.setting_value,
-                description = COALESCE(excluded.description, description),
-                updated_at = excluded.updated_at
-        ''', (key, str(value), description, current_time))
-        
+        value_text = str(value)
+
+        if _USE_MYSQL:
+            # MySQL-safe upsert that also handles legacy schemas where `id` is required.
+            cursor.execute(
+                '''
+                UPDATE system_settings
+                SET setting_value = ?,
+                    description = COALESCE(?, description),
+                    updated_at = ?
+                WHERE setting_key = ?
+                ''',
+                (value_text, description, current_time, key)
+            )
+
+            if cursor.rowcount == 0:
+                # Always provide explicit id for compatibility with legacy schemas
+                # where `id` is PK but not AUTO_INCREMENT (or defaults to 0).
+                insert_done = False
+                for _ in range(3):
+                    cursor.execute('SELECT COALESCE(MAX(id), 0) + 1 FROM system_settings')
+                    next_id = cursor.fetchone()[0]
+                    try:
+                        next_id = int(next_id)
+                    except Exception:
+                        next_id = 1
+                    if next_id <= 0:
+                        next_id = 1
+
+                    try:
+                        cursor.execute(
+                            '''
+                            INSERT INTO system_settings (id, setting_key, setting_value, description, updated_at)
+                            VALUES (?, ?, ?, ?, ?)
+                            ''',
+                            (next_id, key, value_text, description, current_time)
+                        )
+                        insert_done = True
+                        break
+                    except Exception as insert_exc:
+                        exc_text = str(insert_exc).lower()
+                        # Retry only on duplicate key races/collisions.
+                        if 'duplicate entry' in exc_text or '1062' in exc_text:
+                            continue
+                        raise
+
+                if not insert_done:
+                    raise RuntimeError('Unable to insert system setting due to repeated primary key collisions')
+        else:
+            cursor.execute('''
+                INSERT INTO system_settings (setting_key, setting_value, description, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(setting_key) DO UPDATE SET
+                    setting_value = excluded.setting_value,
+                    description = COALESCE(excluded.description, description),
+                    updated_at = excluded.updated_at
+            ''', (key, value_text, description, current_time))
+
         db.commit()
         return True
-        
+
     except Exception as e:
         print(f"Error setting system setting {key}: {e}")
         if db:
             db.rollback()
         return False
+
+
+def get_school_attendance_mode(school_id, default_mode='biometric'):
+    """Return attendance mode for a school with safe fallback."""
+    db = None
+    try:
+        db = get_db()
+        row = db.execute('SELECT attendance_mode FROM schools WHERE id = ?', (school_id,)).fetchone()
+        if row:
+            try:
+                mode_value = row['attendance_mode']
+            except (KeyError, IndexError, TypeError):
+                mode_value = row[0] if row else None
+            if mode_value:
+                return str(mode_value).strip().lower()
+    except Exception:
+        # Column may not exist before migration; fallback to settings/default.
+        pass
+
+    setting_key = f'attendance_mode_school_{school_id}'
+    stored_mode = get_system_setting(setting_key, default_mode)
+    return str(stored_mode or default_mode).strip().lower()
+
+
+def set_school_attendance_mode(school_id, mode):
+    """Persist attendance mode for a school in table and fallback settings."""
+    normalized_mode = str(mode or 'biometric').strip().lower()
+    db = None
+    try:
+        db = get_db()
+        db.execute('UPDATE schools SET attendance_mode = ? WHERE id = ?', (normalized_mode, school_id))
+        db.commit()
+    except Exception:
+        if db:
+            db.rollback()
+    finally:
+        # Keep mirrored copy in system settings for compatibility.
+        set_system_setting(
+            f'attendance_mode_school_{school_id}',
+            normalized_mode,
+            'Per-school attendance mode'
+        )
+
+
+def get_attendance_config(setting_key, default_config=None):
+    """Read JSON attendance config from system_settings."""
+    default_payload = default_config or {}
+    raw = get_system_setting(setting_key, json.dumps(default_payload))
+    if raw is None:
+        return default_payload
+    if isinstance(raw, dict):
+        return raw
+    try:
+        return json.loads(raw)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return default_payload
+
+
+def set_attendance_config(setting_key, config, description=None):
+    """Write JSON attendance config to system_settings."""
+    payload = config if isinstance(config, dict) else {}
+    return set_system_setting(setting_key, json.dumps(payload), description)

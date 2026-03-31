@@ -636,6 +636,44 @@ function populateEditForm(staff) {
             </div>
         </div>
 
+        <div class="rules-section">
+            <h6 class="section-title">
+                <i class="bi bi-bank text-primary"></i> Bank & Tax Details (Payroll)
+            </h6>
+            <div class="rules-grid">
+                <div class="rule-item">
+                    <label for="editBankAccountName" class="form-label">
+                        <i class="bi bi-person-vcard"></i> Account Holder Name
+                    </label>
+                    <input type="text" class="form-control" id="editBankAccountName" name="bank_account_name" value="${staff.bank_account_name || ''}">
+                </div>
+                <div class="rule-item">
+                    <label for="editBankName" class="form-label">
+                        <i class="bi bi-building"></i> Bank Name
+                    </label>
+                    <input type="text" class="form-control" id="editBankName" name="bank_name" value="${staff.bank_name || ''}">
+                </div>
+                <div class="rule-item">
+                    <label for="editBankAccountNumber" class="form-label">
+                        <i class="bi bi-credit-card-2-front"></i> Account Number
+                    </label>
+                    <input type="text" class="form-control" id="editBankAccountNumber" name="bank_account_number" value="${staff.bank_account_number || ''}">
+                </div>
+                <div class="rule-item">
+                    <label for="editIfscCode" class="form-label">
+                        <i class="bi bi-upc-scan"></i> IFSC Code
+                    </label>
+                    <input type="text" class="form-control" id="editIfscCode" name="ifsc_code" value="${staff.ifsc_code || ''}" style="text-transform: uppercase;" maxlength="11">
+                </div>
+                <div class="rule-item">
+                    <label for="editPanNumber" class="form-label">
+                        <i class="bi bi-file-earmark-text"></i> PAN Number
+                    </label>
+                    <input type="text" class="form-control" id="editPanNumber" name="pan_number" value="${staff.pan_number || ''}" style="text-transform: uppercase;" maxlength="10">
+                </div>
+            </div>
+        </div>
+
         <!-- Salary Information Section -->
         <div class="rules-section">
             <h6 class="section-title">
@@ -859,6 +897,21 @@ function initializeExportFunctionality() {
     if (exportBtn) {
         exportBtn.addEventListener('click', exportToExcel);
     }
+
+    const downloadTemplateBtn = document.getElementById('downloadStaffTemplateBtn');
+    if (downloadTemplateBtn) {
+        downloadTemplateBtn.addEventListener('click', downloadStaffTemplate);
+    }
+
+    const downloadTemplateInModalBtn = document.getElementById('downloadTemplateInModalBtn');
+    if (downloadTemplateInModalBtn) {
+        downloadTemplateInModalBtn.addEventListener('click', downloadStaffTemplate);
+    }
+
+    const bulkUploadForm = document.getElementById('bulkUploadStaffForm');
+    if (bulkUploadForm) {
+        bulkUploadForm.addEventListener('submit', handleBulkStaffUpload);
+    }
 }
 
 function exportToExcel() {
@@ -872,6 +925,90 @@ function exportToExcel() {
         exportBtn.disabled = false;
         exportBtn.innerHTML = '<i class="bi bi-file-earmark-excel"></i> Export to Excel';
     }, 2000);
+}
+
+function downloadStaffTemplate() {
+    window.location.href = '/download_staff_template';
+}
+
+function handleBulkStaffUpload(e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const fileInput = document.getElementById('bulkStaffFile');
+    const submitBtn = document.getElementById('bulkUploadSubmitBtn');
+    const resultBox = document.getElementById('bulkUploadResult');
+
+    if (!fileInput || !fileInput.files || !fileInput.files.length) {
+        showAlert('Please select an Excel/CSV file to upload.', 'warning');
+        return;
+    }
+
+    const formData = new FormData(form);
+    const originalBtnHtml = submitBtn.innerHTML;
+
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+    resultBox.classList.add('d-none');
+    resultBox.innerHTML = '';
+
+    fetch('/bulk_import_staff', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]').value
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (!data.success) {
+            resultBox.className = 'alert alert-danger';
+            resultBox.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${data.error || 'Bulk upload failed'}`;
+            resultBox.classList.remove('d-none');
+            return;
+        }
+
+        const errors = Array.isArray(data.errors) ? data.errors : [];
+        const importedCount = data.imported_count || 0;
+        const totalRows = data.total_rows || 0;
+        const failedCount = Math.max(totalRows - importedCount, 0);
+
+        let errorsHtml = '';
+        if (errors.length) {
+            const topErrors = errors.slice(0, 10).map(err => `<li>${err}</li>`).join('');
+            const moreErrors = errors.length > 10 ? `<li>...and ${errors.length - 10} more error(s)</li>` : '';
+            errorsHtml = `
+                <hr>
+                <p class="mb-1"><strong>Import issues:</strong></p>
+                <ul class="mb-0">${topErrors}${moreErrors}</ul>
+            `;
+        }
+
+        resultBox.className = errors.length ? 'alert alert-warning' : 'alert alert-success';
+        resultBox.innerHTML = `
+            <div><strong>Bulk upload completed.</strong></div>
+            <div>Imported: ${importedCount} | Failed: ${failedCount} | Total rows: ${totalRows}</div>
+            ${errorsHtml}
+        `;
+        resultBox.classList.remove('d-none');
+
+        if (importedCount > 0) {
+            showAlert(`Bulk upload complete: ${importedCount} staff imported.`, 'success');
+            setTimeout(() => location.reload(), 1800);
+        } else {
+            showAlert('No staff imported. Please check the file and try again.', 'warning');
+        }
+    })
+    .catch(error => {
+        resultBox.className = 'alert alert-danger';
+        resultBox.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Upload failed: ${error.message}`;
+        resultBox.classList.remove('d-none');
+        showAlert('Bulk upload failed. Please try again.', 'danger');
+    })
+    .finally(() => {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalBtnHtml;
+    });
 }
 
 function getDepartmentDefaultShift(department) {

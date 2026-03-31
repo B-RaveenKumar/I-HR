@@ -65,8 +65,8 @@
             padding-right: 0;
         }
 
-        /* Mobile responsive fixes */
-        @media (max-width: 767.98px) {
+        /* Mobile and tablet responsive fixes */
+        @media (max-width: 991.98px) {
             .enhanced-sidebar {
                 position: fixed !important;
                 top: 0;
@@ -113,9 +113,48 @@
             display: none;
         }
 
-        @media (min-width: 768px) {
+        @media (min-width: 992px) {
             .sidebar-toggle {
                 display: none !important;
+            }
+        }
+
+        /* Today attendance header: 3-column responsive stats grid for tablet/mobile */
+        @media (max-width: 991.98px) {
+            .today-attendance-card .card-header {
+                flex-direction: column;
+                align-items: stretch;
+                gap: 0.75rem;
+            }
+
+            .today-attendance-card .header-actions {
+                width: 100%;
+            }
+
+            .today-attendance-card .today-attendance-stats {
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                gap: 0.5rem;
+                width: 100%;
+                justify-items: center;
+            }
+
+            .today-attendance-card .today-attendance-stats .stat-item {
+                width: 100%;
+                justify-content: center;
+                text-align: center;
+                margin: 0 !important;
+            }
+
+            .today-attendance-card .today-attendance-stats .stat-item i {
+                flex-shrink: 0;
+            }
+        }
+
+        @media (max-width: 576px) {
+            .today-attendance-card .today-attendance-stats {
+                gap: 0.4rem;
+                font-size: 0.82rem;
             }
         }
     </style>
@@ -357,7 +396,7 @@
                 </div>
 
                 <!-- Today's Attendance Card -->
-                <div class="salary-filters-card">
+                <div class="salary-filters-card today-attendance-card">
                     <div class="card-header">
                         <div class="header-icon">
                             <i class="bi bi-calendar-check"></i>
@@ -368,7 +407,20 @@
                             </p>
                         </div>
                         <div class="header-actions">
-                            <div class="results-stats">
+                            {% if attendance_mode == 'dynamic_qr' %}
+                            <a href="{{ url_for('admin_dynamic_qr_screen') }}" class="btn btn-sm btn-outline-primary me-2" title="Open Dynamic QR display">
+                                <i class="bi bi-qr-code"></i> QR Display
+                            </a>
+                            {% elif attendance_mode == 'id_scan' %}
+                            <a href="{{ url_for('admin_id_scan_kiosk') }}" class="btn btn-sm btn-outline-primary me-2" title="Open ID Scan kiosk">
+                                <i class="bi bi-upc-scan"></i> ID Kiosk
+                            </a>
+                            {% elif attendance_mode == 'otp' %}
+                            <a href="{{ url_for('admin_otp_display_screen') }}" class="btn btn-sm btn-outline-primary me-2" title="Open Office OTP display">
+                                <i class="bi bi-123"></i> OTP Display
+                            </a>
+                            {% endif %}
+                            <div class="results-stats today-attendance-stats">
                                 <div class="stat-item">
                                     <i class="bi bi-check-circle text-success"></i>
                                     <span class="stat-value" data-stat="present">{{ attendance_summary.present }}</span>
@@ -407,7 +459,7 @@
                                     <span>Holiday</span>
                                 </div>
                                 <!-- Graph Icon -->
-                                <div class="stat-item ms-2" style="cursor: pointer;" data-bs-toggle="modal"
+                                <div class="stat-item" style="cursor: pointer;" data-bs-toggle="modal"
                                     data-bs-target="#attendanceGraphModal" title="View Graphical Overview">
                                     <i class="bi bi-graph-up text-primary fs-5"></i>
                                 </div>
@@ -1095,13 +1147,17 @@
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidebar = document.getElementById('enhanced-sidebar');
 
-            // Show sidebar on desktop by default
+            // Show fixed sidebar on desktop, off-canvas on mobile/tablet
             function updateSidebarVisibility() {
-                if (window.innerWidth > 768) {
+                if (window.innerWidth >= 992) {
                     sidebar.style.display = 'block';
                     sidebar.classList.remove('show');
                 } else {
-                    sidebar.style.display = 'block'; // Make sure it's not hidden by inline style
+                    sidebar.style.display = 'block';
+                    sidebar.classList.remove('show');
+                    if (sidebarToggle) {
+                        sidebarToggle.setAttribute('aria-expanded', 'false');
+                    }
                 }
             }
 
@@ -1111,20 +1167,17 @@
             if (sidebarToggle && sidebar) {
                 sidebarToggle.addEventListener('click', function (e) {
                     e.preventDefault();
-                    console.log('Toggle button clicked');
-
                     sidebar.classList.toggle('show');
 
                     // Update aria-expanded for accessibility
                     const expanded = sidebar.classList.contains('show');
                     sidebarToggle.setAttribute('aria-expanded', expanded);
 
-                    console.log('Sidebar has show class:', expanded);
                 });
 
-                // Close sidebar when clicking outside on mobile
+                // Close sidebar when clicking outside on mobile/tablet
                 document.addEventListener('click', function (event) {
-                    if (window.innerWidth <= 768) { // Only on mobile
+                    if (window.innerWidth <= 991.98) {
                         if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
                             sidebar.classList.remove('show');
                             sidebarToggle.setAttribute('aria-expanded', 'false');
@@ -1190,6 +1243,32 @@
 
         // Auto-refresh dashboard data every 30 seconds
         function refreshDashboardData() {
+            function getStatusBadgeHtml(statusValue) {
+                const status = (statusValue || '').toLowerCase();
+                if (status === 'holiday') {
+                    return '<span class="badge bg-dark text-white"><i class="bi bi-calendar-event"></i> Holiday</span>';
+                }
+                if (status === 'present') {
+                    return '<span class="earnings-badge">Present</span>';
+                }
+                if (status === 'late') {
+                    return '<span class="deductions-badge">Late</span>';
+                }
+                if (status === 'absent') {
+                    return '<span class="badge bg-danger">Absent</span>';
+                }
+                if (status === 'leave' || status === 'on leave') {
+                    return '<span class="net-salary-badge">On Leave</span>';
+                }
+                if (status === 'on duty') {
+                    return '<span class="badge bg-info">On Duty</span>';
+                }
+                if (status === 'on permission') {
+                    return '<span class="badge bg-warning">On Permission</span>';
+                }
+                return '<span class="badge bg-secondary">Not Marked</span>';
+            }
+
             // Refresh staff count
             fetch('/get_staff_count')
                 .then(response => response.json())
@@ -1252,6 +1331,49 @@
                     }
                 })
                 .catch(error => console.error('Error refreshing attendance stats:', error));
+
+            // Refresh attendance table rows (check-in/check-out/status)
+            fetch('/get_realtime_attendance')
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success || !Array.isArray(data.attendance_data)) {
+                        return;
+                    }
+
+                    const tableRows = document.querySelectorAll('#attendanceTableBody tr[data-staff-id]');
+                    const attendanceByStaffId = new Map(
+                        data.attendance_data.map(item => [String(item.staff_id), item])
+                    );
+
+                    tableRows.forEach(row => {
+                        const staffId = row.getAttribute('data-staff-id');
+                        const record = attendanceByStaffId.get(String(staffId));
+                        if (!record) {
+                            return;
+                        }
+
+                        const timeInSpan = row.querySelector('.time-in span');
+                        const timeOutSpan = row.querySelector('.time-out span');
+                        const statusCell = row.querySelector('.status');
+
+                        if (timeInSpan) {
+                            const hasTimeIn = !!record.time_in;
+                            timeInSpan.className = hasTimeIn ? 'text-success' : 'text-muted';
+                            timeInSpan.innerHTML = `<i class="bi bi-clock"></i> ${record.time_in || '--:--:--'}`;
+                        }
+
+                        if (timeOutSpan) {
+                            const hasTimeOut = !!record.time_out;
+                            timeOutSpan.className = hasTimeOut ? 'text-info' : 'text-muted';
+                            timeOutSpan.innerHTML = `<i class="bi bi-clock-history"></i> ${record.time_out || '--:--:--'}`;
+                        }
+
+                        if (statusCell) {
+                            statusCell.innerHTML = getStatusBadgeHtml(record.status);
+                        }
+                    });
+                })
+                .catch(error => console.error('Error refreshing realtime attendance rows:', error));
         }
 
         // Start auto-refresh interval (30 seconds)
