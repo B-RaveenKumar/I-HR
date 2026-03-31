@@ -258,6 +258,40 @@
             padding: 2rem;
         }
 
+        /* Shift action buttons: modern style with subtle spacing */
+        .shift-actions {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .shift-action-btn {
+            border-radius: 999px;
+            padding: 0.32rem 0.8rem;
+            font-weight: 600;
+            border-width: 1px;
+            transition: all 0.2s ease;
+        }
+
+        .shift-action-btn i {
+            margin-right: 0.2rem;
+        }
+
+        .shift-action-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 14px rgba(0, 0, 0, 0.12);
+        }
+
+        .shift-delete-btn {
+            border-color: rgba(220, 53, 69, 0.55);
+        }
+
+        .shift-delete-btn:hover {
+            background: #dc3545;
+            color: #fff;
+            border-color: #dc3545;
+        }
+
         /* Holiday Management Styles */
         .holiday-controls {
             background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
@@ -1366,15 +1400,25 @@
                                         <td>{{ shift.grace_period_minutes }}</td>
                                         <td class="text-muted small">{{ shift.description }}</td>
                                         <td class="pe-4">
-                                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Shift Management', {}).get('edit') %}
-                                            <button class="btn btn-sm btn-outline-primary edit-shift-btn"
-                                                data-id="{{ shift.id }}" data-type="{{ shift.shift_type }}"
-                                                data-start="{{ shift.start_time }}" data-end="{{ shift.end_time }}"
-                                                data-grace="{{ shift.grace_period_minutes }}"
-                                                data-desc="{{ shift.description }}" data-bs-toggle="modal"
-                                                data-bs-target="#editShiftModal">
-                                                <i class="bi bi-pencil"></i> Edit
-                                            </button>
+                                            {% if (not session.get('is_sub_admin') or session.get('permissions', {}).get('Shift Management', {}).get('edit')) or (not session.get('is_sub_admin') or session.get('permissions', {}).get('Shift Management', {}).get('delete')) %}
+                                            <div class="shift-actions" role="group" aria-label="Shift actions">
+                                                {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Shift Management', {}).get('edit') %}
+                                                <button class="btn btn-sm btn-outline-primary shift-action-btn edit-shift-btn"
+                                                    data-id="{{ shift.id }}" data-type="{{ shift.shift_type }}"
+                                                    data-start="{{ shift.start_time }}" data-end="{{ shift.end_time }}"
+                                                    data-grace="{{ shift.grace_period_minutes }}"
+                                                    data-desc="{{ shift.description }}" data-bs-toggle="modal"
+                                                    data-bs-target="#editShiftModal">
+                                                    <i class="bi bi-pencil"></i> Edit
+                                                </button>
+                                                {% endif %}
+                                                {% if (not session.get('is_sub_admin') or session.get('permissions', {}).get('Shift Management', {}).get('delete')) and shift.shift_type != 'general' %}
+                                                <button class="btn btn-sm btn-outline-danger shift-action-btn shift-delete-btn delete-shift-btn"
+                                                    data-id="{{ shift.id }}" data-type="{{ shift.shift_type }}">
+                                                    <i class="bi bi-trash"></i> Delete
+                                                </button>
+                                                {% endif %}
+                                            </div>
                                             {% else %}
                                             <span class="badge bg-secondary"><i class="bi bi-eye"></i> View Only</span>
                                             {% endif %}
@@ -4060,6 +4104,52 @@
                     });
             });
         }
+
+        document.querySelectorAll('.delete-shift-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                if (!hasDeletePermission) {
+                    alert('You do not have permission to delete shifts.');
+                    return;
+                }
+
+                const shiftId = this.dataset.id;
+                const shiftType = this.dataset.type || 'selected';
+
+                if (!confirm(`Are you sure you want to delete "${shiftType}" shift?`)) {
+                    return;
+                }
+
+                const originalText = this.innerHTML;
+                this.disabled = true;
+                this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Deleting...';
+
+                const formData = new FormData();
+                formData.append('shift_id', shiftId);
+                formData.append('csrf_token', document.querySelector('input[name="csrf_token"]')?.value || '');
+
+                fetch('/admin/delete_shift', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Shift deleted successfully!');
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (data.error || 'Unable to delete shift'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error deleting shift:', error);
+                        alert('An error occurred while deleting the shift.');
+                    })
+                    .finally(() => {
+                        this.disabled = false;
+                        this.innerHTML = originalText;
+                    });
+            });
+        });
 
 
     </script>

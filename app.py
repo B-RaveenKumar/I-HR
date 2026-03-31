@@ -2794,8 +2794,15 @@ def get_realtime_attendance():
 
     db = get_db()
 
-    # Get all staff for this school
-    staff_list = db.execute('''
+    staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+    active_filter = ''
+    if 'is_active' in staff_columns:
+        active_filter = ' AND COALESCE(s.is_active, 1) = 1'
+    elif 'status' in staff_columns:
+        active_filter = " AND LOWER(COALESCE(s.status, 'active')) = 'active'"
+
+    # Get all active staff for this school
+    staff_query = f'''
         SELECT s.id as staff_id, s.staff_id as staff_number, s.full_name, s.department,
                a.time_in, a.time_out
         FROM staff s
@@ -2807,9 +2814,10 @@ def get_realtime_attendance():
             WHERE date = ? AND school_id = ?
             GROUP BY staff_id
         ) a ON s.id = a.staff_id
-        WHERE s.school_id = ?
+        WHERE s.school_id = ?{active_filter}
         ORDER BY CAST(s.staff_id AS INTEGER) ASC
-    ''', (today, school_id, school_id)).fetchall()
+    '''
+    staff_list = db.execute(staff_query, (today, school_id, school_id)).fetchall()
 
     # Build attendance data with correct status logic
     attendance_data = []
@@ -3311,6 +3319,74 @@ def add_shift():
             app.shift_manager.reload_shift_definitions()
 
         return jsonify({'success': True, 'message': 'Shift added successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/admin/delete_shift', methods=['POST'])
+def delete_shift():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    if session.get('is_sub_admin'):
+        shift_permissions = session.get('permissions', {}).get('Shift Management', {})
+        if not shift_permissions.get('delete'):
+            return jsonify({'success': False, 'error': 'You do not have permission to delete shifts'})
+
+    shift_id = request.form.get('shift_id')
+    if not shift_id:
+        return jsonify({'success': False, 'error': 'Shift ID is required'})
+
+    try:
+        db = get_db()
+        school_id = session.get('school_id')
+
+        shift_row = db.execute('''
+            SELECT id, shift_type FROM shift_definitions
+            WHERE id = ? AND is_active = 1
+        ''', (shift_id,)).fetchone()
+
+        if not shift_row:
+            return jsonify({'success': False, 'error': 'Shift not found or already deleted'})
+
+        shift_type = (shift_row['shift_type'] or '').strip().lower()
+        if shift_type == 'general':
+            return jsonify({'success': False, 'error': 'Default General shift cannot be deleted'})
+
+        assigned_staff = db.execute('''
+            SELECT COUNT(*) AS cnt
+            FROM staff
+            WHERE school_id = ? AND LOWER(COALESCE(shift_type, 'general')) = LOWER(?)
+        ''', (school_id, shift_type)).fetchone()['cnt']
+
+        if assigned_staff > 0:
+            return jsonify({
+                'success': False,
+                'error': f'Cannot delete shift. {assigned_staff} staff member(s) are currently assigned to this shift.'
+            })
+
+        assigned_departments = db.execute('''
+            SELECT COUNT(*) AS cnt
+            FROM department_shift_mappings
+            WHERE school_id = ? AND LOWER(default_shift_type) = LOWER(?)
+        ''', (school_id, shift_type)).fetchone()['cnt']
+
+        if assigned_departments > 0:
+            return jsonify({
+                'success': False,
+                'error': f'Cannot delete shift. {assigned_departments} department mapping(s) use this shift.'
+            })
+
+        db.execute('''
+            UPDATE shift_definitions
+            SET is_active = 0
+            WHERE id = ?
+        ''', (shift_id,))
+        db.commit()
+
+        if hasattr(app, 'shift_manager'):
+            app.shift_manager.reload_shift_definitions()
+
+        return jsonify({'success': True, 'message': 'Shift deleted successfully'})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -3835,10 +3911,16 @@ def generate_monthly_salary_report(school_id, year, month, department, format_ty
     import datetime
 
     db = get_db()
+    staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
 
     # Build query based on filters
     where_conditions = ['s.school_id = ?']
     params = [school_id]
+
+    if 'is_active' in staff_columns:
+        where_conditions.append('COALESCE(s.is_active, 1) = 1')
+    elif 'status' in staff_columns:
+        where_conditions.append("LOWER(COALESCE(s.status, 'active')) = 'active'")
 
     if department:
         where_conditions.append('s.department = ?')
@@ -11555,6 +11637,13 @@ def add_staff_enhanced():
     ifsc_code = (request.form.get('ifsc_code') or '').strip().upper()
     pan_number = (request.form.get('pan_number') or '').strip().upper()
     shift_type = request.form.get('shift_type', 'general')
+    is_active_raw = request.form.get('is_active')
+    status_raw = request.form.get('status')
+    is_active = 1
+    if is_active_raw is not None:
+        is_active = 1 if str(is_active_raw).lower() in ['1', 'true', 'on', 'yes', 'active'] else 0
+    elif status_raw is not None:
+        is_active = 1 if str(status_raw).lower() == 'active' else 0
     password = generate_password_hash(request.form.get('password'))
 
     # Create full_name from first_name and last_name
@@ -11684,6 +11773,12 @@ def add_staff_enhanced():
         if 'photo_url' in column_names and photo_url:
             insert_columns.append('photo_url')
             insert_values.append(photo_url)
+        if 'is_active' in column_names:
+            insert_columns.append('is_active')
+            insert_values.append(is_active)
+        if 'status' in column_names:
+            insert_columns.append('status')
+            insert_values.append('active' if is_active else 'inactive')
 
         # Add created_at timestamp
         if 'created_at' in column_names:
@@ -11714,6 +11809,13 @@ def add_staff():
     phone = request.form.get('phone')
     department = request.form.get('department')
     position = request.form.get('position')
+    is_active_raw = request.form.get('is_active')
+    status_raw = request.form.get('status')
+    is_active = 1
+    if is_active_raw is not None:
+        is_active = 1 if str(is_active_raw).lower() in ['1', 'true', 'on', 'yes', 'active'] else 0
+    elif status_raw is not None:
+        is_active = 1 if str(status_raw).lower() == 'active' else 0
 
     # Get salary information
     basic_salary = float(request.form.get('basic_salary', 0))
@@ -11778,7 +11880,7 @@ def add_staff():
             return jsonify({'success': False, 'error': 'Invalid file type. Only PNG, JPG, JPEG, and GIF files are allowed.'})
     # Always set a default photo if none uploaded
     if not photo_url:
-        photo_url = 'images/default_profile.png'  # Make sure this file exists in static/images/
+        photo_url = 'images/applogo.png'  # Fallback to app logo
 
     try:
         # Ensure 'photo_url' column exists in the table
@@ -11789,7 +11891,7 @@ def add_staff():
             db.execute("ALTER TABLE staff ADD COLUMN photo_url TEXT")
 
         created_at = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-        db.execute('''
+        insert_cursor = db.execute('''
             INSERT INTO staff
             (school_id, staff_id, password_hash, full_name, email, phone, department, position, destination, photo_url, created_at,
                          basic_salary, hra, transport_allowance, other_allowances, pf_deduction, esi_deduction, professional_tax, other_deductions,
@@ -11798,6 +11900,21 @@ def add_staff():
         ''', (school_id, staff_id, password, full_name, email, phone, department, position, position, photo_url, created_at,
                             basic_salary, hra, transport_allowance, other_allowances, pf_deduction, esi_deduction, professional_tax, other_deductions,
                             bank_account_name, bank_name, bank_account_number, ifsc_code, pan_number))
+
+        staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+        if 'is_active' in staff_columns or 'status' in staff_columns:
+            update_parts = []
+            update_values = []
+            if 'is_active' in staff_columns:
+                update_parts.append('is_active = ?')
+                update_values.append(is_active)
+            if 'status' in staff_columns:
+                update_parts.append('status = ?')
+                update_values.append('active' if is_active else 'inactive')
+
+            if update_parts:
+                update_values.append(insert_cursor.lastrowid)
+                db.execute(f"UPDATE staff SET {', '.join(update_parts)} WHERE id = ?", update_values)
 
         db.commit()
         return jsonify({'success': True})
@@ -11872,13 +11989,24 @@ def get_staff_details_enhanced():
     staff_id = request.args.get('id')
     db = get_db()
 
-    staff = db.execute('''
+    staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+    if 'is_active' in staff_columns and 'status' in staff_columns:
+        active_expr = "COALESCE(is_active, CASE WHEN LOWER(COALESCE(status, 'active')) = 'active' THEN 1 ELSE 0 END) AS is_active"
+    elif 'is_active' in staff_columns:
+        active_expr = "COALESCE(is_active, 1) AS is_active"
+    elif 'status' in staff_columns:
+        active_expr = "CASE WHEN LOWER(COALESCE(status, 'active')) = 'active' THEN 1 ELSE 0 END AS is_active"
+    else:
+        active_expr = "1 AS is_active"
+
+    staff = db.execute(f'''
         SELECT id, staff_id, full_name, first_name, last_name,
                date_of_birth, date_of_joining, department, destination,
                position, gender, phone, email, shift_type, photo_url,
                basic_salary, hra, transport_allowance, other_allowances,
                pf_deduction, esi_deduction, professional_tax, other_deductions,
-               bank_account_name, bank_name, bank_account_number, ifsc_code, pan_number
+               bank_account_name, bank_name, bank_account_number, ifsc_code, pan_number,
+               {active_expr}
         FROM staff
         WHERE id = ?
     ''', (staff_id,)).fetchone()
@@ -11913,6 +12041,13 @@ def update_staff_enhanced():
     ifsc_code = (request.form.get('ifsc_code') or '').strip().upper()
     pan_number = (request.form.get('pan_number') or '').strip().upper()
     shift_type = request.form.get('shift_type', 'general')
+    is_active_raw = request.form.get('is_active')
+    status_raw = request.form.get('status')
+    is_active = 1
+    if is_active_raw is not None:
+        is_active = 1 if str(is_active_raw).lower() in ['1', 'true', 'on', 'yes', 'active'] else 0
+    elif status_raw is not None:
+        is_active = 1 if str(status_raw).lower() == 'active' else 0
 
     # Salary fields
     basic_salary = request.form.get('basic_salary', type=float)
@@ -11992,6 +12127,12 @@ def update_staff_enhanced():
         if 'email' in column_names:
             update_parts.append('email = ?')
             update_values.append(email)
+        if 'is_active' in column_names:
+            update_parts.append('is_active = ?')
+            update_values.append(is_active)
+        if 'status' in column_names:
+            update_parts.append('status = ?')
+            update_values.append('active' if is_active else 'inactive')
         if 'bank_account_name' in column_names:
             update_parts.append('bank_account_name = ?')
             update_values.append(bank_account_name)
@@ -12378,7 +12519,13 @@ def update_staff():
     department = request.form.get('department')
     position = request.form.get('position')
     shift_type = request.form.get('shift_type', 'general')
-    # status = request.form.get('status')  # Not used currently
+    status = request.form.get('status')
+    is_active_raw = request.form.get('is_active')
+    is_active = 1
+    if is_active_raw is not None:
+        is_active = 1 if str(is_active_raw).lower() in ['1', 'true', 'on', 'yes', 'active'] else 0
+    elif status is not None:
+        is_active = 1 if str(status).lower() == 'active' else 0
     school_id = session['school_id']
 
     if not staff_id or not full_name:
@@ -12409,19 +12556,34 @@ def update_staff():
             return jsonify({'success': False, 'error': 'Invalid file type. Only PNG, JPG, JPEG, and GIF files are allowed.'})
 
     try:
-        # Update staff record
+        staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+
+        update_parts = [
+            'full_name = ?',
+            'email = ?',
+            'phone = ?',
+            'department = ?',
+            'position = ?',
+            'destination = ?',
+            'shift_type = ?'
+        ]
+        update_values = [full_name, email, phone, department, position, position, shift_type]
+
         if photo_url:
-            db.execute('''
-                UPDATE staff
-                SET full_name = ?, email = ?, phone = ?, department = ?, position = ?, destination = ?, shift_type = ?, photo_url = ?
-                WHERE id = ? AND school_id = ?
-            ''', (full_name, email, phone, department, position, position, shift_type, photo_url, staff_id, school_id))
-        else:
-            db.execute('''
-                UPDATE staff
-                SET full_name = ?, email = ?, phone = ?, department = ?, position = ?, destination = ?, shift_type = ?
-                WHERE id = ? AND school_id = ?
-            ''', (full_name, email, phone, department, position, position, shift_type, staff_id, school_id))
+            update_parts.append('photo_url = ?')
+            update_values.append(photo_url)
+        if 'is_active' in staff_columns:
+            update_parts.append('is_active = ?')
+            update_values.append(is_active)
+        if 'status' in staff_columns:
+            update_parts.append('status = ?')
+            update_values.append('active' if is_active else 'inactive')
+
+        update_values.extend([staff_id, school_id])
+        db.execute(
+            f"UPDATE staff SET {', '.join(update_parts)} WHERE id = ? AND school_id = ?",
+            update_values
+        )
 
         db.commit()
         return jsonify({'success': True})
@@ -15900,9 +16062,17 @@ def bulk_salary_calculation():
         return jsonify({'success': False, 'error': 'Year and month are required'})
 
     try:
+        db = get_db()
+        staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+
         # Get staff list based on filters
         query = 'SELECT id, staff_id, full_name, department FROM staff WHERE school_id = ?'
         params = [school_id]
+
+        if 'is_active' in staff_columns:
+            query += ' AND COALESCE(is_active, 1) = 1'
+        elif 'status' in staff_columns:
+            query += " AND LOWER(COALESCE(status, 'active')) = 'active'"
 
         if department:
             query += ' AND department = ?'
@@ -15910,7 +16080,7 @@ def bulk_salary_calculation():
             
         query += ' ORDER BY CAST(staff_id AS INTEGER) ASC'
 
-        staff_list = get_db().execute(query, params).fetchall()
+        staff_list = db.execute(query, params).fetchall()
 
         school_id = session.get('school_id')
         salary_calculator = SalaryCalculator(school_id=school_id)
@@ -16092,15 +16262,22 @@ def export_salary_calculation_results():
         # Re-run the bulk salary calculation to get fresh data
         salary_calculator = SalaryCalculator(school_id=school_id)
 
+        db = get_db()
+        staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+
         # Get staff list based on filters
         query = 'SELECT id, staff_id, full_name, department FROM staff WHERE school_id = ?'
         params = [school_id]
+
+        if 'is_active' in staff_columns:
+            query += ' AND COALESCE(is_active, 1) = 1'
+        elif 'status' in staff_columns:
+            query += " AND LOWER(COALESCE(status, 'active')) = 'active'"
 
         if department:
             query += ' AND department = ?'
             params.append(department)
 
-        db = get_db()
         staff_list = db.execute(query, params).fetchall()
 
         # Calculate salaries for all staff

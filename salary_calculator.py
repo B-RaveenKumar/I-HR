@@ -389,7 +389,14 @@ class SalaryCalculator:
     def _get_staff_info(self, staff_id: int) -> Optional[Dict]:
         """Get staff information including salary details"""
         db = self._get_db_connection()
-        staff = db.execute('''
+        staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+        active_filter = ''
+        if 'is_active' in staff_columns:
+            active_filter = ' AND COALESCE(s.is_active, 1) = 1'
+        elif 'status' in staff_columns:
+            active_filter = " AND LOWER(COALESCE(s.status, 'active')) = 'active'"
+
+        staff = db.execute(f'''
             SELECT s.*, 
                    sc.name as school_name,
                    s.basic_salary,
@@ -402,7 +409,7 @@ class SalaryCalculator:
                    s.other_deductions
             FROM staff s
             LEFT JOIN schools sc ON s.school_id = sc.id
-            WHERE s.id = ?
+            WHERE s.id = ?{active_filter}
         ''', (staff_id,)).fetchone()
         
         if staff:

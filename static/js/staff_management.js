@@ -365,6 +365,8 @@ function handleAddStaff(e) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
+    const addIsActive = document.getElementById('addIsActive');
+    formData.set('is_active', addIsActive && addIsActive.checked ? '1' : '0');
     const submitBtn = e.target.querySelector('button[type="submit"]');
     
     submitBtn.disabled = true;
@@ -629,6 +631,19 @@ function populateEditForm(staff) {
             </div>
             <div class="col-md-6">
                 <div class="mb-3">
+                    <label class="form-label d-block">Staff Status</label>
+                    <div class="form-check form-switch mt-2">
+                        <input type="checkbox" class="form-check-input" id="editIsActive" name="is_active" ${Number(staff.is_active) === 1 ? 'checked' : ''}>
+                        <label class="form-check-label" for="editIsActive">Active</label>
+                    </div>
+                    <small class="form-text text-muted">Inactive staff are excluded from attendance and salary calculations</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-md-12">
+                <div class="mb-3">
                     <label for="editFullName" class="form-label">Full Name (Auto-generated)</label>
                     <input type="text" class="form-control" id="editFullName" name="full_name" value="${staff.full_name || ''}" readonly>
                     <small class="form-text text-muted">This field is automatically generated from First Name + Last Name</small>
@@ -830,6 +845,8 @@ function handleEditStaff(e) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
+    const editIsActive = document.getElementById('editIsActive');
+    formData.set('is_active', editIsActive && editIsActive.checked ? '1' : '0');
     const submitBtn = e.target.querySelector('button[type="submit"]');
     
     submitBtn.disabled = true;

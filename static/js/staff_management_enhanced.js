@@ -238,6 +238,8 @@ function handleAddStaff(e) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
+    const isActiveToggle = document.querySelector('#addStaffForm input[name="is_active"]');
+    formData.set('is_active', isActiveToggle && isActiveToggle.checked ? '1' : '0');
     const submitBtn = e.target.querySelector('button[type="submit"]');
     
     submitBtn.disabled = true;

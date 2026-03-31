@@ -211,7 +211,7 @@ document.addEventListener('DOMContentLoaded', function () {
         <!-- Staff Information Section -->
         <div class="row mb-4">
             <div class="col-md-3 text-center">
-                <img src="/static/${staff.photo_url || 'images/default_profile.png'}"
+                <img src="/static/${staff.photo_url || 'images/applogo.png'}"
                      class="img-thumbnail mb-3" alt="Staff Photo" style="max-height: 200px;">
                 <!-- Change Photo button removed -->
             </div>
@@ -232,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                     <p><strong>Email:</strong> ${staff.email || 'Not provided'}</p>
                                     <p><strong>Phone:</strong> ${staff.phone || 'Not provided'}</p>
                                     <p><strong>School:</strong> ${staff.school_name || 'Not assigned'}</p>
-                                    <p><strong>Status:</strong> <span class="badge bg-success">Active</span></p>
+                                    <p><strong>Status:</strong> <span class="badge ${Number(staff.is_active) === 1 ? 'bg-success' : 'bg-danger'}">${Number(staff.is_active) === 1 ? 'Active' : 'Inactive'}</span></p>
                                 </div>
                             </div>
                         </div>

@@ -763,6 +763,8 @@ document.addEventListener('DOMContentLoaded', function() {
             e.preventDefault();
             
             const formData = new FormData(this);
+            const isActiveCheckbox = document.getElementById('isActive');
+            formData.set('is_active', isActiveCheckbox && isActiveCheckbox.checked ? '1' : '0');
             window.showLoading();
             
             fetch(this.action, {
