@@ -1329,6 +1329,14 @@
                             <p class="card-subtitle">Manage the four primary shifts: Morning, Afternoon, Evening, and
                                 Night</p>
                         </div>
+                        {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Shift Management', {}).get('edit') %}
+                        <div class="header-actions">
+                            <button type="button" class="btn btn-primary" data-bs-toggle="modal"
+                                data-bs-target="#addShiftModal">
+                                <i class="bi bi-plus-circle"></i> Add Shift
+                            </button>
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="card-body p-0">
                         <div class="table-responsive">
@@ -1934,6 +1942,71 @@
                                         data-bs-dismiss="modal">Cancel</button>
                                     <button type="submit" class="btn btn-primary px-4">
                                         <i class="bi bi-check-circle me-2"></i> Save Changes
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Shift Modal -->
+                <div class="modal fade" id="addShiftModal" tabindex="-1" aria-labelledby="addShiftModalLabel"
+                    aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                        <div class="modal-content border-0 shadow-lg">
+                            <form id="addShiftForm">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <div class="modal-header bg-success text-white border-0">
+                                    <h5 class="modal-title" id="addShiftModalLabel">
+                                        <i class="bi bi-plus-circle-fill me-2"></i> Add Custom Shift
+                                    </h5>
+                                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                                        aria-label="Close"></button>
+                                </div>
+                                <div class="modal-body p-4">
+                                    <div class="mb-3">
+                                        <label for="add_shift_type" class="form-label font-weight-bold">Shift Name</label>
+                                        <input type="text" class="form-control form-control-lg" id="add_shift_type"
+                                            name="shift_type" placeholder="e.g., flexi morning" maxlength="30" required>
+                                        <div class="form-text mt-2">
+                                            <i class="bi bi-info-circle-fill text-info me-1"></i> Use a unique shift name.
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="add_start_time" class="form-label font-weight-bold">Start Time</label>
+                                        <input type="time" class="form-control form-control-lg" id="add_start_time"
+                                            name="start_time" required step="1">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="add_end_time" class="form-label font-weight-bold">End Time</label>
+                                        <input type="time" class="form-control form-control-lg" id="add_end_time"
+                                            name="end_time" required step="1">
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="add_grace_period" class="form-label font-weight-bold">Grace Period
+                                            (Minutes)</label>
+                                        <div class="input-group">
+                                            <input type="number" class="form-control form-control-lg"
+                                                id="add_grace_period" name="grace_period_minutes" min="0" max="120"
+                                                value="10" required>
+                                            <span class="input-group-text">min</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-0">
+                                        <label for="add_description" class="form-label font-weight-bold">Description</label>
+                                        <textarea class="form-control" id="add_description" name="description" rows="2"
+                                            placeholder="e.g., Flexible shift for support team"></textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer border-0 bg-light p-3">
+                                    <button type="button" class="btn btn-outline-secondary px-4"
+                                        data-bs-dismiss="modal">Cancel</button>
+                                    <button type="submit" class="btn btn-success px-4">
+                                        <i class="bi bi-check-circle me-2"></i> Add Shift
                                     </button>
                                 </div>
                             </form>
@@ -3952,6 +4025,41 @@
                     submitBtn.innerHTML = originalText;
                 });
         });
+
+        const addShiftForm = document.getElementById('addShiftForm');
+        if (addShiftForm) {
+            addShiftForm.addEventListener('submit', function (e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+
+                const submitBtn = this.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Adding...';
+
+                fetch('/admin/add_shift', {
+                    method: 'POST',
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            alert('Shift added successfully!');
+                            location.reload();
+                        } else {
+                            alert('Error: ' + (data.error || 'Unable to add shift'));
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        alert('An error occurred while adding the shift.');
+                    })
+                    .finally(() => {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalText;
+                    });
+            });
+        }
 
 
     </script>

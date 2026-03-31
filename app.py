@@ -3265,6 +3265,55 @@ def update_shift():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/admin/add_shift', methods=['POST'])
+def add_shift():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    shift_type_raw = (request.form.get('shift_type') or '').strip().lower()
+    start_time = request.form.get('start_time')
+    end_time = request.form.get('end_time')
+    grace_period = request.form.get('grace_period_minutes')
+    description = (request.form.get('description') or '').strip()
+
+    if not all([shift_type_raw, start_time, end_time]):
+        return jsonify({'success': False, 'error': 'Missing required fields'})
+
+    import re
+    shift_type = re.sub(r'\s+', '_', shift_type_raw)
+    if not re.fullmatch(r'[a-z0-9_\-]{2,30}', shift_type):
+        return jsonify({'success': False, 'error': 'Shift name must be 2-30 characters and use only letters, numbers, spaces, hyphen, or underscore'})
+
+    try:
+        grace_period_value = int(grace_period) if grace_period not in (None, '') else 10
+    except ValueError:
+        return jsonify({'success': False, 'error': 'Grace period must be a valid number'})
+
+    if grace_period_value < 0 or grace_period_value > 120:
+        return jsonify({'success': False, 'error': 'Grace period must be between 0 and 120 minutes'})
+
+    try:
+        db = get_db()
+        existing = db.execute('''
+            SELECT id FROM shift_definitions WHERE LOWER(shift_type) = LOWER(?)
+        ''', (shift_type,)).fetchone()
+        if existing:
+            return jsonify({'success': False, 'error': 'A shift with this name already exists'})
+
+        db.execute('''
+            INSERT INTO shift_definitions (shift_type, start_time, end_time, grace_period_minutes, description, is_active)
+            VALUES (?, ?, ?, ?, ?, 1)
+        ''', (shift_type, start_time, end_time, grace_period_value, description))
+        db.commit()
+
+        # Reload shift manager so custom shift can be used immediately
+        if hasattr(app, 'shift_manager'):
+            app.shift_manager.reload_shift_definitions()
+
+        return jsonify({'success': True, 'message': 'Shift added successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/get_overtime_summary')
 def get_overtime_summary():
     if 'user_id' not in session:
