@@ -48,6 +48,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-3);
+    overflow: hidden;
 }
 
 .brand-logo {
@@ -64,13 +65,25 @@
 
 .brand-text {
     color: #ffffff;
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
 }
 
 .brand-title {
-    font-size: var(--font-size-lg);
+    font-size: clamp(0.8rem, 0.9vw, var(--font-size-lg));
     font-weight: 700;
     margin: 0;
-    line-height: 1;
+    line-height: 1.2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+    hyphens: auto;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
 }
 
 .brand-subtitle {
