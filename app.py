@@ -12805,12 +12805,22 @@ def add_school():
     try:
         cursor = db.cursor()
 
+        # Reserve the next school id as MAX(id) + 1 so the new row never gets 0.
+        cursor.execute('SELECT COALESCE(MAX(id), 0) + 1 AS next_school_id FROM schools')
+        next_school_id = cursor.fetchone()[0]
+        try:
+            next_school_id = int(next_school_id)
+        except (TypeError, ValueError):
+            next_school_id = 1
+        if next_school_id <= 0:
+            next_school_id = 1
+
         # Add school
         cursor.execute('''
-            INSERT INTO schools (name, address, contact_email, contact_phone, logo_path, branding_enabled)
-            VALUES (?, ?, ?, ?, ?, 1)
-        ''', (name, address, contact_email, contact_phone, logo_path))
-        school_id = cursor.lastrowid
+            INSERT INTO schools (id, name, address, contact_email, contact_phone, logo_path, branding_enabled)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+        ''', (next_school_id, name, address, contact_email, contact_phone, logo_path))
+        school_id = next_school_id
 
         # Add initial admin for the school
         cursor.execute('''
