@@ -12,7 +12,7 @@ import datetime
 import logging
 import requests
 import json
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Iterable, Set
 from database import get_db
 from flask import current_app
 
@@ -140,14 +140,47 @@ class ZKBiometricDevice:
         self.connection = None
         logger.info(f"Disconnected from ZK device {self.device_id} via Cloud")
 
-    def get_attendance_records(self) -> List[Dict]:
-        """Get attendance records from ZK device (Ethernet or Cloud)"""
-        if self.use_cloud:
-            return self._get_attendance_records_cloud()
-        else:
-            return self._get_attendance_records_ethernet()
+    def _normalize_allowed_user_ids(self, allowed_user_ids: Optional[Iterable]) -> Optional[Set[str]]:
+        """Normalize allowed user IDs into a string set for fast membership checks."""
+        if allowed_user_ids is None:
+            return None
+        normalized = {str(user_id).strip() for user_id in allowed_user_ids if str(user_id).strip()}
+        return normalized if normalized else set()
 
-    def _get_attendance_records_ethernet(self) -> List[Dict]:
+    def _normalize_since_timestamp(self, since_timestamp) -> Optional[datetime.datetime]:
+        """Normalize timestamp inputs from DB rows/API into datetime."""
+        if since_timestamp is None:
+            return None
+        if isinstance(since_timestamp, datetime.datetime):
+            return since_timestamp
+        if isinstance(since_timestamp, str):
+            value = since_timestamp.strip()
+            if not value:
+                return None
+            for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S.%f'):
+                try:
+                    return datetime.datetime.strptime(value, fmt)
+                except ValueError:
+                    continue
+            try:
+                return datetime.datetime.fromisoformat(value)
+            except ValueError:
+                return None
+        return None
+
+    def get_attendance_records(self, allowed_user_ids: Optional[Iterable] = None,
+                               since_timestamp: datetime.datetime = None) -> List[Dict]:
+        """Get attendance records from ZK device (Ethernet or Cloud), optionally filtered."""
+        normalized_user_ids = self._normalize_allowed_user_ids(allowed_user_ids)
+        normalized_since = self._normalize_since_timestamp(since_timestamp)
+
+        if self.use_cloud:
+            return self._get_attendance_records_cloud(normalized_user_ids, normalized_since)
+        else:
+            return self._get_attendance_records_ethernet(normalized_user_ids, normalized_since)
+
+    def _get_attendance_records_ethernet(self, allowed_user_ids: Optional[Set[str]] = None,
+                                         since_timestamp: Optional[datetime.datetime] = None) -> List[Dict]:
         """Get attendance records from ZK device via Ethernet"""
         if not self.connection:
             logger.error("No connection to ZK device")
@@ -160,14 +193,23 @@ class ZKBiometricDevice:
             # Get attendance records
             attendance = self.connection.get_attendance()
             records = []
+            raw_count = len(attendance)
 
             for record in attendance:
+                user_id = str(record.user_id).strip()
+                if allowed_user_ids is not None and user_id not in allowed_user_ids:
+                    continue
+
+                record_timestamp = record.timestamp
+                if since_timestamp and isinstance(record_timestamp, datetime.datetime) and record_timestamp <= since_timestamp:
+                    continue
+
                 # Map punch codes to our verification types
                 verification_type = self._map_punch_to_verification_type(record.punch)
 
                 records.append({
-                    'user_id': record.user_id,
-                    'timestamp': record.timestamp,
+                    'user_id': user_id,
+                    'timestamp': record_timestamp,
                     'status': record.status,
                     'punch': record.punch,  # Original punch code
                     'verification_type': verification_type,  # Mapped verification type
@@ -177,7 +219,12 @@ class ZKBiometricDevice:
             # Re-enable device
             self.connection.enable_device()
 
-            logger.info(f"Retrieved {len(records)} attendance records from ZK device via Ethernet")
+            if allowed_user_ids is not None or since_timestamp is not None:
+                logger.info(
+                    f"Loaded {len(records)} filtered attendance records from ZK device via Ethernet"
+                )
+            else:
+                logger.info(f"Retrieved {len(records)} attendance records from ZK device via Ethernet")
             return records
 
         except Exception as e:
@@ -189,7 +236,8 @@ class ZKBiometricDevice:
                 pass
             return []
 
-    def _get_attendance_records_cloud(self) -> List[Dict]:
+    def _get_attendance_records_cloud(self, allowed_user_ids: Optional[Set[str]] = None,
+                                      since_timestamp: Optional[datetime.datetime] = None) -> List[Dict]:
         """Get attendance records from ZK device via Cloud"""
         try:
             if not self.cloud_connector:
@@ -204,17 +252,35 @@ class ZKBiometricDevice:
 
             if response and response.get('success'):
                 records = response.get('records', [])
+                filtered_records = []
 
                 # Convert ISO timestamp strings back to datetime objects
                 for record in records:
+                    record_user_id = str(record.get('user_id', '')).strip()
+                    if allowed_user_ids is not None and record_user_id not in allowed_user_ids:
+                        continue
+
                     if 'timestamp' in record and isinstance(record['timestamp'], str):
                         try:
                             record['timestamp'] = datetime.datetime.fromisoformat(record['timestamp'])
                         except ValueError:
                             logger.warning(f"Invalid timestamp format: {record['timestamp']}")
 
-                logger.info(f"Retrieved {len(records)} attendance records from ZK device via Cloud")
-                return records
+                    record_timestamp = record.get('timestamp')
+                    if since_timestamp and isinstance(record_timestamp, datetime.datetime) and record_timestamp <= since_timestamp:
+                        continue
+
+                    record['user_id'] = record_user_id
+                    filtered_records.append(record)
+
+                if allowed_user_ids is not None or since_timestamp is not None:
+                    logger.info(
+                        f"Loaded {len(filtered_records)} filtered attendance records from ZK device via Cloud"
+                    )
+                else:
+                    logger.info(f"Retrieved {len(filtered_records)} attendance records from ZK device via Cloud")
+
+                return filtered_records
             else:
                 logger.error(f"Failed to get attendance records via Cloud: {response}")
                 return []
@@ -248,7 +314,8 @@ class ZKBiometricDevice:
 
         return punch_mapping.get(punch_code, 'check-in')  # Default to check-in
 
-    def get_new_attendance_records(self, since_timestamp: datetime.datetime = None) -> List[Dict]:
+    def get_new_attendance_records(self, since_timestamp: datetime.datetime = None,
+                                   allowed_user_ids: Optional[Iterable] = None) -> List[Dict]:
         """
         Get attendance records from ZK device since a specific timestamp
 
@@ -258,18 +325,14 @@ class ZKBiometricDevice:
         Returns:
             List of attendance records
         """
-        all_records = self.get_attendance_records()
+        all_records = self.get_attendance_records(
+            allowed_user_ids=allowed_user_ids,
+            since_timestamp=since_timestamp
+        )
 
         if since_timestamp is None:
             return all_records
-
-        # Filter records to only include those after the specified timestamp
-        new_records = []
-        for record in all_records:
-            if record['timestamp'] > since_timestamp:
-                new_records.append(record)
-
-        return new_records
+        return all_records
 
     def process_device_attendance_to_database(self, school_id: int = 1) -> Dict:
         """
@@ -289,16 +352,30 @@ class ZKBiometricDevice:
         }
 
         try:
-            # Get all attendance records from device
-            records = self.get_attendance_records()
+            # Get database connection and scope to this school's staff IDs.
+            db = get_db()
+            staff_rows = db.execute(
+                'SELECT staff_id FROM staff WHERE school_id = ? AND staff_id IS NOT NULL',
+                (school_id,)
+            ).fetchall()
+            allowed_staff_ids = {
+                str((row['staff_id'] if isinstance(row, dict) else row[0])).strip()
+                for row in staff_rows
+                if (row['staff_id'] if isinstance(row, dict) else row[0])
+            }
+
+            if not allowed_staff_ids:
+                result['message'] = f'No staff IDs configured for school {school_id}'
+                result['success'] = True
+                return result
+
+            # Fetch only records that can match this institution.
+            records = self.get_attendance_records(allowed_user_ids=allowed_staff_ids)
 
             if not records:
                 result['message'] = 'No attendance records found on device'
                 result['success'] = True
                 return result
-
-            # Get database connection
-            db = get_db()
 
             processed_count = 0
 
@@ -1299,8 +1376,24 @@ def sync_attendance_from_device(device_ip: str = '192.168.1.201', school_id: int
             result['message'] = 'Failed to connect to ZK device'
             return result
 
-        # Get attendance records
-        records = zk_device.get_attendance_records()
+        db = get_db()
+        staff_rows = db.execute(
+            'SELECT staff_id FROM staff WHERE school_id = ? AND staff_id IS NOT NULL',
+            (school_id,)
+        ).fetchall()
+        allowed_staff_ids = {
+            str((row['staff_id'] if isinstance(row, dict) else row[0])).strip()
+            for row in staff_rows
+            if (row['staff_id'] if isinstance(row, dict) else row[0])
+        }
+
+        if not allowed_staff_ids:
+            result['success'] = True
+            result['message'] = f'No staff IDs configured for school {school_id}'
+            return result
+
+        # Get only attendance records that can match this institution.
+        records = zk_device.get_attendance_records(allowed_user_ids=allowed_staff_ids)
         result['total_records'] = len(records)
 
         if not records:
@@ -1413,37 +1506,11 @@ class UnifiedAttendanceProcessor:
             staff = cursor.fetchone()
             
             if not staff:
-                # FIREWALL BLOCKED: Staff doesn't exist in this institution
-                result['message'] = f'Staff ID {user_id} not found in institution (school_id: {school_id})'
-                result['reason'] = 'institution_mismatch'
-                
-                self.logger.warning(
-                    f"🚫 FIREWALL BLOCKED: Staff ID '{user_id}' punched on device '{device_name}' "
-                    f"(Institution: {school_id}), but staff not found in that institution"
-                )
-                
-                # Validate biometric method for logging
-                valid_methods = ['fingerprint', 'face', 'card', 'password']
-                normalized_method = verification_method.lower() if verification_method else 'fingerprint'
-                if normalized_method not in valid_methods:
-                    normalized_method = 'fingerprint'
-                
-                # Log the blocked attempt for audit
-                cursor.execute('''
-                    INSERT INTO biometric_verifications
-                    (staff_id, school_id, verification_type, verification_time, 
-                     device_ip, biometric_method, verification_status, notes)
-                    VALUES (NULL, ?, ?, ?, ?, ?, 'failed', ?)
-                ''', (
-                    school_id,
-                    self._map_punch_to_verification_type(punch_code),
-                    timestamp,
-                    f'Device:{device_id}',
-                    normalized_method,
-                    f'Institution firewall: Staff {user_id} not in institution {school_id}'
-                ))
-                db.commit()
-                
+                # Ignore non-matching machine IDs. Process only IDs that exist in this institution.
+                result['success'] = True
+                result['action'] = 'ignored'
+                result['reason'] = 'unknown_staff'
+                result['message'] = f"Ignored unmapped staff ID '{user_id}' for institution {school_id}"
                 return result
             
             # Step 3: Staff validated - extract info

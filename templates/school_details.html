@@ -474,7 +474,7 @@
             font-weight: 600;
             color: #212529;
         }
-        
+
         .module-toggle-card small {
             color: #6c757d;
             font-size: 0.8rem;
@@ -597,11 +597,19 @@
             <nav class="col-md-2 d-none d-md-block enhanced-sidebar" id="sidebar-navigation" role="navigation" aria-label="School details navigation">
                 <div class="sidebar-header">
                     <div class="brand-logo">
+                        {% if school.branding_enabled and school.logo_path %}
+                        <img src="/{{ school.logo_path }}" alt="School Logo" class="institution-logo">
+                        {% else %}
                         <div class="logo-icon">
                             <i class="bi bi-building"></i>
                         </div>
+                        {% endif %}
                         <div class="brand-text">
+                            {% if school.branding_enabled and school.name %}
                             <h6 class="brand-title">{{ school.name }}</h6>
+                            {% else %}
+                            <h6 class="brand-title">VishnoRex</h6>
+                            {% endif %}
                             <small class="brand-subtitle">School Details</small>
                         </div>
                     </div>

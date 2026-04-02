@@ -2248,7 +2248,14 @@ def create_departments_table():
     try:
         db = get_db()
         cursor = db.cursor()
-        
+
+        # MySQL does not support SQLite's COLLATE NOCASE syntax here.
+        # If the table already exists, keep the current schema and avoid recreating it.
+        if _USE_MYSQL:
+            cursor.execute("SHOW TABLES LIKE 'departments'")
+            if cursor.fetchone():
+                return True
+
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS departments (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2259,7 +2266,7 @@ def create_departments_table():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (school_id) REFERENCES schools(id),
-            UNIQUE(school_id, department_name COLLATE NOCASE)
+            UNIQUE(school_id, department_name)
         )
         ''')
         
@@ -2300,12 +2307,16 @@ def initialize_default_departments(school_id):
             ('Security', 'Security and safety personnel')
         ]
         
-        # Insert default departments
+        # Insert default departments with explicit IDs to support legacy MySQL schemas.
+        cursor.execute('SELECT COALESCE(MAX(id), 0) FROM departments')
+        next_id = int(cursor.fetchone()[0] or 0) + 1
+
         for dept_name, description in default_departments:
             cursor.execute('''
-                INSERT INTO departments (school_id, department_name, description)
-                VALUES (?, ?, ?)
-            ''', (school_id, dept_name, description))
+                INSERT INTO departments (id, school_id, department_name, description)
+                VALUES (?, ?, ?, ?)
+            ''', (next_id, school_id, dept_name, description))
+            next_id += 1
         
         db.commit()
         print(f"Initialized {len(default_departments)} default departments for school_id {school_id}")
@@ -2403,10 +2414,12 @@ def add_department(name, description, school_id):
                 return {'success': False, 'message': 'Department already exists'}
         
         # Insert new department if it doesn't exist
+        cursor.execute('SELECT COALESCE(MAX(id), 0) FROM departments')
+        next_id = int(cursor.fetchone()[0] or 0) + 1
         cursor.execute('''
-            INSERT INTO departments (school_id, department_name, description)
-            VALUES (?, ?, ?)
-        ''', (school_id, name, description or ''))
+            INSERT INTO departments (id, school_id, department_name, description)
+            VALUES (?, ?, ?, ?)
+        ''', (next_id, school_id, name, description or ''))
         
         db.commit()
         
@@ -2483,6 +2496,11 @@ def create_positions_table():
     try:
         db = get_db()
         cursor = db.cursor()
+
+        if _USE_MYSQL:
+            cursor.execute("SHOW TABLES LIKE 'positions'")
+            if cursor.fetchone():
+                return True
         
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS positions (
@@ -2494,7 +2512,7 @@ def create_positions_table():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (school_id) REFERENCES schools(id),
-            UNIQUE(school_id, position_name COLLATE NOCASE)
+            UNIQUE(school_id, position_name)
         )
         ''')
         
@@ -2542,12 +2560,16 @@ def initialize_default_positions(school_id):
             ('Counselor', 'Student counseling and guidance')
         ]
         
-        # Insert default positions
+        # Insert default positions with explicit IDs to support legacy MySQL schemas.
+        cursor.execute('SELECT COALESCE(MAX(id), 0) FROM positions')
+        next_id = int(cursor.fetchone()[0] or 0) + 1
+
         for position_name, description in default_positions:
             cursor.execute('''
-                INSERT INTO positions (school_id, position_name, description)
-                VALUES (?, ?, ?)
-            ''', (school_id, position_name, description))
+                INSERT INTO positions (id, school_id, position_name, description)
+                VALUES (?, ?, ?, ?)
+            ''', (next_id, school_id, position_name, description))
+            next_id += 1
         
         db.commit()
         print(f"Initialized {len(default_positions)} default positions for school_id {school_id}")
@@ -2682,10 +2704,12 @@ def add_position(name, description, school_id):
                 return {'success': False, 'message': 'Position already exists'}
         
         # Insert new position if it doesn't exist
+        cursor.execute('SELECT COALESCE(MAX(id), 0) FROM positions')
+        next_id = int(cursor.fetchone()[0] or 0) + 1
         cursor.execute('''
-            INSERT INTO positions (school_id, position_name, description)
-            VALUES (?, ?, ?)
-        ''', (school_id, name, description or ''))
+            INSERT INTO positions (id, school_id, position_name, description)
+            VALUES (?, ?, ?, ?)
+        ''', (next_id, school_id, name, description or ''))
         
         db.commit()
         
@@ -2873,17 +2897,44 @@ def create_biometric_device(school_id, device_name, connection_type, ip_address=
         if connection_type == 'Agent_LAN' and not agent_id:
             return {'success': False, 'message': 'Agent ID is required for Agent LAN connection'}
         
-        # Check for duplicate device name in same institution
+        # school_id + device_name is UNIQUE in current MySQL schema.
+        # If a matching inactive row exists, revive it instead of failing insert.
         cursor.execute('''
-            SELECT id FROM biometric_devices 
-            WHERE school_id = ? AND device_name = ? AND is_active = 1
+            SELECT id, is_active FROM biometric_devices 
+            WHERE school_id = ? AND device_name = ?
+            LIMIT 1
         ''', (school_id, device_name))
-        
+
         existing = cursor.fetchone()
         if existing:
+            existing_id = existing[0]
+            existing_active = str(existing[1]) in ('1', 'true', 'True')
+
+            if existing_active:
+                return {
+                    'success': False,
+                    'message': f'Device name "{device_name}" already exists in this institution. Please use a different name (e.g., "{device_name} 2")'
+                }
+
+            cursor.execute('''
+                UPDATE biometric_devices
+                SET connection_type = ?,
+                    ip_address = ?,
+                    port = ?,
+                    serial_number = ?,
+                    agent_id = ?,
+                    is_active = 1,
+                    sync_status = 'pending',
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (connection_type, ip_address, port, serial_number, agent_id, existing_id))
+
+            db.commit()
+
             return {
-                'success': False, 
-                'message': f'Device name "{device_name}" already exists in this institution. Please use a different name (e.g., "{device_name} 2")'
+                'success': True,
+                'message': f'Device "{device_name}" reactivated successfully',
+                'device_id': existing_id
             }
         
         # Insert device
@@ -3162,17 +3213,32 @@ def create_biometric_agent(school_id, agent_name):
         db = get_db()
         cursor = db.cursor()
         
-        # Generate unique API key
-        api_key = secrets.token_urlsafe(48)
-        
-        # Insert agent
-        cursor.execute('''
-            INSERT INTO biometric_agents 
-            (school_id, agent_name, api_key, is_active)
-            VALUES (?, ?, ?, 1)
-        ''', (school_id, agent_name, api_key))
-        
-        agent_id = cursor.lastrowid
+        # Some deployed MySQL schemas have biometric_agents.id without AUTO_INCREMENT.
+        # Allocate explicit id with retries to survive concurrent inserts.
+        agent_id = None
+        api_key = None
+        for _ in range(3):
+            api_key = secrets.token_urlsafe(48)
+            cursor.execute('SELECT COALESCE(MAX(id), 0) + 1 FROM biometric_agents')
+            next_agent_id = int(cursor.fetchone()[0] or 1)
+
+            try:
+                cursor.execute('''
+                    INSERT INTO biometric_agents 
+                    (id, school_id, agent_name, api_key, is_active)
+                    VALUES (?, ?, ?, ?, 1)
+                ''', (next_agent_id, school_id, agent_name, api_key))
+                agent_id = next_agent_id
+                break
+            except Exception as insert_error:
+                # Retry only for duplicate primary key collisions during concurrent creates.
+                if 'Duplicate entry' in str(insert_error) and 'PRIMARY' in str(insert_error):
+                    continue
+                raise
+
+        if agent_id is None:
+            raise Exception('Could not allocate unique agent ID; please retry')
+
         db.commit()
         
         return {
@@ -3212,7 +3278,7 @@ def update_agent_heartbeat(api_key):
         cursor.execute('''
             UPDATE biometric_agents 
             SET last_heartbeat = ?, updated_at = ?
-            WHERE api_key = ? AND is_active = 1
+            WHERE api_key = ? AND is_active IN (1, '1')
         ''', (current_time, current_time, api_key))
         
         if cursor.rowcount == 0:
@@ -3259,7 +3325,7 @@ def verify_agent_api_key(api_key):
                s.name as school_name
         FROM biometric_agents a
         LEFT JOIN schools s ON a.school_id = s.id
-        WHERE a.api_key = ? AND a.is_active = 1
+        WHERE a.api_key = ? AND a.is_active IN (1, '1')
     ''', (api_key,))
     
     row = cursor.fetchone()
@@ -3285,7 +3351,7 @@ def deactivate_biometric_agent(agent_id, school_id):
         # Verify agent belongs to institution
         cursor.execute('''
             SELECT agent_name FROM biometric_agents 
-            WHERE id = ? AND school_id = ? AND is_active = 1
+            WHERE id = ? AND school_id = ? AND is_active IN (1, '1')
         ''', (agent_id, school_id))
         
         agent = cursor.fetchone()

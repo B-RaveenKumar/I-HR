@@ -73,7 +73,21 @@ from database import (
     get_attendance_config,
     set_attendance_config,
 )
-AUTO_SYNC_INTERVAL_MINUTES = int(get_system_setting('auto_sync_interval_minutes', 15))
+
+
+def _load_auto_sync_interval(default_minutes=15):
+    """Load auto-sync interval from system settings with safe fallback."""
+    try:
+        with app.app_context():
+            raw_value = get_system_setting('auto_sync_interval_minutes', default_minutes)
+        interval = int(raw_value)
+        return interval if interval > 0 else int(default_minutes)
+    except Exception as e:
+        logger.warning(f"Failed to load auto-sync interval from settings. Using default {default_minutes}: {e}")
+        return int(default_minutes)
+
+
+AUTO_SYNC_INTERVAL_MINUTES = _load_auto_sync_interval(15)
 
 # Helper function to get module settings for a school
 def get_module_enabled(school_id):
@@ -10488,7 +10502,7 @@ def company_dashboard():
 
     # Get all schools with timetable status
     schools = db.execute('''
-        SELECT s.id, s.name, s.address, s.contact_email, s.contact_phone,
+        SELECT s.id, s.name, s.address, s.contact_email, s.contact_phone, s.logo_path,
                COUNT(DISTINCT a.id) as admin_count,
                COUNT(DISTINCT st.id) as staff_count,
                COALESCE(ts.is_enabled, 0) as timetable_enabled
@@ -19417,91 +19431,173 @@ def get_agent_devices():
 # AUTOMATIC SYNC SCHEDULER
 ########################################
 
+def _parse_sync_timestamp(value):
+    """Parse DB timestamp values used for incremental sync windows."""
+    if not value:
+        return None
+    if isinstance(value, datetime.datetime):
+        return value
+    if isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S.%f'):
+            try:
+                return datetime.datetime.strptime(text, fmt)
+            except ValueError:
+                continue
+        try:
+            return datetime.datetime.fromisoformat(text)
+        except ValueError:
+            return None
+    return None
+
+
+def _get_school_staff_id_set(school_id):
+    """Return normalized staff IDs for a school for fast attendance filtering."""
+    db = get_db()
+    cursor = db.cursor()
+    cursor.execute('''
+        SELECT staff_id
+        FROM staff
+        WHERE school_id = ?
+          AND staff_id IS NOT NULL
+          AND TRIM(staff_id) <> ''
+    ''', (school_id,))
+    return {str(row[0]).strip() for row in cursor.fetchall() if row[0] and str(row[0]).strip()}
+
+
+def _format_system_time_display(value):
+    """Format a stored timestamp using the server/system local time representation."""
+    if not value:
+        return None
+
+    if isinstance(value, datetime.datetime):
+        dt_value = value
+    else:
+        text = str(value).strip()
+        if not text:
+            return None
+
+        dt_value = None
+        for fmt in ('%Y-%m-%d %H:%M:%S', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S.%f', '%Y-%m-%dT%H:%M:%S.%f'):
+            try:
+                dt_value = datetime.datetime.strptime(text, fmt)
+                break
+            except ValueError:
+                continue
+
+        if dt_value is None:
+            try:
+                dt_value = datetime.datetime.fromisoformat(text)
+            except ValueError:
+                return text
+
+    return dt_value.strftime('%-m/%-d/%Y, %-I:%M:%S %p') if os.name != 'nt' else dt_value.strftime('%#m/%#d/%Y, %#I:%M:%S %p')
+
 def auto_sync_direct_lan_devices():
     """Background job to automatically sync all Direct LAN devices"""
-    print("Starting automatic sync for Direct LAN devices...")
-    
+    logger.info("Starting automatic sync for Direct LAN devices")
+
     try:
-        db = get_db()
-        cursor = db.cursor()
-        
-        # Get all active Direct_LAN devices
-        cursor.execute("""
-            SELECT d.id, d.device_name, d.ip_address, d.port, d.school_id, s.name as school_name
-            FROM biometric_devices d
-            LEFT JOIN schools s ON d.school_id = s.id
-            WHERE d.is_active = 1 AND d.connection_type = 'Direct_LAN'
-        """)
-        
-        devices = cursor.fetchall()
-        print(f"Found {len(devices)} Direct LAN devices to sync")
-        
-        from database import update_device_sync_status
-        from zk_biometric import UnifiedAttendanceProcessor
-        
-        for device in devices:
-            device_id = device[0]
-            device_name = device[1]
-            ip_address = device[2]
-            port = device[3] or 4370
-            school_id = device[4]
-            school_name = device[5]
-            
-            try:
-                print(f"Syncing device: {device_name} ({ip_address}:{port}) - {school_name}")
-                
-                # Connect to device
-                zk_device = ZKBiometricDevice(ip_address, port)
-                
-                if zk_device.connect():
-                    # Get attendance records
-                    attendance_records = zk_device.get_attendance_records()
-                    
-                    if attendance_records:
-                        # Process records using UnifiedAttendanceProcessor
-                        processor = UnifiedAttendanceProcessor()
-                        
-                        # Convert records to format expected by processor
-                        punches = []
-                        for record in attendance_records:
-                            punches.append({
-                                'user_id': str(record['user_id']),
-                                'timestamp': record['timestamp'],
-                                'punch_code': record.get('punch', 0),
-                                'verification_method': record.get('verification_type', 'fingerprint')
-                            })
-                        
-                        results = processor.process_batch_punches(device_id, punches)
-                        
-                        print(f"Device {device_name}: Processed {results['processed']} records, "
-                              f"Rejected {results['rejected']}, Ignored {results.get('ignored', 0)}")
-                        
-                        # Update last sync time
+        with app.app_context():
+            db = get_db()
+            cursor = db.cursor()
+
+            # Get all active Direct_LAN devices
+            cursor.execute("""
+                SELECT d.id, d.device_name, d.ip_address, d.port, d.school_id, s.name as school_name, d.last_sync
+                FROM biometric_devices d
+                LEFT JOIN schools s ON d.school_id = s.id
+                WHERE d.is_active = 1 AND d.connection_type = 'Direct_LAN'
+            """)
+
+            devices = cursor.fetchall()
+            logger.info(f"Found {len(devices)} Direct LAN devices to sync")
+
+            from database import update_device_sync_status
+            from zk_biometric import UnifiedAttendanceProcessor
+
+            staff_id_cache = {}
+
+            for device in devices:
+                device_id = device[0]
+                device_name = device[1]
+                ip_address = device[2]
+                port = device[3] or 4370
+                school_id = device[4]
+                school_name = device[5]
+                last_sync = _parse_sync_timestamp(device[6])
+
+                try:
+                    logger.info(f"Syncing device: {device_name} ({ip_address}:{port}) - {school_name}")
+
+                    if school_id not in staff_id_cache:
+                        staff_id_cache[school_id] = _get_school_staff_id_set(school_id)
+                    allowed_staff_ids = staff_id_cache[school_id]
+
+                    if not allowed_staff_ids:
+                        logger.info(f"Skipping device {device_name}: no staff IDs configured for school {school_id}")
                         update_device_sync_status(device_id)
+                        continue
+
+                    # Connect to device
+                    zk_device = ZKBiometricDevice(ip_address, port)
+
+                    if zk_device.connect():
+                        # Get only records for this school's staff since last sync
+                        attendance_records = zk_device.get_attendance_records(
+                            allowed_user_ids=allowed_staff_ids,
+                            since_timestamp=last_sync
+                        )
+
+                        if attendance_records:
+                            # Process records using UnifiedAttendanceProcessor
+                            processor = UnifiedAttendanceProcessor()
+
+                            # Convert records to format expected by processor
+                            punches = []
+                            for record in attendance_records:
+                                punches.append({
+                                    'user_id': str(record['user_id']),
+                                    'timestamp': record['timestamp'],
+                                    'punch_code': record.get('punch', 0),
+                                    'verification_method': record.get('verification_type', 'fingerprint')
+                                })
+
+                            results = processor.process_batch_punches(device_id, punches)
+
+                            logger.info(
+                                f"Device {device_name}: Processed {results['processed']} records, "
+                                f"Rejected {results['rejected']}, Ignored {results.get('ignored', 0)}"
+                            )
+
+                            # Update last sync time
+                            update_device_sync_status(device_id)
+                        else:
+                            logger.info(f"No new attendance records for {device_name}")
+
+                        zk_device.disconnect()
                     else:
-                        print(f"No new attendance records for {device_name}")
-                    
-                    zk_device.disconnect()
-                else:
-                    print(f"Failed to connect to device {device_name} ({ip_address}:{port})")
+                        logger.error(f"Failed to connect to device {device_name} ({ip_address}:{port})")
+                        update_device_sync_status(device_id, sync_status='failed')
+
+                except Exception as e:
+                    logger.error(f"Error syncing device {device_name}: {str(e)}")
                     update_device_sync_status(device_id, sync_status='failed')
-                    
-            except Exception as e:
-                print(f"Error syncing device {device_name}: {str(e)}")
-                update_device_sync_status(device_id, sync_status='failed')
-                
-        db.commit()
-        print("Automatic sync completed")
-        
+
+            db.commit()
+            logger.info("Automatic sync completed")
+
     except Exception as e:
-        print(f"Error in auto_sync_direct_lan_devices: {str(e)}")
-    finally:
-        if 'db' in locals():
-            db.close()
+        logger.error(f"Error in auto_sync_direct_lan_devices: {str(e)}")
 
 # Schedule the sync job with configurable interval
 def schedule_auto_sync():
     """Schedule or reschedule the auto-sync job"""
+    global AUTO_SYNC_INTERVAL_MINUTES
+    AUTO_SYNC_INTERVAL_MINUTES = _load_auto_sync_interval(AUTO_SYNC_INTERVAL_MINUTES)
+
     scheduler.add_job(
         func=auto_sync_direct_lan_devices,
         trigger="interval",
@@ -19637,6 +19733,7 @@ def api_list_devices():
         
         devices = []
         for row in cursor.fetchall():
+            last_sync_display = _format_system_time_display(row[7]) if row[7] else None
             devices.append({
                 'id': row[0],
                 'device_name': row[1],
@@ -19646,6 +19743,7 @@ def api_list_devices():
                 'serial_number': row[5],
                 'sync_status': row[6],
                 'last_sync': row[7],
+                'last_sync_display': last_sync_display,
                 'school_id': row[8],
                 'school_name': row[9],
                 'agent_name': row[10]
@@ -19802,27 +19900,46 @@ def api_list_agents():
     
     try:
         school_id = session.get('school_id')
+        user_type = session.get('user_type')
         
         db = get_db()
         cursor = db.cursor()
         
-        # Get agents with device count
-        cursor.execute('''
-            SELECT 
-                a.id,
-                a.agent_name,
-                a.last_heartbeat,
-                a.is_active,
-                a.school_id,
-                s.name as school_name,
-                COUNT(d.id) as device_count
-            FROM biometric_agents a
-            LEFT JOIN schools s ON a.school_id = s.id
-            LEFT JOIN biometric_devices d ON d.agent_id = a.id AND d.is_active = 1
-            WHERE a.school_id = ? AND a.is_active = 1
-            GROUP BY a.id
-            ORDER BY a.agent_name
-        ''', (school_id,))
+        # Company admins can view all active agents; admins are scoped to own institution.
+        if user_type == 'company_admin':
+            cursor.execute('''
+                SELECT 
+                    a.id,
+                    a.agent_name,
+                    a.last_heartbeat,
+                    a.is_active,
+                    a.school_id,
+                    s.name as school_name,
+                    COUNT(d.id) as device_count
+                FROM biometric_agents a
+                LEFT JOIN schools s ON a.school_id = s.id
+                LEFT JOIN biometric_devices d ON d.agent_id = a.id AND d.is_active = 1
+                WHERE a.is_active IN (1, '1')
+                GROUP BY a.id
+                ORDER BY a.school_id, a.agent_name
+            ''')
+        else:
+            cursor.execute('''
+                SELECT 
+                    a.id,
+                    a.agent_name,
+                    a.last_heartbeat,
+                    a.is_active,
+                    a.school_id,
+                    s.name as school_name,
+                    COUNT(d.id) as device_count
+                FROM biometric_agents a
+                LEFT JOIN schools s ON a.school_id = s.id
+                LEFT JOIN biometric_devices d ON d.agent_id = a.id AND d.is_active = 1
+                WHERE a.school_id = ? AND a.is_active IN (1, '1')
+                GROUP BY a.id
+                ORDER BY a.agent_name
+            ''', (school_id,))
         
         agents = []
         for row in cursor.fetchall():
@@ -19875,7 +19992,7 @@ def api_sync_device(device_id):
         
         # Get device details
         cursor.execute("""
-            SELECT device_name, connection_type, ip_address, port, school_id, serial_number, agent_id
+            SELECT device_name, connection_type, ip_address, port, school_id, serial_number, agent_id, last_sync
             FROM biometric_devices
             WHERE id = ? AND school_id = ? AND is_active = 1
         """, (device_id, school_id))
@@ -19885,7 +20002,7 @@ def api_sync_device(device_id):
         if not device:
             return jsonify({'success': False, 'error': 'Device not found or access denied'}), 404
         
-        device_name, connection_type, ip_address, port, dev_school_id, serial_number, agent_id = device
+        device_name, connection_type, ip_address, port, dev_school_id, serial_number, agent_id, last_sync = device
         
         # Only Direct_LAN can be manually synced from web interface
         if connection_type != 'Direct_LAN':
@@ -19905,7 +20022,22 @@ def api_sync_device(device_id):
             }), 500
         
         try:
-            attendance_records = zk_device.get_attendance_records()
+            allowed_staff_ids = _get_school_staff_id_set(dev_school_id)
+            if not allowed_staff_ids:
+                zk_device.disconnect()
+                update_device_sync_status(device_id)
+                return jsonify({
+                    'success': True,
+                    'message': 'No staff IDs configured for this institution',
+                    'processed': 0,
+                    'inserted': 0,
+                    'rejected': 0
+                })
+
+            attendance_records = zk_device.get_attendance_records(
+                allowed_user_ids=allowed_staff_ids,
+                since_timestamp=_parse_sync_timestamp(last_sync)
+            )
             
             if not attendance_records:
                 zk_device.disconnect()
@@ -20386,6 +20518,7 @@ def api_deactivate_agent(agent_id):
     try:
         from database import deactivate_biometric_agent
         school_id = session.get('school_id')
+        user_type = session.get('user_type')
         
         # Verify ownership
         db = get_db()
@@ -20393,11 +20526,15 @@ def api_deactivate_agent(agent_id):
         cursor.execute('SELECT school_id FROM biometric_agents WHERE id = ?', (agent_id,))
         row = cursor.fetchone()
         
-        if not row or row[0] != school_id:
+        if not row:
+            return jsonify({'success': False, 'error': 'Agent not found or access denied'}), 404
+
+        target_school_id = row[0]
+        if user_type != 'company_admin' and target_school_id != school_id:
             return jsonify({'success': False, 'error': 'Agent not found or access denied'}), 404
         
         # Deactivate
-        result = deactivate_biometric_agent(agent_id, school_id)
+        result = deactivate_biometric_agent(agent_id, target_school_id)
         if not result.get('success'):
             return jsonify({'success': False, 'error': result.get('message', 'Unknown error')}), 500
         

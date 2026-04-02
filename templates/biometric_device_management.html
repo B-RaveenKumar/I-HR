@@ -1041,12 +1041,19 @@
                 <div class="device-card">
                     <div class="device-header">
                         <div>
-                            <div class="device-name">${device.device_name} <span style="color: white; font-size: 0.875rem;">(ID: ${device.id})</span></div>
+                            <div class="device-name">${device.device_name} <span class="badge bg-dark ms-2">ID: ${device.id}</span></div>
                             <span class="connection-badge conn-${device.connection_type.toLowerCase().replace('_', '-')}">${device.connection_type}</span>
                         </div>
                         <span class="device-status status-${device.sync_status || 'pending'}">${device.sync_status || 'Pending'}</span>
                     </div>
                     <div class="device-info">
+                        <div class="info-item">
+                            <i class="bi bi-hash"></i>
+                            <div>
+                                <div class="info-label">Device ID</div>
+                                <div class="info-value">${device.id}</div>
+                            </div>
+                        </div>
                         <div class="info-item">
                             <i class="bi bi-building"></i>
                             <div>
@@ -1085,7 +1092,7 @@
                             <i class="bi bi-clock-history"></i>
                             <div>
                                 <div class="info-label">Last Sync</div>
-                                <div class="info-value">${device.last_sync ? new Date(device.last_sync).toLocaleString() : 'Never'}</div>
+                                <div class="info-value">${device.last_sync_display || device.last_sync || 'Never'}</div>
                             </div>
                         </div>
                     </div>
