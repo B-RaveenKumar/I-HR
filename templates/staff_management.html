@@ -64,16 +64,25 @@
             padding-right: 0 !important;
         }
 
+        .mobile-top-navbar,
+        .sidebar-overlay {
+            display: none;
+        }
+
         /* MOBILE RESPONSIVE - Override external CSS */
         @media (max-width: 768px) {
+
+            :root {
+                --mobile-navbar-height: 64px;
+            }
 
             nav.enhanced-sidebar,
             .enhanced-sidebar {
                 position: fixed !important;
-                top: 0 !important;
+                top: var(--mobile-navbar-height) !important;
                 left: 0 !important;
                 width: 280px !important;
-                height: 100vh !important;
+                height: calc(100vh - var(--mobile-navbar-height)) !important;
                 overflow-y: auto !important;
                 transform: translateX(-100%) !important;
                 transition: transform 0.3s ease !important;
@@ -91,25 +100,75 @@
                 margin-left: 0 !important;
                 width: 100% !important;
                 padding: 1rem 0.5rem !important;
-                padding-top: 4rem !important;
+                padding-top: calc(var(--mobile-navbar-height) + 1rem) !important;
+            }
+
+            .mobile-top-navbar {
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                height: var(--mobile-navbar-height) !important;
+                z-index: 1101 !important;
+                display: flex !important;
+                align-items: center !important;
+                gap: 0.9rem !important;
+                padding: 0 1rem !important;
+                background: #1b5568 !important;
+                color: #ffffff !important;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
+            }
+
+            .mobile-navbar-school-name {
+                font-size: 1rem !important;
+                font-weight: 700 !important;
+                line-height: 1.2 !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                max-width: calc(100vw - 5.5rem) !important;
+            }
+
+            .sidebar-overlay {
+                position: fixed !important;
+                top: var(--mobile-navbar-height) !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                z-index: 1049 !important;
+                background: rgba(0, 0, 0, 0.5) !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                transition: opacity 0.25s ease !important;
+            }
+
+            .sidebar-overlay.active {
+                opacity: 1 !important;
+                pointer-events: all !important;
+            }
+
+            body.sidebar-open {
+                overflow: hidden !important;
             }
 
             .sidebar-toggle {
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                position: fixed !important;
-                top: 1rem !important;
-                left: 1rem !important;
-                z-index: 1100 !important;
-                background: #221e66 !important;
+                position: static !important;
+                z-index: auto !important;
+                background: rgba(255, 255, 255, 0.18) !important;
                 color: white !important;
-                border: none !important;
-                border-radius: 0.5rem !important;
-                padding: 0.75rem !important;
-                font-size: 1.25rem !important;
-                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2) !important;
-                transition: all 0.3s ease, opacity 0.2s ease-in-out !important;
+                border: 1px solid rgba(255, 255, 255, 0.18) !important;
+                border-radius: 0.85rem !important;
+                width: 3.1rem !important;
+                height: 3.1rem !important;
+                min-width: 3.1rem !important;
+                min-height: 3.1rem !important;
+                padding: 0 !important;
+                font-size: 1.15rem !important;
+                box-shadow: none !important;
+                transition: all 0.3s ease !important;
                 cursor: pointer !important;
                 opacity: 1 !important;
             }
@@ -117,21 +176,17 @@
             .sidebar-toggle:hover {
                 transform: translateY(-2px) !important;
                 box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
-                background: #221e66 !important;
-            }
-        }
-
-        /* Show toggle button on mobile AND tablet/laptop views */
-        @media (max-width: 1024px) {
-            .sidebar-toggle {
-                display: flex !important;
-                align-items: center !important;
-                justify-content: center !important;
+                background: rgba(255, 255, 255, 0.24) !important;
             }
         }
 
         /* DESKTOP - Ensure sidebar is always visible and fixed */
         @media (min-width: 1025px) {
+
+            .mobile-top-navbar,
+            .sidebar-overlay {
+                display: none !important;
+            }
 
             nav.enhanced-sidebar,
             .enhanced-sidebar {
@@ -289,11 +344,21 @@
         });
     </script>
 
-    <!-- Mobile Sidebar Toggle -->
-    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false"
-        aria-controls="enhanced-sidebar">
-        <i class="bi bi-list"></i>
-    </button>
+    <!-- Mobile Top Navbar -->
+    <div class="mobile-top-navbar" role="banner">
+        <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu"
+            aria-expanded="false" aria-controls="enhanced-sidebar" aria-label="Toggle sidebar menu">
+            <i class="bi bi-list"></i>
+        </button>
+        <span class="mobile-navbar-school-name">
+            {% if institution.branding_enabled and institution.name %}
+            {{ institution.name }}
+            {% else %}
+            VishnoRex
+            {% endif %}
+        </span>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
     <div class="container-fluid">
         <div class="row">
@@ -1521,176 +1586,90 @@
         document.addEventListener('DOMContentLoaded', function () {
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidebar = document.getElementById('enhanced-sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
 
-            console.log('🔧 STAFF MANAGEMENT: Fixed sidebar initialization...');
-            console.log('Toggle element found:', !!sidebarToggle);
-            console.log('Sidebar element found:', !!sidebar);
-
-            // Force sidebar visibility and positioning
-            function initializeSidebar() {
-                if (sidebar) {
-                    // Remove any conflicting inline styles
-                    sidebar.removeAttribute('style');
-
-                    // Force fixed positioning
-                    sidebar.style.cssText = `
-                        position: fixed !important;
-                        top: 0 !important;
-                        left: 0 !important;
-                        width: 250px !important;
-                        height: 100vh !important;
-                        z-index: 1000 !important;
-                        display: block !important;
-                        overflow-y: auto !important;
-                        background: #164e63!important;
-                        box-shadow: 2px 0 10px rgba(0, 0, 0, 0.1) !important;
-                    `;
-
-                    console.log('✅ Fixed sidebar positioning applied');
+            function setSidebarOpen(isOpen) {
+                if (!sidebar || !sidebarToggle) {
+                    return;
                 }
-            }
 
-            // Initialize immediately
-            initializeSidebar();
-
-            let sidebarVisible = false;
-
-            // Intelligent toggle sidebar function
-            function toggleSidebar() {
-                if (sidebarVisible) {
-                    // Hide sidebar
-                    sidebar.classList.remove('show');
-                    sidebar.style.transform = 'translateX(-100%)';
-                    sidebarVisible = false;
-
-                    // Update toggle button icon and make it reappear
-                    sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
-                    sidebarToggle.setAttribute('aria-expanded', 'false');
-                    sidebarToggle.setAttribute('title', 'Show sidebar menu');
-
-                    // Intelligent button reappearing - show toggle button when sidebar closes
-                    setTimeout(() => {
-                        sidebarToggle.style.display = 'flex';
-                        sidebarToggle.style.opacity = '1';
-                    }, 100);
-
-                    console.log('✅ Sidebar hidden with intelligent toggle');
-                } else {
-                    // Show sidebar
+                if (isOpen) {
                     sidebar.classList.add('show');
-                    sidebar.style.transform = 'translateX(0)';
-                    sidebarVisible = true;
-
-                    // Update toggle button icon
+                    document.body.classList.add('sidebar-open');
                     sidebarToggle.innerHTML = '<i class="bi bi-x"></i>';
                     sidebarToggle.setAttribute('aria-expanded', 'true');
                     sidebarToggle.setAttribute('title', 'Hide sidebar menu');
-
-                    // Intelligent button hiding - hide toggle button when sidebar opens for clean UI
-                    setTimeout(() => {
-                        sidebarToggle.style.opacity = '0';
-                        setTimeout(() => {
-                            sidebarToggle.style.display = 'none';
-                        }, 200);
-                    }, 500);
-
-                    console.log('✅ Sidebar shown with intelligent toggle');
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.add('active');
+                    }
+                } else {
+                    sidebar.classList.remove('show');
+                    document.body.classList.remove('sidebar-open');
+                    sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                    sidebarToggle.setAttribute('title', 'Toggle sidebar menu');
+                    if (sidebarOverlay) {
+                        sidebarOverlay.classList.remove('active');
+                    }
                 }
             }
 
-            // Mobile/Tablet/Laptop toggle functionality
+            function initializeSidebar() {
+                if (!sidebar) {
+                    return;
+                }
+
+                sidebar.removeAttribute('style');
+                document.body.classList.remove('sidebar-open');
+                if (sidebarOverlay) {
+                    sidebarOverlay.classList.remove('active');
+                }
+
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('show');
+                    sidebar.style.transform = 'translateX(-100%)';
+                    if (sidebarToggle) {
+                        sidebarToggle.style.display = 'flex';
+                        sidebarToggle.style.opacity = '1';
+                        sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                        sidebarToggle.setAttribute('aria-expanded', 'false');
+                    }
+                } else {
+                    sidebar.classList.remove('show');
+                    sidebar.style.transform = 'translateX(0)';
+                    if (sidebarToggle) {
+                        sidebarToggle.style.display = 'none';
+                        sidebarToggle.style.opacity = '0';
+                        sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
+                        sidebarToggle.setAttribute('aria-expanded', 'false');
+                    }
+                }
+            }
+
+            initializeSidebar();
+
             if (sidebarToggle && sidebar) {
                 sidebarToggle.addEventListener('click', function (e) {
                     e.preventDefault();
                     e.stopPropagation();
-
-                    console.log('🔄 STAFF MANAGEMENT - Intelligent toggle clicked!');
-
-                    if (window.innerWidth <= 1024) {
-                        toggleSidebar();
-                    }
+                    setSidebarOpen(!sidebar.classList.contains('show'));
                 });
 
-                // Close sidebar when clicking outside on mobile/tablet/laptop
-                document.addEventListener('click', function (event) {
-                    if (window.innerWidth <= 1024 && sidebarVisible) {
-                        const isClickInsideSidebar = sidebar.contains(event.target);
-                        const isClickOnToggle = sidebarToggle.contains(event.target);
-
-                        if (!isClickInsideSidebar && !isClickOnToggle) {
-                            // Close sidebar and intelligently show toggle button
-                            sidebar.classList.remove('show');
-                            sidebar.style.transform = 'translateX(-100%)';
-                            sidebarVisible = false;
-
-                            // Update toggle button and make it reappear
-                            sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
-                            sidebarToggle.setAttribute('aria-expanded', 'false');
-                            sidebarToggle.setAttribute('title', 'Show sidebar menu');
-
-                            // Intelligent button reappearing
-                            setTimeout(() => {
-                                sidebarToggle.style.display = 'flex';
-                                sidebarToggle.style.opacity = '1';
-                            }, 100);
-
-                            console.log('Sidebar closed by outside click with intelligent toggle');
-                        }
-                    }
-                });
-
-                // Handle window resize
-                window.addEventListener('resize', function () {
-                    console.log('Window resized - reinitializing sidebar');
-                    initializeSidebar();
-
-                    if (window.innerWidth > 1024) {
-                        // Desktop: ensure sidebar is visible and positioned, reset toggle state
-                        sidebar.classList.remove('show');
-                        sidebar.style.transform = 'translateX(0)';
-                        sidebarVisible = false;
-                        sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
-                        sidebarToggle.setAttribute('aria-expanded', 'false');
-                        sidebarToggle.setAttribute('title', 'Toggle sidebar menu');
-
-                        // Reset toggle button visibility for desktop
-                        sidebarToggle.style.display = 'none';
-                        sidebarToggle.style.opacity = '0';
-
-                        console.log('Desktop mode - sidebar fixed, toggle hidden');
-                    } else {
-                        // Mobile/Tablet/Laptop: hide sidebar by default and show toggle
-                        sidebar.style.transform = 'translateX(-100%)';
-                        sidebarVisible = false;
-
-                        // Ensure toggle button is visible when sidebar is closed
-                        if (!sidebarVisible) {
-                            sidebarToggle.style.display = 'flex';
-                            sidebarToggle.style.opacity = '1';
-                        }
-
-                        console.log('Mobile/Tablet mode - sidebar hidden, toggle visible');
-                    }
-                });
-
-                // Initial state based on screen size
-                if (window.innerWidth <= 1024) {
-                    sidebar.style.transform = 'translateX(-100%)';
-                    sidebarVisible = false;
-                    sidebarToggle.style.display = 'flex';
-                    sidebarToggle.style.opacity = '1';
-                    console.log('Initial mobile/tablet state - sidebar hidden, toggle visible');
-                } else {
-                    sidebar.style.transform = 'translateX(0)';
-                    sidebarVisible = false;
-                    sidebarToggle.style.display = 'none';
-                    sidebarToggle.style.opacity = '0';
-                    console.log('Initial desktop state - sidebar visible, toggle hidden');
+                if (sidebarOverlay) {
+                    sidebarOverlay.addEventListener('click', function () {
+                        setSidebarOpen(false);
+                    });
                 }
 
-                console.log('✅ STAFF MANAGEMENT fixed sidebar initialized successfully');
-            } else {
-                console.error('❌ Toggle button or sidebar not found!');
+                sidebar.querySelectorAll('.nav-link').forEach(function (link) {
+                    link.addEventListener('click', function () {
+                        if (window.innerWidth <= 768) {
+                            setSidebarOpen(false);
+                        }
+                    });
+                });
+
+                window.addEventListener('resize', initializeSidebar);
             }
         });
 
