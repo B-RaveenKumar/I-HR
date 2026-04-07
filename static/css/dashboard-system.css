@@ -88,6 +88,10 @@
     pointer-events: all;
 }
 
+.mobile-top-navbar {
+    display: none;
+}
+
 /* ==========================================================================
    ENHANCED DASHBOARD GRID
    ========================================================================== */
@@ -413,15 +417,64 @@
    ========================================================================== */
 
 @media (max-width: 768px) {
+    :root {
+        --mobile-navbar-height: 3.5rem;
+    }
+
+    .mobile-top-navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: var(--mobile-navbar-height);
+        background: #221e66;
+        color: var(--white);
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        padding: 0 var(--space-3);
+        z-index: calc(var(--z-modal) + 2);
+        box-shadow: var(--shadow-md);
+    }
+
     .nav-toggle {
         display: flex;
         align-items: center;
         justify-content: center;
+        position: static;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: var(--radius-lg);
+        box-shadow: none;
+        border-color: rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.15);
+        z-index: auto;
+        flex-shrink: 0;
+    }
+
+    .nav-toggle-icon,
+    .nav-toggle-icon::before,
+    .nav-toggle-icon::after {
+        background: var(--white);
+    }
+
+    .mobile-navbar-school-name {
+        font-size: var(--font-size-sm);
+        font-weight: 600;
+        line-height: 1.2;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: calc(100vw - 5.5rem);
+    }
+
+    .sidebar-overlay {
+        top: var(--mobile-navbar-height);
     }
     
     .dashboard-container {
         padding: var(--space-4);
-        padding-top: calc(var(--space-16) + var(--space-4)); /* Account for nav toggle */
+        padding-top: calc(var(--mobile-navbar-height) + var(--space-4));
     }
     
     .dashboard-grid {
@@ -502,7 +555,7 @@
 @media (max-width: 480px) {
     .dashboard-container {
         padding: var(--space-3);
-        padding-top: calc(var(--space-12) + var(--space-4));
+        padding-top: calc(var(--mobile-navbar-height) + var(--space-3));
     }
 
     .dashboard-grid {
@@ -520,9 +573,9 @@
 }
 
 @media (max-width: 320px) {
-    .nav-toggle {
-        top: var(--space-2);
-        left: var(--space-2);
+    .mobile-top-navbar {
+        padding-left: var(--space-2);
+        padding-right: var(--space-2);
     }
 
     .stat-value {

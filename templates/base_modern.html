@@ -54,10 +54,21 @@
     <a href="#main-content" class="sr-only focus-visible">Skip to main content</a>
     
     {% block body_content %}
-    <!-- Mobile Navigation Toggle -->
-    <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation menu" aria-expanded="false">
-        <div class="nav-toggle-icon" aria-hidden="true"></div>
-    </button>
+    <!-- Mobile Top Navbar -->
+    <div class="mobile-top-navbar" role="banner">
+        <button class="nav-toggle" id="navToggle" aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="modernSidebar">
+            <div class="nav-toggle-icon" aria-hidden="true"></div>
+        </button>
+        <span class="mobile-navbar-school-name">
+            {% block mobile_navbar_title %}
+                {% if institution is defined and institution and institution.branding_enabled and institution.name %}
+                    {{ institution.name }}
+                {% else %}
+                    VishnoRex
+                {% endif %}
+            {% endblock %}
+        </span>
+    </div>
     
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
@@ -299,6 +310,15 @@
                 // Close sidebar when clicking overlay
                 overlay.addEventListener('click', function() {
                     closeSidebar();
+                });
+
+                // Close sidebar after selecting a menu item on mobile.
+                sidebar.querySelectorAll('.nav-link').forEach(function(link) {
+                    link.addEventListener('click', function() {
+                        if (window.innerWidth <= 768) {
+                            closeSidebar();
+                        }
+                    });
                 });
                 
                 // Close sidebar when pressing Escape key

@@ -695,9 +695,11 @@ body.sidebar-open {
 /* Mobile sidebar */
 @media (max-width: 768px) {
     .modern-sidebar {
+        top: var(--mobile-navbar-height, 3.5rem);
         transform: translateX(-100%);
         width: 100%;
         max-width: 320px;
+        height: calc(100vh - var(--mobile-navbar-height, 3.5rem));
         z-index: var(--z-modal);
     }
     
@@ -708,6 +710,7 @@ body.sidebar-open {
     .main-content {
         margin-left: 0;
         width: 100%;
+        padding-top: var(--mobile-navbar-height, 3.5rem);
     }
     
     .content-header {

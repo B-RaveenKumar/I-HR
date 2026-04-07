@@ -32,6 +32,10 @@
             flex-wrap: nowrap;
         }
 
+        :root {
+            --mobile-navbar-height: 64px;
+        }
+
         /* Sidebar positioning */
         .enhanced-sidebar {
             position: fixed !important;
@@ -66,39 +70,75 @@
         }
 
         /* Mobile and tablet responsive fixes */
-        @media (max-width: 991.98px) {
+        @media (max-width: 768px) {
             .enhanced-sidebar {
                 position: fixed !important;
-                top: 0;
+                top: var(--mobile-navbar-height);
                 left: -100%;
                 width: 280px;
-                height: 100vh;
+                height: calc(100vh - var(--mobile-navbar-height));
                 overflow: hidden !important;
                 transition: left 0.3s ease;
                 z-index: 1050;
-                display: none !important;
-                /* Hidden by default on mobile */
+                display: block !important;
             }
 
             .enhanced-sidebar.show {
                 left: 0;
-                display: block !important;
             }
 
             .salary-main-content {
                 margin-left: 0 !important;
                 width: 100% !important;
                 padding: 1rem 0.5rem;
-                padding-top: 4rem;
-                /* Account for mobile toggle button */
+                padding-top: calc(var(--mobile-navbar-height) + 1rem);
+            }
+
+            .mobile-top-navbar {
+                display: flex;
             }
 
             .sidebar-toggle {
-                display: block !important;
+                display: flex !important;
+                position: static;
+                min-width: 40px;
+                min-height: 40px;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                background: rgba(255, 255, 255, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.4);
+                border-radius: 8px;
+                color: #ffffff;
+                font-size: 1.25rem;
             }
         }
 
-        /* Ensure sidebar toggle is properly styled */
+        .mobile-top-navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: var(--mobile-navbar-height);
+            z-index: 1101;
+            display: none;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0 0.75rem;
+            background: #221e66;
+            color: #ffffff;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .mobile-navbar-school-name {
+            font-size: 0.95rem;
+            font-weight: 600;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: calc(100vw - 5rem);
+        }
+
         .sidebar-toggle {
             position: fixed;
             top: 1rem;
@@ -113,9 +153,38 @@
             display: none;
         }
 
-        @media (min-width: 992px) {
+        .sidebar-overlay {
+            position: fixed;
+            top: var(--mobile-navbar-height);
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: 1049;
+            background: rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.25s ease;
+        }
+
+        .sidebar-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+
+        body.sidebar-open {
+            overflow: hidden;
+        }
+
+        @media (min-width: 769px) {
+            .mobile-top-navbar,
+            .sidebar-overlay,
+            body.sidebar-open .sidebar-overlay,
             .sidebar-toggle {
                 display: none !important;
+            }
+
+            body.sidebar-open {
+                overflow: auto;
             }
         }
 
@@ -185,11 +254,21 @@
         });
     </script>
 
-    <!-- Mobile Sidebar Toggle -->
-    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false"
-        aria-controls="enhanced-sidebar">
-        <i class="bi bi-list"></i>
-    </button>
+    <!-- Mobile Top Navbar -->
+    <div class="mobile-top-navbar" role="banner">
+        <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false"
+            aria-controls="enhanced-sidebar" aria-label="Toggle sidebar menu">
+            <i class="bi bi-list"></i>
+        </button>
+        <span class="mobile-navbar-school-name">
+            {% if institution.branding_enabled and institution.name %}
+            {{ institution.name }}
+            {% else %}
+            VishnoRex
+            {% endif %}
+        </span>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
     <div class="container-fluid">
         <div class="row">
@@ -1173,18 +1252,42 @@
         document.addEventListener('DOMContentLoaded', function () {
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidebar = document.getElementById('enhanced-sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
 
-            // Show fixed sidebar on desktop, off-canvas on mobile/tablet
+            function openSidebar() {
+                sidebar.classList.add('show');
+                document.body.classList.add('sidebar-open');
+                if (sidebarOverlay) {
+                    sidebarOverlay.classList.add('active');
+                    sidebarOverlay.setAttribute('aria-hidden', 'false');
+                }
+                if (sidebarToggle) {
+                    sidebarToggle.setAttribute('aria-expanded', 'true');
+                }
+            }
+
+            function closeSidebar() {
+                sidebar.classList.remove('show');
+                document.body.classList.remove('sidebar-open');
+                if (sidebarOverlay) {
+                    sidebarOverlay.classList.remove('active');
+                    sidebarOverlay.setAttribute('aria-hidden', 'true');
+                }
+                if (sidebarToggle) {
+                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                }
+            }
+
+            // Show fixed sidebar on desktop/tablet, off-canvas on mobile
             function updateSidebarVisibility() {
-                if (window.innerWidth >= 992) {
+                if (window.innerWidth > 768) {
                     sidebar.style.display = 'block';
-                    sidebar.classList.remove('show');
+                    sidebar.style.left = '0';
+                    closeSidebar();
                 } else {
                     sidebar.style.display = 'block';
-                    sidebar.classList.remove('show');
-                    if (sidebarToggle) {
-                        sidebarToggle.setAttribute('aria-expanded', 'false');
-                    }
+                    sidebar.style.left = '';
+                    closeSidebar();
                 }
             }
 
@@ -1194,21 +1297,34 @@
             if (sidebarToggle && sidebar) {
                 sidebarToggle.addEventListener('click', function (e) {
                     e.preventDefault();
-                    sidebar.classList.toggle('show');
+                    if (window.innerWidth > 768) {
+                        return;
+                    }
 
-                    // Update aria-expanded for accessibility
-                    const expanded = sidebar.classList.contains('show');
-                    sidebarToggle.setAttribute('aria-expanded', expanded);
-
+                    if (sidebar.classList.contains('show')) {
+                        closeSidebar();
+                    } else {
+                        openSidebar();
+                    }
                 });
 
-                // Close sidebar when clicking outside on mobile/tablet
-                document.addEventListener('click', function (event) {
-                    if (window.innerWidth <= 991.98) {
-                        if (!sidebar.contains(event.target) && !sidebarToggle.contains(event.target)) {
-                            sidebar.classList.remove('show');
-                            sidebarToggle.setAttribute('aria-expanded', 'false');
+                if (sidebarOverlay) {
+                    sidebarOverlay.addEventListener('click', function () {
+                        closeSidebar();
+                    });
+                }
+
+                sidebar.querySelectorAll('.nav-link').forEach(function (link) {
+                    link.addEventListener('click', function () {
+                        if (window.innerWidth <= 768) {
+                            closeSidebar();
                         }
+                    });
+                });
+
+                document.addEventListener('keydown', function (event) {
+                    if (event.key === 'Escape' && window.innerWidth <= 768) {
+                        closeSidebar();
                     }
                 });
 
@@ -1409,7 +1525,7 @@
 
         // Then refresh every 30 seconds
         setInterval(refreshDashboardData, 30000);
-        console.log('✓ Auto-refresh enabled: Dashboard will update every 30 seconds');
+        console.log('âœ“ Auto-refresh enabled: Dashboard will update every 30 seconds');
     </script>
 
     <!-- Chart.js for Attendance Graph Modal -->
@@ -1548,6 +1664,9 @@
             });
         }
     </script>
+    <script src="{{ url_for('static', filename='js/mobile_sidebar_navbar.js') }}"></script>
 </body>
 
 </html>
+
+

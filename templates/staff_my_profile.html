@@ -680,6 +680,111 @@
                 font-size: 0.58rem;
             }
 
+
+        body.legacy-mobile-navbar-ready .mobile-top-navbar {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            body.legacy-mobile-navbar-ready .mobile-top-navbar {
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: var(--mobile-navbar-height, 64px);
+                display: flex;
+                align-items: center;
+                gap: 0.9rem;
+                padding: 0 1rem;
+                z-index: 1101;
+                background: #1b5568;
+                color: #ffffff;
+                box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+            }
+
+            body.legacy-mobile-navbar-ready .mobile-navbar-school-name {
+                font-size: 1rem;
+                font-weight: 700;
+                line-height: 1.2;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                max-width: calc(100vw - 5.5rem);
+            }
+
+            body.legacy-mobile-navbar-ready .sidebar-toggle {
+                position: static !important;
+                top: auto !important;
+                left: auto !important;
+                display: flex !important;
+                width: 3.1rem;
+                height: 3.1rem;
+                min-width: 3.1rem;
+                min-height: 3.1rem;
+                align-items: center;
+                justify-content: center;
+                padding: 0;
+                border-radius: 0.85rem;
+                border: 1px solid rgba(255, 255, 255, 0.18);
+                background: rgba(255, 255, 255, 0.18);
+                color: #ffffff;
+                box-shadow: none;
+                z-index: auto !important;
+                font-size: 1.15rem;
+                flex-shrink: 0;
+            }
+
+            body.legacy-mobile-navbar-ready .sidebar-overlay {
+                position: fixed;
+                top: var(--mobile-navbar-height, 64px);
+                left: 0;
+                right: 0;
+                bottom: 0;
+                z-index: 1049;
+                background: rgba(0, 0, 0, 0.5);
+                opacity: 0;
+                pointer-events: none;
+                transition: opacity 0.25s ease;
+            }
+
+            body.legacy-mobile-navbar-ready .sidebar-overlay.active {
+                opacity: 1;
+                pointer-events: all;
+            }
+
+            body.legacy-mobile-navbar-ready .enhanced-sidebar {
+                top: var(--mobile-navbar-height, 64px) !important;
+                left: -100% !important;
+                height: calc(100vh - var(--mobile-navbar-height, 64px)) !important;
+                display: block !important;
+                z-index: 1050 !important;
+            }
+
+            body.legacy-mobile-navbar-ready .enhanced-sidebar.show {
+                left: 0 !important;
+            }
+
+            body.legacy-mobile-navbar-ready .salary-main-content {
+                margin-left: 0 !important;
+                width: 100% !important;
+                padding-top: calc(var(--mobile-navbar-height, 64px) + 1rem) !important;
+            }
+
+            body.legacy-mobile-navbar-ready.sidebar-open {
+                overflow: hidden;
+            }
+        }
+
+        @media (min-width: 769px) {
+            body.legacy-mobile-navbar-ready .mobile-top-navbar,
+            body.legacy-mobile-navbar-ready .sidebar-overlay {
+                display: none !important;
+            }
+
+            body.legacy-mobile-navbar-ready.sidebar-open {
+                overflow: auto;
+            }
+        }
             .attendance-chart-wrap {
                 height: 185px;
             }
@@ -1001,10 +1106,20 @@
         </div>
     </div>
 
-    <!-- 🎯 UNIVERSAL SIDEBAR TOGGLE - Works on Mobile, Tablet & Laptop -->
-    <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu">
-        <i class="bi bi-list"></i>
-    </button>
+    <!-- Mobile Top Navbar -->
+    <div class="mobile-top-navbar" role="banner">
+        <button type="button" class="sidebar-toggle" id="sidebarToggle" title="Toggle sidebar menu" aria-expanded="false" aria-controls="enhanced-sidebar" aria-label="Toggle sidebar menu">
+            <i class="bi bi-list"></i>
+        </button>
+        <span class="mobile-navbar-school-name">
+            {% if institution.branding_enabled and institution.name %}
+            {{ institution.name }}
+            {% else %}
+            VishnoRex
+            {% endif %}
+        </span>
+    </div>
+    <div class="sidebar-overlay" id="sidebarOverlay" aria-hidden="true"></div>
 
     <div class="container-fluid">
         <div class="row">
@@ -3081,112 +3196,6 @@
     </script>
     <script src="{{ url_for('static', filename='js/weekly_calendar.js') }}"></script>
     <script src="{{ url_for('static', filename='js/staff_profile_page.js') }}"></script>
-    
-    <!-- 🎯 UNIVERSAL SIDEBAR TOGGLE FUNCTIONALITY -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const sidebarToggle = document.getElementById('sidebarToggle');
-            const sidebar = document.querySelector('.enhanced-sidebar');
-            const mainContent = document.querySelector('.salary-main-content');
-            let sidebarVisible = false;
-            
-            // Toggle sidebar function with intelligent button hiding
-            function toggleSidebar() {
-                if (sidebarVisible) {
-                    // Hide sidebar
-                    sidebar.classList.remove('show');
-                    sidebar.style.left = '-100%';
-                    sidebarVisible = false;
-                    
-                    // Update toggle button icon and show it
-                    sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
-                    sidebarToggle.setAttribute('title', 'Show sidebar menu');
-                    
-                    // Intelligent button reappearing - show toggle button when sidebar closes
-                    setTimeout(() => {
-                        sidebarToggle.style.display = 'flex';
-                        sidebarToggle.style.opacity = '1';
-                    }, 100);
-                } else {
-                    // Show sidebar
-                    sidebar.classList.add('show');
-                    sidebar.style.left = '0';
-                    sidebarVisible = true;
-                    
-                    // Update toggle button icon
-                    sidebarToggle.innerHTML = '<i class="bi bi-x"></i>';
-                    sidebarToggle.setAttribute('title', 'Hide sidebar menu');
-                    
-                    // Intelligent button hiding - hide toggle button when sidebar opens for clean UI
-                    setTimeout(() => {
-                        sidebarToggle.style.opacity = '0';
-                        setTimeout(() => {
-                            sidebarToggle.style.display = 'none';
-                        }, 200);
-                    }, 500);
-                }
-            }
-            
-            // Add click event listener to toggle button
-            if (sidebarToggle) {
-                sidebarToggle.addEventListener('click', toggleSidebar);
-            }
-            
-            // Close sidebar when clicking outside on mobile/tablet
-            document.addEventListener('click', function(event) {
-                if (window.innerWidth <= 1024 && sidebarVisible) {
-                    const isClickInsideSidebar = sidebar.contains(event.target);
-                    const isClickOnToggle = sidebarToggle.contains(event.target);
-                    
-                    if (!isClickInsideSidebar && !isClickOnToggle) {
-                        // Close sidebar and intelligently show toggle button
-                        sidebar.classList.remove('show');
-                        sidebar.style.left = '-100%';
-                        sidebarVisible = false;
-                        
-                        // Update toggle button and make it reappear
-                        sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
-                        sidebarToggle.setAttribute('title', 'Show sidebar menu');
-                        
-                        // Intelligent button reappearing
-                        setTimeout(() => {
-                            sidebarToggle.style.display = 'flex';
-                            sidebarToggle.style.opacity = '1';
-                        }, 100);
-                    }
-                }
-            });
-            
-            // Handle window resize
-            window.addEventListener('resize', function() {
-                if (window.innerWidth > 1024) {
-                    // On desktop, reset sidebar to default state
-                    sidebar.classList.remove('show');
-                    sidebar.style.left = '';
-                    sidebarVisible = false;
-                    sidebarToggle.innerHTML = '<i class="bi bi-list"></i>';
-                    sidebarToggle.setAttribute('title', 'Toggle sidebar menu');
-                    
-                    // Reset toggle button visibility for desktop
-                    sidebarToggle.style.display = 'none';
-                    sidebarToggle.style.opacity = '0';
-                } else {
-                    // On mobile/tablet, ensure toggle button is visible when sidebar is closed
-                    if (!sidebarVisible) {
-                        sidebarToggle.style.display = 'flex';
-                        sidebarToggle.style.opacity = '1';
-                    }
-                }
-            });
-            
-            // Initialize sidebar state based on screen size
-            if (window.innerWidth <= 1024) {
-                sidebar.style.left = '-100%';
-                sidebarVisible = false;
-            }
-        });
-    </script>
-
     <script>
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
@@ -3197,5 +3206,6 @@
             });
         }
     </script>
+    <script src="{{ url_for('static', filename='js/mobile_sidebar_navbar.js') }}"></script>
 </body>
 </html>
