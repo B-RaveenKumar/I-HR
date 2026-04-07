@@ -357,6 +357,7 @@
 .filter-group .form-label {
     font-weight: 500;
     color: var(--salary-dark);
+    color: #164e63;
     margin-bottom: 0.5rem;
     display: flex;
     align-items: center;

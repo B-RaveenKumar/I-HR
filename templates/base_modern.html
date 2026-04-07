@@ -266,43 +266,52 @@
             const navToggle = document.getElementById('navToggle');
             const sidebar = document.getElementById('modernSidebar');
             const overlay = document.getElementById('sidebarOverlay');
+
+            function openSidebar() {
+                sidebar.classList.add('open');
+                overlay.classList.add('active');
+                navToggle.classList.add('active');
+                navToggle.setAttribute('aria-expanded', 'true');
+                overlay.setAttribute('aria-hidden', 'false');
+                document.body.classList.add('sidebar-open');
+            }
+
+            function closeSidebar() {
+                sidebar.classList.remove('open');
+                overlay.classList.remove('active');
+                navToggle.classList.remove('active');
+                navToggle.setAttribute('aria-expanded', 'false');
+                overlay.setAttribute('aria-hidden', 'true');
+                document.body.classList.remove('sidebar-open');
+            }
             
             if (navToggle && sidebar && overlay) {
                 navToggle.addEventListener('click', function() {
                     const isOpen = sidebar.classList.contains('open');
                     
                     if (isOpen) {
-                        sidebar.classList.remove('open');
-                        overlay.classList.remove('active');
-                        navToggle.classList.remove('active');
-                        navToggle.setAttribute('aria-expanded', 'false');
-                        overlay.setAttribute('aria-hidden', 'true');
+                        closeSidebar();
                     } else {
-                        sidebar.classList.add('open');
-                        overlay.classList.add('active');
-                        navToggle.classList.add('active');
-                        navToggle.setAttribute('aria-expanded', 'true');
-                        overlay.setAttribute('aria-hidden', 'false');
+                        openSidebar();
                     }
                 });
                 
                 // Close sidebar when clicking overlay
                 overlay.addEventListener('click', function() {
-                    sidebar.classList.remove('open');
-                    overlay.classList.remove('active');
-                    navToggle.classList.remove('active');
-                    navToggle.setAttribute('aria-expanded', 'false');
-                    overlay.setAttribute('aria-hidden', 'true');
+                    closeSidebar();
                 });
                 
                 // Close sidebar when pressing Escape key
                 document.addEventListener('keydown', function(e) {
                     if (e.key === 'Escape' && sidebar.classList.contains('open')) {
-                        sidebar.classList.remove('open');
-                        overlay.classList.remove('active');
-                        navToggle.classList.remove('active');
-                        navToggle.setAttribute('aria-expanded', 'false');
-                        overlay.setAttribute('aria-hidden', 'true');
+                        closeSidebar();
+                    }
+                });
+
+                // Ensure desktop resize does not keep mobile overlay state.
+                window.addEventListener('resize', function() {
+                    if (window.innerWidth > 768 && sidebar.classList.contains('open')) {
+                        closeSidebar();
                     }
                 });
             }

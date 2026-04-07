@@ -1,4 +1,19 @@
 /* General Styles - Enhanced */
+:root {
+    --ui-space-1: 0.5rem;   /* 8px */
+    --ui-space-2: 1rem;     /* 16px */
+    --ui-space-3: 1.5rem;   /* 24px */
+    --ui-space-4: 2rem;     /* 32px */
+    --ui-space-5: 3rem;     /* 48px */
+    --ui-sidebar-width: 16rem;
+}
+
+html,
+body {
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 body {
     background: #164e63;
     font-family: 'Inter', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -18,14 +33,14 @@ body {
 
 /* Enhanced container styling */
 .container-fluid {
-    padding: 0;
+    padding: 0 var(--ui-space-2);
     margin: 0;
     max-width: 100%;
 }
 /* Header Styles */
 header {
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
+    margin-bottom: var(--ui-space-2);
 }
 
 /* Logo Styles */
@@ -93,7 +108,7 @@ header {
     margin: 0 auto;
 }
 .card-header {
-    padding: 1rem 1.5rem;
+    padding: var(--ui-space-2) var(--ui-space-3);
 }
 
 .navbar {
@@ -157,7 +172,7 @@ header {
 
 /* Modal Styles */
 .modal-header {
-    padding: 1rem 1.5rem;
+    padding: var(--ui-space-2) var(--ui-space-3);
 }
 
 /* Calendar Styles */
@@ -302,6 +317,35 @@ header {
     height: 1rem;
 }
 
+.card-body,
+.card-footer,
+.modal-body,
+.modal-footer,
+.table th,
+.table td,
+.form-control,
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-success,
+.btn-danger {
+    margin-bottom: 0;
+}
+
+.card-body,
+.modal-body {
+    padding: var(--ui-space-2);
+}
+
+.form-group,
+.mb-3 {
+    margin-bottom: var(--ui-space-2) !important;
+}
+
+.btn {
+    min-height: 2.75rem;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     .card-body {
@@ -325,6 +369,11 @@ header {
     .fc-event {
         font-size: 0.75rem !important;
         padding: 1px 2px !important;
+    }
+
+    .container-fluid {
+        padding-left: var(--ui-space-1);
+        padding-right: var(--ui-space-1);
     }
 }
 
@@ -689,4 +738,92 @@ header {
 @keyframes dotPulse {
     0%, 70%, 100% { opacity: 0.2;  transform: scale(0.7);  }
     35%           { opacity: 1;    transform: scale(1.15); }
+}
+
+/* ====================================================
+   Global Responsive Layout Fixes (Legacy Templates)
+   ==================================================== */
+
+img,
+svg,
+video,
+canvas {
+    max-width: 100%;
+    height: auto;
+}
+
+.row > *,
+[class*="col-"] {
+    min-width: 0;
+}
+
+.table-responsive,
+.table-responsive-modern {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Mobile-first sidebar/content handling used by legacy dashboard pages */
+.enhanced-sidebar {
+    width: min(85vw, 18rem);
+    max-width: 18rem;
+}
+
+.salary-main-content {
+    width: 100%;
+    margin-left: 0 !important;
+    padding: var(--ui-space-2) var(--ui-space-1) !important;
+}
+
+.sidebar-toggle {
+    min-width: 2.75rem;
+    min-height: 2.75rem;
+}
+
+@media (max-width: 320px) {
+    .container-fluid {
+        padding-left: 0.375rem;
+        padding-right: 0.375rem;
+    }
+
+    .btn,
+    .btn-primary,
+    .btn-secondary,
+    .btn-success,
+    .btn-danger {
+        width: 100%;
+    }
+}
+
+@media (min-width: 480px) {
+    .salary-main-content {
+        padding-left: var(--ui-space-2) !important;
+        padding-right: var(--ui-space-2) !important;
+    }
+}
+
+@media (min-width: 768px) {
+    .card-body,
+    .modal-body {
+        padding: var(--ui-space-3);
+    }
+}
+
+@media (min-width: 1024px) {
+    .enhanced-sidebar {
+        width: var(--ui-sidebar-width);
+        max-width: var(--ui-sidebar-width);
+    }
+
+    .salary-main-content {
+        margin-left: var(--ui-sidebar-width) !important;
+        width: calc(100% - var(--ui-sidebar-width)) !important;
+        padding: var(--ui-space-3) var(--ui-space-2) !important;
+    }
+}
+
+@media (min-width: 1280px) {
+    .salary-main-content {
+        padding: var(--ui-space-3) var(--ui-space-3) !important;
+    }
 }
