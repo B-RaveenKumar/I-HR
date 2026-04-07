@@ -1469,9 +1469,9 @@
                                 {% if recent_verifications %}
                                 {% set daily_records = {} %}
                                 {% for verification in recent_verifications %}
-                                    {% set date_key = verification.verification_time[:10] %}
+                                    {% set date_key = verification.verification_time.strftime('%Y-%m-%d') if verification.verification_time and verification.verification_time.strftime is defined else (verification.verification_time[:10] if verification.verification_time else '') %}
                                     {% if date_key not in daily_records %}
-                                        {% set parsed_date = verification.verification_time[:10] %}
+                                        {% set parsed_date = date_key %}
                                         {% set _ = daily_records.update({date_key: {'date': parsed_date, 'check_in': None, 'check_out': None}}) %}
                                     {% endif %}
                                     {% if verification.verification_type == 'check-in' %}

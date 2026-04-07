@@ -142,6 +142,15 @@ def timeformat_filter(time, format='%I:%M %p'):
     """Format a time using strftime in 12-hour format"""
     if time is None:
         return "--:--"
+
+    # Already a datetime: format directly.
+    if isinstance(time, datetime.datetime):
+        return time.strftime(format)
+
+    # Pure time object: combine with today's date for formatting.
+    if isinstance(time, datetime.time):
+        return datetime.datetime.combine(datetime.date.today(), time).strftime(format)
+
     if isinstance(time, str):
         try:
             # Try to parse string datetime with full format
@@ -159,8 +168,9 @@ def timeformat_filter(time, format='%I:%M %p'):
                     return datetime.datetime.combine(datetime.date.today(), time_obj).strftime(format)
                 except ValueError:
                     return time  # Return as-is if can't parse
-    # Convert to 12-hour format if it's a time object
-    return datetime.datetime.combine(datetime.date.today(), time).strftime(format)
+
+    # Fallback: return as string for unknown input types.
+    return str(time)
 
 @app.template_filter('datetimeformat')
 def datetimeformat_filter(datetime_obj, format='%Y-%m-%d %I:%M %p'):
