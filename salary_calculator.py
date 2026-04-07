@@ -59,6 +59,16 @@ class SalaryCalculator:
             conn = sqlite3.connect('vishnorex.db', check_same_thread=False)
             conn.row_factory = sqlite3.Row  # This enables dict-like access
             return conn
+
+    @staticmethod
+    def _to_float(value, default=0.0):
+        """Safely convert DB numeric values (including NULL) to float."""
+        try:
+            if value is None:
+                return float(default)
+            return float(value)
+        except (TypeError, ValueError):
+            return float(default)
     
     def _ensure_salary_rules_table(self):
         """Ensure the salary_rules table exists"""
@@ -359,7 +369,7 @@ class SalaryCalculator:
                 return {'success': False, 'error': 'Staff not found'}
 
             # Get base monthly salary
-            base_monthly_salary = float(staff_info.get('basic_salary', 0))
+            base_monthly_salary = self._to_float(staff_info.get('basic_salary', 0))
             if base_monthly_salary <= 0:
                 return {'success': False, 'error': 'Base monthly salary not set for this staff member'}
 
@@ -449,10 +459,10 @@ class SalaryCalculator:
         """Calculate enhanced salary breakdown with hours-based logic"""
 
         # Basic salary components
-        basic_salary = float(staff_info.get('basic_salary', 0))
-        hra = float(staff_info.get('hra', 0))
-        transport_allowance = float(staff_info.get('transport_allowance', 0))
-        other_allowances = float(staff_info.get('other_allowances', 0))
+        basic_salary = self._to_float(staff_info.get('basic_salary', 0))
+        hra = self._to_float(staff_info.get('hra', 0))
+        transport_allowance = self._to_float(staff_info.get('transport_allowance', 0))
+        other_allowances = self._to_float(staff_info.get('other_allowances', 0))
 
         # Calculate gross salary
         gross_salary = basic_salary + hra + transport_allowance + other_allowances
@@ -509,10 +519,10 @@ class SalaryCalculator:
         leave_pay = leave_summary['leave_pay']
 
         # Calculate deductions
-        pf_deduction = float(staff_info.get('pf_deduction', 0))
-        esi_deduction = float(staff_info.get('esi_deduction', 0))
-        professional_tax = float(staff_info.get('professional_tax', 0))
-        other_deductions = float(staff_info.get('other_deductions', 0))
+        pf_deduction = self._to_float(staff_info.get('pf_deduction', 0))
+        esi_deduction = self._to_float(staff_info.get('esi_deduction', 0))
+        professional_tax = self._to_float(staff_info.get('professional_tax', 0))
+        other_deductions = self._to_float(staff_info.get('other_deductions', 0))
 
         # Total earnings
         total_earnings = (
@@ -815,10 +825,10 @@ class SalaryCalculator:
         """Calculate detailed salary breakdown"""
         
         # Basic salary components
-        basic_salary = float(staff_info.get('basic_salary', 0))
-        hra = float(staff_info.get('hra', 0))
-        transport_allowance = float(staff_info.get('transport_allowance', 0))
-        other_allowances = float(staff_info.get('other_allowances', 0))
+        basic_salary = self._to_float(staff_info.get('basic_salary', 0))
+        hra = self._to_float(staff_info.get('hra', 0))
+        transport_allowance = self._to_float(staff_info.get('transport_allowance', 0))
+        other_allowances = self._to_float(staff_info.get('other_allowances', 0))
         
         # Calculate per-day salary
         gross_salary = basic_salary + hra + transport_allowance + other_allowances
@@ -880,10 +890,10 @@ class SalaryCalculator:
         )
         
         # Total deductions
-        pf_deduction = float(staff_info.get('pf_deduction', 0))
-        esi_deduction = float(staff_info.get('esi_deduction', 0))
-        professional_tax = float(staff_info.get('professional_tax', 0))
-        other_deductions = float(staff_info.get('other_deductions', 0))
+        pf_deduction = self._to_float(staff_info.get('pf_deduction', 0))
+        esi_deduction = self._to_float(staff_info.get('esi_deduction', 0))
+        professional_tax = self._to_float(staff_info.get('professional_tax', 0))
+        other_deductions = self._to_float(staff_info.get('other_deductions', 0))
         
         total_deductions = (
             absent_deduction +
