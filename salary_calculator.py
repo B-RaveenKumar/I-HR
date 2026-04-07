@@ -25,6 +25,7 @@ class SalaryCalculator:
     
     def __init__(self, school_id=None):
         self.school_id = school_id
+        self._last_salary_rules_error = None
         # Default salary calculation rules (fallback values)
         self.default_salary_rules = {
             'early_arrival_bonus_per_hour': 50.0,  # Bonus for arriving early
@@ -78,6 +79,71 @@ class SalaryCalculator:
         except Exception as e:
             print(f"Error creating salary_rules table: {e}")
             return False
+
+    def _get_salary_rules_columns(self, db):
+        """Return available columns in salary_rules table (works on SQLite and MySQL wrapper)."""
+        try:
+            columns_info = db.execute("PRAGMA table_info(salary_rules)").fetchall()
+            columns = set()
+
+            for col in columns_info:
+                # sqlite3.Row / dict-like access
+                if isinstance(col, dict):
+                    columns.add(col.get('name'))
+                else:
+                    try:
+                        columns.add(col['name'])
+                    except (TypeError, KeyError, IndexError):
+                        # tuple-style fallback: (cid, name, type, notnull, dflt_value, pk)
+                        if len(col) > 1:
+                            columns.add(col[1])
+
+            return {c for c in columns if c}
+        except Exception:
+            return set()
+
+    def _get_salary_rules_id_insert_mode(self, db):
+        """Determine whether salary_rules.id can be omitted during INSERT.
+
+        Returns:
+            'omit_id' when id is auto-generated or absent
+            'explicit_id' when id exists but requires explicit value
+        """
+        try:
+            columns = self._get_salary_rules_columns(db)
+            if 'id' not in columns:
+                return 'omit_id'
+
+            # MySQL path: inspect INFORMATION_SCHEMA for AUTO_INCREMENT.
+            row = db.execute('''
+                SELECT EXTRA
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'salary_rules'
+                  AND COLUMN_NAME = 'id'
+                LIMIT 1
+            ''').fetchone()
+
+            if row:
+                extra = row['EXTRA'] if isinstance(row, dict) else row[0]
+                if extra and 'auto_increment' in str(extra).lower():
+                    return 'omit_id'
+                return 'explicit_id'
+
+            return 'omit_id'
+        except Exception:
+            # SQLite or unavailable metadata: assume normal autoincrement behavior.
+            return 'omit_id'
+
+    def _get_next_salary_rule_id(self, db):
+        """Return next numeric id for legacy salary_rules tables without AUTO_INCREMENT."""
+        row = db.execute('SELECT COALESCE(MAX(id), 0) + 1 AS next_id FROM salary_rules').fetchone()
+        if isinstance(row, dict):
+            return int(row.get('next_id', 1))
+        try:
+            return int(row['next_id'])
+        except Exception:
+            return int(row[0])
     
     def _load_salary_rules_from_db(self):
         """Load salary rules from database or return defaults"""
@@ -87,16 +153,24 @@ class SalaryCalculator:
                 return self.default_salary_rules.copy()
             
             db = self._get_db_connection()
+            columns = self._get_salary_rules_columns(db)
+            has_school_id = 'school_id' in columns
             
             # Use school_id = 0 for global rules if no specific school_id
             search_school_id = self.school_id if self.school_id is not None else 0
-            
-            # Load rules for specific school or global
-            rules = db.execute('''
-                SELECT rule_name, rule_value 
-                FROM salary_rules 
-                WHERE school_id = ?
-            ''', (search_school_id,)).fetchall()
+
+            # Load rules with compatibility for legacy schemas.
+            if has_school_id:
+                rules = db.execute('''
+                    SELECT rule_name, rule_value
+                    FROM salary_rules
+                    WHERE school_id = ?
+                ''', (search_school_id,)).fetchall()
+            else:
+                rules = db.execute('''
+                    SELECT rule_name, rule_value
+                    FROM salary_rules
+                ''').fetchall()
             
             # Start with defaults and update with database values
             loaded_rules = self.default_salary_rules.copy()
@@ -112,26 +186,127 @@ class SalaryCalculator:
     def _save_salary_rules_to_db(self, rules_to_save):
         """Save salary rules to database"""
         try:
+            self._last_salary_rules_error = None
             # Ensure table exists
             if not self._ensure_salary_rules_table():
                 return False
             
             db = self._get_db_connection()
+            columns = self._get_salary_rules_columns(db)
+            has_school_id = 'school_id' in columns
+            has_updated_at = 'updated_at' in columns
+            id_insert_mode = self._get_salary_rules_id_insert_mode(db)
             
             # Use school_id = 0 for global rules if no specific school_id
             save_school_id = self.school_id if self.school_id is not None else 0
-            
+
             for rule_name, rule_value in rules_to_save.items():
-                db.execute('''
-                    INSERT OR REPLACE INTO salary_rules 
-                    (school_id, rule_name, rule_value, updated_at)
-                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-                ''', (save_school_id, rule_name, rule_value))
+                if has_school_id:
+                    existing = db.execute('''
+                        SELECT 1
+                        FROM salary_rules
+                        WHERE school_id = ? AND rule_name = ?
+                        LIMIT 1
+                    ''', (save_school_id, rule_name)).fetchone()
+
+                    if existing:
+                        if has_updated_at:
+                            db.execute('''
+                                UPDATE salary_rules
+                                SET rule_value = ?, updated_at = CURRENT_TIMESTAMP
+                                WHERE school_id = ? AND rule_name = ?
+                            ''', (rule_value, save_school_id, rule_name))
+                        else:
+                            db.execute('''
+                                UPDATE salary_rules
+                                SET rule_value = ?
+                                WHERE school_id = ? AND rule_name = ?
+                            ''', (rule_value, save_school_id, rule_name))
+                    else:
+                        if has_updated_at:
+                            if id_insert_mode == 'explicit_id':
+                                next_id = self._get_next_salary_rule_id(db)
+                                db.execute('''
+                                    INSERT INTO salary_rules
+                                    (id, school_id, rule_name, rule_value, updated_at)
+                                    VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+                                ''', (next_id, save_school_id, rule_name, rule_value))
+                            else:
+                                db.execute('''
+                                    INSERT INTO salary_rules
+                                    (school_id, rule_name, rule_value, updated_at)
+                                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                                ''', (save_school_id, rule_name, rule_value))
+                        else:
+                            if id_insert_mode == 'explicit_id':
+                                next_id = self._get_next_salary_rule_id(db)
+                                db.execute('''
+                                    INSERT INTO salary_rules
+                                    (id, school_id, rule_name, rule_value)
+                                    VALUES (?, ?, ?, ?)
+                                ''', (next_id, save_school_id, rule_name, rule_value))
+                            else:
+                                db.execute('''
+                                    INSERT INTO salary_rules
+                                    (school_id, rule_name, rule_value)
+                                    VALUES (?, ?, ?)
+                                ''', (save_school_id, rule_name, rule_value))
+                else:
+                    existing = db.execute('''
+                        SELECT 1
+                        FROM salary_rules
+                        WHERE rule_name = ?
+                        LIMIT 1
+                    ''', (rule_name,)).fetchone()
+
+                    if existing:
+                        if has_updated_at:
+                            db.execute('''
+                                UPDATE salary_rules
+                                SET rule_value = ?, updated_at = CURRENT_TIMESTAMP
+                                WHERE rule_name = ?
+                            ''', (rule_value, rule_name))
+                        else:
+                            db.execute('''
+                                UPDATE salary_rules
+                                SET rule_value = ?
+                                WHERE rule_name = ?
+                            ''', (rule_value, rule_name))
+                    else:
+                        if has_updated_at:
+                            if id_insert_mode == 'explicit_id':
+                                next_id = self._get_next_salary_rule_id(db)
+                                db.execute('''
+                                    INSERT INTO salary_rules
+                                    (id, rule_name, rule_value, updated_at)
+                                    VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+                                ''', (next_id, rule_name, rule_value))
+                            else:
+                                db.execute('''
+                                    INSERT INTO salary_rules
+                                    (rule_name, rule_value, updated_at)
+                                    VALUES (?, ?, CURRENT_TIMESTAMP)
+                                ''', (rule_name, rule_value))
+                        else:
+                            if id_insert_mode == 'explicit_id':
+                                next_id = self._get_next_salary_rule_id(db)
+                                db.execute('''
+                                    INSERT INTO salary_rules
+                                    (id, rule_name, rule_value)
+                                    VALUES (?, ?, ?)
+                                ''', (next_id, rule_name, rule_value))
+                            else:
+                                db.execute('''
+                                    INSERT INTO salary_rules
+                                    (rule_name, rule_value)
+                                    VALUES (?, ?)
+                                ''', (rule_name, rule_value))
             
             db.commit()
             return True
             
         except Exception as e:
+            self._last_salary_rules_error = str(e)
             print(f"Error saving salary rules to database: {e}")
             return False
 
@@ -1013,7 +1188,8 @@ class SalaryCalculator:
             if self._save_salary_rules_to_db(new_rules):
                 return {'success': True, 'message': 'Salary rules updated and saved successfully'}
             else:
-                return {'success': False, 'error': 'Failed to save salary rules to database'}
+                error_message = self._last_salary_rules_error or 'Failed to save salary rules to database'
+                return {'success': False, 'error': error_message}
                 
         except Exception as e:
             return {'success': False, 'error': str(e)}
