@@ -91,11 +91,12 @@ document.addEventListener('DOMContentLoaded', function() {
     function buildAttendanceChartConfig(summaryData, chartType) {
         const labels = ['Present', 'Absent', 'Late', 'Leave'];
         const values = [
-            summaryData.present_days || 0,
-            summaryData.absent_days || 0,
-            summaryData.late_days || 0,
-            summaryData.leave_days || 0
+            Number(summaryData.present_days) || 0,
+            Number(summaryData.absent_days) || 0,
+            Number(summaryData.late_days) || 0,
+            Number(summaryData.leave_days) || 0
         ];
+        const workingDays = Number(summaryData.working_days) || 0;
         const colors = ['#198754', '#dc3545', '#ffc107', '#0dcaf0'];
         const isCircular = chartType === 'doughnut' || chartType === 'pie';
 
@@ -171,8 +172,9 @@ document.addEventListener('DOMContentLoaded', function() {
                         callbacks: {
                             label: function(context) {
                                 const rawValue = Number(context.raw || 0);
-                                const total = values.reduce((a, b) => a + b, 0);
-                                const percentage = total > 0 ? ((rawValue * 100) / total).toFixed(1) : 0;
+                                const percentage = workingDays > 0
+                                    ? ((rawValue * 100) / workingDays).toFixed(1)
+                                    : 0;
                                 return `${context.label}: ${rawValue} days (${percentage}%)`;
                             }
                         }

@@ -108,18 +108,43 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Live Staff Search
-    document.getElementById('staffSearch')?.addEventListener('input', function () {
-        const searchTerm = this.value.toLowerCase();
+    document.getElementById('staffSearch')?.addEventListener('input', applyAttendanceFilters);
+
+    // Filter function for shift and status
+    function applyAttendanceFilters() {
+        const searchTerm = document.getElementById('staffSearch')?.value.toLowerCase() || '';
+        const selectedShift = document.getElementById('shiftFilter')?.value || '';
+        const selectedStatus = document.getElementById('statusFilter')?.value || '';
+        
         const rows = document.querySelectorAll('.table tbody tr');
         rows.forEach(row => {
-            const match = Array.from(row.querySelectorAll('td')).some(cell => cell.textContent.toLowerCase().includes(searchTerm));
-            if (match) {
+            // Get row attributes
+            const shift = row.getAttribute('data-shift') || 'general';
+            const status = row.getAttribute('data-active') || 'active';
+            
+            // Check search term
+            const searchMatch = searchTerm === '' || Array.from(row.querySelectorAll('td')).some(cell => 
+                cell.textContent.toLowerCase().includes(searchTerm)
+            );
+            
+            // Check shift filter
+            const shiftMatch = selectedShift === '' || shift === selectedShift;
+            
+            // Check status filter
+            const statusMatch = selectedStatus === '' || status === selectedStatus;
+            
+            // Show/hide row based on all filters
+            if (searchMatch && shiftMatch && statusMatch) {
                 row.classList.remove('hidden');
             } else {
                 row.classList.add('hidden');
             }
         });
-    });
+    }
+
+    // Add event listeners for filters
+    document.getElementById('shiftFilter')?.addEventListener('change', applyAttendanceFilters);
+    document.getElementById('statusFilter')?.addEventListener('change', applyAttendanceFilters);
 
     // View Staff Profile Handler
     document.querySelector('.table tbody')?.addEventListener('click', function (e) {

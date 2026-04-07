@@ -475,6 +475,31 @@
                                 <input type="text" class="form-control enhanced-select" id="staffSearch"
                                     placeholder="Search by name, ID, department..." title="Search staff members">
                             </div>
+                            
+                            <div class="filter-group">
+                                <label for="shiftFilter" class="form-label">
+                                    <i class="bi bi-clock-history"></i> Shift
+                                </label>
+                                <select id="shiftFilter" class="form-select enhanced-select" title="Filter by shift">
+                                    <option value="">All Shifts</option>
+                                    {% for shift in all_shifts %}
+                                    <option value="{{ shift.shift_type }}" {% if shift.shift_type == current_shift %}selected{% endif %}>
+                                        {{ shift.shift_type | capitalize }} ({{ shift.start_time }} - {{ shift.end_time }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+
+                            <div class="filter-group">
+                                <label for="statusFilter" class="form-label">
+                                    <i class="bi bi-person-check"></i> Staff Status
+                                </label>
+                                <select id="statusFilter" class="form-select enhanced-select" title="Filter by staff status">
+                                    <option value="">All Staff</option>
+                                    <option value="active" selected>Active</option>
+                                    <option value="inactive">Inactive</option>
+                                </select>
+                            </div>
                         </div>
 
                         <div class="table-responsive">
@@ -492,7 +517,9 @@
                                 </thead>
                                 <tbody id="attendanceTableBody">
                                     {% for attendance in today_attendance %}
-                                    <tr data-staff-id="{{ attendance.staff_id }}">
+                                    <tr data-staff-id="{{ attendance.staff_id }}" 
+                                        data-shift="{{ attendance.shift_type or 'general' }}"
+                                        data-active="{{ 'active' if attendance.is_active else 'inactive' }}">
                                         <td><strong>{{ attendance.staff_number }}</strong></td>
                                         <td>
                                             <div class="d-flex align-items-center">

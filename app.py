@@ -7444,6 +7444,48 @@ def admin_dashboard():
     module_enabled = get_module_enabled(school_id)
     attendance_mode = get_school_attendance_mode(school_id)
 
+    # Get all shift definitions for filter
+    all_shifts = db.execute('''
+        SELECT id, shift_type, start_time, end_time
+        FROM shift_definitions
+        WHERE is_active = 1
+        ORDER BY start_time
+    ''').fetchall()
+    
+    # Determine current shift based on current time
+    current_time = datetime.datetime.now().time()
+    current_shift = None
+    for shift in all_shifts:
+        shift_start = datetime.datetime.strptime(shift['start_time'], '%H:%M:%S').time() if isinstance(shift['start_time'], str) else shift['start_time']
+        shift_end = datetime.datetime.strptime(shift['end_time'], '%H:%M:%S').time() if isinstance(shift['end_time'], str) else shift['end_time']
+        
+        # Handle shifts that cross midnight
+        if shift_start <= shift_end:
+            if shift_start <= current_time <= shift_end:
+                current_shift = shift['shift_type']
+                break
+        else:  # shift crosses midnight
+            if current_time >= shift_start or current_time <= shift_end:
+                current_shift = shift['shift_type']
+                break
+    
+    # Filter today_attendance to include only active staff by default
+    today_attendance_with_status = []
+    for record in today_attendance:
+        # Get staff active status
+        staff_info = db.execute('''
+            SELECT COALESCE(is_active, 1) as is_active, shift_type
+            FROM staff
+            WHERE id = ? AND school_id = ?
+        ''', (record['staff_id'], school_id)).fetchone()
+        
+        if staff_info:
+            record['is_active'] = bool(staff_info['is_active'])
+            record['shift_type'] = staff_info['shift_type'] or 'general'
+            today_attendance_with_status.append(record)
+    
+    today_attendance = today_attendance_with_status
+
     if use_modern_ui:
         return render_template('admin_dashboard_modern.html',
                              staff=staff,
@@ -7459,7 +7501,9 @@ def admin_dashboard():
                              recent_activities=[],  # Add recent activities data
                              performance={},  # Add performance metrics
                              biometric_status={},  # Add biometric status
-                             last_backup='Today')  # Add backup info
+                             last_backup='Today',  # Add backup info
+                             all_shifts=all_shifts,
+                             current_shift=current_shift)
     else:
         return render_template('admin_dashboard.html',
                              staff=staff,
@@ -7471,7 +7515,9 @@ def admin_dashboard():
                              today=today,
                              timetable_enabled=timetable_enabled,
                              attendance_mode=attendance_mode,
-                             module_enabled=module_enabled)
+                             module_enabled=module_enabled,
+                             all_shifts=all_shifts,
+                             current_shift=current_shift)
 
 
 @app.route('/admin/timetable')
@@ -14723,6 +14769,15 @@ def _get_cached_attendance_summary(staff_id: int, year: int, month: int):
 def _calculate_accurate_attendance_summary(staff_id: int, year: int, month: int):
     """Calculate accurate attendance summary with proper absent day calculation"""
     db = get_db()
+
+    def _as_date(value):
+        if value is None:
+            return None
+        if isinstance(value, datetime.datetime):
+            return value.date()
+        if isinstance(value, datetime.date):
+            return value
+        return datetime.datetime.strptime(str(value), '%Y-%m-%d').date()
     
     # Calculate month boundaries
     first_day = datetime.date(year, month, 1)
@@ -14763,8 +14818,10 @@ def _calculate_accurate_attendance_summary(staff_id: int, year: int, month: int)
     dates_with_leave = set()
     
     for leave in approved_leaves:
-        start_date = datetime.datetime.strptime(leave['start_date'], '%Y-%m-%d').date()
-        end_date = datetime.datetime.strptime(leave['end_date'], '%Y-%m-%d').date()
+        start_date = _as_date(leave['start_date'])
+        end_date = _as_date(leave['end_date'])
+        if not start_date or not end_date:
+            continue
         
         # Iterate through each day in the leave period
         current_date = max(start_date, first_day)
