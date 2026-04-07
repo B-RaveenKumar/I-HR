@@ -276,6 +276,7 @@ class UniversalADMSParser:
         try:
             lines = raw_data.strip().split('\n')
             records = []
+            ts_pattern = re.compile(r'\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?')
             
             for line in lines:
                 line = line.strip()
@@ -285,6 +286,34 @@ class UniversalADMSParser:
                 # Skip command responses and status lines
                 if line.startswith('OK') or line.startswith('ERROR'):
                     continue
+
+                # Skip metadata rows (for example Name=...) that contain no timestamp payload.
+                if '=' in line and not ts_pattern.search(line):
+                    continue
+
+                # Parse key=value rows used by some OPERLOG payload variants.
+                if '=' in line:
+                    kv_parts = [p.strip() for p in re.split(r'[\t,]', line) if p.strip()]
+                    kv = {}
+                    for part in kv_parts:
+                        if '=' in part:
+                            key, value = part.split('=', 1)
+                            kv[key.strip().lower()] = value.strip()
+
+                    if kv:
+                        log_dict = {
+                            'user_id': (kv.get('user_id') or kv.get('user') or kv.get('pin') or
+                                        kv.get('userid') or kv.get('enrollnumber') or kv.get('id')),
+                            'timestamp': (kv.get('timestamp') or kv.get('time') or kv.get('verify_time') or
+                                          kv.get('verifytime') or kv.get('punch_time') or kv.get('atttime') or
+                                          kv.get('datetime')),
+                            'status': kv.get('status') or kv.get('punch_code') or kv.get('inout') or '0',
+                            'verify_method': kv.get('verify_method') or kv.get('verify') or kv.get('method') or '1'
+                        }
+                        normalized = self._normalize_record(log_dict, 'text')
+                        if normalized:
+                            records.append(normalized)
+                        continue
                 
                 # Parse ATTLOG format
                 if line.startswith('ATTLOG'):
@@ -304,15 +333,24 @@ class UniversalADMSParser:
                 elif '\t' in line or re.match(r'^\d+[\s\t]+\d{4}-\d{2}-\d{2}', line):
                     # Try tab-separated first
                     parts = line.split('\t') if '\t' in line else line.split()
+
+                    # Some devices split date/time into separate columns. Merge when needed.
+                    timestamp_value = ''
+                    if len(parts) >= 3 and re.match(r'^\d{4}-\d{2}-\d{2}$', parts[1]) and re.match(r'^\d{2}:\d{2}(:\d{2})?$', parts[2]):
+                        timestamp_value = f"{parts[1]} {parts[2]}"
+                        status_idx = 3
+                    else:
+                        timestamp_value = parts[1] if len(parts) > 1 else ''
+                        status_idx = 2
                     
                     if len(parts) >= 2:
                         log_dict = {
                             'user_id': parts[0],
-                            'timestamp': parts[1],
-                            'status': parts[2] if len(parts) > 2 else '0',
-                            'verify_method': parts[3] if len(parts) > 3 else '1',
-                            'temperature': parts[4] if len(parts) > 4 else None,  # Palm scanners may include temperature
-                            'mask_status': parts[5] if len(parts) > 5 else None   # Face scanners may include mask detection
+                            'timestamp': timestamp_value,
+                            'status': parts[status_idx] if len(parts) > status_idx else '0',
+                            'verify_method': parts[status_idx + 1] if len(parts) > (status_idx + 1) else '1',
+                            'temperature': parts[status_idx + 2] if len(parts) > (status_idx + 2) else None,  # Palm scanners may include temperature
+                            'mask_status': parts[status_idx + 3] if len(parts) > (status_idx + 3) else None   # Face scanners may include mask detection
                         }
                         normalized = self._normalize_record(log_dict, 'text')
                         if normalized:

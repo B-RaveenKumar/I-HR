@@ -537,6 +537,8 @@ def service_worker():
     )
 
 # iClock Protocol Endpoint (Traditional ZKTeco protocol)
+@csrf.exempt
+@app.route('/iclock/getrequest.aspx', methods=['GET', 'POST'])
 @app.route('/iclock/cdata.aspx', methods=['GET', 'POST'])
 def iclock_cdata():
     """
@@ -569,32 +571,37 @@ def iclock_cdata():
             # If device provides serial number, capture/update device metadata
             if sn:
                 device = db.execute(
-                    'SELECT * FROM biometric_devices WHERE serial_number = ?',
+                    'SELECT * FROM biometric_devices WHERE serial_number = ? ORDER BY is_active DESC, id DESC LIMIT 1',
                     (sn,)
                 ).fetchone()
                 
                 if device:
                     # Update device metadata from handshake
+                    device_columns = {
+                        col['name']
+                        for col in db.execute("PRAGMA table_info(biometric_devices)").fetchall()
+                    }
                     update_fields = []
                     update_values = []
                     
-                    if device_model:
+                    if device_model and 'device_model' in device_columns:
                         update_fields.append('device_model = ?')
                         update_values.append(device_model)
                     
-                    if firmware_ver:
+                    if firmware_ver and 'firmware_ver' in device_columns:
                         update_fields.append('firmware_ver = ?')
                         update_values.append(firmware_ver)
                     
-                    if platform:
+                    if platform and 'platform' in device_columns:
                         update_fields.append('platform = ?')
                         update_values.append(platform)
                     
-                    update_fields.append('last_handshake = ?')
-                    update_values.append(datetime.datetime.now())
+                    if 'last_handshake' in device_columns:
+                        update_fields.append('last_handshake = ?')
+                        update_values.append(datetime.datetime.now())
                     
                     # Store raw options for debugging
-                    if options:
+                    if options and 'raw_options_data' in device_columns:
                         update_fields.append('raw_options_data = ?')
                         update_values.append(options)
                     
@@ -625,7 +632,7 @@ def iclock_cdata():
                                 firmware_ver = COALESCE(?, firmware_ver),
                                 platform = COALESCE(?, platform)
                             WHERE serial_number = ?
-                        ''', (datetime.now(), device_model or None, firmware_ver or None, 
+                            ''', (datetime.datetime.now(), device_model or None, firmware_ver or None, 
                              platform or None, sn))
                     else:
                         # New unknown device - create log entry
@@ -657,22 +664,32 @@ def iclock_cdata():
             
             if not sn:
                 logger.warning("iClock request missing SN parameter")
-                # Log to protocol detection for debugging
-                db.execute('''
-                    INSERT INTO protocol_detection_log 
-                    (serial_number, request_method, request_path, content_type, raw_body, 
-                     detected_format, parsed_successfully, error_message)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                ''', ('UNKNOWN', 'POST', request.path, content_type, raw_data[:1000],
-                     'N/A', False, 'Missing SN parameter'))
-                db.commit()
+                # Log to protocol detection for debugging (if table exists)
+                try:
+                    db.execute('''
+                        INSERT INTO protocol_detection_log 
+                        (serial_number, request_method, request_path, content_type, raw_body, 
+                         detected_format, parsed_successfully, error_message)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    ''', ('UNKNOWN', 'POST', request.path, content_type, raw_data[:1000],
+                         'N/A', False, 'Missing SN parameter'))
+                    db.commit()
+                except Exception as log_err:
+                    if 'protocol_detection_log' in str(log_err) and 'doesn\'t exist' in str(log_err):
+                        logger.warning("protocol_detection_log table missing; skipping protocol debug log")
+                    else:
+                        raise
                 return make_response("ERROR: SN required", 400)
             
             # Check if device is registered
             device = db.execute(
-                'SELECT * FROM biometric_devices WHERE serial_number = ?',
+                'SELECT * FROM biometric_devices WHERE serial_number = ? ORDER BY is_active DESC, id DESC LIMIT 1',
                 (sn,)
             ).fetchone()
+            device_columns = {
+                col['name']
+                for col in db.execute("PRAGMA table_info(biometric_devices)").fetchall()
+            }
             
             if not device:
                 # Log unknown device attempt
@@ -689,7 +706,7 @@ def iclock_cdata():
                         SET last_seen = ?, attempt_count = attempt_count + 1,
                             raw_payload = ?
                         WHERE serial_number = ?
-                    ''', (datetime.now(), raw_data[:5000], sn))
+                    ''', (datetime.datetime.now(), raw_data[:5000], sn))
                 else:
                     db.execute('''
                         INSERT INTO unknown_device_log 
@@ -702,6 +719,12 @@ def iclock_cdata():
                 
                 # Still return OK to avoid device errors
                 return make_response("OK")
+
+            # Device exists but is disabled; acknowledge and skip attendance processing.
+            is_device_active = str(device.get('is_active', 1)).lower() in ('1', 'true', 'yes')
+            if not is_device_active:
+                logger.warning(f"⚠ Device {sn} is mapped but inactive (ID: {device.get('id')}); skipping attendance push")
+                return make_response("OK")
             
             # ===== STEP 3: UNIVERSAL PARSING - THE SMART LISTENER =====
             parser = UniversalADMSParser()
@@ -713,23 +736,29 @@ def iclock_cdata():
             if detected_format and detected_format not in ['empty', 'unknown', 'error']:
                 format_map = {'text': 'Text', 'json': 'JSON', 'xml': 'XML'}
                 protocol_type = format_map.get(detected_format, 'Auto')
-                
-                db.execute(
-                    'UPDATE biometric_devices SET protocol_type = ? WHERE id = ?',
-                    (protocol_type, device['id'])
-                )
+
+                if 'protocol_type' in device_columns:
+                    db.execute(
+                        'UPDATE biometric_devices SET protocol_type = ? WHERE id = ?',
+                        (protocol_type, device['id'])
+                    )
             
-            # Log protocol detection for debugging
-            db.execute('''
-                INSERT INTO protocol_detection_log 
-                (device_id, serial_number, request_method, request_path, content_type, 
-                 raw_body, detected_format, parsed_successfully, error_message, raw_headers)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (device['id'], sn, 'POST', request.path, content_type, 
-                 raw_data[:1000], detected_format, parse_result['success'],
-                 parse_result.get('error', ''), str(dict(request.headers))[:500]))
-            
-            db.commit()
+            # Log protocol detection for debugging (if table exists)
+            try:
+                db.execute('''
+                    INSERT INTO protocol_detection_log 
+                    (device_id, serial_number, request_method, request_path, content_type, 
+                     raw_body, detected_format, parsed_successfully, error_message, raw_headers)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (device['id'], sn, 'POST', request.path, content_type, 
+                     raw_data[:1000], detected_format, parse_result['success'],
+                     parse_result.get('error', ''), str(dict(request.headers))[:500]))
+                db.commit()
+            except Exception as log_err:
+                if 'protocol_detection_log' in str(log_err) and 'doesn\'t exist' in str(log_err):
+                    logger.warning("protocol_detection_log table missing; skipping protocol debug log")
+                else:
+                    raise
             
             if not parse_result['success']:
                 logger.error(f"❌ Parse failed for device {sn}: {parse_result.get('error')}")
@@ -742,6 +771,11 @@ def iclock_cdata():
             records = parse_result.get('records', [])
             processed_count = 0
             rejected_count = 0
+            staff_columns = {
+                col['name']
+                for col in db.execute("PRAGMA table_info(staff)").fetchall()
+            }
+            has_staff_biometric_id = 'biometric_id' in staff_columns
             
             logger.info(f"✓ Parsed {len(records)} record(s) from {detected_format.upper()} format")
             
@@ -752,15 +786,24 @@ def iclock_cdata():
                     verification_type = record['verification_type']
                     biometric_method = record['biometric_method']
                     
-                    # Find staff by staff_id or biometric_id
-                    staff = db.execute(
-                        '''SELECT s.*, sch.name as school_name 
-                           FROM staff s 
-                           JOIN schools sch ON s.school_id = sch.id 
-                           WHERE (s.staff_id = ? OR s.biometric_id = ?) 
-                           AND s.school_id = ?''',
-                        (user_id, user_id, device['school_id'])
-                    ).fetchone()
+                    # Find staff by staff_id; include biometric_id when the column exists.
+                    if has_staff_biometric_id:
+                        staff = db.execute(
+                            '''SELECT s.*, sch.name as school_name 
+                               FROM staff s 
+                               JOIN schools sch ON s.school_id = sch.id 
+                               WHERE (s.staff_id = ? OR s.biometric_id = ?) 
+                               AND s.school_id = ?''',
+                            (user_id, user_id, device['school_id'])
+                        ).fetchone()
+                    else:
+                        staff = db.execute(
+                            '''SELECT s.*, sch.name as school_name 
+                               FROM staff s 
+                               JOIN schools sch ON s.school_id = sch.id 
+                               WHERE s.staff_id = ? AND s.school_id = ?''',
+                            (user_id, device['school_id'])
+                        ).fetchone()
                     
                     if staff:
                         # Use UnifiedAttendanceProcessor for consistency
@@ -795,10 +838,22 @@ def iclock_cdata():
                        f"from device {sn} (format: {detected_format.upper()})")
             
             # Update device sync status
-            db.execute(
-                'UPDATE biometric_devices SET last_sync = ?, sync_status = ? WHERE id = ?',
-                (datetime.now(), 'success', device['id'])
-            )
+            sync_update_fields = []
+            sync_update_values = []
+
+            if 'last_sync' in device_columns:
+                sync_update_fields.append('last_sync = ?')
+                sync_update_values.append(datetime.datetime.now())
+            if 'sync_status' in device_columns:
+                sync_update_fields.append('sync_status = ?')
+                sync_update_values.append('success')
+
+            if sync_update_fields:
+                sync_update_values.append(device['id'])
+                db.execute(
+                    f"UPDATE biometric_devices SET {', '.join(sync_update_fields)} WHERE id = ?",
+                    tuple(sync_update_values)
+                )
             db.commit()
             
             # Return OK to acknowledge receipt
