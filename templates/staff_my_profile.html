@@ -1124,7 +1124,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Enhanced Sidebar -->
-            <nav class="col-md-2 enhanced-sidebar">
+            <nav class="col-md-2 enhanced-sidebar" id="enhanced-sidebar">
                 <div class="sidebar-header">
                     <div class="brand-logo">
                         {% if institution.branding_enabled and institution.logo_path %}
@@ -2474,6 +2474,68 @@
         // Initialize preloader immediately
         const profilePreloader = new MyProfilePreloader();
 
+        let staffProfileNavbarInitialized = false;
+
+        function setupMobileNavbar() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.querySelector('.enhanced-sidebar');
+            const sidebarOverlay = document.getElementById('sidebarOverlay');
+            const isMobileOrTablet = window.matchMedia('(max-width: 1024px)').matches;
+
+            document.body.classList.toggle('legacy-mobile-navbar-ready', isMobileOrTablet);
+
+            if (staffProfileNavbarInitialized || !sidebarToggle || !sidebar || !sidebarOverlay) {
+                if (!isMobileOrTablet) {
+                    document.body.classList.remove('sidebar-open');
+                    sidebar.classList.remove('show');
+                    sidebarOverlay.classList.remove('active');
+                    sidebarOverlay.setAttribute('aria-hidden', 'true');
+                    sidebarToggle.setAttribute('aria-expanded', 'false');
+                }
+                return;
+            }
+
+            const closeSidebar = () => {
+                document.body.classList.remove('sidebar-open');
+                sidebar.classList.remove('show');
+                sidebarOverlay.classList.remove('active');
+                sidebarOverlay.setAttribute('aria-hidden', 'true');
+                sidebarToggle.setAttribute('aria-expanded', 'false');
+            };
+
+            const openSidebar = () => {
+                document.body.classList.add('sidebar-open');
+                sidebar.classList.add('show');
+                sidebarOverlay.classList.add('active');
+                sidebarOverlay.setAttribute('aria-hidden', 'false');
+                sidebarToggle.setAttribute('aria-expanded', 'true');
+            };
+
+            sidebarToggle.addEventListener('click', function (event) {
+                event.preventDefault();
+                if (sidebar.classList.contains('show')) {
+                    closeSidebar();
+                } else {
+                    openSidebar();
+                }
+            });
+
+            sidebarOverlay.addEventListener('click', closeSidebar);
+            sidebar.querySelectorAll('.nav-link').forEach(link => {
+                link.addEventListener('click', () => {
+                    if (window.matchMedia('(max-width: 1024px)').matches) {
+                        closeSidebar();
+                    }
+                });
+            });
+
+            if (!isMobileOrTablet) {
+                closeSidebar();
+            }
+
+            staffProfileNavbarInitialized = true;
+        }
+
         // Current date display
         document.addEventListener('DOMContentLoaded', function() {
             const today = new Date();
@@ -2484,6 +2546,9 @@
                 day: 'numeric' 
             });
             document.getElementById('currentDate').textContent = dateStr;
+            setupMobileNavbar();
+
+            window.addEventListener('resize', setupMobileNavbar);
 
             // 🚀 OPTIONAL ASYNC DATA LOADING - Load heavy data after page renders
             // Uncomment this section if you want to load detailed data asynchronously
