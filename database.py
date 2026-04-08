@@ -552,6 +552,8 @@ def init_db(app):
             end_date DATE NOT NULL,
             reason TEXT,
             status TEXT CHECK(status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+            withdrawn INTEGER DEFAULT 0,
+            withdrawn_at TIMESTAMP,
             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             processed_by INTEGER,
             processed_at TIMESTAMP,
@@ -590,6 +592,8 @@ def init_db(app):
             purpose TEXT NOT NULL,
             reason TEXT,
             status TEXT CHECK(status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+            withdrawn INTEGER DEFAULT 0,
+            withdrawn_at TIMESTAMP,
             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             processed_by INTEGER,
             processed_at TIMESTAMP,
@@ -613,6 +617,8 @@ def init_db(app):
             duration_hours DECIMAL(4,2),
             reason TEXT NOT NULL,
             status TEXT CHECK(status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+            withdrawn INTEGER DEFAULT 0,
+            withdrawn_at TIMESTAMP,
             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             processed_by INTEGER,
             processed_at TIMESTAMP,
@@ -1133,6 +1139,14 @@ def init_db(app):
         ensure_column_exists('attendance', 'regularization_requested BOOLEAN DEFAULT 0', 'regularization_requested')
         ensure_column_exists('attendance', 'regularization_status TEXT CHECK(regularization_status IN ("pending", "approved", "rejected")) DEFAULT NULL', 'regularization_status')
         ensure_column_exists('attendance', 'regularization_reason TEXT', 'regularization_reason')
+
+        # Staff self-withdraw support for leave/on-duty/permission applications
+        ensure_column_exists('leave_applications', 'withdrawn INTEGER DEFAULT 0', 'withdrawn')
+        ensure_column_exists('leave_applications', 'withdrawn_at TIMESTAMP', 'withdrawn_at')
+        ensure_column_exists('on_duty_applications', 'withdrawn INTEGER DEFAULT 0', 'withdrawn')
+        ensure_column_exists('on_duty_applications', 'withdrawn_at TIMESTAMP', 'withdrawn_at')
+        ensure_column_exists('permission_applications', 'withdrawn INTEGER DEFAULT 0', 'withdrawn')
+        ensure_column_exists('permission_applications', 'withdrawn_at TIMESTAMP', 'withdrawn_at')
 
         # Add hierarchical timetable support columns
         ensure_column_exists('schools', 'organization_type TEXT CHECK(organization_type IN ("school", "college")) DEFAULT "school"', 'organization_type')

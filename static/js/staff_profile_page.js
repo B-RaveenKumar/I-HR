@@ -517,6 +517,46 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    // Staff can withdraw only pending applications.
+    window.withdrawApplication = function(type, applicationId) {
+        if (!confirm('Are you sure you want to withdraw this application?')) {
+            return;
+        }
+
+        const endpointMap = {
+            leave: `/withdraw_leave/${applicationId}`,
+            on_duty: `/withdraw_on_duty/${applicationId}`,
+            permission: `/withdraw_permission/${applicationId}`
+        };
+
+        const endpoint = endpointMap[type];
+        if (!endpoint) {
+            showToast('Invalid application type', 'error');
+            return;
+        }
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `csrf_token=${encodeURIComponent(getCSRFToken())}`
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast(data.message || 'Application withdrawn successfully', 'success');
+                    setTimeout(() => location.reload(), 900);
+                } else {
+                    showToast(data.error || 'Failed to withdraw application', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Error withdrawing application:', error);
+                showToast('Error withdrawing application', 'error');
+            });
+    };
+
     // Set minimum date for leave application to today
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('startDate')?.setAttribute('min', today);

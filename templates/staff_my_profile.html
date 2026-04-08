@@ -1704,6 +1704,7 @@
                                                 <th>Reason</th>
                                                 <th>Status</th>
                                                 <th>Applied</th>
+                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1714,7 +1715,9 @@
                                                 <td>{{ leave.end_date|dateformat }}</td>
                                                 <td>{{ leave.reason[:30] }}{% if leave.reason|length > 30 %}...{% endif %}</td>
                                                 <td>
-                                                    {% if leave.status == 'approved' %}
+                                                    {% if leave.status == 'withdrawn' or leave.withdrawn %}
+                                                        <span class="badge bg-secondary">Withdrawn</span>
+                                                    {% elif leave.status == 'approved' %}
                                                         <span class="earnings-badge">Approved</span>
                                                     {% elif leave.status == 'rejected' %}
                                                         <span class="badge bg-danger">Rejected</span>
@@ -1723,6 +1726,16 @@
                                                     {% endif %}
                                                 </td>
                                                 <td>{{ leave.applied_at|dateformat }}</td>
+                                                <td>
+                                                    {% if leave.status == 'pending' and not leave.withdrawn %}
+                                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                                onclick="withdrawApplication('leave', {{ leave.id }})">
+                                                            <i class="bi bi-x-circle"></i> Withdraw
+                                                        </button>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
+                                                    {% endif %}
+                                                </td>
                                             </tr>
                                             {% endfor %}
                                         </tbody>
@@ -1767,6 +1780,7 @@
                                                 <th>Location</th>
                                                 <th>Purpose</th>
                                                 <th>Status</th>
+                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1778,12 +1792,24 @@
                                                 <td>{{ duty.location or '-' }}</td>
                                                 <td>{{ duty.purpose[:30] }}{% if duty.purpose|length > 30 %}...{% endif %}</td>
                                                 <td>
-                                                    {% if duty.status == 'approved' %}
+                                                    {% if duty.status == 'withdrawn' or duty.withdrawn %}
+                                                        <span class="badge bg-secondary">Withdrawn</span>
+                                                    {% elif duty.status == 'approved' %}
                                                         <span class="earnings-badge">Approved</span>
                                                     {% elif duty.status == 'rejected' %}
                                                         <span class="badge bg-danger">Rejected</span>
                                                     {% else %}
                                                         <span class="deductions-badge">Pending</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if duty.status == 'pending' and not duty.withdrawn %}
+                                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                                onclick="withdrawApplication('on_duty', {{ duty.id }})">
+                                                            <i class="bi bi-x-circle"></i> Withdraw
+                                                        </button>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
                                                     {% endif %}
                                                 </td>
                                             </tr>
@@ -1831,6 +1857,7 @@
                                                 <th>Duration</th>
                                                 <th>Reason</th>
                                                 <th>Status</th>
+                                                <th>Action</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1842,12 +1869,24 @@
                                                 <td>{{ "%.1f"|format(permission.duration_hours) }} hrs</td>
                                                 <td>{{ permission.reason[:30] }}{% if permission.reason|length > 30 %}...{% endif %}</td>
                                                 <td>
-                                                    {% if permission.status == 'approved' %}
+                                                    {% if permission.status == 'withdrawn' or permission.withdrawn %}
+                                                        <span class="badge bg-secondary">Withdrawn</span>
+                                                    {% elif permission.status == 'approved' %}
                                                         <span class="earnings-badge">Approved</span>
                                                     {% elif permission.status == 'rejected' %}
                                                         <span class="badge bg-danger">Rejected</span>
                                                     {% else %}
                                                         <span class="deductions-badge">Pending</span>
+                                                    {% endif %}
+                                                </td>
+                                                <td>
+                                                    {% if permission.status == 'pending' and not permission.withdrawn %}
+                                                        <button type="button" class="btn btn-sm btn-outline-danger"
+                                                                onclick="withdrawApplication('permission', {{ permission.id }})">
+                                                            <i class="bi bi-x-circle"></i> Withdraw
+                                                        </button>
+                                                    {% else %}
+                                                        <span class="text-muted">-</span>
                                                     {% endif %}
                                                 </td>
                                             </tr>

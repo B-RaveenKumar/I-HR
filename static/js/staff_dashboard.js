@@ -579,6 +579,45 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     });
 
+    window.withdrawApplication = function(type, applicationId) {
+        if (!confirm('Are you sure you want to withdraw this application?')) {
+            return;
+        }
+
+        const endpointMap = {
+            leave: `/withdraw_leave/${applicationId}`,
+            on_duty: `/withdraw_on_duty/${applicationId}`,
+            permission: `/withdraw_permission/${applicationId}`
+        };
+
+        const endpoint = endpointMap[type];
+        if (!endpoint) {
+            alert('Invalid application type');
+            return;
+        }
+
+        fetch(endpoint, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `csrf_token=${encodeURIComponent(getCSRFToken())}`
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Application withdrawn successfully');
+                    location.reload();
+                } else {
+                    alert(data.error || 'Failed to withdraw application');
+                }
+            })
+            .catch(error => {
+                console.error('Error withdrawing application:', error);
+                alert('Error withdrawing application');
+            });
+    };
+
     // Updated download report with date selection
 // Updated download report with date selection
 document.getElementById('downloadReportBtn')?.addEventListener('click', function() {

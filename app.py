@@ -6757,7 +6757,9 @@ def staff_dashboard():
 
     # Get leave applications
     leaves = db.execute('''
-        SELECT id, leave_type, start_date, end_date, reason, status
+         SELECT id, leave_type, start_date, end_date, reason,
+             CASE WHEN COALESCE(withdrawn, 0) = 1 THEN 'withdrawn' ELSE status END as status,
+               COALESCE(withdrawn, 0) as withdrawn
         FROM leave_applications
         WHERE staff_id = ?
         ORDER BY start_date DESC
@@ -6765,7 +6767,9 @@ def staff_dashboard():
 
     # Get on-duty applications
     on_duty_applications = db.execute('''
-        SELECT id, duty_type, start_date, end_date, start_time, end_time, location, purpose, reason, status
+         SELECT id, duty_type, start_date, end_date, start_time, end_time, location, purpose, reason,
+             CASE WHEN COALESCE(withdrawn, 0) = 1 THEN 'withdrawn' ELSE status END as status,
+               COALESCE(withdrawn, 0) as withdrawn
         FROM on_duty_applications
         WHERE staff_id = ?
         ORDER BY start_date DESC
@@ -6773,7 +6777,9 @@ def staff_dashboard():
 
     # Get permission applications
     permission_applications = db.execute('''
-        SELECT id, permission_type, permission_date, start_time, end_time, duration_hours, reason, status
+         SELECT id, permission_type, permission_date, start_time, end_time, duration_hours, reason,
+             CASE WHEN COALESCE(withdrawn, 0) = 1 THEN 'withdrawn' ELSE status END as status,
+               COALESCE(withdrawn, 0) as withdrawn
         FROM permission_applications
         WHERE staff_id = ?
         ORDER BY permission_date DESC
@@ -11101,6 +11107,68 @@ def apply_permission():
     except Exception as e:
         return jsonify({'success': False, 'error': f'Failed to submit application: {str(e)}'})
 
+
+def _withdraw_staff_application(table_name, application_id, staff_id):
+    """Withdraw a pending staff application atomically while preserving history."""
+    db = get_db()
+    withdrawn_at = datetime.datetime.now()
+
+    cursor = db.execute(f'''
+        UPDATE {table_name}
+        SET withdrawn = 1,
+            withdrawn_at = ?,
+            status = 'rejected',
+            processed_by = NULL,
+            processed_at = ?
+        WHERE id = ? AND staff_id = ? AND status = 'pending' AND COALESCE(withdrawn, 0) = 0
+    ''', (withdrawn_at, withdrawn_at, application_id, staff_id))
+
+    if cursor.rowcount == 0:
+        existing = db.execute(
+            f"SELECT status, COALESCE(withdrawn, 0) as withdrawn, staff_id FROM {table_name} WHERE id = ?",
+            (application_id,)
+        ).fetchone()
+        if not existing:
+            return False, 'Application not found'
+        if str(existing['staff_id']) != str(staff_id):
+            return False, 'Unauthorized'
+        if existing['withdrawn']:
+            return False, 'Application already withdrawn'
+        return False, f"Cannot withdraw application in '{existing['status']}' status"
+
+    db.commit()
+    return True, 'Application withdrawn successfully'
+
+
+@app.route('/withdraw_leave/<int:application_id>', methods=['POST'])
+def withdraw_leave(application_id):
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+    success, message = _withdraw_staff_application('leave_applications', application_id, session['user_id'])
+    if not success:
+        return jsonify({'success': False, 'error': message})
+    return jsonify({'success': True, 'message': message})
+
+
+@app.route('/withdraw_on_duty/<int:application_id>', methods=['POST'])
+def withdraw_on_duty(application_id):
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+    success, message = _withdraw_staff_application('on_duty_applications', application_id, session['user_id'])
+    if not success:
+        return jsonify({'success': False, 'error': message})
+    return jsonify({'success': True, 'message': message})
+
+
+@app.route('/withdraw_permission/<int:application_id>', methods=['POST'])
+def withdraw_permission(application_id):
+    if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+    success, message = _withdraw_staff_application('permission_applications', application_id, session['user_id'])
+    if not success:
+        return jsonify({'success': False, 'error': message})
+    return jsonify({'success': True, 'message': message})
+
 @app.route('/process_leave', methods=['POST'])
 def process_leave():
     """Process leave application with enhanced validation and logging"""
@@ -11128,7 +11196,7 @@ def process_leave():
 
     # Get leave application details for validation and logging
     leave_app = db.execute('''
-        SELECT l.*, s.staff_id, s.full_name
+        SELECT l.*, COALESCE(l.withdrawn, 0) as withdrawn, s.staff_id, s.full_name
         FROM leave_applications l
         JOIN staff s ON l.staff_id = s.id
         WHERE l.id = ?
@@ -11138,10 +11206,10 @@ def process_leave():
         return jsonify({'success': False, 'error': 'Leave application not found'})
     
     # Check if already processed
-    if leave_app['status'] != 'pending':
+    if leave_app['status'] != 'pending' or leave_app['withdrawn']:
         return jsonify({
             'success': False, 
-            'error': f'Leave application already {leave_app["status"]}. Cannot process again.'
+            'error': 'Leave application is not pending. Cannot process again.'
         })
 
     status = 'approved' if decision == 'approve' else 'rejected'
@@ -11155,7 +11223,7 @@ def process_leave():
     cursor = db.execute('''
         UPDATE leave_applications
         SET status = ?, processed_by = ?, processed_at = ?
-        WHERE id = ? AND status = 'pending'
+        WHERE id = ? AND status = 'pending' AND COALESCE(withdrawn, 0) = 0
     ''', (status, admin_id, processed_at, leave_id))
     
     # Verify update was successful
@@ -11205,7 +11273,8 @@ def process_on_duty():
     try:
         # Get the on-duty application details before updating
         on_duty_app = db.execute('''
-            SELECT staff_id, school_id, start_date, end_date, duty_type, location, purpose
+            SELECT staff_id, school_id, start_date, end_date, duty_type, location, purpose,
+                   status, COALESCE(withdrawn, 0) as withdrawn
             FROM on_duty_applications
             WHERE id = ?
         ''', (application_id,)).fetchone()
@@ -11213,12 +11282,19 @@ def process_on_duty():
         if not on_duty_app:
             return jsonify({'success': False, 'error': 'On-duty application not found'})
 
+        if on_duty_app['status'] != 'pending' or on_duty_app['withdrawn']:
+            return jsonify({'success': False, 'error': 'On-duty application is not pending'})
+
         # Update the application status
-        db.execute('''
+        cursor = db.execute('''
             UPDATE on_duty_applications
             SET status = ?, processed_by = ?, processed_at = ?, admin_remarks = ?
-            WHERE id = ?
+            WHERE id = ? AND status = 'pending' AND COALESCE(withdrawn, 0) = 0
         ''', (status, admin_id, processed_at, admin_remarks, application_id))
+
+        if cursor.rowcount == 0:
+            db.rollback()
+            return jsonify({'success': False, 'error': 'On-duty application is no longer pending'})
 
         # If approved, mark attendance as "On Duty" for the date range
         if status == 'approved':
@@ -11294,19 +11370,27 @@ def process_permission():
     status = 'approved' if decision == 'approve' else 'rejected'
 
     try:
-        # Get permission application details before updating
-        if status == 'approved':
-            permission_details = db.execute('''
-                SELECT staff_id, school_id, permission_date
-                FROM permission_applications
-                WHERE id = ?
-            ''', (application_id,)).fetchone()
+        permission_details = db.execute('''
+            SELECT staff_id, school_id, permission_date, status, COALESCE(withdrawn, 0) as withdrawn
+            FROM permission_applications
+            WHERE id = ?
+        ''', (application_id,)).fetchone()
 
-        db.execute('''
+        if not permission_details:
+            return jsonify({'success': False, 'error': 'Permission application not found'})
+
+        if permission_details['status'] != 'pending' or permission_details['withdrawn']:
+            return jsonify({'success': False, 'error': 'Permission application is not pending'})
+
+        cursor = db.execute('''
             UPDATE permission_applications
             SET status = ?, processed_by = ?, processed_at = ?, admin_remarks = ?
-            WHERE id = ?
+            WHERE id = ? AND status = 'pending' AND COALESCE(withdrawn, 0) = 0
         ''', (status, admin_id, processed_at, admin_remarks, application_id))
+
+        if cursor.rowcount == 0:
+            db.rollback()
+            return jsonify({'success': False, 'error': 'Permission application is no longer pending'})
 
         # Update quota usage if permission is approved
         if status == 'approved' and permission_details:
@@ -14348,7 +14432,10 @@ def get_comprehensive_staff_profile():
 
         # Get leave applications
         leaves = db.execute('''
-            SELECT leave_type, start_date, end_date, reason, status, applied_at
+             SELECT leave_type, start_date, end_date, reason,
+                 CASE WHEN COALESCE(withdrawn, 0) = 1 THEN 'withdrawn' ELSE status END as status,
+                 applied_at,
+                   COALESCE(withdrawn, 0) as withdrawn
             FROM leave_applications
             WHERE staff_id = ?
             ORDER BY applied_at DESC
@@ -14357,7 +14444,10 @@ def get_comprehensive_staff_profile():
 
         # Get on-duty applications
         on_duty_applications = db.execute('''
-            SELECT duty_type, start_date, end_date, start_time, end_time, location, purpose, reason, status, applied_at, admin_remarks
+             SELECT duty_type, start_date, end_date, start_time, end_time, location, purpose, reason,
+                 CASE WHEN COALESCE(withdrawn, 0) = 1 THEN 'withdrawn' ELSE status END as status,
+                 applied_at, admin_remarks,
+                   COALESCE(withdrawn, 0) as withdrawn
             FROM on_duty_applications
             WHERE staff_id = ?
             ORDER BY applied_at DESC
@@ -14366,7 +14456,10 @@ def get_comprehensive_staff_profile():
 
         # Get permission applications
         permission_applications = db.execute('''
-            SELECT permission_type, permission_date, start_time, end_time, duration_hours, reason, status, applied_at, admin_remarks
+             SELECT permission_type, permission_date, start_time, end_time, duration_hours, reason,
+                 CASE WHEN COALESCE(withdrawn, 0) = 1 THEN 'withdrawn' ELSE status END as status,
+                 applied_at, admin_remarks,
+                   COALESCE(withdrawn, 0) as withdrawn
             FROM permission_applications
             WHERE staff_id = ?
             ORDER BY applied_at DESC
@@ -14917,14 +15010,16 @@ def staff_profile_page():
          SELECT *
          FROM (
              SELECT 'leave' as app_type, id, leave_type as type_detail, start_date, end_date,
-                 NULL as location, reason, status, applied_at, NULL as duration_hours
+                 NULL as location, reason, status, applied_at, NULL as duration_hours,
+                 COALESCE(withdrawn, 0) as withdrawn
              FROM leave_applications
              WHERE staff_id = ?
 
              UNION ALL
 
              SELECT 'on_duty' as app_type, id, duty_type as type_detail, start_date, end_date,
-                 location, COALESCE(reason, purpose) as reason, status, applied_at, NULL as duration_hours
+                 location, COALESCE(reason, purpose) as reason, status, applied_at, NULL as duration_hours,
+                 COALESCE(withdrawn, 0) as withdrawn
              FROM on_duty_applications
              WHERE staff_id = ?
 
@@ -14932,7 +15027,7 @@ def staff_profile_page():
 
              SELECT 'permission' as app_type, id, permission_type as type_detail,
                  permission_date as start_date, permission_date as end_date, NULL as location,
-                 reason, status, applied_at, duration_hours
+                 reason, status, applied_at, duration_hours, COALESCE(withdrawn, 0) as withdrawn
              FROM permission_applications
              WHERE staff_id = ?
          ) recent_apps
@@ -14955,7 +15050,7 @@ def staff_profile_page():
                 'start_date': app['start_date'],
                 'end_date': app['end_date'],
                 'reason': app['reason'],
-                'status': app['status'],
+                'status': 'withdrawn' if app['withdrawn'] else app['status'],
                 'applied_at': app['applied_at']
             })
         elif app['app_type'] == 'on_duty':
@@ -14967,7 +15062,7 @@ def staff_profile_page():
                 'location': app['location'],
                 'purpose': app['reason'],  # Map reason to purpose for template compatibility
                 'reason': app['reason'],
-                'status': app['status'],
+                'status': 'withdrawn' if app['withdrawn'] else app['status'],
                 'applied_at': app['applied_at']
             })
         elif app['app_type'] == 'permission':
@@ -14979,7 +15074,7 @@ def staff_profile_page():
                 'end_time': None,
                 'duration_hours': app['duration_hours'],
                 'reason': app['reason'],
-                'status': app['status'],
+                'status': 'withdrawn' if app['withdrawn'] else app['status'],
                 'applied_at': app['applied_at']
             })
 
