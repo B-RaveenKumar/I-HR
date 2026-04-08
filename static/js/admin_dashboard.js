@@ -107,25 +107,52 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Live Staff Search
-    document.getElementById('staffSearch')?.addEventListener('input', applyAttendanceFilters);
+    // Live Staff Search - Initialize filters
+    function initializeAttendanceFilters() {
+        const staffSearchEl = document.getElementById('staffSearch');
+        const shiftFilterEl = document.getElementById('shiftFilter');
+        const statusFilterEl = document.getElementById('statusFilter');
+        
+        if (staffSearchEl) {
+            staffSearchEl.addEventListener('input', applyAttendanceFilters);
+        }
+        if (shiftFilterEl) {
+            shiftFilterEl.addEventListener('change', applyAttendanceFilters);
+        }
+        if (statusFilterEl) {
+            statusFilterEl.addEventListener('change', applyAttendanceFilters);
+        }
+    }
 
     // Filter function for shift and status
     function applyAttendanceFilters() {
-        const searchTerm = document.getElementById('staffSearch')?.value.toLowerCase() || '';
-        const selectedShift = document.getElementById('shiftFilter')?.value || '';
-        const selectedStatus = document.getElementById('statusFilter')?.value || '';
+        const staffSearchEl = document.getElementById('staffSearch');
+        const shiftFilterEl = document.getElementById('shiftFilter');
+        const statusFilterEl = document.getElementById('statusFilter');
         
-        const rows = document.querySelectorAll('.table tbody tr');
+        const searchTerm = staffSearchEl ? staffSearchEl.value.toLowerCase() : '';
+        const selectedShift = shiftFilterEl ? shiftFilterEl.value : '';
+        const selectedStatus = statusFilterEl ? statusFilterEl.value : '';
+        
+        // Target the specific table with salary-results-table class
+        const tableBody = document.querySelector('.salary-results-table tbody');
+        if (!tableBody) {
+            console.warn('Attendance table not found');
+            return;
+        }
+        
+        const rows = tableBody.querySelectorAll('tr');
         rows.forEach(row => {
             // Get row attributes
             const shift = row.getAttribute('data-shift') || 'general';
             const status = row.getAttribute('data-active') || 'active';
             
-            // Check search term
-            const searchMatch = searchTerm === '' || Array.from(row.querySelectorAll('td')).some(cell => 
-                cell.textContent.toLowerCase().includes(searchTerm)
-            );
+            // Check search term - search in all text content
+            let searchMatch = searchTerm === '';
+            if (!searchMatch) {
+                const rowText = row.textContent.toLowerCase();
+                searchMatch = rowText.includes(searchTerm);
+            }
             
             // Check shift filter
             const shiftMatch = selectedShift === '' || shift === selectedShift;
@@ -136,15 +163,16 @@ document.addEventListener('DOMContentLoaded', function () {
             // Show/hide row based on all filters
             if (searchMatch && shiftMatch && statusMatch) {
                 row.classList.remove('hidden');
+                row.style.display = '';
             } else {
                 row.classList.add('hidden');
+                row.style.display = 'none';
             }
         });
     }
 
-    // Add event listeners for filters
-    document.getElementById('shiftFilter')?.addEventListener('change', applyAttendanceFilters);
-    document.getElementById('statusFilter')?.addEventListener('change', applyAttendanceFilters);
+    // Initialize filters when page loads
+    initializeAttendanceFilters();
 
     // View Staff Profile Handler
     document.querySelector('.table tbody')?.addEventListener('click', function (e) {

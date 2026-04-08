@@ -103,6 +103,12 @@
     margin-left: 0.5rem;
     display: none;
 }
+
+/* Attendance Filter Hidden Class */
+.hidden {
+    display: none !important;
+}
+
 @media (max-width: 767.98px) {
     .enhanced-sidebar {
         min-height: auto;

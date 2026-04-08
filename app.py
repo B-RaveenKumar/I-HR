@@ -11621,8 +11621,9 @@ def get_weekly_attendance():
             # Check for leave applications on this date
             day_data['leave_applications'] = []
             for leave in leave_applications:
-                leave_start = datetime.datetime.strptime(leave['start_date'], '%Y-%m-%d').date()
-                leave_end = datetime.datetime.strptime(leave['end_date'], '%Y-%m-%d').date()
+                # Handle both string and date object formats from SQLite
+                leave_start = leave['start_date'] if isinstance(leave['start_date'], datetime.date) else datetime.datetime.strptime(leave['start_date'], '%Y-%m-%d').date()
+                leave_end = leave['end_date'] if isinstance(leave['end_date'], datetime.date) else datetime.datetime.strptime(leave['end_date'], '%Y-%m-%d').date()
                 if leave_start <= current_date <= leave_end:
                     day_data['leave_applications'].append({
                         'id': leave['id'],
@@ -11634,8 +11635,9 @@ def get_weekly_attendance():
             # Check for on-duty applications on this date
             day_data['on_duty_applications'] = []
             for od in on_duty_applications:
-                od_start = datetime.datetime.strptime(od['start_date'], '%Y-%m-%d').date()
-                od_end = datetime.datetime.strptime(od['end_date'], '%Y-%m-%d').date()
+                # Handle both string and date object formats from SQLite
+                od_start = od['start_date'] if isinstance(od['start_date'], datetime.date) else datetime.datetime.strptime(od['start_date'], '%Y-%m-%d').date()
+                od_end = od['end_date'] if isinstance(od['end_date'], datetime.date) else datetime.datetime.strptime(od['end_date'], '%Y-%m-%d').date()
                 if od_start <= current_date <= od_end:
                     day_data['on_duty_applications'].append({
                         'id': od['id'],
@@ -11648,7 +11650,8 @@ def get_weekly_attendance():
             # Check for permission applications on this date
             day_data['permission_applications'] = []
             for perm in permission_applications:
-                perm_date = datetime.datetime.strptime(perm['permission_date'], '%Y-%m-%d').date()
+                # Handle both string and date object formats from SQLite
+                perm_date = perm['permission_date'] if isinstance(perm['permission_date'], datetime.date) else datetime.datetime.strptime(perm['permission_date'], '%Y-%m-%d').date()
                 if perm_date == current_date:
                     day_data['permission_applications'].append({
                         'id': perm['id'],
