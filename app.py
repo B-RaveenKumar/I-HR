@@ -10896,6 +10896,9 @@ def apply_leave():
     
     # Initialize quotas if not exists
     initialize_staff_quotas(staff_id, school_id, current_year)
+
+    # Ensure validation uses the latest usage (including recent withdrawals).
+    update_quota_usage(staff_id, school_id, current_year)
     
     # CRITICAL: Check quota availability (Server-Side Validation)
     quota = db.execute("""
@@ -10935,6 +10938,11 @@ def apply_leave():
         
         new_leave_id = cursor.lastrowid
         db.commit()
+
+        try:
+            update_quota_usage(staff_id, school_id, current_year)
+        except Exception as quota_err:
+            print(f"⚠️ Quota refresh after leave apply failed: {quota_err}")
 
         # Log the submission for audit trail
         print(f"📝 LEAVE SUBMITTED: Staff {staff_id} submitted {leave_type} leave for {start_date} to {end_date} (ID: {new_leave_id})")
@@ -10991,6 +10999,9 @@ def apply_on_duty():
     
     # Initialize quotas if not exists
     initialize_staff_quotas(staff_id, school_id, current_year)
+
+    # Ensure validation uses the latest usage (including recent withdrawals).
+    update_quota_usage(staff_id, school_id, current_year)
     
     # CRITICAL: Check quota availability (Server-Side Validation)
     quota = db.execute("""
@@ -11027,6 +11038,11 @@ def apply_on_duty():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (staff_id, school_id, duty_type, start_date, end_date, start_time, end_time, location, purpose, reason))
         db.commit()
+
+        try:
+            update_quota_usage(staff_id, school_id, current_year)
+        except Exception as quota_err:
+            print(f"⚠️ Quota refresh after on-duty apply failed: {quota_err}")
 
         return jsonify({'success': True, 'message': 'On-duty application submitted successfully'})
     except Exception as e:
@@ -11066,6 +11082,9 @@ def apply_permission():
     
     # Initialize quotas if not exists
     initialize_staff_quotas(staff_id, school_id, current_year)
+
+    # Ensure validation uses the latest usage (including recent withdrawals).
+    update_quota_usage(staff_id, school_id, current_year)
     
     # CRITICAL: Check quota availability (Server-Side Validation)
     quota = db.execute("""
@@ -11102,6 +11121,11 @@ def apply_permission():
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ''', (staff_id, school_id, permission_type, permission_date, start_time, end_time, duration, reason))
         db.commit()
+
+        try:
+            update_quota_usage(staff_id, school_id, current_year)
+        except Exception as quota_err:
+            print(f"⚠️ Quota refresh after permission apply failed: {quota_err}")
 
         return jsonify({'success': True, 'message': 'Permission application submitted successfully'})
     except Exception as e:
@@ -11144,9 +11168,17 @@ def _withdraw_staff_application(table_name, application_id, staff_id):
 def withdraw_leave(application_id):
     if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
+    db = get_db()
     success, message = _withdraw_staff_application('leave_applications', application_id, session['user_id'])
     if not success:
         return jsonify({'success': False, 'error': message})
+    try:
+        row = db.execute('SELECT school_id, start_date FROM leave_applications WHERE id = ?', (application_id,)).fetchone()
+        if row:
+            quota_year = datetime.datetime.strptime(row['start_date'], '%Y-%m-%d').year
+            update_quota_usage(session['user_id'], row['school_id'], quota_year)
+    except Exception as quota_err:
+        print(f"⚠️ Quota refresh after leave withdrawal failed: {quota_err}")
     return jsonify({'success': True, 'message': message})
 
 
@@ -11154,9 +11186,17 @@ def withdraw_leave(application_id):
 def withdraw_on_duty(application_id):
     if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
+    db = get_db()
     success, message = _withdraw_staff_application('on_duty_applications', application_id, session['user_id'])
     if not success:
         return jsonify({'success': False, 'error': message})
+    try:
+        row = db.execute('SELECT school_id, start_date FROM on_duty_applications WHERE id = ?', (application_id,)).fetchone()
+        if row:
+            quota_year = datetime.datetime.strptime(row['start_date'], '%Y-%m-%d').year
+            update_quota_usage(session['user_id'], row['school_id'], quota_year)
+    except Exception as quota_err:
+        print(f"⚠️ Quota refresh after on-duty withdrawal failed: {quota_err}")
     return jsonify({'success': True, 'message': message})
 
 
@@ -11164,9 +11204,17 @@ def withdraw_on_duty(application_id):
 def withdraw_permission(application_id):
     if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
+    db = get_db()
     success, message = _withdraw_staff_application('permission_applications', application_id, session['user_id'])
     if not success:
         return jsonify({'success': False, 'error': message})
+    try:
+        row = db.execute('SELECT school_id, permission_date FROM permission_applications WHERE id = ?', (application_id,)).fetchone()
+        if row:
+            quota_year = datetime.datetime.strptime(row['permission_date'], '%Y-%m-%d').year
+            update_quota_usage(session['user_id'], row['school_id'], quota_year)
+    except Exception as quota_err:
+        print(f"⚠️ Quota refresh after permission withdrawal failed: {quota_err}")
     return jsonify({'success': True, 'message': message})
 
 @app.route('/process_leave', methods=['POST'])
@@ -11234,15 +11282,14 @@ def process_leave():
     
     db.commit()
 
-    # Update quota usage if leave is approved
-    if status == 'approved':
-        try:
-            quota_year = datetime.datetime.strptime(leave_app['start_date'], '%Y-%m-%d').year
-            update_result = update_quota_usage(leave_app['staff_id'], leave_app['school_id'], quota_year)
-            print(f"✅ Quota updated for staff {leave_app['staff_id']}: {update_result}")
-        except Exception as e:
-            print(f"⚠️ Error updating quota usage: {e}")
-            # Don't fail the whole operation for quota update errors
+    # Refresh quota usage for both approve/reject to keep reserved balance accurate.
+    try:
+        quota_year = datetime.datetime.strptime(leave_app['start_date'], '%Y-%m-%d').year
+        update_result = update_quota_usage(leave_app['staff_id'], leave_app['school_id'], quota_year)
+        print(f"✅ Quota updated for staff {leave_app['staff_id']}: {update_result}")
+    except Exception as e:
+        print(f"⚠️ Error updating quota usage: {e}")
+        # Don't fail the whole operation for quota update errors
 
     return jsonify({
         'success': True, 
@@ -11336,14 +11383,12 @@ def process_on_duty():
 
                 current_date += datetime.timedelta(days=1)
 
-        # Update quota usage if on-duty is approved
-        if status == 'approved':
-            try:
-                quota_year = start_date.year
-                update_result = update_quota_usage(staff_id, school_id, quota_year)
-                print(f"OD Quota updated for staff {staff_id}: {update_result}")
-            except Exception as e:
-                print(f"Error updating OD quota usage: {e}")
+        try:
+            quota_year = datetime.datetime.strptime(on_duty_app['start_date'], '%Y-%m-%d').year
+            update_result = update_quota_usage(on_duty_app['staff_id'], on_duty_app['school_id'], quota_year)
+            print(f"OD Quota updated for staff {on_duty_app['staff_id']}: {update_result}")
+        except Exception as e:
+            print(f"Error updating OD quota usage: {e}")
 
         db.commit()
 
@@ -11392,14 +11437,12 @@ def process_permission():
             db.rollback()
             return jsonify({'success': False, 'error': 'Permission application is no longer pending'})
 
-        # Update quota usage if permission is approved
-        if status == 'approved' and permission_details:
-            try:
-                quota_year = datetime.datetime.strptime(permission_details['permission_date'], '%Y-%m-%d').year
-                update_result = update_quota_usage(permission_details['staff_id'], permission_details['school_id'], quota_year)
-                print(f"Permission Quota updated for staff {permission_details['staff_id']}: {update_result}")
-            except Exception as e:
-                print(f"Error updating permission quota usage: {e}")
+        try:
+            quota_year = datetime.datetime.strptime(permission_details['permission_date'], '%Y-%m-%d').year
+            update_result = update_quota_usage(permission_details['staff_id'], permission_details['school_id'], quota_year)
+            print(f"Permission Quota updated for staff {permission_details['staff_id']}: {update_result}")
+        except Exception as e:
+            print(f"Error updating permission quota usage: {e}")
 
         db.commit()
 
@@ -17850,6 +17893,10 @@ def get_staff_quota_summary(staff_id, quota_year=None, school_id=None):
     
     try:
         db = get_db()
+
+        # Keep displayed balances in sync with current application states
+        # (approved/pending/withdrawn effects).
+        update_quota_usage(staff_id, school_id, quota_year)
         
         # Get leave quotas
         leave_quotas = db.execute('''
@@ -17925,7 +17972,10 @@ def get_staff_quota_summary(staff_id, quota_year=None, school_id=None):
 
 def calculate_used_quotas(staff_id, quota_year, school_id):
     """
-    Calculate used quotas based on approved applications
+    Calculate used quotas based on approved and pending applications.
+
+    Pending requests are treated as reserved balance so staff cannot over-apply
+    before admin acts on earlier requests.
     
     Args:
         staff_id (int): Staff ID
@@ -17953,7 +18003,7 @@ def calculate_used_quotas(staff_id, quota_year, school_id):
                 ), 0) as total_days
                 FROM leave_applications
                 WHERE staff_id = ? AND school_id = ? AND leave_type = ?
-                AND status = 'approved'
+                AND status IN ('approved', 'pending')
                 AND start_date BETWEEN ? AND ?
             ''', (staff_id, school_id, leave_type, year_start, year_end)).fetchone()
             
@@ -17965,7 +18015,7 @@ def calculate_used_quotas(staff_id, quota_year, school_id):
                 julianday(end_date) - julianday(start_date) + 1
             ), 0) as total_days
             FROM on_duty_applications
-            WHERE staff_id = ? AND school_id = ? AND status = 'approved'
+            WHERE staff_id = ? AND school_id = ? AND status IN ('approved', 'pending')
             AND start_date BETWEEN ? AND ?
         ''', (staff_id, school_id, year_start, year_end)).fetchone()
         
@@ -17973,7 +18023,7 @@ def calculate_used_quotas(staff_id, quota_year, school_id):
         permission_usage = db.execute('''
             SELECT COALESCE(SUM(duration_hours), 0) as total_hours
             FROM permission_applications
-            WHERE staff_id = ? AND school_id = ? AND status = 'approved'
+            WHERE staff_id = ? AND school_id = ? AND status IN ('approved', 'pending')
             AND permission_date BETWEEN ? AND ?
         ''', (staff_id, school_id, year_start, year_end)).fetchone()
         

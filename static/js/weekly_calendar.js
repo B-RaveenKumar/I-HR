@@ -644,9 +644,9 @@ const weeklyCalendarStyles = `
     align-items: center;
 }
 
-.timing-label {
+.weekly-calendar .timing-label {
     font-size: 11px;
-    color: white;
+    color: #111 !important;
     font-weight: 600;
 }
 
