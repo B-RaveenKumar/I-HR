@@ -14463,6 +14463,7 @@ def get_comprehensive_staff_profile():
         
         existing_attendance = db.execute('''
             SELECT date, time_in, time_out, status,
+                   COALESCE(regularization_status, '') AS regularization_status,
                    on_duty_type, on_duty_location, on_duty_purpose
             FROM attendance
             WHERE staff_id = ? AND date >= ? AND date <= ?
@@ -14541,6 +14542,7 @@ def get_comprehensive_staff_profile():
                         'time_in': None,
                         'time_out': None,
                         'status': status,
+                        'regularization_status': '',
                         'on_duty_type': None,
                         'on_duty_location': None,
                         'on_duty_purpose': None
@@ -14557,8 +14559,15 @@ def get_comprehensive_staff_profile():
             
             current_date += datetime.timedelta(days=1)
         
-        # Convert back to list and sort by date (newest first)
-        attendance = sorted(attendance_dict.values(), key=lambda x: x['date'], reverse=True)
+        # Convert back to list, normalize regularized statuses, then sort by date (newest first).
+        attendance = list(attendance_dict.values())
+        for record in attendance:
+            record_status = str(record.get('status') or '').strip().lower()
+            regularization_state = str(record.get('regularization_status') or '').strip().lower()
+            if regularization_state == 'approved' and record_status == 'late':
+                record['status'] = 'approved_regularization'
+
+        attendance.sort(key=lambda x: x['date'], reverse=True)
 
         # Get biometric verifications for requested month
         verifications = db.execute('''
@@ -14624,12 +14633,13 @@ def get_comprehensive_staff_profile():
         
         # Calculate accurate attendance statistics
         total_recorded_days = len(attendance)
-        present_days = len([a for a in attendance if a['status'] in ['present', 'late', 'on_duty']])
+        present_days = len([a for a in attendance if a['status'] in ['present', 'late', 'on_duty', 'approved_regularization']])
         absent_days = len([a for a in attendance if a['status'] == 'absent'])
         late_days = len([a for a in attendance if a['status'] == 'late'])
         on_duty_days = len([a for a in attendance if a['status'] == 'on_duty'])
         leave_days = len([a for a in attendance if a['status'] == 'leave'])
         holiday_days = len([a for a in attendance if a['status'] == 'holiday'])
+        regularized_days = len([a for a in attendance if a['status'] == 'approved_regularization'])
         
         # Calculate actual working days (Monday-Saturday minus holidays)
         actual_working_days = current_month_working_days - holiday_days
@@ -14640,6 +14650,7 @@ def get_comprehensive_staff_profile():
             'present_days': present_days,
             'absent_days': absent_days,
             'late_days': late_days,
+            'regularized_days': regularized_days,
             'on_duty_days': on_duty_days,
             'leave_days': leave_days,
             'holiday_days': holiday_days,
@@ -16503,6 +16514,7 @@ def update_salary_rules():
             'early_arrival_bonus_per_hour',
             'early_departure_penalty_per_hour',
             'late_arrival_penalty_per_hour',
+            'single_punch_penalty_rate',
             'absent_day_deduction_rate',
             'overtime_rate_multiplier',
             'on_duty_rate',

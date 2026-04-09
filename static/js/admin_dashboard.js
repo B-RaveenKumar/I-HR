@@ -480,8 +480,14 @@ document.addEventListener('DOMContentLoaded', function () {
                                     const date = new Date(record.date + 'T00:00:00');
                                     const dayName = date.toLocaleDateString('en-US', { weekday: 'short' });
                                     const formattedDate = date.toLocaleDateString('en-GB');
-                                    const status = record.status || 'unknown';
-                                    const statusDisplay = status.charAt(0).toUpperCase() + status.slice(1);
+                                    const status = (record.status || 'unknown').toLowerCase();
+                                    const statusDisplayMap = {
+                                        approved_regularization: 'Approved Regularization',
+                                        on_duty: 'On Duty',
+                                        on_permission: 'On Permission',
+                                        not_marked: 'Not Marked'
+                                    };
+                                    const statusDisplay = statusDisplayMap[status] || (status.charAt(0).toUpperCase() + status.slice(1));
                                     
                                     return `
                                     <tr class="${status === 'absent' ? 'table-danger' : status === 'leave' ? 'table-secondary' : ''}">
@@ -495,6 +501,7 @@ document.addEventListener('DOMContentLoaded', function () {
                                             <span class="badge bg-${getStatusColor(status)}">${statusDisplay}</span>
                                             ${status === 'absent' ? '<br><small class="text-muted">No check-in recorded</small>' : ''}
                                             ${status === 'leave' ? '<br><small class="text-muted">Approved leave</small>' : ''}
+                                            ${status === 'approved_regularization' ? '<br><small class="text-success">Late entry regularized by admin</small>' : ''}
                                         </td>
                                     </tr>
                                 `;
@@ -1021,6 +1028,7 @@ document.addEventListener('DOMContentLoaded', function () {
             'present': 'success',
             'absent': 'danger',
             'late': 'warning',
+            'approved_regularization': 'success',
             'leave': 'secondary',
             'on_duty': 'primary',
             'holiday': 'dark',

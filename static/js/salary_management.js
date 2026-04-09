@@ -28,6 +28,7 @@ function setupSalaryRulesAutoSave() {
         'earlyArrivalBonus',
         'earlyDeparturePenalty', 
         'lateArrivalPenalty',
+        'singlePunchPenalty',
         'overtimeMultiplier',
         'absentDeductionRate',
         'onDutyRate',
@@ -103,6 +104,7 @@ function saveRuleToLocalStorage() {
             'earlyArrivalBonus',
             'earlyDeparturePenalty', 
             'lateArrivalPenalty',
+            'singlePunchPenalty',
             'overtimeMultiplier',
             'absentDeductionRate',
             'onDutyRate',
@@ -152,6 +154,7 @@ function getRuleNameFromFieldId(fieldId) {
         'earlyArrivalBonus': 'early_arrival_bonus_per_hour',
         'earlyDeparturePenalty': 'early_departure_penalty_per_hour',
         'lateArrivalPenalty': 'late_arrival_penalty_per_hour',
+        'singlePunchPenalty': 'single_punch_penalty_rate',
         'overtimeMultiplier': 'overtime_rate_multiplier',
         'absentDeductionRate': 'absent_day_deduction_rate',
         'onDutyRate': 'on_duty_rate',
@@ -166,6 +169,7 @@ function getFieldDisplayName(fieldId) {
         'earlyArrivalBonus': 'Early Arrival Bonus',
         'earlyDeparturePenalty': 'Early Departure Penalty',
         'lateArrivalPenalty': 'Late Arrival Penalty',
+        'singlePunchPenalty': 'Single Punch Penalty',
         'overtimeMultiplier': 'Overtime Multiplier',
         'absentDeductionRate': 'Absent Day Deduction Rate',
         'onDutyRate': 'On Duty Rate',
@@ -336,6 +340,7 @@ function populateSalaryRuleFields(rules) {
     setFieldValue('earlyArrivalBonus', 'early_arrival_bonus_per_hour', 50);
     setFieldValue('earlyDeparturePenalty', 'early_departure_penalty_per_hour', 100);
     setFieldValue('lateArrivalPenalty', 'late_arrival_penalty_per_hour', 75);
+    setFieldValue('singlePunchPenalty', 'single_punch_penalty_rate', 50);
     setFieldValue('overtimeMultiplier', 'overtime_rate_multiplier', 1.5);
     setFieldValue('absentDeductionRate', 'absent_day_deduction_rate', 1.0);
     setFieldValue('onDutyRate', 'on_duty_rate', 1.0);
@@ -734,6 +739,7 @@ function updateSalaryRules() {
     formData.append('early_arrival_bonus_per_hour', document.getElementById('earlyArrivalBonus').value);
     formData.append('early_departure_penalty_per_hour', document.getElementById('earlyDeparturePenalty').value);
     formData.append('late_arrival_penalty_per_hour', document.getElementById('lateArrivalPenalty').value);
+    formData.append('single_punch_penalty_rate', document.getElementById('singlePunchPenalty').value);
     formData.append('overtime_rate_multiplier', document.getElementById('overtimeMultiplier').value);
     formData.append('absent_day_deduction_rate', document.getElementById('absentDeductionRate').value);
     formData.append('on_duty_rate', document.getElementById('onDutyRate').value);
@@ -1195,6 +1201,7 @@ function resetSalaryRulesToDefaults() {
         document.getElementById('earlyArrivalBonus').value = '50.00';
         document.getElementById('earlyDeparturePenalty').value = '100.00';
         document.getElementById('lateArrivalPenalty').value = '75.00';
+        document.getElementById('singlePunchPenalty').value = '50.00';
         document.getElementById('overtimeMultiplier').value = '1.5';
         document.getElementById('absentDeductionRate').value = '1.0';
         document.getElementById('onDutyRate').value = '1.0';

@@ -31,6 +31,7 @@ class SalaryCalculator:
             'early_arrival_bonus_per_hour': 50.0,  # Bonus for arriving early
             'early_departure_penalty_per_hour': 100.0,  # Penalty for leaving early
             'late_arrival_penalty_per_hour': 75.0,  # Penalty for being late
+            'single_punch_penalty_rate': 50.0,  # Penalty for a single check-in/check-out punch
             'absent_day_deduction_rate': 1.0,  # Full day salary deduction
             'half_day_threshold_hours': 4.0,  # Minimum hours for half day
             'overtime_rate_multiplier': 1.5,  # 1.5x regular rate for overtime
@@ -504,6 +505,7 @@ class SalaryCalculator:
         early_arrival_bonus = 0.0
         early_departure_penalty = 0.0
         late_arrival_penalty = 0.0
+        single_punch_penalty = 0.0
         overtime_pay = 0.0
 
         # Process attendance records for bonuses/penalties
@@ -864,6 +866,7 @@ class SalaryCalculator:
         early_arrival_bonus = 0.0
         early_departure_penalty = 0.0
         late_arrival_penalty = 0.0
+        single_punch_penalty = 0.0
         overtime_pay = 0.0
         
         # Process attendance data
@@ -878,6 +881,7 @@ class SalaryCalculator:
         early_arrival_bonus = attendance_summary['early_arrival_bonus']
         early_departure_penalty = attendance_summary['early_departure_penalty']
         late_arrival_penalty = attendance_summary['late_arrival_penalty']
+        single_punch_penalty = attendance_summary.get('single_punch_penalty', 0.0)
         overtime_pay = attendance_summary['overtime_pay']
         
         # Process leave data
@@ -917,6 +921,7 @@ class SalaryCalculator:
             absent_deduction +
             early_departure_penalty +
             late_arrival_penalty +
+            single_punch_penalty +
             pf_deduction +
             esi_deduction +
             professional_tax +
@@ -964,6 +969,7 @@ class SalaryCalculator:
                 'absent_deduction': round(absent_deduction, 2),
                 'early_departure_penalty': round(early_departure_penalty, 2),
                 'late_arrival_penalty': round(late_arrival_penalty, 2),
+                'single_punch_penalty': round(single_punch_penalty, 2),
                 'pf_deduction': pf_deduction,
                 'esi_deduction': esi_deduction,
                 'professional_tax': professional_tax,
@@ -986,6 +992,7 @@ class SalaryCalculator:
         early_arrival_bonus = 0.0
         early_departure_penalty = 0.0
         late_arrival_penalty = 0.0
+        single_punch_penalty = 0.0
         overtime_pay = 0.0
         
         # Preload shift context for date-wise resolution.
@@ -1048,6 +1055,12 @@ class SalaryCalculator:
                 overtime_hours = self._calculate_overtime_hours(record['overtime_in'], record['overtime_out'])
                 if overtime_hours > 0:
                     overtime_pay += overtime_hours * per_hour_salary * self.salary_rules['overtime_rate_multiplier']
+
+                # Penalize incomplete attendance records with only one punch
+                has_time_in = bool(record.get('time_in'))
+                has_time_out = bool(record.get('time_out'))
+                if has_time_in != has_time_out:
+                    single_punch_penalty += self.salary_rules['single_punch_penalty_rate']
                     
             elif record['status'] == 'on_duty':
                 on_duty_days += 1
@@ -1062,6 +1075,7 @@ class SalaryCalculator:
             'early_arrival_bonus': early_arrival_bonus,
             'early_departure_penalty': early_departure_penalty,
             'late_arrival_penalty': late_arrival_penalty,
+            'single_punch_penalty': single_punch_penalty,
             'overtime_pay': overtime_pay
         }
 
