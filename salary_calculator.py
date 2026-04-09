@@ -70,6 +70,23 @@ class SalaryCalculator:
         except (TypeError, ValueError):
             return float(default)
     
+    @staticmethod
+    def _to_date(value):
+        """Safely convert DB date values (string or datetime.date) to datetime.date."""
+        from datetime import date
+        try:
+            if value is None:
+                return None
+            # If already a date object, return it
+            if isinstance(value, date):
+                return value
+            # If it's a string, parse it
+            if isinstance(value, str):
+                return datetime.strptime(value, '%Y-%m-%d').date()
+            return value
+        except (TypeError, ValueError):
+            return None
+    
     def _ensure_salary_rules_table(self):
         """Ensure the salary_rules table exists"""
         try:
@@ -761,8 +778,8 @@ class SalaryCalculator:
         holiday_list = []
         
         for holiday in institution_holidays:
-            h_start = datetime.strptime(holiday['start_date'], '%Y-%m-%d').date()
-            h_end = datetime.strptime(holiday['end_date'], '%Y-%m-%d').date()
+            h_start = self._to_date(holiday['start_date'])
+            h_end = self._to_date(holiday['end_date'])
             
             # Count days within the month
             month_start = datetime(year, month, 1).date()
@@ -787,8 +804,8 @@ class SalaryCalculator:
                 })
         
         for holiday in dept_holidays:
-            h_start = datetime.strptime(holiday['start_date'], '%Y-%m-%d').date()
-            h_end = datetime.strptime(holiday['end_date'], '%Y-%m-%d').date()
+            h_start = self._to_date(holiday['start_date'])
+            h_end = self._to_date(holiday['end_date'])
             
             # Count days within the month
             month_start = datetime(year, month, 1).date()
@@ -994,7 +1011,7 @@ class SalaryCalculator:
                 # Calculate early departure penalty
                 if record['time_out'] and shift_info:
                     early_departure_minutes = self._calculate_early_departure_minutes(
-                        record['time_out'], shift_info['end_time']
+                        record['time_out'], shift_info['end_time'], shift_info['start_time']
                     )
                     if early_departure_minutes > 0:
                         has_permission = any(p['permission_date'] == record['date'] for p in permission_data)
@@ -1037,9 +1054,9 @@ class SalaryCalculator:
         for leave in leave_data:
             leave_type = leave['leave_type'].lower()
 
-            # Calculate days from start_date and end_date
-            start_date = datetime.strptime(leave['start_date'], '%Y-%m-%d').date()
-            end_date = datetime.strptime(leave['end_date'], '%Y-%m-%d').date()
+            # Calculate days from start_date and end_date (handle both string and date objects)
+            start_date = self._to_date(leave['start_date'])
+            end_date = self._to_date(leave['end_date'])
 
             # Only count days within the requested month
             month_start = datetime(year, month, 1).date()
@@ -1138,14 +1155,32 @@ class SalaryCalculator:
         except:
             return 0
     
-    def _calculate_early_departure_minutes(self, actual_time: str, shift_end: str) -> int:
-        """Calculate minutes of early departure"""
+    def _calculate_early_departure_minutes(self, actual_time: str, shift_end: str, shift_start: str = None) -> int:
+        """Calculate minutes of early departure, accounting for night shifts crossing midnight"""
         try:
             actual = datetime.strptime(actual_time, '%H:%M:%S').time()
-            shift = datetime.strptime(shift_end, '%H:%M:%S').time()
+            shift_end_time = datetime.strptime(shift_end, '%H:%M:%S').time()
             
-            actual_dt = datetime.combine(datetime.today(), actual)
-            shift_dt = datetime.combine(datetime.today(), shift)
+            today = datetime.today()
+            actual_dt = datetime.combine(today, actual)
+            shift_dt = datetime.combine(today, shift_end_time)
+            
+            # Handle overnight shifts (shift_end < shift_start indicates crossing midnight)
+            if shift_start:
+                try:
+                    shift_start_time = datetime.strptime(shift_start, '%H:%M:%S').time()
+                    
+                    # If shift crosses midnight (end_time < start_time)
+                    if shift_end_time < shift_start_time:
+                        # Shift ends on next day
+                        shift_dt = datetime.combine(today + timedelta(days=1), shift_end_time)
+                        
+                        # If actual checkout is early in the morning and before shift start,
+                        # it's also on the next day
+                        if actual < shift_start_time:
+                            actual_dt = datetime.combine(today + timedelta(days=1), actual)
+                except (ValueError, TypeError):
+                    pass
             
             if actual_dt < shift_dt:
                 return int((shift_dt - actual_dt).total_seconds() / 60)
