@@ -17066,6 +17066,19 @@ def generate_individual_salary_slip_pdf(salary_data, year, month):
         attendance = breakdown['attendance_summary']
         earnings = breakdown['earnings']
         deductions = breakdown['deductions']
+
+        # Ensure core values exist even if an older salary breakdown is returned
+        if 'per_day_salary' not in breakdown:
+            gross_salary = (
+                float(staff_info.get('basic_salary', 0) or 0) +
+                float(staff_info.get('hra', 0) or 0) +
+                float(staff_info.get('transport_allowance', 0) or 0) +
+                float(staff_info.get('other_allowances', 0) or 0)
+            )
+            working_days = breakdown.get('working_days') or 0
+            breakdown['per_day_salary'] = round(gross_salary / working_days, 2) if working_days else 0.0
+        if 'per_hour_salary' not in breakdown:
+            breakdown['per_hour_salary'] = round((breakdown.get('per_day_salary', 0) or 0) / 8, 2)
         
         # Calculate net salary with fallback logic
         net_salary = breakdown.get('net_salary', 0)

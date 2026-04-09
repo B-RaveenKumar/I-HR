@@ -568,10 +568,10 @@
                                                 <i class="bi bi-fingerprint"></i> Single Punch Penalty
                                             </label>
                                             <div class="input-group">
-                                                <input type="number" class="form-control" id="singlePunchPenalty" step="0.1" value="50.0" title="Rate for single punch penalty deduction">
-                                                <span class="input-group-text">rate</span>
+                                                <input type="number" class="form-control" id="singlePunchPenalty" step="0.1" value="0.5" min="0" max="1" title="Fraction of per-day salary to deduct for a single punch">
+                                                <span class="input-group-text">fraction</span>
                                             </div>
-                                            <small class="form-text">Deduction rate for incomplete attendance punch (check-in only or check-out only)</small>
+                                            <small class="form-text">0.5 means half-day salary deduction, 1.0 means full-day deduction</small>
                                         </div>
                                         <div class="rule-item bonus-rule">
                                             <label for="onDutyRate" class="form-label">

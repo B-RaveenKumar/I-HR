@@ -31,7 +31,7 @@ class SalaryCalculator:
             'early_arrival_bonus_per_hour': 50.0,  # Bonus for arriving early
             'early_departure_penalty_per_hour': 100.0,  # Penalty for leaving early
             'late_arrival_penalty_per_hour': 75.0,  # Penalty for being late
-            'single_punch_penalty_rate': 50.0,  # Penalty for a single check-in/check-out punch
+            'single_punch_penalty_rate': 0.5,  # Fraction of per-day salary deducted for a single punch
             'absent_day_deduction_rate': 1.0,  # Full day salary deduction
             'half_day_threshold_hours': 4.0,  # Minimum hours for half day
             'overtime_rate_multiplier': 1.5,  # 1.5x regular rate for overtime
@@ -484,6 +484,7 @@ class SalaryCalculator:
 
         # Calculate gross salary
         gross_salary = basic_salary + hra + transport_allowance + other_allowances
+        per_day_salary = gross_salary / working_days if working_days > 0 else 0.0
 
         # Calculate salary based on actual hours worked
         if standard_monthly_hours > 0:
@@ -532,6 +533,12 @@ class SalaryCalculator:
                 # Calculate overtime pay
                 if record.get('overtime_hours') and record['overtime_hours'] > 0:
                     overtime_pay += record['overtime_hours'] * hourly_rate * self.salary_rules['overtime_rate_multiplier']
+
+                # Penalize incomplete attendance records with only one punch
+                has_time_in = bool(record.get('time_in'))
+                has_time_out = bool(record.get('time_out'))
+                if has_time_in != has_time_out:
+                    single_punch_penalty += per_day_salary * self.salary_rules['single_punch_penalty_rate']
 
         # Calculate leave pay (using existing leave processing logic)
         leave_summary = self._process_leave_data(leave_data, hourly_rate * 8, year, month)  # 8 hours per day
@@ -986,6 +993,8 @@ class SalaryCalculator:
                                per_hour_salary: float, staff_info: Dict,
                                permission_data: List[Dict]) -> Dict:
         """Process attendance data for salary calculations"""
+        # Single punch deduction uses a fraction of day salary, so derive day salary here.
+        per_day_salary = per_hour_salary * 8
         present_days = 0
         absent_days = 0
         on_duty_days = 0
@@ -1060,7 +1069,7 @@ class SalaryCalculator:
                 has_time_in = bool(record.get('time_in'))
                 has_time_out = bool(record.get('time_out'))
                 if has_time_in != has_time_out:
-                    single_punch_penalty += self.salary_rules['single_punch_penalty_rate']
+                    single_punch_penalty += per_day_salary * self.salary_rules['single_punch_penalty_rate']
                     
             elif record['status'] == 'on_duty':
                 on_duty_days += 1
