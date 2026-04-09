@@ -11,6 +11,7 @@
     <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/applogo.png') }}">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         /* Background with watermark */
@@ -75,6 +76,31 @@
         .row {
             width: 100%;
         }
+
+        .password-field-wrap {
+            position: relative;
+        }
+
+        .password-toggle-btn {
+            position: absolute;
+            top: 50%;
+            right: 0.75rem;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            padding: 0;
+            color: #6c757d;
+            line-height: 1;
+        }
+
+        .password-toggle-btn:hover {
+            color: #495057;
+        }
+
+        .password-toggle-btn:focus {
+            box-shadow: none;
+            outline: none;
+        }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
     <!-- PWA Meta Tags -->
@@ -105,7 +131,13 @@
                             </div>
                             <div class="mb-3">
                                 <label for="password" class="form-label">Password</label>
-                                <input type="password" class="form-control" id="password" name="password" required>
+                                <div class="password-field-wrap">
+                                    <input type="password" class="form-control" id="password" name="password" required>
+                                    <button type="button" class="password-toggle-btn"
+                                        id="togglePassword" aria-label="Show password" aria-pressed="false">
+                                        <i class="bi bi-eye" id="togglePasswordIcon"></i>
+                                    </button>
+                                </div>
                             </div>
                             <button type="submit" class="btn btn-primary w-100 mb-3">Login</button>
                             <div class="text-center mt-3">
@@ -123,6 +155,20 @@
     <script src="../static/js/main.js"></script>
 
     <script>
+        const passwordInput = document.getElementById('password');
+        const togglePasswordBtn = document.getElementById('togglePassword');
+        const togglePasswordIcon = document.getElementById('togglePasswordIcon');
+
+        if (togglePasswordBtn && passwordInput && togglePasswordIcon) {
+            togglePasswordBtn.addEventListener('click', function () {
+                const isPassword = passwordInput.type === 'password';
+                passwordInput.type = isPassword ? 'text' : 'password';
+                togglePasswordIcon.className = isPassword ? 'bi bi-eye-slash' : 'bi bi-eye';
+                togglePasswordBtn.setAttribute('aria-label', isPassword ? 'Hide password' : 'Show password');
+                togglePasswordBtn.setAttribute('aria-pressed', isPassword ? 'true' : 'false');
+            });
+        }
+
         // Register Service Worker for PWA
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
