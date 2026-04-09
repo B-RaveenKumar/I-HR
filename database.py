@@ -1140,6 +1140,41 @@ def init_db(app):
         ensure_column_exists('attendance', 'regularization_status TEXT CHECK(regularization_status IN ("pending", "approved", "rejected")) DEFAULT NULL', 'regularization_status')
         ensure_column_exists('attendance', 'regularization_reason TEXT', 'regularization_reason')
 
+        def ensure_attendance_id_key():
+            if not _USE_MYSQL:
+                return
+
+            cursor.execute(
+                "SELECT COLUMN_KEY, IS_NULLABLE, EXTRA FROM INFORMATION_SCHEMA.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = 'id'",
+                ('attendance',)
+            )
+            column_info = cursor.fetchone()
+            if not column_info:
+                return
+
+            has_primary_key = (column_info[0] or '').upper() == 'PRI'
+            is_nullable = (column_info[1] or '').upper() == 'YES'
+            is_auto_increment = 'auto_increment' in (column_info[2] or '').lower()
+
+            if has_primary_key and not is_nullable and is_auto_increment:
+                return
+
+            cursor.execute('SELECT COALESCE(MAX(id), 0) FROM attendance WHERE id IS NOT NULL')
+            next_id_row = cursor.fetchone()
+            next_id = int(next_id_row[0] or 0) + 1
+
+            cursor.execute('SELECT COUNT(*) FROM attendance WHERE id IS NULL')
+            null_id_count_row = cursor.fetchone()
+            null_id_count = int(null_id_count_row[0] or 0)
+
+            for _ in range(null_id_count):
+                cursor.execute('UPDATE attendance SET id = %s WHERE id IS NULL LIMIT 1', (next_id,))
+                next_id += 1
+
+            cursor.execute('ALTER TABLE attendance MODIFY id INT NOT NULL AUTO_INCREMENT')
+            db.commit()
+
         # Staff self-withdraw support for leave/on-duty/permission applications
         ensure_column_exists('leave_applications', 'withdrawn INTEGER DEFAULT 0', 'withdrawn')
         ensure_column_exists('leave_applications', 'withdrawn_at TIMESTAMP', 'withdrawn_at')
@@ -1163,6 +1198,8 @@ def init_db(app):
         ensure_column_exists('timetable_periods', 'section_id INTEGER', 'section_id')
         ensure_column_exists('timetable_periods', 'day_of_week INTEGER', 'day_of_week')
         ensure_column_exists('timetable_periods', 'time_slot_id INTEGER', 'time_slot_id')
+
+        ensure_attendance_id_key()
         ensure_column_exists('timetable_period_timings', 'period_sequence INTEGER', 'period_sequence')
         
         # Add reason_if_unavailable to timetable_conflict_logs

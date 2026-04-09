@@ -176,6 +176,58 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
+    function getSelectedRegularizationOption() {
+        const attendanceSelect = document.getElementById('regularizationAttendance');
+        if (!attendanceSelect || !attendanceSelect.value) {
+            return null;
+        }
+        return attendanceSelect.options[attendanceSelect.selectedIndex];
+    }
+
+    function updateRegularizationOriginalTime() {
+        const requestType = document.getElementById('regularizationType')?.value;
+        const originalTimeInput = document.getElementById('regularizationOriginalTime');
+        const expectedTimeInput = document.getElementById('regularizationExpectedTime');
+        const selectedOption = getSelectedRegularizationOption();
+
+        const toInputTime = (value) => {
+            if (!value) {
+                return '';
+            }
+            const raw = String(value).trim();
+            if (/^\d{2}:\d{2}:\d{2}$/.test(raw)) {
+                return raw.slice(0, 5);
+            }
+            if (/^\d{2}:\d{2}$/.test(raw)) {
+                return raw;
+            }
+            return '';
+        };
+
+        if (!originalTimeInput || !selectedOption || !requestType) {
+            if (originalTimeInput) {
+                originalTimeInput.value = '';
+            }
+            if (expectedTimeInput) {
+                expectedTimeInput.value = '';
+            }
+            return;
+        }
+
+        const sourceTime = requestType === 'late_arrival'
+            ? selectedOption.getAttribute('data-time-in')
+            : selectedOption.getAttribute('data-time-out');
+
+        const expectedTimeFromShift = requestType === 'late_arrival'
+            ? selectedOption.getAttribute('data-shift-start')
+            : selectedOption.getAttribute('data-shift-end');
+
+        originalTimeInput.value = sourceTime || '';
+        if (expectedTimeInput) {
+            expectedTimeInput.value = toInputTime(expectedTimeFromShift);
+        }
+    }
+
     // Load quotas when modals are opened
     document.getElementById('applyLeaveModal')?.addEventListener('shown.bs.modal', function() {
         loadStaffQuotas();
@@ -189,6 +241,14 @@ document.addEventListener('DOMContentLoaded', function() {
         loadStaffQuotas();
     });
 
+    document.getElementById('applyRegularizationModal')?.addEventListener('shown.bs.modal', function() {
+        const form = document.getElementById('regularizationForm');
+        if (form) {
+            form.reset();
+        }
+        updateRegularizationOriginalTime();
+    });
+
     // Add event listeners for real-time calculation
     document.getElementById('startDate')?.addEventListener('change', calculateLeaveDays);
     document.getElementById('endDate')?.addEventListener('change', calculateLeaveDays);
@@ -198,6 +258,9 @@ document.addEventListener('DOMContentLoaded', function() {
     
     document.getElementById('permissionStartTime')?.addEventListener('change', calculatePermissionHours);
     document.getElementById('permissionEndTime')?.addEventListener('change', calculatePermissionHours);
+
+    document.getElementById('regularizationAttendance')?.addEventListener('change', updateRegularizationOriginalTime);
+    document.getElementById('regularizationType')?.addEventListener('change', updateRegularizationOriginalTime);
 
     // Initialize attendance chart with real data
     const ctx = document.getElementById('attendanceChart')?.getContext('2d');
@@ -576,6 +639,92 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('Error submitting permission application:', error);
                 alert('Error submitting permission application');
+            });
+    });
+
+    // Apply regularization
+    const submitRegularization = document.getElementById('submitRegularization');
+    submitRegularization?.addEventListener('click', function () {
+        const attendanceId = document.getElementById('regularizationAttendance')?.value;
+        const requestType = document.getElementById('regularizationType')?.value;
+        const originalTime = document.getElementById('regularizationOriginalTime')?.value;
+        const expectedTime = document.getElementById('regularizationExpectedTime')?.value;
+        const reason = (document.getElementById('regularizationReason')?.value || '').trim();
+        const selectedOption = getSelectedRegularizationOption();
+
+        if (!attendanceId || !requestType || !originalTime || !expectedTime || !reason) {
+            alert('Please fill all fields');
+            return;
+        }
+
+        if (!selectedOption) {
+            alert('Please select an attendance record');
+            return;
+        }
+
+        const lateMinutes = parseInt(selectedOption.getAttribute('data-late-minutes') || '0', 10);
+        const earlyMinutes = parseInt(selectedOption.getAttribute('data-early-minutes') || '0', 10);
+
+        if (requestType === 'late_arrival' && lateMinutes <= 0) {
+            alert('Selected attendance does not have late arrival to regularize');
+            return;
+        }
+
+        if (requestType === 'early_departure' && earlyMinutes <= 0) {
+            alert('Selected attendance does not have early departure to regularize');
+            return;
+        }
+
+        if (reason.length < 5) {
+            alert('Please provide a brief reason (minimum 5 characters)');
+            return;
+        }
+
+        if (requestType === 'late_arrival' && expectedTime >= originalTime) {
+            alert('Expected in-time must be earlier than original in-time');
+            return;
+        }
+
+        if (requestType === 'early_departure' && expectedTime <= originalTime) {
+            alert('Expected out-time must be later than original out-time');
+            return;
+        }
+
+        if (selectedOption) {
+            const attendanceDate = selectedOption.getAttribute('data-date');
+            if (attendanceDate) {
+                const attendanceDt = new Date(`${attendanceDate}T00:00:00`);
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const diffDays = Math.floor((today - attendanceDt) / (1000 * 60 * 60 * 24));
+
+                if (diffDays < 0 || diffDays > 7) {
+                    alert('Regularization is allowed only for attendance in the last 7 days');
+                    return;
+                }
+            }
+        }
+
+        fetch('/create_regularization_request', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: `attendance_id=${encodeURIComponent(attendanceId)}&request_type=${encodeURIComponent(requestType)}&original_time=${encodeURIComponent(originalTime)}&expected_time=${encodeURIComponent(expectedTime)}&reason=${encodeURIComponent(reason)}&csrf_token=${encodeURIComponent(getCSRFToken())}`
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || 'Regularization request submitted successfully');
+                    bootstrap.Modal.getInstance(document.getElementById('applyRegularizationModal')).hide();
+                    location.reload();
+                } else {
+                    alert(data.error || 'Failed to submit regularization request');
+                }
+            })
+            .catch(error => {
+                console.error('Error submitting regularization request:', error);
+                alert('Error submitting regularization request');
             });
     });
 

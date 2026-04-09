@@ -1054,6 +1054,10 @@
                                 </p>
                             </div>
                             <div class="header-actions">
+                                <button type="button" class="btn btn-outline-warning btn-sm me-2" data-bs-toggle="modal"
+                                    data-bs-target="#applyRegularizationModal">
+                                    <i class="bi bi-pencil-square"></i> Regularize
+                                </button>
                                 {% if attendance_mode == 'dynamic_qr' %}
                                 <a href="{{ url_for('staff_qr_scanner_page') }}" class="btn btn-primary btn-sm">
                                     <i class="bi bi-camera"></i> Scan QR
@@ -1100,6 +1104,88 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- My Regularization Requests -->
+                    <div class="salary-results-card mb-4">
+                        <div class="card-header">
+                            <div class="header-icon">
+                                <i class="bi bi-pencil-square"></i>
+                            </div>
+                            <div class="header-content">
+                                <h5 class="card-title">My Regularization Requests</h5>
+                                <p class="card-subtitle">Track attendance regularization requests for the last 7 days</p>
+                            </div>
+                            <div class="header-actions">
+                                <div class="results-stats">
+                                    <div class="stat-item">
+                                        <i class="bi bi-file-earmark-text"></i>
+                                        <span class="stat-value">{{ regularization_requests|length }}</span>
+                                        <span>Requests</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-3">
+                                <button type="button" class="btn btn-outline-warning"
+                                    data-bs-toggle="modal" data-bs-target="#applyRegularizationModal">
+                                    <i class="bi bi-plus-circle"></i> Submit Regularization Request
+                                </button>
+                            </div>
+                            {% if regularization_requests %}
+                            <div class="table-responsive">
+                                <table class="table salary-results-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Date</th>
+                                            <th>Type</th>
+                                            <th>Original Time</th>
+                                            <th>Expected Time</th>
+                                            <th>Reason</th>
+                                            <th>Status</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for req in regularization_requests %}
+                                        <tr>
+                                            <td>{{ req.attendance_date|dateformat if req.attendance_date else '-' }}</td>
+                                            <td>
+                                                <span class="badge bg-info">
+                                                    {{ 'Late Arrival' if req.request_type == 'late_arrival' else 'Early Departure' }}
+                                                </span>
+                                            </td>
+                                            <td>{{ req.original_time|timeformat if req.original_time else '-' }}</td>
+                                            <td>{{ req.expected_time|timeformat if req.expected_time else '-' }}</td>
+                                            <td>
+                                                <span title="{{ req.staff_reason }}">
+                                                    {{ req.staff_reason[:40] }}{% if req.staff_reason|length > 40 %}...{% endif %}
+                                                </span>
+                                            </td>
+                                            <td>
+                                                {% if req.status == 'approved' %}
+                                                <span class="earnings-badge">Approved</span>
+                                                {% elif req.status == 'rejected' %}
+                                                <span class="badge bg-danger" title="{{ req.admin_reason or 'Rejected by admin' }}">Rejected</span>
+                                                {% else %}
+                                                <span class="deductions-badge">Pending</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                            {% else %}
+                            <div class="empty-state">
+                                <div class="empty-icon">
+                                    <i class="bi bi-pencil-square"></i>
+                                </div>
+                                <h6 class="empty-title">No Regularization Requests</h6>
+                                <p class="empty-text">Submit a regularization request if you had late arrival or early departure in the last 7 days.</p>
+                            </div>
+                            {% endif %}
                         </div>
                     </div>
 
@@ -1795,6 +1881,91 @@
                                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                                 <button type="button" class="btn btn-warning" id="submitPermission">Submit
                                     Application</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Apply Regularization Modal -->
+                <div class="modal fade" id="applyRegularizationModal" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-lg">
+                        <div class="modal-content">
+                            <div class="modal-header bg-warning text-dark">
+                                <h5 class="modal-title">Apply Attendance Regularization</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="alert alert-info">
+                                    <i class="bi bi-info-circle"></i>
+                                    You can submit regularization only for attendance records in the last 7 days.
+                                </div>
+
+                                <form id="regularizationForm">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+
+                                    <div class="mb-3">
+                                        <label for="regularizationAttendance" class="form-label">Attendance Record</label>
+                                        <select class="form-select" id="regularizationAttendance" required>
+                                            <option value="" selected disabled>Select attendance date</option>
+                                            {% for record in regularization_candidates %}
+                                            <option value="{{ record.id }}"
+                                                data-date="{{ record.date }}"
+                                                data-time-in="{{ record.time_in or '' }}"
+                                                data-time-out="{{ record.time_out or '' }}"
+                                                data-shift-start="{{ record.shift_start_time or '' }}"
+                                                data-shift-end="{{ record.shift_end_time or '' }}"
+                                                data-late-minutes="{{ record.late_duration_minutes or 0 }}"
+                                                data-early-minutes="{{ record.early_departure_minutes or 0 }}"
+                                                data-regularization-status="{{ record.regularization_status or '' }}">
+                                                {{ record.date|dateformat }}
+                                                {% if record.late_duration_minutes and record.late_duration_minutes > 0 %}
+                                                | Late: {{ record.late_duration_minutes }} min
+                                                {% endif %}
+                                                {% if record.early_departure_minutes and record.early_departure_minutes > 0 %}
+                                                | Early Out: {{ record.early_departure_minutes }} min
+                                                {% endif %}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        {% if not regularization_candidates %}
+                                        <div class="form-text text-danger">No eligible attendance records found in the last 7 days.</div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="regularizationType" class="form-label">Request Type</label>
+                                        <select class="form-select" id="regularizationType" required>
+                                            <option value="" selected disabled>Select regularization type</option>
+                                            <option value="late_arrival">Late Arrival</option>
+                                            <option value="early_departure">Early Departure</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="regularizationOriginalTime" class="form-label">Original Time</label>
+                                                <input type="text" class="form-control" id="regularizationOriginalTime" readonly>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="regularizationExpectedTime" class="form-label">Expected Time</label>
+                                                <input type="time" class="form-control" id="regularizationExpectedTime" required>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="mb-3">
+                                        <label for="regularizationReason" class="form-label">Reason</label>
+                                        <textarea class="form-control" id="regularizationReason" rows="3" required
+                                            placeholder="Explain why regularization is required"></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                <button type="button" class="btn btn-warning" id="submitRegularization" {% if not regularization_candidates %}disabled{% endif %}>Submit Request</button>
                             </div>
                         </div>
                     </div>

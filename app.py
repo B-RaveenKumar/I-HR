@@ -4,6 +4,7 @@ from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 import datetime
+import re
 import calendar
 import time
 import logging
@@ -2655,6 +2656,7 @@ def get_today_attendance_status():
             MAX(time_out) AS time_out,
             MAX(
                 CASE
+                    WHEN LOWER(COALESCE(regularization_status, '')) = 'approved' THEN 3
                     WHEN LOWER(COALESCE(status, '')) = 'late' THEN 2
                     WHEN LOWER(COALESCE(status, '')) = 'present' THEN 1
                     ELSE 0
@@ -2668,7 +2670,10 @@ def get_today_attendance_status():
     total_hours = '--:--'
     if attendance and (attendance['time_in'] or attendance['time_out'] or (attendance['status_rank'] or 0) > 0):
         if (attendance['status_rank'] or 0) >= 2:
-            status_value = 'late'
+            if (attendance['status_rank'] or 0) >= 3:
+                status_value = 'present'
+            else:
+                status_value = 'late'
         elif (attendance['status_rank'] or 0) == 1:
             status_value = 'present'
         else:
@@ -3498,20 +3503,36 @@ def create_regularization_request():
     if 'user_id' not in session or (session.get('user_type') != 'staff' and not session.get('is_sub_admin')):
         return jsonify({'success': False, 'error': 'Unauthorized'})
 
-    staff_id = session['user_id']
+    # Prefer login staff_id (e.g., ST001) over internal DB id as requested.
+    staff_identifier = (session.get('staff_id') or session.get('user_id'))
     school_id = session['school_id']
-    attendance_id = request.form.get('attendance_id')
+    attendance_id_raw = (request.form.get('attendance_id') or '').strip()
     request_type = request.form.get('request_type')  # late_arrival, early_departure
     original_time = request.form.get('original_time')
     expected_time = request.form.get('expected_time')
-    reason = request.form.get('reason')
+    reason = (request.form.get('reason') or '').strip()
 
-    if not all([attendance_id, request_type, original_time, expected_time, reason]):
+    if not all([attendance_id_raw, request_type, original_time, expected_time, reason]):
         return jsonify({'success': False, 'error': 'All fields are required'})
+
+    if request_type not in ['late_arrival', 'early_departure']:
+        return jsonify({'success': False, 'error': 'Invalid request type'})
+
+    try:
+        # Be tolerant to accidental non-numeric UI value wrappers.
+        attendance_match = re.search(r'\d+', attendance_id_raw)
+        if not attendance_match:
+            raise ValueError('No numeric attendance id')
+        attendance_id = int(attendance_match.group())
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Invalid attendance record'})
+
+    if len(reason) < 5:
+        return jsonify({'success': False, 'error': 'Please provide a brief reason (minimum 5 characters)'})
 
     attendance_manager = AdvancedAttendanceManager()
     result = attendance_manager.create_attendance_regularization_request(
-        staff_id, school_id, int(attendance_id), request_type,
+        staff_identifier, school_id, attendance_id, request_type,
         original_time, expected_time, reason
     )
 
@@ -3524,17 +3545,37 @@ def process_regularization_request():
 
     request_id = request.form.get('request_id')
     decision = request.form.get('decision')  # approve, reject
-    admin_reason = request.form.get('admin_reason')
+    admin_reason = (request.form.get('admin_reason') or '').strip()
     admin_id = session['user_id']
 
     if not all([request_id, decision]):
         return jsonify({'success': False, 'error': 'Request ID and decision are required'})
 
+    if decision not in ['approve', 'reject']:
+        return jsonify({'success': False, 'error': 'Invalid decision'})
+
+    if not admin_reason:
+        return jsonify({'success': False, 'error': 'Admin reason is required'})
+
+    try:
+        request_id = int(request_id)
+    except (TypeError, ValueError):
+        return jsonify({'success': False, 'error': 'Invalid request ID'})
+
     attendance_manager = AdvancedAttendanceManager()
     result = attendance_manager.process_regularization_request(
-        int(request_id), admin_id, decision, admin_reason
+        request_id, admin_id, decision, admin_reason
     )
 
+    return jsonify(result)
+
+@app.route('/get_regularization_requests')
+def get_regularization_requests():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    attendance_manager = AdvancedAttendanceManager()
+    result = attendance_manager.get_pending_regularization_requests(session['school_id'])
     return jsonify(result)
 
 @app.route('/get_attendance_analytics')
@@ -6785,6 +6826,40 @@ def staff_dashboard():
         ORDER BY permission_date DESC
     ''', (staff_db_id,)).fetchall()
 
+    # Eligible attendance records for regularization (last 7 days only)
+    lookback_start = today - datetime.timedelta(days=7)
+    regularization_candidates = db.execute('''
+        SELECT id, date, time_in, time_out, status,
+               COALESCE(late_duration_minutes, 0) as late_duration_minutes,
+               COALESCE(early_departure_minutes, 0) as early_departure_minutes,
+             regularization_requested, regularization_status,
+             shift_start_time, shift_end_time
+        FROM attendance
+        WHERE staff_id = ?
+          AND school_id = ?
+          AND date BETWEEN ? AND ?
+            AND COALESCE(regularization_status, '') != 'pending'
+          AND (
+                (COALESCE(late_duration_minutes, 0) > 0 AND time_in IS NOT NULL)
+                OR
+                (COALESCE(early_departure_minutes, 0) > 0 AND time_out IS NOT NULL)
+          )
+        ORDER BY date DESC
+    ''', (staff_db_id, school_id, lookback_start, today)).fetchall()
+
+    # Recent regularization requests for staff visibility
+    regularization_requests = db.execute('''
+        SELECT r.id, r.request_type, r.original_time, r.expected_time,
+               r.duration_minutes, r.staff_reason, r.admin_reason,
+               r.status, r.requested_at, r.processed_at,
+               a.date as attendance_date
+        FROM attendance_regularization_requests r
+        JOIN attendance a ON a.id = r.attendance_id
+        WHERE r.staff_id = ? AND r.school_id = ?
+        ORDER BY r.requested_at DESC
+        LIMIT 20
+    ''', (staff_db_id, school_id)).fetchall()
+
     # Get module settings for navigation (staff can see limited nav based on admin settings)
     module_enabled = get_module_enabled(school_id) if school_id else {}
     attendance_mode = get_school_attendance_mode(school_id) if school_id else 'biometric'
@@ -6794,6 +6869,8 @@ def staff_dashboard():
                          leaves=leaves,
                          on_duty_applications=on_duty_applications,
                          permission_applications=permission_applications,
+                         regularization_candidates=regularization_candidates,
+                         regularization_requests=regularization_requests,
                          module_enabled=module_enabled,
                          attendance_mode=attendance_mode,
                          today=today,
@@ -7369,6 +7446,19 @@ def admin_dashboard():
         ORDER BY p.applied_at
     ''', (school_id,)).fetchall()
 
+    # Get pending attendance regularization requests
+    pending_regularizations = db.execute('''
+        SELECT r.id, r.request_type, r.original_time, r.expected_time,
+               r.duration_minutes, r.staff_reason, r.requested_at,
+               s.full_name, s.photo_url,
+               a.date as attendance_date
+        FROM attendance_regularization_requests r
+        JOIN staff s ON r.staff_id = s.id
+        JOIN attendance a ON r.attendance_id = a.id
+        WHERE r.school_id = ? AND r.status = 'pending'
+        ORDER BY r.requested_at
+    ''', (school_id,)).fetchall()
+
     # Get today's attendance summary using comprehensive status logic
     today = datetime.date.today()
     
@@ -7498,6 +7588,7 @@ def admin_dashboard():
                              pending_leaves=pending_leaves,
                              pending_on_duty=pending_on_duty,
                              pending_permissions=pending_permissions,
+                             pending_regularizations=pending_regularizations,
                              attendance_summary=attendance_summary,
                              today_attendance=today_attendance,
                              today=today,
@@ -7516,6 +7607,7 @@ def admin_dashboard():
                              pending_leaves=pending_leaves,
                              pending_on_duty=pending_on_duty,
                              pending_permissions=pending_permissions,
+                             pending_regularizations=pending_regularizations,
                              attendance_summary=attendance_summary,
                              today_attendance=today_attendance,
                              today=today,

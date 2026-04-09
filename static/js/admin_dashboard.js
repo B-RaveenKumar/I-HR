@@ -1886,6 +1886,41 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Regularization Processing
+    document.querySelectorAll('.approve-regularization-btn, .reject-regularization-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const decision = this.classList.contains('approve-regularization-btn') ? 'approve' : 'reject';
+            const requestId = this.getAttribute('data-request-id');
+
+            const adminReason = (prompt(`Please provide reason for ${decision}:`) || '').trim();
+            if (!adminReason) {
+                alert('Reason is required to process regularization request');
+                return;
+            }
+
+            if (!confirm(`Are you sure to ${decision} this regularization request?`)) return;
+
+            fetch('/process_regularization_request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `request_id=${encodeURIComponent(requestId)}&decision=${encodeURIComponent(decision)}&admin_reason=${encodeURIComponent(adminReason)}&csrf_token=${encodeURIComponent(getCSRFToken())}`
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || `Regularization request ${decision}d successfully`);
+                    location.reload();
+                } else {
+                    alert(data.error || `Failed to ${decision} regularization request`);
+                }
+            })
+            .catch(error => {
+                console.error('Error processing regularization request:', error);
+                alert('Error processing regularization request');
+            });
+        });
+    });
+
     // Reset Add Staff Modal when closed
     document.getElementById('addStaffModal')?.addEventListener('hidden.bs.modal', function () {
         // Reset form

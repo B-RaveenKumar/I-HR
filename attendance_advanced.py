@@ -304,23 +304,116 @@ class AdvancedAttendanceManager:
             'average_overtime_per_day': total_overtime / total_days_with_overtime if total_days_with_overtime > 0 else 0,
             'overtime_records': [dict(record) for record in overtime_data]
         }
+
+    def _parse_time_input(self, value: str) -> Optional[time]:
+        """Parse time allowing HH:MM or HH:MM:SS formats."""
+        if not value:
+            return None
+        raw = value.strip()
+        for fmt in ('%H:%M:%S', '%H:%M'):
+            try:
+                return datetime.strptime(raw, fmt).time()
+            except ValueError:
+                continue
+        return None
     
-    def create_attendance_regularization_request(self, staff_id: int, school_id: int,
+    def create_attendance_regularization_request(self, staff_id, school_id: int,
                                                attendance_id: int, request_type: str,
                                                original_time: str, expected_time: str,
                                                reason: str) -> Dict:
         """Create attendance regularization request"""
         try:
             db = get_db()
+
+            staff_identifier = str(staff_id).strip()
+            staff_row = db.execute('''
+                SELECT id, school_id
+                FROM staff
+                WHERE school_id = ? AND staff_id = ?
+            ''', (school_id, staff_identifier)).fetchone()
+
+            if not staff_row:
+                try:
+                    staff_db_id = int(staff_identifier)
+                except (TypeError, ValueError):
+                    return {'success': False, 'error': 'Invalid staff identifier'}
+
+                staff_row = db.execute('''
+                    SELECT id, school_id
+                    FROM staff
+                    WHERE school_id = ? AND id = ?
+                ''', (school_id, staff_db_id)).fetchone()
+
+            if not staff_row:
+                return {'success': False, 'error': 'Staff not found'}
+
+            effective_staff_id = staff_row['id']
+
+            if request_type not in ['late_arrival', 'early_departure']:
+                return {'success': False, 'error': 'Invalid request type'}
+
+            reason = (reason or '').strip()
+            if len(reason) < 5:
+                return {'success': False, 'error': 'Please provide a brief reason (minimum 5 characters)'}
+
+            expected_time_obj = self._parse_time_input(expected_time)
+            if not expected_time_obj:
+                return {'success': False, 'error': 'Invalid expected time format'}
+
+            attendance_record = db.execute('''
+                SELECT id, school_id, date, time_in, time_out,
+                       COALESCE(late_duration_minutes, 0) as late_duration_minutes,
+                       COALESCE(early_departure_minutes, 0) as early_departure_minutes,
+                       regularization_status
+                FROM attendance
+                WHERE id = ? AND staff_id = ?
+            ''', (attendance_id, effective_staff_id)).fetchone()
+
+            if not attendance_record:
+                return {'success': False, 'error': 'Attendance record not found'}
+
+            effective_school_id = attendance_record['school_id'] if attendance_record['school_id'] else school_id
+
+            record_date = datetime.strptime(str(attendance_record['date']), '%Y-%m-%d').date()
+            today = datetime.today().date()
+            lookback_start = today - timedelta(days=7)
+
+            if record_date < lookback_start or record_date > today:
+                return {'success': False, 'error': 'Regularization is allowed only for attendance in the last 7 days'}
+
+            if attendance_record['regularization_status'] == 'pending':
+                return {'success': False, 'error': 'A regularization request is already pending for this attendance'}
+
+            if request_type == 'late_arrival':
+                if not attendance_record['time_in'] or attendance_record['late_duration_minutes'] <= 0:
+                    return {'success': False, 'error': 'Selected attendance record does not have late arrival to regularize'}
+                original_time_value = attendance_record['time_in']
+            else:
+                if not attendance_record['time_out'] or attendance_record['early_departure_minutes'] <= 0:
+                    return {'success': False, 'error': 'Selected attendance record does not have early departure to regularize'}
+                original_time_value = attendance_record['time_out']
+
+            original_time_obj = self._parse_time_input(str(original_time_value))
+            if not original_time_obj:
+                return {'success': False, 'error': 'Invalid source attendance time'}
+
+            if request_type == 'late_arrival' and expected_time_obj >= original_time_obj:
+                return {'success': False, 'error': 'Expected in-time must be earlier than recorded in-time'}
+
+            if request_type == 'early_departure' and expected_time_obj <= original_time_obj:
+                return {'success': False, 'error': 'Expected out-time must be later than recorded out-time'}
             
             # Calculate duration difference
-            orig_time = datetime.strptime(original_time, '%H:%M:%S').time()
-            exp_time = datetime.strptime(expected_time, '%H:%M:%S').time()
+            orig_time = original_time_obj
+            exp_time = expected_time_obj
             
             orig_dt = datetime.combine(datetime.today(), orig_time)
             exp_dt = datetime.combine(datetime.today(), exp_time)
             
             duration_minutes = int(abs((exp_dt - orig_dt).total_seconds() / 60))
+
+            if duration_minutes <= 0:
+                return {'success': False, 'error': 'Expected time must be different from original time'}
             
             # Insert regularization request
             cursor = db.execute('''
@@ -328,8 +421,8 @@ class AdvancedAttendanceManager:
                     attendance_id, staff_id, school_id, request_type,
                     original_time, expected_time, duration_minutes, staff_reason
                 ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            ''', (attendance_id, staff_id, school_id, request_type,
-                  original_time, expected_time, duration_minutes, reason))
+            ''', (attendance_id, effective_staff_id, effective_school_id, request_type,
+                  orig_time.strftime('%H:%M:%S'), exp_time.strftime('%H:%M:%S'), duration_minutes, reason))
             
             request_id = cursor.lastrowid
             
@@ -358,6 +451,13 @@ class AdvancedAttendanceManager:
         try:
             db = get_db()
 
+            if decision not in ['approve', 'reject']:
+                return {'success': False, 'error': 'Invalid decision'}
+
+            admin_reason = (admin_reason or '').strip()
+            if not admin_reason:
+                return {'success': False, 'error': 'Admin reason is required'}
+
             # Get request details
             request = db.execute('''
                 SELECT * FROM attendance_regularization_requests WHERE id = ?
@@ -365,6 +465,9 @@ class AdvancedAttendanceManager:
 
             if not request:
                 return {'success': False, 'error': 'Request not found'}
+
+            if request['status'] != 'pending':
+                return {'success': False, 'error': 'Regularization request is not pending'}
 
             status = 'approved' if decision == 'approve' else 'rejected'
             processed_at = datetime.now()
@@ -383,6 +486,7 @@ class AdvancedAttendanceManager:
                     db.execute('''
                         UPDATE attendance SET
                             time_in = ?, late_duration_minutes = 0,
+                            status = 'present',
                             regularization_status = 'approved'
                         WHERE id = ?
                     ''', (request['expected_time'], request['attendance_id']))
@@ -390,6 +494,7 @@ class AdvancedAttendanceManager:
                     db.execute('''
                         UPDATE attendance SET
                             time_out = ?, early_departure_minutes = 0,
+                            status = 'present',
                             regularization_status = 'approved'
                         WHERE id = ?
                     ''', (request['expected_time'], request['attendance_id']))
@@ -407,6 +512,30 @@ class AdvancedAttendanceManager:
                 'message': f'Regularization request {status} successfully'
             }
 
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
+    def get_pending_regularization_requests(self, school_id: int) -> Dict:
+        """Get pending regularization requests for admin review."""
+        try:
+            db = get_db()
+            rows = db.execute('''
+                SELECT r.id, r.attendance_id, r.staff_id, r.request_type,
+                       r.original_time, r.expected_time, r.duration_minutes,
+                       r.staff_reason, r.status, r.requested_at,
+                       s.full_name, s.staff_id as staff_number,
+                       a.date as attendance_date, a.time_in, a.time_out
+                FROM attendance_regularization_requests r
+                JOIN staff s ON r.staff_id = s.id
+                JOIN attendance a ON r.attendance_id = a.id
+                WHERE r.school_id = ? AND r.status = 'pending'
+                ORDER BY r.requested_at ASC
+            ''', (school_id,)).fetchall()
+
+            return {
+                'success': True,
+                'requests': [dict(row) for row in rows]
+            }
         except Exception as e:
             return {'success': False, 'error': str(e)}
 

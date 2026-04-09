@@ -965,6 +965,102 @@
                     </div>
                 </div>
 
+                <!-- Pending Regularization Applications -->
+                <div class="salary-results-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-pencil-square"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Pending Regularization Applications</h5>
+                            <p class="card-subtitle">Review and process attendance regularization requests</p>
+                        </div>
+                        <div class="header-actions">
+                            <div class="results-stats">
+                                <div class="stat-item">
+                                    <i class="bi bi-hourglass-split"></i>
+                                    <span class="stat-value">{{ pending_regularizations|length }}</span>
+                                    <span>Pending</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        {% if pending_regularizations %}
+                        <div class="table-responsive">
+                            <table class="table salary-results-table">
+                                <thead>
+                                    <tr>
+                                        <th>Staff Name</th>
+                                        <th>Date</th>
+                                        <th>Type</th>
+                                        <th>Original Time</th>
+                                        <th>Expected Time</th>
+                                        <th>Duration</th>
+                                        <th>Reason</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for request in pending_regularizations %}
+                                    <tr>
+                                        <td>
+                                            <div class="d-flex align-items-center">
+                                                <div class="user-avatar me-2">
+                                                    {% if request.photo_url %}
+                                                    <img src="{{ url_for('static', filename=request.photo_url) }}" 
+                                                         alt="{{ request.full_name }}" 
+                                                         style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">
+                                                    {% else %}
+                                                    <i class="bi bi-person-circle"></i>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="fw-bold">{{ request.full_name }}</div>
+                                            </div>
+                                        </td>
+                                        <td>{{ request.attendance_date|dateformat if request.attendance_date else '-' }}</td>
+                                        <td>
+                                            <span class="badge bg-info">
+                                                {{ 'Late Arrival' if request.request_type == 'late_arrival' else 'Early Departure' }}
+                                            </span>
+                                        </td>
+                                        <td>{{ request.original_time|timeformat if request.original_time else '-' }}</td>
+                                        <td>{{ request.expected_time|timeformat if request.expected_time else '-' }}</td>
+                                        <td>
+                                            <span class="badge bg-secondary">{{ request.duration_minutes }} min</span>
+                                        </td>
+                                        <td>
+                                            <span title="{{ request.staff_reason }}">{{ request.staff_reason[:30] }}{% if request.staff_reason|length > 30 %}...{% endif %}</span>
+                                        </td>
+                                        <td>
+                                            <div class="action-buttons">
+                                                <button type="button" class="btn btn-sm btn-success approve-regularization-btn"
+                                                    data-request-id="{{ request.id }}" title="Approve regularization">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-danger reject-regularization-btn"
+                                                    data-request-id="{{ request.id }}" title="Reject regularization">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                        {% else %}
+                        <div class="empty-state">
+                            <div class="empty-icon">
+                                <i class="bi bi-pencil-square"></i>
+                            </div>
+                            <h6 class="empty-title">No Pending Regularization Applications</h6>
+                            <p class="empty-text">All regularization requests have been processed. New requests will appear here for approval.</p>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
         </div>
 
         </main>
