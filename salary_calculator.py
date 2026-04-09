@@ -627,6 +627,7 @@ class SalaryCalculator:
         attendance = db.execute('''
             SELECT date, status, time_in, time_out,
                    late_duration_minutes, early_departure_minutes,
+                   shift_type, shift_start_time, shift_end_time,
                    overtime_in, overtime_out, on_duty_type, on_duty_location,
                    on_duty_purpose
             FROM attendance
@@ -987,34 +988,53 @@ class SalaryCalculator:
         late_arrival_penalty = 0.0
         overtime_pay = 0.0
         
-        # Get shift information for the staff
+        # Preload shift context for date-wise resolution.
         shift_info = self._get_staff_shift_info(staff_info['id'])
+        shift_history = self._get_shift_history(staff_info['id'])
+        shift_defs = self._get_shift_definitions_map()
+
+        permission_dates = set()
+        for p in permission_data:
+            p_date = self._to_date(p.get('permission_date'))
+            if p_date:
+                permission_dates.add(p_date)
         
         for record in attendance_data:
             # Only process working days (exclude Sundays) for salary calculations
-            record_date = datetime.strptime(record['date'], '%Y-%m-%d')
+            record_day = self._to_date(record.get('date'))
+            if not record_day:
+                continue
+            record_date = datetime.combine(record_day, datetime.min.time())
             if record_date.weekday() == 6:  # Skip Sunday records
                 continue
+
+            effective_shift = self._resolve_shift_for_date(
+                staff_id=staff_info['id'],
+                record=record,
+                shift_history=shift_history,
+                shift_defs=shift_defs,
+                default_shift=shift_info
+            )
                 
-            if record['status'] in ['present', 'late']:  # Count both present and late as present days
+            if record['status'] in ['present', 'late', 'left_soon']:  # Count worked-day statuses as present days
                 present_days += 1
                 
                 # Calculate early arrival bonus
-                if record['time_in'] and shift_info:
+                if record['time_in'] and effective_shift:
                     early_minutes = self._calculate_early_arrival_minutes(
-                        record['time_in'], shift_info['start_time']
+                        record['time_in'], effective_shift['start_time']
                     )
                     if early_minutes > 0:
                         early_hours = early_minutes / 60
                         early_arrival_bonus += early_hours * self.salary_rules['early_arrival_bonus_per_hour']
                 
                 # Calculate early departure penalty
-                if record['time_out'] and shift_info:
+                if record['time_out'] and effective_shift:
                     early_departure_minutes = self._calculate_early_departure_minutes(
-                        record['time_out'], shift_info['end_time'], shift_info['start_time']
+                        record['time_out'], effective_shift['end_time'], effective_shift['start_time']
                     )
                     if early_departure_minutes > 0:
-                        has_permission = any(p['permission_date'] == record['date'] for p in permission_data)
+                        has_permission = record_day in permission_dates
                         if not has_permission:
                             early_hours = early_departure_minutes / 60
                             early_departure_penalty += early_hours * self.salary_rules['early_departure_penalty_per_hour']
@@ -1044,6 +1064,90 @@ class SalaryCalculator:
             'late_arrival_penalty': late_arrival_penalty,
             'overtime_pay': overtime_pay
         }
+
+    def _get_shift_history(self, staff_id: int) -> List[Dict]:
+        """Load shift history records for a staff member ordered by effective date."""
+        db = self._get_db_connection()
+        try:
+            # Support legacy schemas that might not have school_id in history table.
+            history_cols = [col['name'] for col in db.execute("PRAGMA table_info(staff_shift_history)").fetchall()]
+            if 'school_id' in history_cols and self.school_id is not None:
+                rows = db.execute('''
+                    SELECT shift_type, effective_from, effective_to
+                    FROM staff_shift_history
+                    WHERE staff_id = ? AND school_id = ?
+                    ORDER BY effective_from ASC
+                ''', (staff_id, self.school_id)).fetchall()
+            else:
+                rows = db.execute('''
+                    SELECT shift_type, effective_from, effective_to
+                    FROM staff_shift_history
+                    WHERE staff_id = ?
+                    ORDER BY effective_from ASC
+                ''', (staff_id,)).fetchall()
+            return [dict(r) for r in rows]
+        except Exception:
+            return []
+
+    def _get_shift_definitions_map(self) -> Dict[str, Dict]:
+        """Return active shift definitions indexed by shift_type."""
+        db = self._get_db_connection()
+        try:
+            rows = db.execute('''
+                SELECT shift_type, start_time, end_time, grace_period_minutes
+                FROM shift_definitions
+                WHERE is_active = 1
+            ''').fetchall()
+            return {r['shift_type']: dict(r) for r in rows}
+        except Exception:
+            return {}
+
+    def _get_shift_type_from_history(self, record_date, shift_history: List[Dict]) -> Optional[str]:
+        """Resolve effective shift type for a date using staff_shift_history."""
+        for row in reversed(shift_history):
+            start = self._to_date(row.get('effective_from'))
+            end = self._to_date(row.get('effective_to'))
+            if not start:
+                continue
+            if record_date >= start and (end is None or record_date <= end):
+                return row.get('shift_type')
+        return None
+
+    def _resolve_shift_for_date(self, staff_id: int, record: Dict,
+                                shift_history: List[Dict], shift_defs: Dict[str, Dict],
+                                default_shift: Dict) -> Dict:
+        """Resolve effective shift for attendance date.
+
+        Priority:
+        1) Attendance snapshot (shift_start_time/shift_end_time, optional shift_type)
+        2) staff_shift_history by date
+        3) Current staff shift fallback
+        """
+        # 1) Attendance snapshot is most reliable for payroll back-calculation.
+        if record.get('shift_start_time') and record.get('shift_end_time'):
+            snapshot_type = record.get('shift_type') or default_shift.get('shift_type')
+            return {
+                'shift_type': snapshot_type,
+                'start_time': record.get('shift_start_time'),
+                'end_time': record.get('shift_end_time'),
+                'grace_period_minutes': default_shift.get('grace_period_minutes', 10)
+            }
+
+        # 2) Resolve by history for this date.
+        record_date = self._to_date(record.get('date'))
+        if record_date:
+            hist_shift_type = self._get_shift_type_from_history(record_date, shift_history)
+            if hist_shift_type and hist_shift_type in shift_defs:
+                hist_shift = shift_defs[hist_shift_type]
+                return {
+                    'shift_type': hist_shift_type,
+                    'start_time': hist_shift['start_time'],
+                    'end_time': hist_shift['end_time'],
+                    'grace_period_minutes': hist_shift.get('grace_period_minutes', 10)
+                }
+
+        # 3) Fallback to current shift.
+        return default_shift
     
     def _process_leave_data(self, leave_data: List[Dict], per_day_salary: float, 
                           year: int, month: int) -> Dict:
@@ -1174,10 +1278,11 @@ class SalaryCalculator:
                     if shift_end_time < shift_start_time:
                         # Shift ends on next day
                         shift_dt = datetime.combine(today + timedelta(days=1), shift_end_time)
-                        
-                        # If actual checkout is early in the morning and before shift start,
-                        # it's also on the next day
-                        if actual < shift_start_time:
+
+                        # Only treat as next-day checkout for true post-midnight times
+                        # (00:00 .. shift_end). Daytime times between shift_end and shift_start
+                        # remain on the same day and should still be treated as early departure.
+                        if actual <= shift_end_time:
                             actual_dt = datetime.combine(today + timedelta(days=1), actual)
                 except (ValueError, TypeError):
                     pass
