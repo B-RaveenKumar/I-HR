@@ -1343,6 +1343,27 @@
                                     </div>
                                 </div>
                             </div>
+
+                                <!-- Payroll Processing & Review -->
+                                <div class="col-md-6">
+                                    <div class="module-toggle-card">
+                                        <div class="module-info">
+                                            <div class="module-icon">
+                                                <i class="bi bi-receipt-cutoff"></i>
+                                            </div>
+                                            <div>
+                                                <h6 class="mb-1">Payroll Processing &amp; Review</h6>
+                                                <small class="text-muted">Control payroll processing and review access in salary pages</small>
+                                            </div>
+                                        </div>
+                                        <div class="form-check form-switch">
+                                            <input class="form-check-input module-toggle" type="checkbox" 
+                                                   data-module="payroll_processing_review" 
+                                                   data-school-id="{{ school.id }}"
+                                                   {{ 'checked' if module_settings.payroll_processing_review else '' }}>
+                                        </div>
+                                    </div>
+                                </div>
                             
                             <!-- Timetable Management -->
                             <div class="col-md-6">

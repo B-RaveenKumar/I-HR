@@ -110,6 +110,7 @@ def get_module_enabled(school_id):
         'staff_management': bool(get_setting_value(school_settings, 'staff_management_enabled')),
         'shift_management': bool(get_setting_value(school_settings, 'shift_management_enabled')),
         'salary_management': bool(get_setting_value(school_settings, 'salary_management_enabled')),
+        'payroll_processing_review': bool(get_setting_value(school_settings, 'salary_management_enabled')),
         'timetable_management': bool(get_setting_value(school_settings, 'timetable_management_enabled')),
         'reports': bool(get_setting_value(school_settings, 'reports_enabled')),
         'biometric_devices': bool(get_setting_value(school_settings, 'biometric_devices_enabled')),
@@ -1160,6 +1161,7 @@ def school_details(school_id):
         'staff_management': get_column_value(school, 'staff_management_enabled'),
         'shift_management': get_column_value(school, 'shift_management_enabled'),
         'salary_management': get_column_value(school, 'salary_management_enabled'),
+        'payroll_processing_review': get_column_value(school, 'salary_management_enabled'),
         'timetable_management': get_column_value(school, 'timetable_management_enabled'),
         'reports': get_column_value(school, 'reports_enabled'),
         'biometric_devices': get_column_value(school, 'biometric_devices_enabled'),
@@ -3635,6 +3637,21 @@ def salary_management():
     module_enabled = get_module_enabled(school_id) if school_id else {}
     
     return render_template('salary_management.html', current_year=today.year, module_enabled=module_enabled)
+
+@app.route('/payroll_processing_review')
+@requires_permission('salary_management', 'view')
+def payroll_processing_review():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    if session['user_type'] not in ['admin', 'company_admin']:
+        return redirect(url_for('staff_dashboard'))
+
+    school_id = session.get('school_id')
+    today = datetime.datetime.now()
+
+    module_enabled = get_module_enabled(school_id) if school_id else {}
+
+    return render_template('payroll_processing_review.html', current_year=today.year, module_enabled=module_enabled)
 
 @app.route('/get_summary_dashboard')
 def get_summary_dashboard():
@@ -7116,6 +7133,7 @@ def toggle_module_settings():
             'staff_management': 'staff_management_enabled',
             'shift_management': 'shift_management_enabled',
             'salary_management': 'salary_management_enabled',
+            'payroll_processing_review': 'salary_management_enabled',
             'timetable_management': 'timetable_management_enabled',
             'reports': 'reports_enabled',
             'biometric_devices': 'biometric_devices_enabled',
