@@ -3648,10 +3648,82 @@ def payroll_processing_review():
 
     school_id = session.get('school_id')
     today = datetime.datetime.now()
+    db = get_db()
 
     module_enabled = get_module_enabled(school_id) if school_id else {}
 
-    return render_template('payroll_processing_review.html', current_year=today.year, module_enabled=module_enabled)
+    # Build shift options from school-specific data used in Shift & Time Settings context.
+    available_shifts = []
+    shift_keys = set()
+
+    if school_id:
+        try:
+            configured_shifts = db.execute('''
+                SELECT shift_type
+                FROM shift_definitions
+                WHERE is_active = 1
+                ORDER BY start_time, shift_type
+            ''').fetchall()
+            for row in configured_shifts:
+                shift_name = (row['shift_type'] or '').strip()
+                if not shift_name:
+                    continue
+                key = shift_name.lower()
+                if key in shift_keys:
+                    continue
+                shift_keys.add(key)
+                available_shifts.append(shift_name)
+        except Exception:
+            pass
+
+        try:
+            school_staff_shifts = db.execute('''
+                SELECT DISTINCT TRIM(shift_type) AS shift_type
+                FROM staff
+                WHERE school_id = ?
+                  AND shift_type IS NOT NULL
+                  AND TRIM(shift_type) <> ''
+                ORDER BY shift_type
+            ''', (school_id,)).fetchall()
+            for row in school_staff_shifts:
+                shift_name = (row['shift_type'] or '').strip()
+                if not shift_name:
+                    continue
+                key = shift_name.lower()
+                if key in shift_keys:
+                    continue
+                shift_keys.add(key)
+                available_shifts.append(shift_name)
+        except Exception:
+            pass
+
+        try:
+            mapped_shifts = db.execute('''
+                SELECT DISTINCT TRIM(default_shift_type) AS shift_type
+                FROM department_shift_mappings
+                WHERE school_id = ?
+                  AND default_shift_type IS NOT NULL
+                  AND TRIM(default_shift_type) <> ''
+                ORDER BY shift_type
+            ''', (school_id,)).fetchall()
+            for row in mapped_shifts:
+                shift_name = (row['shift_type'] or '').strip()
+                if not shift_name:
+                    continue
+                key = shift_name.lower()
+                if key in shift_keys:
+                    continue
+                shift_keys.add(key)
+                available_shifts.append(shift_name)
+        except Exception:
+            pass
+
+    return render_template(
+        'payroll_processing_review.html',
+        current_year=today.year,
+        module_enabled=module_enabled,
+        available_shifts=available_shifts
+    )
 
 @app.route('/get_summary_dashboard')
 def get_summary_dashboard():

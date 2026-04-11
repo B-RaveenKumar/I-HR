@@ -89,6 +89,67 @@
             margin-bottom: 0;
         }
 
+        .payroll-filter-card {
+            border: 0;
+            border-radius: 18px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);
+        }
+
+        .payroll-filter-card .card-header {
+            background: linear-gradient(135deg, #164e63 0%, #0f766e 100%);
+            color: #ffffff;
+        }
+
+        .payroll-filter-card .card-title {
+            color: #ffffff;
+        }
+
+        .payroll-filter-card .card-subtitle {
+            color: rgba(255, 255, 255, 0.82);
+        }
+
+        .payroll-review-filters {
+            gap: 1rem;
+        }
+
+        .filter-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .filter-actions .btn {
+            min-height: 48px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding-inline: 1rem;
+        }
+
+        .payroll-filter-note {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.9rem 1rem;
+            border-radius: 14px;
+            background: #eff6ff;
+            color: #1e3a8a;
+            border: 1px solid #dbeafe;
+        }
+
+        @media (max-width: 991.98px) {
+            .filter-actions {
+                width: 100%;
+            }
+
+            .filter-actions .btn {
+                flex: 1 1 100%;
+            }
+        }
+
         .sidebar-toggle {
             position: fixed;
             top: 1rem;
@@ -342,50 +403,131 @@
                 </div>
 
                 <div class="row g-4">
-                    <div class="col-lg-6">
-                        <div class="salary-filters-card payroll-panel-card">
+                    <div class="col-12">
+                        <div class="salary-filters-card payroll-filter-card">
                             <div class="card-header">
                                 <div class="header-icon">
-                                    <i class="bi bi-calculator"></i>
+                                    <i class="bi bi-funnel"></i>
                                 </div>
                                 <div class="header-content">
-                                    <h5 class="card-title">Payroll Processing</h5>
-                                    <p class="card-subtitle">Run and manage payroll calculations</p>
+                                    <h5 class="card-title">Payroll Review Filters</h5>
+                                    <p class="card-subtitle">Search and narrow payroll review records by department, shift, and gender</p>
                                 </div>
                             </div>
-                            <div class="card-body">
-                                <ul class="payroll-info-list mb-3">
-                                    <li>Run monthly salary processing with approved rules</li>
-                                    <li>Configure salary rules and deductions before finalization</li>
-                                    <li>Generate staff-wise breakdowns and payroll slips</li>
-                                </ul>
-                                <a href="{{ url_for('salary_management') }}" class="btn btn-primary btn-calculate">
-                                    <i class="bi bi-play-circle me-1"></i> Open Processing
-                                </a>
-                            </div>
-                        </div>
-                    </div>
 
-                    <div class="col-lg-6">
-                        <div class="salary-rules-card payroll-panel-card">
-                            <div class="card-header">
-                                <div class="header-icon">
-                                    <i class="bi bi-clipboard-data"></i>
-                                </div>
-                                <div class="header-content">
-                                    <h5 class="card-title">Payroll Review</h5>
-                                    <p class="card-subtitle">Review payroll outputs and compliance reports</p>
-                                </div>
-                            </div>
                             <div class="card-body">
-                                <ul class="payroll-info-list mb-3">
-                                    <li>Review payroll summary and department-level financial impact</li>
-                                    <li>Export payroll reports for approvals and record retention</li>
-                                    <li>Track monthly payroll consistency across staff groups</li>
-                                </ul>
-                                <a href="{{ url_for('admin_reports') }}" class="btn btn-outline-primary btn-calculate">
-                                    <i class="bi bi-eye me-1"></i> Open Review
-                                </a>
+                                <form id="payrollReviewFilterForm" method="get" action="{{ url_for('payroll_processing_review') }}">
+                                    <div class="filters-grid payroll-review-filters">
+                                        <div class="filter-group">
+                                            <label for="payrollSearch" class="form-label">
+                                                <i class="bi bi-search"></i> Search
+                                            </label>
+                                            <input type="text"
+                                                   class="form-control enhanced-select"
+                                                   id="payrollSearch"
+                                                   name="search"
+                                                   value="{{ request.args.get('search', '') }}"
+                                                   placeholder="Search by staff name, ID, payroll reference"
+                                                   title="Search payroll review records"
+                                                   autocomplete="off">
+                                        </div>
+
+                                        <div class="filter-group">
+                                            <label for="yearFilter" class="form-label">
+                                                <i class="bi bi-calendar-event"></i> Year
+                                            </label>
+                                            <select id="yearFilter" name="year" class="form-select enhanced-select" title="Filter by year">
+                                                <option value="" {% if not request.args.get('year') %}selected{% endif %}>All Years</option>
+                                                {% for y in range(current_year - 3, current_year + 1) %}
+                                                <option value="{{ y }}" {% if request.args.get('year') == (y|string) %}selected{% endif %}>{{ y }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+
+                                        <div class="filter-group">
+                                            <label for="monthFilter" class="form-label">
+                                                <i class="bi bi-calendar-month"></i> Month
+                                            </label>
+                                            <select id="monthFilter" name="month" class="form-select enhanced-select" title="Filter by month">
+                                                <option value="" {% if not request.args.get('month') %}selected{% endif %}>All Months</option>
+                                                <option value="1" {% if request.args.get('month') == '1' %}selected{% endif %}>January</option>
+                                                <option value="2" {% if request.args.get('month') == '2' %}selected{% endif %}>February</option>
+                                                <option value="3" {% if request.args.get('month') == '3' %}selected{% endif %}>March</option>
+                                                <option value="4" {% if request.args.get('month') == '4' %}selected{% endif %}>April</option>
+                                                <option value="5" {% if request.args.get('month') == '5' %}selected{% endif %}>May</option>
+                                                <option value="6" {% if request.args.get('month') == '6' %}selected{% endif %}>June</option>
+                                                <option value="7" {% if request.args.get('month') == '7' %}selected{% endif %}>July</option>
+                                                <option value="8" {% if request.args.get('month') == '8' %}selected{% endif %}>August</option>
+                                                <option value="9" {% if request.args.get('month') == '9' %}selected{% endif %}>September</option>
+                                                <option value="10" {% if request.args.get('month') == '10' %}selected{% endif %}>October</option>
+                                                <option value="11" {% if request.args.get('month') == '11' %}selected{% endif %}>November</option>
+                                                <option value="12" {% if request.args.get('month') == '12' %}selected{% endif %}>December</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="filter-group">
+                                            <label for="departmentFilter" class="form-label">
+                                                <i class="bi bi-building"></i> Department
+                                            </label>
+                                            <select id="departmentFilter" name="department" class="form-select enhanced-select" title="Filter by department">
+                                                <option value="" {% if not request.args.get('department') %}selected{% endif %}>All Departments</option>
+                                                <option value="Teaching" {% if request.args.get('department') == 'Teaching' %}selected{% endif %}>Teaching</option>
+                                                <option value="Administration" {% if request.args.get('department') == 'Administration' %}selected{% endif %}>Administration</option>
+                                                <option value="Support" {% if request.args.get('department') == 'Support' %}selected{% endif %}>Support</option>
+                                                <option value="Management" {% if request.args.get('department') == 'Management' %}selected{% endif %}>Management</option>
+                                                <option value="IT" {% if request.args.get('department') == 'IT' %}selected{% endif %}>IT</option>
+                                                <option value="Finance" {% if request.args.get('department') == 'Finance' %}selected{% endif %}>Finance</option>
+                                                <option value="HR" {% if request.args.get('department') == 'HR' %}selected{% endif %}>HR</option>
+                                                <option value="Security" {% if request.args.get('department') == 'Security' %}selected{% endif %}>Security</option>
+                                                <option value="Maintenance" {% if request.args.get('department') == 'Maintenance' %}selected{% endif %}>Maintenance</option>
+                                                <option value="Library" {% if request.args.get('department') == 'Library' %}selected{% endif %}>Library</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="filter-group">
+                                            <label for="shiftFilter" class="form-label">
+                                                <i class="bi bi-clock-history"></i> Shift
+                                            </label>
+                                            <select id="shiftFilter" name="shift" class="form-select enhanced-select" title="Filter by shift">
+                                                <option value="" {% if not request.args.get('shift') %}selected{% endif %}>All Shifts</option>
+                                                {% for shift_name in available_shifts %}
+                                                <option value="{{ shift_name }}" {% if request.args.get('shift') == shift_name %}selected{% endif %}>{{ shift_name }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+
+                                        <div class="filter-group">
+                                            <label for="genderFilter" class="form-label">
+                                                <i class="bi bi-gender-ambiguous"></i> Gender
+                                            </label>
+                                            <select id="genderFilter" name="gender" class="form-select enhanced-select" title="Filter by gender">
+                                                <option value="" {% if not request.args.get('gender') %}selected{% endif %}>All Genders</option>
+                                                <option value="Male" {% if request.args.get('gender') == 'Male' %}selected{% endif %}>Male</option>
+                                                <option value="Female" {% if request.args.get('gender') == 'Female' %}selected{% endif %}>Female</option>
+                                                <option value="Other" {% if request.args.get('gender') == 'Other' %}selected{% endif %}>Other</option>
+                                            </select>
+                                        </div>
+
+                                        <div class="filter-group">
+                                            <label class="form-label">&nbsp;</label>
+                                            <div class="filter-actions">
+                                                <button type="submit" class="btn btn-calculate" title="Apply payroll review filters">
+                                                    <i class="bi bi-funnel-fill"></i>
+                                                    <span>Apply Filters</span>
+                                                </button>
+                                                <a href="{{ url_for('payroll_processing_review') }}" class="btn btn-outline-secondary btn-calculate" title="Reset payroll review filters">
+                                                    <i class="bi bi-arrow-counterclockwise"></i>
+                                                    <span>Reset</span>
+                                                </a>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+
+                                <div class="payroll-filter-note mt-3">
+                                    <i class="bi bi-info-circle"></i>
+                                    <span>Use these filters to narrow payroll review records and staff-level payroll analysis.</span>
+                                </div>
                             </div>
                         </div>
                     </div>
