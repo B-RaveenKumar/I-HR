@@ -140,6 +140,87 @@
             border: 1px solid #dbeafe;
         }
 
+        .payroll-name-toggle {
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: #0f172a;
+            font-weight: 600;
+            text-decoration: none;
+        }
+
+        .payroll-name-toggle:hover,
+        .payroll-name-toggle:focus {
+            color: #0f766e;
+            text-decoration: underline;
+        }
+
+        .payroll-detail-panel {
+            background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+            border: 1px solid #dbe4ef;
+            border-radius: 16px;
+            padding: 1rem;
+            margin: 0.5rem 0 1rem;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        .payroll-detail-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+
+        .salary-detail-chip {
+            background: #ffffff;
+            border: 1px solid #dbe4ef;
+            border-radius: 12px;
+            padding: 0.75rem 0.9rem;
+        }
+
+        .salary-detail-chip span {
+            display: block;
+            font-size: 0.78rem;
+            color: #64748b;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.25rem;
+        }
+
+        .salary-detail-chip strong {
+            color: #0f172a;
+            font-size: 1rem;
+        }
+
+        .salary-detail-section {
+            background: #ffffff;
+            border: 1px solid #dbe4ef;
+            border-radius: 14px;
+            padding: 0.9rem;
+            height: 100%;
+        }
+
+        .salary-detail-section h6 {
+            margin-bottom: 0.75rem;
+            color: #0f172a;
+        }
+
+        .salary-detail-table {
+            margin-bottom: 0;
+        }
+
+        .salary-detail-table thead th {
+            background: #eef6fb;
+            color: #0f172a;
+            font-size: 0.78rem;
+        }
+
+        .salary-detail-empty {
+            color: #64748b;
+            font-size: 0.9rem;
+            padding: 0.5rem 0;
+        }
+
         @media (max-width: 991.98px) {
             .filter-actions {
                 width: 100%;
@@ -197,6 +278,162 @@
         @media (min-width: 992px) {
             .sidebar-toggle {
                 display: none !important;
+            }
+        }
+
+        /* Modern Payroll Button Styles */
+        .payroll-action-btn {
+            padding: 0.4rem 0.75rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-radius: 8px;
+            border: none;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            height: 32px;
+        }
+
+        .payroll-action-btn i {
+            font-size: 0.75rem;
+        }
+
+        .payroll-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .payroll-action-btn:active {
+            transform: translateY(0);
+        }
+
+        /* Success Button */
+        .payroll-action-btn.btn-success {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+        }
+
+        .payroll-action-btn.btn-success:hover {
+            background: linear-gradient(135deg, #059669 0%, #047857 100%);
+            color: white;
+        }
+
+        /* Primary Button */
+        .payroll-action-btn.btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            color: white;
+            border: none;
+        }
+
+        .payroll-action-btn.btn-primary:hover {
+            background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+            color: white;
+        }
+
+        /* Warning/Outline Button */
+        .payroll-action-btn.btn-outline-warning {
+            background: transparent;
+            color: #d97706;
+            border: 1.5px solid #d97706;
+        }
+
+        .payroll-action-btn.btn-outline-warning:hover {
+            background: #fef3c7;
+            color: #b45309;
+            border-color: #b45309;
+        }
+
+        /* Secondary/Outline Button */
+        .payroll-action-btn.btn-secondary {
+            background: transparent;
+            color: #6b7280;
+            border: 1.5px solid #d1d5db;
+        }
+
+        .payroll-action-btn.btn-secondary:hover {
+            background: #f3f4f6;
+            color: #374151;
+            border-color: #9ca3af;
+        }
+
+        /* Status Badges */
+        .status-badge {
+            font-size: 0.75rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        /* Bulk Action Panel Styling */
+        #reviewBulkActions,
+        #payrollBulkActions {
+            background: linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%);
+            border: 1px solid #bfdbfe;
+            border-radius: 12px;
+            padding: 0.9rem 1.2rem;
+        }
+
+        #reviewBulkActions .badge,
+        #payrollBulkActions .badge {
+            font-size: 0.75rem;
+            padding: 0.4rem 0.7rem;
+        }
+
+        /* Payroll Row Actions Container */
+        .payroll-row-actions {
+        /* Override Bootstrap flex-wrap for payroll buttons */
+        .d-flex.flex-wrap:has(.payroll-action-btn) {
+            flex-wrap: nowrap !important;
+            overflow-x: auto;
+        }
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+        }
+
+                flex-wrap: nowrap;
+            margin: 0;
+        }
+
+        /* Status and Buttons Container */
+        .payroll-status-container {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        /* Responsive adjustments for smaller screens */
+        @media (max-width: 768px) {
+            .payroll-action-btn {
+                padding: 0.35rem 0.6rem;
+                font-size: 0.75rem;
+                height: 28px;
+            }
+
+            .payroll-action-btn i {
+                font-size: 0.7rem;
+            }
+
+            .payroll-row-actions {
+                gap: 0.3rem;
+            }
+
+            #reviewBulkActions,
+            #payrollBulkActions {
+                padding: 0.7rem 0.9rem;
+                flex-wrap: wrap;
+            }
+
+            #reviewBulkActions .btn,
+            #payrollBulkActions .btn {
+                font-size: 0.7rem;
+                padding: 0.3rem 0.6rem;
+                height: 28px;
             }
         }
     </style>
@@ -426,7 +663,7 @@
                                                    class="form-control enhanced-select"
                                                    id="payrollSearch"
                                                    name="search"
-                                                   value="{{ request.args.get('search', '') }}"
+                                                  value="{{ search_term }}"
                                                    placeholder="Search by staff name, ID, payroll reference"
                                                    title="Search payroll review records"
                                                    autocomplete="off">
@@ -437,9 +674,9 @@
                                                 <i class="bi bi-calendar-event"></i> Year
                                             </label>
                                             <select id="yearFilter" name="year" class="form-select enhanced-select" title="Filter by year">
-                                                <option value="" {% if not request.args.get('year') %}selected{% endif %}>All Years</option>
+                                                <option value="" {% if not selected_year %}selected{% endif %}>All Years</option>
                                                 {% for y in range(current_year - 3, current_year + 1) %}
-                                                <option value="{{ y }}" {% if request.args.get('year') == (y|string) %}selected{% endif %}>{{ y }}</option>
+                                                <option value="{{ y }}" {% if selected_year == y %}selected{% endif %}>{{ y }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
@@ -449,19 +686,19 @@
                                                 <i class="bi bi-calendar-month"></i> Month
                                             </label>
                                             <select id="monthFilter" name="month" class="form-select enhanced-select" title="Filter by month">
-                                                <option value="" {% if not request.args.get('month') %}selected{% endif %}>All Months</option>
-                                                <option value="1" {% if request.args.get('month') == '1' %}selected{% endif %}>January</option>
-                                                <option value="2" {% if request.args.get('month') == '2' %}selected{% endif %}>February</option>
-                                                <option value="3" {% if request.args.get('month') == '3' %}selected{% endif %}>March</option>
-                                                <option value="4" {% if request.args.get('month') == '4' %}selected{% endif %}>April</option>
-                                                <option value="5" {% if request.args.get('month') == '5' %}selected{% endif %}>May</option>
-                                                <option value="6" {% if request.args.get('month') == '6' %}selected{% endif %}>June</option>
-                                                <option value="7" {% if request.args.get('month') == '7' %}selected{% endif %}>July</option>
-                                                <option value="8" {% if request.args.get('month') == '8' %}selected{% endif %}>August</option>
-                                                <option value="9" {% if request.args.get('month') == '9' %}selected{% endif %}>September</option>
-                                                <option value="10" {% if request.args.get('month') == '10' %}selected{% endif %}>October</option>
-                                                <option value="11" {% if request.args.get('month') == '11' %}selected{% endif %}>November</option>
-                                                <option value="12" {% if request.args.get('month') == '12' %}selected{% endif %}>December</option>
+                                                <option value="" {% if not selected_month %}selected{% endif %}>All Months</option>
+                                                <option value="1" {% if selected_month == 1 %}selected{% endif %}>January</option>
+                                                <option value="2" {% if selected_month == 2 %}selected{% endif %}>February</option>
+                                                <option value="3" {% if selected_month == 3 %}selected{% endif %}>March</option>
+                                                <option value="4" {% if selected_month == 4 %}selected{% endif %}>April</option>
+                                                <option value="5" {% if selected_month == 5 %}selected{% endif %}>May</option>
+                                                <option value="6" {% if selected_month == 6 %}selected{% endif %}>June</option>
+                                                <option value="7" {% if selected_month == 7 %}selected{% endif %}>July</option>
+                                                <option value="8" {% if selected_month == 8 %}selected{% endif %}>August</option>
+                                                <option value="9" {% if selected_month == 9 %}selected{% endif %}>September</option>
+                                                <option value="10" {% if selected_month == 10 %}selected{% endif %}>October</option>
+                                                <option value="11" {% if selected_month == 11 %}selected{% endif %}>November</option>
+                                                <option value="12" {% if selected_month == 12 %}selected{% endif %}>December</option>
                                             </select>
                                         </div>
 
@@ -470,17 +707,17 @@
                                                 <i class="bi bi-building"></i> Department
                                             </label>
                                             <select id="departmentFilter" name="department" class="form-select enhanced-select" title="Filter by department">
-                                                <option value="" {% if not request.args.get('department') %}selected{% endif %}>All Departments</option>
-                                                <option value="Teaching" {% if request.args.get('department') == 'Teaching' %}selected{% endif %}>Teaching</option>
-                                                <option value="Administration" {% if request.args.get('department') == 'Administration' %}selected{% endif %}>Administration</option>
-                                                <option value="Support" {% if request.args.get('department') == 'Support' %}selected{% endif %}>Support</option>
-                                                <option value="Management" {% if request.args.get('department') == 'Management' %}selected{% endif %}>Management</option>
-                                                <option value="IT" {% if request.args.get('department') == 'IT' %}selected{% endif %}>IT</option>
-                                                <option value="Finance" {% if request.args.get('department') == 'Finance' %}selected{% endif %}>Finance</option>
-                                                <option value="HR" {% if request.args.get('department') == 'HR' %}selected{% endif %}>HR</option>
-                                                <option value="Security" {% if request.args.get('department') == 'Security' %}selected{% endif %}>Security</option>
-                                                <option value="Maintenance" {% if request.args.get('department') == 'Maintenance' %}selected{% endif %}>Maintenance</option>
-                                                <option value="Library" {% if request.args.get('department') == 'Library' %}selected{% endif %}>Library</option>
+                                                <option value="" {% if not selected_department %}selected{% endif %}>All Departments</option>
+                                                <option value="Teaching" {% if selected_department == 'Teaching' %}selected{% endif %}>Teaching</option>
+                                                <option value="Administration" {% if selected_department == 'Administration' %}selected{% endif %}>Administration</option>
+                                                <option value="Support" {% if selected_department == 'Support' %}selected{% endif %}>Support</option>
+                                                <option value="Management" {% if selected_department == 'Management' %}selected{% endif %}>Management</option>
+                                                <option value="IT" {% if selected_department == 'IT' %}selected{% endif %}>IT</option>
+                                                <option value="Finance" {% if selected_department == 'Finance' %}selected{% endif %}>Finance</option>
+                                                <option value="HR" {% if selected_department == 'HR' %}selected{% endif %}>HR</option>
+                                                <option value="Security" {% if selected_department == 'Security' %}selected{% endif %}>Security</option>
+                                                <option value="Maintenance" {% if selected_department == 'Maintenance' %}selected{% endif %}>Maintenance</option>
+                                                <option value="Library" {% if selected_department == 'Library' %}selected{% endif %}>Library</option>
                                             </select>
                                         </div>
 
@@ -489,9 +726,9 @@
                                                 <i class="bi bi-clock-history"></i> Shift
                                             </label>
                                             <select id="shiftFilter" name="shift" class="form-select enhanced-select" title="Filter by shift">
-                                                <option value="" {% if not request.args.get('shift') %}selected{% endif %}>All Shifts</option>
+                                                <option value="" {% if not selected_shift %}selected{% endif %}>All Shifts</option>
                                                 {% for shift_name in available_shifts %}
-                                                <option value="{{ shift_name }}" {% if request.args.get('shift') == shift_name %}selected{% endif %}>{{ shift_name }}</option>
+                                                <option value="{{ shift_name }}" {% if selected_shift == shift_name %}selected{% endif %}>{{ shift_name }}</option>
                                                 {% endfor %}
                                             </select>
                                         </div>
@@ -501,10 +738,10 @@
                                                 <i class="bi bi-gender-ambiguous"></i> Gender
                                             </label>
                                             <select id="genderFilter" name="gender" class="form-select enhanced-select" title="Filter by gender">
-                                                <option value="" {% if not request.args.get('gender') %}selected{% endif %}>All Genders</option>
-                                                <option value="Male" {% if request.args.get('gender') == 'Male' %}selected{% endif %}>Male</option>
-                                                <option value="Female" {% if request.args.get('gender') == 'Female' %}selected{% endif %}>Female</option>
-                                                <option value="Other" {% if request.args.get('gender') == 'Other' %}selected{% endif %}>Other</option>
+                                                <option value="" {% if not selected_gender %}selected{% endif %}>All Genders</option>
+                                                <option value="Male" {% if selected_gender == 'Male' %}selected{% endif %}>Male</option>
+                                                <option value="Female" {% if selected_gender == 'Female' %}selected{% endif %}>Female</option>
+                                                <option value="Other" {% if selected_gender == 'Other' %}selected{% endif %}>Other</option>
                                             </select>
                                         </div>
 
@@ -527,6 +764,553 @@
                                 <div class="payroll-filter-note mt-3">
                                     <i class="bi bi-info-circle"></i>
                                     <span>Use these filters to narrow payroll review records and staff-level payroll analysis.</span>
+                                </div>
+
+                                <div class="alert alert-light border mt-3 mb-0">
+                                    <div class="row g-2 align-items-center">
+                                        <div class="col-md-6">
+                                            <strong><i class="bi bi-calendar-check me-1"></i>Calculated On:</strong>
+                                            <span class="ms-1">{{ calculated_at_display or 'Not calculated yet' }}</span>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <strong><i class="bi bi-person-badge me-1"></i>Calculated By:</strong>
+                                            <span class="ms-1">{{ calculated_by or 'N/A' }}</span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="mt-4">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Review Section</h6>
+                                        <span class="badge bg-warning text-dark">Pending Review: {{ review_count }}</span>
+                                    </div>
+                                    <!-- Bulk Actions for Review Section -->
+                                    <div class="mb-3 p-3 bg-light rounded" id="reviewBulkActions" style="display: none;">
+                                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                                            <span id="reviewSelectedCount" class="badge bg-info">0 selected</span>
+                                            <button type="button" class="payroll-action-btn btn-success" id="bulkMarkReviewedBtn">
+                                                <i class="bi bi-check2-circle"></i> Mark All Selected as Reviewed
+                                            </button>
+                                            <button type="button" class="payroll-action-btn btn-secondary" id="reviewClearSelectionBtn">
+                                                <i class="bi bi-x-circle"></i> Clear Selection
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table salary-table" id="reviewTable">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 40px;"><input type="checkbox" id="reviewSelectAll" class="form-check-input" style="cursor: pointer;"></th>
+                                                    <th>Staff ID</th>
+                                                    <th>Name</th>
+                                                    <th>Department</th>
+                                                    <th>Shift</th>
+                                                    <th>Gender</th>
+                                                    <th>Present</th>
+                                                    <th>Absent</th>
+                                                    <th>Total Earnings</th>
+                                                    <th>Total Deductions</th>
+                                                    <th>Net Salary</th>
+                                                    <th>Status Update</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if review_records %}
+                                                    {% for row in review_records %}
+                                                    <tr class="review-row" data-staff-id="{{ row.id }}" data-staff-name="{{ row.staff_name }}">
+                                                        <td><input type="checkbox" class="review-checkbox form-check-input" value="{{ row.id }}" style="cursor: pointer;"></td>
+                                                        <td><strong>{{ row.staff_id }}</strong></td>
+                                                        <td>
+                                                            <button type="button"
+                                                                    class="payroll-name-toggle"
+                                                                    data-bs-toggle="collapse"
+                                                                    data-bs-target="#payrollDetailReview{{ row.id }}"
+                                                                    aria-expanded="false"
+                                                                    aria-controls="payrollDetailReview{{ row.id }}">
+                                                                {{ row.staff_name }}
+                                                                <i class="bi bi-chevron-down ms-1 small"></i>
+                                                            </button>
+                                                        </td>
+                                                        <td><span class="badge bg-secondary">{{ row.department }}</span></td>
+                                                        <td>{{ row.shift_type }}</td>
+                                                        <td>{{ row.gender }}</td>
+                                                        <td>{{ row.present_days }}</td>
+                                                        <td>{{ row.absent_days }}</td>
+                                                        <td>₹{{ "{:,.2f}".format(row.total_earnings) }}</td>
+                                                        <td>₹{{ "{:,.2f}".format(row.total_deductions) }}</td>
+                                                        <td><strong>₹{{ "{:,.2f}".format(row.net_salary) }}</strong></td>
+                                                        <td>
+                                                            <form method="post" action="{{ url_for('update_payroll_review_status') }}" class="d-flex gap-2 align-items-center">
+                                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                <input type="hidden" name="staff_id" value="{{ row.id }}">
+                                                                <input type="hidden" name="year" value="{{ selected_year }}">
+                                                                <input type="hidden" name="month" value="{{ selected_month }}">
+                                                                <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+                                                                <input type="hidden" name="status" value="reviewed">
+                                                                <button type="submit" class="payroll-action-btn btn-success">
+                                                                    <i class="bi bi-check2-circle"></i> Mark Reviewed
+                                                                </button>
+                                                            </form>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="border-0">
+                                                        <td colspan="11" class="border-0 p-0">
+                                                                            <div class="collapse" id="payrollDetailReview{{ row.id }}">
+                                                                <div class="payroll-detail-panel">
+                                                                    <div class="payroll-detail-summary">
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Period</span>
+                                                                            <strong>{{ row.detail_breakdown.calculation_period }}</strong>
+                                                                        </div>
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Working Days</span>
+                                                                            <strong>{{ row.detail_breakdown.working_days }}</strong>
+                                                                        </div>
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Present Days</span>
+                                                                            <strong>{{ row.detail_breakdown.attendance_summary.present_days }}</strong>
+                                                                        </div>
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Absent Days</span>
+                                                                            <strong>{{ row.detail_breakdown.attendance_summary.absent_days }}</strong>
+                                                                        </div>
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Net Salary</span>
+                                                                            <strong>₹{{ "{:,.2f}".format(row.net_salary) }}</strong>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="row g-3">
+                                                                        <div class="col-lg-4">
+                                                                            <div class="salary-detail-section h-100">
+                                                                                <h6><i class="bi bi-cash-stack me-1"></i>Earnings Breakdown</h6>
+                                                                                <table class="table table-sm salary-detail-table">
+                                                                                    <tbody>
+                                                                                        <tr><td>Basic Salary Earned</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.basic_salary) }}</td></tr>
+                                                                                        <tr><td>HRA</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.hra) }}</td></tr>
+                                                                                        <tr><td>Transport Allowance</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.transport_allowance) }}</td></tr>
+                                                                                        <tr><td>Other Allowances</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.other_allowances) }}</td></tr>
+                                                                                        <tr><td>Present Pay</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.present_pay) }}</td></tr>
+                                                                                        <tr><td>Leave Pay</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.leave_pay) }}</td></tr>
+                                                                                        <tr><td>Early Arrival Bonus</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.early_arrival_bonus) }}</td></tr>
+                                                                                        <tr><td>Overtime Pay</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.overtime_pay) }}</td></tr>
+                                                                                        {% if row.detail_breakdown.manual_bonus > 0 %}
+                                                                                        <tr style="background-color: #e7f3ff; border: 1px solid #bce0fc;"><td><strong>Manual Bonus</strong></td><td class="text-end"><strong style="color: #0f766e;">+ ₹{{ "{:,.2f}".format(row.detail_breakdown.manual_bonus) }}</strong></td></tr>
+                                                                                        {% endif %}
+                                                                                        <tr class="table-light fw-semibold"><td>Total Earnings</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.total_earnings + row.detail_breakdown.manual_bonus) }}</td></tr>
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="col-lg-4">
+                                                                            <div class="salary-detail-section h-100">
+                                                                                <h6><i class="bi bi-dash-circle me-1"></i>Deductions Breakdown</h6>
+                                                                                <table class="table table-sm salary-detail-table">
+                                                                                    <tbody>
+                                                                                        <tr><td>Absent Deduction</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.absent_deduction) }}</td></tr>
+                                                                                        <tr><td>Late Penalty</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.late_arrival_penalty) }}</td></tr>
+                                                                                        <tr><td>Early Departure Penalty</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.early_departure_penalty) }}</td></tr>
+                                                                                        <tr><td>Single Punch Penalty</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.single_punch_penalty) }}</td></tr>
+                                                                                        <tr><td>PF</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.pf_deduction) }}</td></tr>
+                                                                                        <tr><td>ESI</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.esi_deduction) }}</td></tr>
+                                                                                        <tr><td>Professional Tax</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.professional_tax) }}</td></tr>
+                                                                                        <tr><td>Other Deductions</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.other_deductions) }}</td></tr>
+                                                                                        {% if row.detail_breakdown.manual_deduction > 0 %}
+                                                                                        <tr style="background-color: #ffe7e7; border: 1px solid #fcbce0;"><td><strong>Manual Deduction</strong></td><td class="text-end"><strong style="color: #b91c1c;">+ ₹{{ "{:,.2f}".format(row.detail_breakdown.manual_deduction) }}</strong></td></tr>
+                                                                                        {% endif %}
+                                                                                        <tr class="table-light fw-semibold"><td>Total Deductions</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.total_deductions + row.detail_breakdown.manual_deduction) }}</td></tr>
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="col-lg-4">
+                                                                            <div class="salary-detail-section h-100">
+                                                                                <h6><i class="bi bi-receipt me-1"></i>Manual Adjustments</h6>
+                                                                                <form id="adjForm{{ row.id }}" class="adjustment-form">
+                                                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                                    <input type="hidden" name="staff_id" value="{{ row.id }}">
+                                                                                    <input type="hidden" name="year" value="{{ selected_year }}">
+                                                                                    <input type="hidden" name="month" value="{{ selected_month }}">
+                                                                                    <div class="mb-3">
+                                                                                        <label class="form-label small">Adjustment Type</label>
+                                                                                        <select name="adjustment_type" class="form-select form-select-sm" required>
+                                                                                            <option value="bonus">Add Bonus</option>
+                                                                                            <option value="deduction">Add Deduction</option>
+                                                                                        </select>
+                                                                                    </div>
+                                                                                    <div class="mb-3">
+                                                                                        <label class="form-label small">Amount</label>
+                                                                                        <input type="number" name="amount" class="form-control form-control-sm" placeholder="Enter amount" min="0" step="0.01" required>
+                                                                                    </div>
+                                                                                    <div class="mb-3">
+                                                                                        <label class="form-label small">Reason (Optional)</label>
+                                                                                        <input type="text" name="reason" class="form-control form-control-sm" placeholder="Reason for adjustment" maxlength="255">
+                                                                                    </div>
+                                                                                    <button type="submit" class="btn btn-sm btn-primary w-100">Save Adjustment</button>
+                                                                                </form>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                                {% if row.detail_breakdown.attendance_entries %}
+                                                                                <div class="table-responsive">
+                                                                                    <table class="table table-sm salary-detail-table">
+                                                                                        <thead>
+                                                                                            <tr>
+                                                                                                <th>Date</th>
+                                                                                                <th>Status</th>
+                                                                                                <th>In / Out</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                            {% for attendance in row.detail_breakdown.attendance_entries %}
+                                                                                            <tr>
+                                                                                                <td>{{ attendance.date }}</td>
+                                                                                                <td>{{ attendance.status }}</td>
+                                                                                                <td>{{ attendance.time_in }} - {{ attendance.time_out }}</td>
+                                                                                            </tr>
+                                                                                            {% endfor %}
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </div>
+                                                                                {% else %}
+                                                                                <div class="salary-detail-empty">No attendance records were found for this payroll period.</div>
+                                                                                {% endif %}
+
+                                                                                <div class="mt-3">
+                                                                                    <h6 class="mb-2"><i class="bi bi-journal-text me-1"></i>Leave &amp; Permission Details</h6>
+                                                                                    <div class="small text-muted mb-2">Leaves: {{ row.detail_breakdown.leave_entries|length }}, Permissions: {{ row.detail_breakdown.permission_entries|length }}</div>
+                                                                                    {% if row.detail_breakdown.leave_entries %}
+                                                                                    <div class="small mb-2">
+                                                                                        <strong>Leaves:</strong>
+                                                                                        {% for leave in row.detail_breakdown.leave_entries %}
+                                                                                        <div>{{ leave.leave_type }} ({{ leave.start_date }} to {{ leave.end_date }})</div>
+                                                                                        {% endfor %}
+                                                                                    </div>
+                                                                                    {% endif %}
+                                                                                    {% if row.detail_breakdown.permission_entries %}
+                                                                                    <div class="small">
+                                                                                        <strong>Permissions:</strong>
+                                                                                        {% for permission in row.detail_breakdown.permission_entries %}
+                                                                                        <div>{{ permission.permission_date }} - {{ permission.permission_type }} ({{ permission.start_time }} to {{ permission.end_time }})</div>
+                                                                                        {% endfor %}
+                                                                                    </div>
+                                                                                    {% endif %}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <tr>
+                                                        <td colspan="11" class="text-center text-muted py-4">No pending payroll review records found for the selected filters.</td>
+                                                    </tr>
+                                                {% endif %}
+                                            </tbody>
+                                            {% if review_records %}
+                                            <tfoot>
+                                                <tr>
+                                                    <th colspan="7" class="text-end">Summary</th>
+                                                    <th>₹{{ "{:,.2f}".format(total_earnings) }}</th>
+                                                    <th>₹{{ "{:,.2f}".format(total_deductions) }}</th>
+                                                    <th>₹{{ "{:,.2f}".format(total_net_salary) }}</th>
+                                                    <th></th>
+                                                </tr>
+                                            </tfoot>
+                                            {% endif %}
+                                        </table>
+                                    </div>
+                                    {% if review_records %}
+                                    <div class="small text-muted mt-2">
+                                        Showing {{ review_count }} pending review payroll records.
+                                    </div>
+                                    {% endif %}
+                                </div>
+
+                                <div class="mt-5">
+                                    <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
+                                        <h6 class="mb-0"><i class="bi bi-wallet2 me-2"></i>Payroll Content Section</h6>
+                                        <span class="badge bg-success">Processed: {{ reviewed_count }}</span>
+                                    </div>
+                                    <!-- Bulk Actions for Payroll Content Section -->
+                                    <div class="mb-3 p-3 bg-light rounded" id="payrollBulkActions" style="display: none;">
+                                        <div class="d-flex gap-2 align-items-center flex-wrap">
+                                            <span id="payrollSelectedCount" class="badge bg-info">0 selected</span>
+                                            <button type="button" class="payroll-action-btn btn-success" id="bulkMarkCompletedBtn">
+                                                <i class="bi bi-check2-circle"></i> Mark All Selected as Completed
+                                            </button>
+                                            <button type="button" class="payroll-action-btn btn-primary" id="bulkMarkReleasedBtn">
+                                                <i class="bi bi-wallet2"></i> Mark All Selected as Pay Released
+                                            </button>
+                                            <button type="button" class="payroll-action-btn btn-secondary" id="payrollClearSelectionBtn">
+                                                <i class="bi bi-x-circle"></i> Clear Selection
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div class="table-responsive">
+                                        <table class="table salary-table" id="payrollTable">
+                                            <thead>
+                                                <tr>
+                                                    <th style="width: 40px;"><input type="checkbox" id="payrollSelectAll" class="form-check-input" style="cursor: pointer;"></th>
+                                                    <th>Staff ID</th>
+                                                    <th>Name</th>
+                                                    <th>Department</th>
+                                                    <th>Shift</th>
+                                                    <th>Gender</th>
+                                                    <th>Present</th>
+                                                    <th>Absent</th>
+                                                    <th>Total Earnings</th>
+                                                    <th>Total Deductions</th>
+                                                    <th>Net Salary</th>
+                                                    <th>Status Update</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% if reviewed_records %}
+                                                    {% for row in reviewed_records %}
+                                                    <tr class="payroll-row" data-staff-id="{{ row.id }}" data-staff-name="{{ row.staff_name }}" data-status="{{ row.review_status }}">
+                                                        <td><input type="checkbox" class="payroll-checkbox form-check-input" value="{{ row.id }}" style="cursor: pointer;"></td>
+                                                        <td><strong>{{ row.staff_id }}</strong></td>
+                                                        <td>
+                                                            <button type="button"
+                                                                    class="payroll-name-toggle"
+                                                                    data-bs-toggle="collapse"
+                                                                    data-bs-target="#payrollDetailReviewed{{ row.id }}"
+                                                                    aria-expanded="false"
+                                                                    aria-controls="payrollDetailReviewed{{ row.id }}">
+                                                                {{ row.staff_name }}
+                                                                <i class="bi bi-chevron-down ms-1 small"></i>
+                                                            </button>
+                                                        </td>
+                                                        <td><span class="badge bg-secondary">{{ row.department }}</span></td>
+                                                        <td>{{ row.shift_type }}</td>
+                                                        <td>{{ row.gender }}</td>
+                                                        <td>{{ row.present_days }}</td>
+                                                        <td>{{ row.absent_days }}</td>
+                                                        <td>₹{{ "{:,.2f}".format(row.total_earnings) }}</td>
+                                                        <td>₹{{ "{:,.2f}".format(row.total_deductions) }}</td>
+                                                        <td><strong>₹{{ "{:,.2f}".format(row.net_salary) }}</strong></td>
+                                                        <td>
+                                                            <div class="d-flex flex-column gap-2">
+                                                                <div>
+                                                                    {% if row.review_status == 'pay_released' %}
+                                                                        <span class="badge bg-primary">Pay Released</span>
+                                                                    {% elif row.review_status == 'completed' %}
+                                                                        <span class="badge bg-success">Completed</span>
+                                                                    {% else %}
+                                                                        <span class="badge bg-info text-dark">Reviewed</span>
+                                                                    {% endif %}
+                                                                </div>
+                                                                <div class="d-flex flex-wrap gap-2" style="flex-wrap: nowrap !important;">
+                                                                    {% if row.review_status != 'completed' %}
+                                                                    <form method="post" action="{{ url_for('update_payroll_review_status') }}" style="flex-shrink: 0;">
+                                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                        <input type="hidden" name="staff_id" value="{{ row.id }}">
+                                                                        <input type="hidden" name="year" value="{{ selected_year }}">
+                                                                        <input type="hidden" name="month" value="{{ selected_month }}">
+                                                                        <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+                                                                        <input type="hidden" name="status" value="completed">
+                                                                        <button type="submit" class="payroll-action-btn btn-success">
+                                                                            <i class="bi bi-check2-circle"></i> Mark Completed
+                                                                        </button>
+                                                                    </form>
+                                                                    {% endif %}
+
+                                                                    {% if row.review_status != 'pay_released' %}
+                                                                    <form method="post" action="{{ url_for('update_payroll_review_status') }}" style="flex-shrink: 0;">
+                                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                        <input type="hidden" name="staff_id" value="{{ row.id }}">
+                                                                        <input type="hidden" name="year" value="{{ selected_year }}">
+                                                                        <input type="hidden" name="month" value="{{ selected_month }}">
+                                                                        <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+                                                                        <input type="hidden" name="status" value="pay_released">
+                                                                        <button type="submit" class="payroll-action-btn btn-primary">
+                                                                            <i class="bi bi-wallet2"></i> Pay Released
+                                                                        </button>
+                                                                    </form>
+                                                                    {% endif %}
+
+                                                                    <form method="post" action="{{ url_for('update_payroll_review_status') }}">
+                                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                        <input type="hidden" name="staff_id" value="{{ row.id }}">
+                                                                        <input type="hidden" name="year" value="{{ selected_year }}">
+                                                                        <input type="hidden" name="month" value="{{ selected_month }}">
+                                                                        <input type="hidden" name="redirect_to" value="{{ request.full_path }}">
+                                                                        <input type="hidden" name="status" value="pending">
+                                                                        <button type="submit" class="payroll-action-btn btn-outline-warning">
+                                                                            <i class="bi bi-arrow-counterclockwise"></i> Move to Review
+                                                                        </button>
+                                                                    </form>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    <tr class="border-0">
+                                                        <td colspan="11" class="border-0 p-0">
+                                                            <div class="collapse" id="payrollDetailReviewed{{ row.id }}">
+                                                                <div class="payroll-detail-panel">
+                                                                    <div class="payroll-detail-summary">
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Period</span>
+                                                                            <strong>{{ row.detail_breakdown.calculation_period }}</strong>
+                                                                        </div>
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Working Days</span>
+                                                                            <strong>{{ row.detail_breakdown.working_days }}</strong>
+                                                                        </div>
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Present Days</span>
+                                                                            <strong>{{ row.detail_breakdown.attendance_summary.present_days }}</strong>
+                                                                        </div>
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Absent Days</span>
+                                                                            <strong>{{ row.detail_breakdown.attendance_summary.absent_days }}</strong>
+                                                                        </div>
+                                                                        <div class="salary-detail-chip">
+                                                                            <span>Net Salary</span>
+                                                                            <strong>₹{{ "{:,.2f}".format(row.net_salary) }}</strong>
+                                                                        </div>
+                                                                    </div>
+
+                                                                    <div class="row g-3">
+                                                                        <div class="col-lg-4">
+                                                                            <div class="salary-detail-section h-100">
+                                                                                <h6><i class="bi bi-cash-stack me-1"></i>Earnings Breakdown</h6>
+                                                                                <table class="table table-sm salary-detail-table">
+                                                                                    <tbody>
+                                                                                        <tr><td>Basic Salary Earned</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.basic_salary) }}</td></tr>
+                                                                                        <tr><td>HRA</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.hra) }}</td></tr>
+                                                                                        <tr><td>Transport Allowance</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.transport_allowance) }}</td></tr>
+                                                                                        <tr><td>Other Allowances</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.other_allowances) }}</td></tr>
+                                                                                        <tr><td>Present Pay</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.present_pay) }}</td></tr>
+                                                                                        <tr><td>Leave Pay</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.leave_pay) }}</td></tr>
+                                                                                        <tr><td>Early Arrival Bonus</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.early_arrival_bonus) }}</td></tr>
+                                                                                        <tr><td>Overtime Pay</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.overtime_pay) }}</td></tr>
+                                                                                        {% if row.detail_breakdown.manual_bonus > 0 %}
+                                                                                        <tr style="background-color: #e7f3ff; border: 1px solid #bce0fc;"><td><strong>Manual Bonus</strong></td><td class="text-end"><strong style="color: #0f766e;">+ ₹{{ "{:,.2f}".format(row.detail_breakdown.manual_bonus) }}</strong></td></tr>
+                                                                                        {% endif %}
+                                                                                        <tr class="table-light fw-semibold"><td>Total Earnings</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.earnings.total_earnings + row.detail_breakdown.manual_bonus) }}</td></tr>
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="col-lg-4">
+                                                                            <div class="salary-detail-section h-100">
+                                                                                <h6><i class="bi bi-dash-circle me-1"></i>Deductions Breakdown</h6>
+                                                                                <table class="table table-sm salary-detail-table">
+                                                                                    <tbody>
+                                                                                        <tr><td>Absent Deduction</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.absent_deduction) }}</td></tr>
+                                                                                        <tr><td>Late Penalty</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.late_arrival_penalty) }}</td></tr>
+                                                                                        <tr><td>Early Departure Penalty</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.early_departure_penalty) }}</td></tr>
+                                                                                        <tr><td>Single Punch Penalty</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.single_punch_penalty) }}</td></tr>
+                                                                                        <tr><td>PF</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.pf_deduction) }}</td></tr>
+                                                                                        <tr><td>ESI</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.esi_deduction) }}</td></tr>
+                                                                                        <tr><td>Professional Tax</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.professional_tax) }}</td></tr>
+                                                                                        <tr><td>Other Deductions</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.other_deductions) }}</td></tr>
+                                                                                        {% if row.detail_breakdown.manual_deduction > 0 %}
+                                                                                        <tr style="background-color: #ffe7e7; border: 1px solid #fcbce0;"><td><strong>Manual Deduction</strong></td><td class="text-end"><strong style="color: #b91c1c;">+ ₹{{ "{:,.2f}".format(row.detail_breakdown.manual_deduction) }}</strong></td></tr>
+                                                                                        {% endif %}
+                                                                                        <tr class="table-light fw-semibold"><td>Total Deductions</td><td class="text-end">₹{{ "{:,.2f}".format(row.detail_breakdown.deductions.total_deductions + row.detail_breakdown.manual_deduction) }}</td></tr>
+                                                                                    </tbody>
+                                                                                </table>
+                                                                            </div>
+                                                                        </div>
+
+                                                                        <div class="col-lg-4">
+                                                                            <div class="salary-detail-section h-100">
+                                                                                <h6><i class="bi bi-receipt me-1"></i>Manual Adjustments</h6>
+                                                                                <form id="adjForm{{ row.id }}" class="adjustment-form">
+                                                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                                                    <input type="hidden" name="staff_id" value="{{ row.id }}">
+                                                                                    <input type="hidden" name="year" value="{{ selected_year }}">
+                                                                                    <input type="hidden" name="month" value="{{ selected_month }}">
+                                                                                    <div class="mb-3">
+                                                                                        <label class="form-label small">Adjustment Type</label>
+                                                                                        <select name="adjustment_type" class="form-select form-select-sm" required>
+                                                                                            <option value="bonus">Add Bonus</option>
+                                                                                            <option value="deduction">Add Deduction</option>
+                                                                                        </select>
+                                                                                    </div>
+                                                                                    <div class="mb-3">
+                                                                                        <label class="form-label small">Amount</label>
+                                                                                        <input type="number" name="amount" class="form-control form-control-sm" placeholder="Enter amount" min="0" step="0.01" required>
+                                                                                    </div>
+                                                                                    <div class="mb-3">
+                                                                                        <label class="form-label small">Reason (Optional)</label>
+                                                                                        <input type="text" name="reason" class="form-control form-control-sm" placeholder="Reason for adjustment" maxlength="255">
+                                                                                    </div>
+                                                                                    <button type="submit" class="btn btn-sm btn-primary w-100">Save Adjustment</button>
+                                                                                </form>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                                {% if row.detail_breakdown.attendance_entries %}
+                                                                                <div class="table-responsive">
+                                                                                    <table class="table table-sm salary-detail-table">
+                                                                                        <thead>
+                                                                                            <tr>
+                                                                                                <th>Date</th>
+                                                                                                <th>Status</th>
+                                                                                                <th>In / Out</th>
+                                                                                            </tr>
+                                                                                        </thead>
+                                                                                        <tbody>
+                                                                                            {% for attendance in row.detail_breakdown.attendance_entries %}
+                                                                                            <tr>
+                                                                                                <td>{{ attendance.date }}</td>
+                                                                                                <td>{{ attendance.status }}</td>
+                                                                                                <td>{{ attendance.time_in }} - {{ attendance.time_out }}</td>
+                                                                                            </tr>
+                                                                                            {% endfor %}
+                                                                                        </tbody>
+                                                                                    </table>
+                                                                                </div>
+                                                                                {% else %}
+                                                                                <div class="salary-detail-empty">No attendance records were found for this payroll period.</div>
+                                                                                {% endif %}
+
+                                                                                <div class="mt-3">
+                                                                                    <h6 class="mb-2"><i class="bi bi-journal-text me-1"></i>Leave &amp; Permission Details</h6>
+                                                                                    <div class="small text-muted mb-2">Leaves: {{ row.detail_breakdown.leave_entries|length }}, Permissions: {{ row.detail_breakdown.permission_entries|length }}</div>
+                                                                                    {% if row.detail_breakdown.leave_entries %}
+                                                                                    <div class="small mb-2">
+                                                                                        <strong>Leaves:</strong>
+                                                                                        {% for leave in row.detail_breakdown.leave_entries %}
+                                                                                        <div>{{ leave.leave_type }} ({{ leave.start_date }} to {{ leave.end_date }})</div>
+                                                                                        {% endfor %}
+                                                                                    </div>
+                                                                                    {% endif %}
+                                                                                    {% if row.detail_breakdown.permission_entries %}
+                                                                                    <div class="small">
+                                                                                        <strong>Permissions:</strong>
+                                                                                        {% for permission in row.detail_breakdown.permission_entries %}
+                                                                                        <div>{{ permission.permission_date }} - {{ permission.permission_type }} ({{ permission.start_time }} to {{ permission.end_time }})</div>
+                                                                                        {% endfor %}
+                                                                                    </div>
+                                                                                    {% endif %}
+                                                                                </div>
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </td>
+                                                    </tr>
+                                                    {% endfor %}
+                                                {% else %}
+                                                    <tr>
+                                                        <td colspan="11" class="text-center text-muted py-4">No reviewed payroll records yet. Mark staff as Reviewed in Review Section to move them here.</td>
+                                                    </tr>
+                                                {% endif %}
+                                            </tbody>
+                                        </table>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -582,6 +1366,266 @@
             if (confirm('Are you sure you want to logout?')) {
                 window.location.href = "{{ url_for('logout') }}";
             }
+        }
+
+        // Handle salary adjustment forms
+        document.addEventListener('submit', function(e) {
+            if (e.target.classList.contains('adjustment-form')) {
+                e.preventDefault();
+                
+                const form = e.target;
+                const staffId = form.querySelector('input[name="staff_id"]').value;
+                const year = form.querySelector('input[name="year"]').value;
+                const month = form.querySelector('input[name="month"]').value;
+                const adjustmentType = form.querySelector('select[name="adjustment_type"]').value;
+                const amount = form.querySelector('input[name="amount"]').value;
+                const reason = form.querySelector('input[name="reason"]').value;
+
+                // Validate amount
+                if (!amount || parseFloat(amount) <= 0) {
+                    alert('Please enter a valid amount');
+                    return;
+                }
+
+                // Disable button during submission
+                const submitBtn = form.querySelector('button[type="submit"]');
+                const originalText = submitBtn.textContent;
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Saving...';
+
+                // Read CSRF from the same form being submitted
+                const csrfToken = form.querySelector('input[name="csrf_token"]')?.value || '';
+
+                const body = new URLSearchParams();
+                body.append('staff_id', staffId);
+                body.append('year', year);
+                body.append('month', month);
+                body.append('adjustment_type', adjustmentType);
+                body.append('amount', parseFloat(amount));
+                body.append('reason', reason);
+
+                // Send AJAX request
+                fetch("{{ url_for('save_salary_adjustment') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: body.toString()
+                })
+                .then(async response => {
+                    const text = await response.text();
+                    let data = {};
+                    try {
+                        data = text ? JSON.parse(text) : {};
+                    } catch (parseError) {
+                        data = {
+                            success: false,
+                            message: text || 'Unexpected server response'
+                        };
+                    }
+
+                    if (!response.ok && !data.message && data.error) {
+                        data.message = data.error;
+                    }
+
+                    return data;
+                })
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message || 'Adjustment saved successfully!');
+                        // Reset form
+                        form.reset();
+                        // Reload the page to show updated data
+                        location.reload();
+                    } else {
+                        alert('Error: ' + (data.message || 'Failed to save adjustment'));
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    alert('An error occurred while saving the adjustment');
+                })
+                .finally(() => {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = originalText;
+                });
+            }
+        });
+    </script>
+
+    <script>
+        // Bulk Selection for Review Section
+        const reviewSelectAllCheckbox = document.getElementById('reviewSelectAll');
+        const reviewCheckboxes = document.querySelectorAll('.review-checkbox');
+        const reviewBulkActions = document.getElementById('reviewBulkActions');
+        const reviewSelectedCount = document.getElementById('reviewSelectedCount');
+        const bulkMarkReviewedBtn = document.getElementById('bulkMarkReviewedBtn');
+        const reviewClearSelectionBtn = document.getElementById('reviewClearSelectionBtn');
+
+        // Bulk Selection for Payroll Content Section
+        const payrollSelectAllCheckbox = document.getElementById('payrollSelectAll');
+        const payrollCheckboxes = document.querySelectorAll('.payroll-checkbox');
+        const payrollBulkActions = document.getElementById('payrollBulkActions');
+        const payrollSelectedCount = document.getElementById('payrollSelectedCount');
+        const bulkMarkCompletedBtn = document.getElementById('bulkMarkCompletedBtn');
+        const bulkMarkReleasedBtn = document.getElementById('bulkMarkReleasedBtn');
+        const payrollClearSelectionBtn = document.getElementById('payrollClearSelectionBtn');
+
+        // Get CSRF token from the page
+        const csrfToken = document.querySelector('input[name="csrf_token"]')?.value || '';
+
+        // Review Section Functions
+        function updateReviewCheckboxes() {
+            const checkedCount = document.querySelectorAll('.review-checkbox:checked').length;
+            reviewSelectedCount.textContent = `${checkedCount} selected`;
+            reviewBulkActions.style.display = checkedCount > 0 ? 'block' : 'none';
+            
+            const allChecked = reviewCheckboxes.length > 0 && checkedCount === reviewCheckboxes.length;
+            reviewSelectAllCheckbox.checked = allChecked;
+        }
+
+        reviewSelectAllCheckbox?.addEventListener('change', function() {
+            reviewCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updateReviewCheckboxes();
+        });
+
+        reviewCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updateReviewCheckboxes);
+        });
+
+        reviewClearSelectionBtn?.addEventListener('click', function() {
+            reviewCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updateReviewCheckboxes();
+        });
+
+        bulkMarkReviewedBtn?.addEventListener('click', function() {
+            const selected = Array.from(document.querySelectorAll('.review-checkbox:checked')).map(cb => cb.value);
+            if (selected.length === 0) {
+                alert('Please select at least one staff member');
+                return;
+            }
+
+            if (!confirm(`Mark ${selected.length} staff as Reviewed?`)) {
+                return;
+            }
+
+            bulkUpdatePayrollStatus(selected, 'reviewed', { csrfToken });
+        });
+
+        // Payroll Content Section Functions
+        function updatePayrollCheckboxes() {
+            const checkedCount = document.querySelectorAll('.payroll-checkbox:checked').length;
+            payrollSelectedCount.textContent = `${checkedCount} selected`;
+            payrollBulkActions.style.display = checkedCount > 0 ? 'block' : 'none';
+            
+            const allChecked = payrollCheckboxes.length > 0 && checkedCount === payrollCheckboxes.length;
+            payrollSelectAllCheckbox.checked = allChecked;
+        }
+
+        payrollSelectAllCheckbox?.addEventListener('change', function() {
+            payrollCheckboxes.forEach(checkbox => {
+                checkbox.checked = this.checked;
+            });
+            updatePayrollCheckboxes();
+        });
+
+        payrollCheckboxes.forEach(checkbox => {
+            checkbox.addEventListener('change', updatePayrollCheckboxes);
+        });
+
+        payrollClearSelectionBtn?.addEventListener('click', function() {
+            payrollCheckboxes.forEach(checkbox => {
+                checkbox.checked = false;
+            });
+            updatePayrollCheckboxes();
+        });
+
+        bulkMarkCompletedBtn?.addEventListener('click', function() {
+            const selected = Array.from(document.querySelectorAll('.payroll-checkbox:checked')).map(cb => cb.value);
+            if (selected.length === 0) {
+                alert('Please select at least one staff member');
+                return;
+            }
+
+            if (!confirm(`Mark ${selected.length} staff as Completed?`)) {
+                return;
+            }
+
+            bulkUpdatePayrollStatus(selected, 'completed', { csrfToken });
+        });
+
+        bulkMarkReleasedBtn?.addEventListener('click', function() {
+            const selected = Array.from(document.querySelectorAll('.payroll-checkbox:checked')).map(cb => cb.value);
+            if (selected.length === 0) {
+                alert('Please select at least one staff member');
+                return;
+            }
+
+            if (!confirm(`Mark ${selected.length} staff as Pay Released?`)) {
+                return;
+            }
+
+            bulkUpdatePayrollStatus(selected, 'pay_released', { csrfToken });
+        });
+
+        // Bulk Update Function
+        function bulkUpdatePayrollStatus(selectedStaffIds, status, options = {}) {
+            const { csrfToken } = options;
+            const year = document.querySelector('input[name="year"]')?.value;
+            const month = document.querySelector('input[name="month"]')?.value;
+
+            const body = new URLSearchParams();
+            body.append('csrf_token', csrfToken);
+            body.append('selected_staff_ids', JSON.stringify(selectedStaffIds));
+            body.append('status', status);
+            body.append('year', year);
+            body.append('month', month);
+
+            // Disable buttons during submission
+            const buttons = document.querySelectorAll('[id^="bulk"], [id^="review"], [id^="payroll"]');
+            buttons.forEach(btn => btn.disabled = true);
+
+            fetch("{{ url_for('bulk_update_payroll_review_status') }}", {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
+                    'X-CSRFToken': csrfToken
+                },
+                body: body.toString()
+            })
+            .then(async response => {
+                const text = await response.text();
+                let data = {};
+                try {
+                    data = text ? JSON.parse(text) : {};
+                } catch (parseError) {
+                    data = {
+                        success: false,
+                        message: text || 'Unexpected server response'
+                    };
+                }
+                return data;
+            })
+            .then(data => {
+                if (data.success) {
+                    alert(data.message || `Successfully updated ${selectedStaffIds.length} records!`);
+                    location.reload();
+                } else {
+                    alert('Error: ' + (data.message || 'Failed to update records'));
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('An error occurred while updating records');
+            })
+            .finally(() => {
+                buttons.forEach(btn => btn.disabled = false);
+            });
         }
     </script>
 

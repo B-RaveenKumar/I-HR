@@ -3651,6 +3651,33 @@ def payroll_processing_review():
     db = get_db()
 
     module_enabled = get_module_enabled(school_id) if school_id else {}
+    last_calc_meta = session.get('last_salary_calc_meta', {}) if isinstance(session.get('last_salary_calc_meta', {}), dict) else {}
+
+    # Use explicit query filters when provided; otherwise reuse latest salary calculation filters.
+    has_explicit_filters = any(request.args.get(k) for k in ['year', 'month', 'department', 'shift', 'gender', 'search'])
+    last_filters = session.get('last_salary_calc_filters', {}) if isinstance(session.get('last_salary_calc_filters', {}), dict) else {}
+
+    selected_year = request.args.get('year', type=int) if has_explicit_filters else last_filters.get('year', today.year)
+    selected_month = request.args.get('month', type=int) if has_explicit_filters else last_filters.get('month', today.month)
+    selected_department = (request.args.get('department') or '').strip() if has_explicit_filters else (last_filters.get('department') or '').strip()
+    selected_shift = (request.args.get('shift') or '').strip() if has_explicit_filters else (last_filters.get('shift') or '').strip()
+    selected_gender = (request.args.get('gender') or '').strip() if has_explicit_filters else (last_filters.get('gender') or '').strip()
+    search_term = (request.args.get('search') or '').strip() if has_explicit_filters else (last_filters.get('search') or '').strip()
+
+    if not selected_year:
+        selected_year = today.year
+    if not selected_month:
+        selected_month = today.month
+
+    calculated_by = (last_calc_meta.get('calculated_by') or '').strip()
+    calculated_at_display = ''
+    calculated_at_raw = last_calc_meta.get('calculated_at')
+    if calculated_at_raw:
+        try:
+            calculated_at_dt = datetime.datetime.fromisoformat(str(calculated_at_raw))
+            calculated_at_display = calculated_at_dt.strftime('%d %b %Y, %I:%M %p')
+        except Exception:
+            calculated_at_display = str(calculated_at_raw)
 
     # Build shift options from school-specific data used in Shift & Time Settings context.
     available_shifts = []
@@ -3718,12 +3745,502 @@ def payroll_processing_review():
         except Exception:
             pass
 
+    # Build payroll records for review page from calculated salaries.
+    payroll_records = []
+    review_records = []
+    reviewed_records = []
+    total_net_salary = 0.0
+    total_earnings = 0.0
+    total_deductions = 0.0
+
+    if school_id and selected_year and selected_month:
+        try:
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS payroll_review_status (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    school_id INTEGER NOT NULL,
+                    staff_id INTEGER NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    reviewed_by TEXT,
+                    reviewed_at TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(school_id, staff_id, year, month)
+                )
+            ''')
+
+            status_rows = db.execute('''
+                SELECT staff_id, status
+                FROM payroll_review_status
+                WHERE school_id = ? AND year = ? AND month = ?
+            ''', (school_id, selected_year, selected_month)).fetchall()
+            status_map = {row['staff_id']: (row['status'] or 'pending').lower() for row in status_rows}
+
+            staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+
+            staff_query = '''
+                SELECT id, staff_id, full_name, department,
+                       COALESCE(shift_type, '') AS shift_type,
+                       COALESCE(gender, '') AS gender
+                FROM staff
+                WHERE school_id = ?
+            '''
+            staff_params = [school_id]
+
+            if 'is_active' in staff_columns:
+                staff_query += ' AND COALESCE(is_active, 1) = 1'
+            elif 'status' in staff_columns:
+                staff_query += " AND LOWER(COALESCE(status, 'active')) = 'active'"
+
+            if selected_department:
+                staff_query += ' AND department = ?'
+                staff_params.append(selected_department)
+
+            if selected_shift:
+                staff_query += " AND LOWER(COALESCE(shift_type, '')) = LOWER(?)"
+                staff_params.append(selected_shift)
+
+            if selected_gender:
+                staff_query += " AND LOWER(COALESCE(gender, '')) = LOWER(?)"
+                staff_params.append(selected_gender)
+
+            if search_term:
+                staff_query += " AND (LOWER(COALESCE(full_name, '')) LIKE ? OR LOWER(COALESCE(staff_id, '')) LIKE ? OR LOWER(COALESCE(department, '')) LIKE ?)"
+                like_term = f"%{search_term.lower()}%"
+                staff_params.extend([like_term, like_term, like_term])
+
+            staff_query += ' ORDER BY CAST(staff_id AS INTEGER) ASC'
+            filtered_staff = db.execute(staff_query, staff_params).fetchall()
+
+            salary_calculator = SalaryCalculator(school_id=school_id)
+
+            for staff in filtered_staff:
+                salary_result = salary_calculator.calculate_monthly_salary(staff['id'], selected_year, selected_month)
+                if not salary_result.get('success'):
+                    continue
+
+                breakdown = salary_result.get('salary_breakdown', {})
+                earnings = breakdown.get('earnings', {})
+                deductions = breakdown.get('deductions', {})
+                attendance_summary = breakdown.get('attendance_summary', {})
+                attendance_details = salary_calculator._get_monthly_attendance(staff['id'], selected_year, selected_month)
+                leave_details = salary_calculator._get_monthly_leaves(staff['id'], selected_year, selected_month)
+                permission_details = salary_calculator._get_monthly_permissions(staff['id'], selected_year, selected_month)
+
+                attendance_entries = []
+                for attendance_row in attendance_details:
+                    attendance_entries.append({
+                        'date': attendance_row.get('date').isoformat() if hasattr(attendance_row.get('date'), 'isoformat') else attendance_row.get('date'),
+                        'status': attendance_row.get('status') or 'N/A',
+                        'time_in': attendance_row.get('time_in') or '--',
+                        'time_out': attendance_row.get('time_out') or '--',
+                        'late_duration_minutes': attendance_row.get('late_duration_minutes') or 0,
+                        'early_departure_minutes': attendance_row.get('early_departure_minutes') or 0,
+                        'shift_type': attendance_row.get('shift_type') or 'General',
+                        'overtime_in': attendance_row.get('overtime_in') or '--',
+                        'overtime_out': attendance_row.get('overtime_out') or '--'
+                    })
+
+                leave_entries = []
+                for leave_row in leave_details:
+                    leave_entries.append({
+                        'leave_type': leave_row.get('leave_type') or 'N/A',
+                        'start_date': leave_row.get('start_date').isoformat() if hasattr(leave_row.get('start_date'), 'isoformat') else leave_row.get('start_date'),
+                        'end_date': leave_row.get('end_date').isoformat() if hasattr(leave_row.get('end_date'), 'isoformat') else leave_row.get('end_date'),
+                        'reason': leave_row.get('reason') or 'No reason provided'
+                    })
+
+                permission_entries = []
+                for permission_row in permission_details:
+                    permission_entries.append({
+                        'permission_type': permission_row.get('permission_type') or 'N/A',
+                        'permission_date': permission_row.get('permission_date').isoformat() if hasattr(permission_row.get('permission_date'), 'isoformat') else permission_row.get('permission_date'),
+                        'start_time': permission_row.get('start_time') or '--',
+                        'end_time': permission_row.get('end_time') or '--',
+                        'duration_hours': permission_row.get('duration_hours') or 0,
+                        'reason': permission_row.get('reason') or 'No reason provided'
+                    })
+
+                # Load salary adjustments for this staff for this month
+                try:
+                    db.execute('''
+                        CREATE TABLE IF NOT EXISTS salary_adjustments (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            school_id INTEGER NOT NULL,
+                            staff_id INTEGER NOT NULL,
+                            year INTEGER NOT NULL,
+                            month INTEGER NOT NULL,
+                            adjustment_type TEXT NOT NULL DEFAULT 'bonus',
+                            amount REAL NOT NULL DEFAULT 0.0,
+                            reason TEXT,
+                            created_by TEXT,
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                            UNIQUE(school_id, staff_id, year, month, adjustment_type)
+                        )
+                    ''')
+                except Exception:
+                    pass
+
+                adjustments = db.execute('''
+                    SELECT adjustment_type, amount, reason
+                    FROM salary_adjustments
+                    WHERE school_id = ? AND staff_id = ? AND year = ? AND month = ?
+                    ORDER BY adjustment_type
+                ''', (school_id, staff['id'], selected_year, selected_month)).fetchall()
+
+                manual_bonus = 0.0
+                manual_deduction = 0.0
+                for adj in adjustments:
+                    if adj['adjustment_type'] == 'bonus':
+                        manual_bonus += float(adj['amount'] or 0)
+                    elif adj['adjustment_type'] == 'deduction':
+                        manual_deduction += float(adj['amount'] or 0)
+
+                detail_breakdown = {
+                    'calculation_period': breakdown.get('calculation_period') or f'{selected_year}-{selected_month:02d}',
+                    'working_days': breakdown.get('working_days', 0),
+                    'per_day_salary': breakdown.get('per_day_salary', 0),
+                    'per_hour_salary': breakdown.get('per_hour_salary', 0),
+                    'attendance_summary': attendance_summary,
+                    'earnings': earnings,
+                    'deductions': deductions,
+                    'attendance_entries': attendance_entries,
+                    'leave_entries': leave_entries,
+                    'permission_entries': permission_entries,
+                    'manual_bonus': manual_bonus,
+                    'manual_deduction': manual_deduction,
+                    'adjustments': [dict(a) for a in adjustments]
+                }
+
+                row = {
+                    'id': staff['id'],
+                    'staff_id': staff.get('staff_id'),
+                    'staff_name': staff.get('full_name'),
+                    'department': staff.get('department') or 'N/A',
+                    'shift_type': staff.get('shift_type') or 'General',
+                    'gender': staff.get('gender') or 'N/A',
+                    'present_days': attendance_summary.get('present_days', 0),
+                    'absent_days': attendance_summary.get('absent_days', 0),
+                    'total_earnings': float(earnings.get('total_earnings', 0) or 0),
+                    'total_deductions': float(deductions.get('total_deductions', 0) or 0),
+                    'net_salary': float(
+                        (earnings.get('total_earnings', 0) or 0)
+                        - (deductions.get('total_deductions', 0) or 0)
+                        + manual_bonus
+                        - manual_deduction
+                    ),
+                    'review_status': status_map.get(staff['id'], 'pending'),
+                    'detail_breakdown': detail_breakdown
+                }
+                payroll_records.append(row)
+
+                if row['review_status'] == 'pending':
+                    review_records.append(row)
+                else:
+                    reviewed_records.append(row)
+
+                total_earnings += row['total_earnings']
+                total_deductions += row['total_deductions']
+                total_net_salary += row['net_salary']
+        except Exception:
+            payroll_records = []
+            review_records = []
+            reviewed_records = []
+            total_earnings = 0.0
+            total_deductions = 0.0
+            total_net_salary = 0.0
+
     return render_template(
         'payroll_processing_review.html',
         current_year=today.year,
         module_enabled=module_enabled,
-        available_shifts=available_shifts
+        available_shifts=available_shifts,
+        payroll_records=payroll_records,
+        review_records=review_records,
+        reviewed_records=reviewed_records,
+        selected_year=selected_year,
+        selected_month=selected_month,
+        selected_department=selected_department,
+        selected_shift=selected_shift,
+        selected_gender=selected_gender,
+        search_term=search_term,
+        calculated_by=calculated_by,
+        calculated_at_display=calculated_at_display,
+        total_earnings=total_earnings,
+        total_deductions=total_deductions,
+        total_net_salary=total_net_salary,
+        total_staff=len(payroll_records),
+        review_count=len(review_records),
+        reviewed_count=len(reviewed_records)
     )
+
+@app.route('/update_payroll_review_status', methods=['POST'])
+@requires_permission('salary_management', 'view')
+def update_payroll_review_status():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+
+    school_id = session.get('school_id')
+    staff_id = request.form.get('staff_id', type=int)
+    year = request.form.get('year', type=int)
+    month = request.form.get('month', type=int)
+    status = (request.form.get('status') or 'pending').strip().lower()
+    redirect_to = request.form.get('redirect_to') or url_for('payroll_processing_review')
+
+    if not school_id or not staff_id or not year or not month:
+        return redirect(redirect_to)
+
+    # Normalize status aliases for compatibility with existing UI labels.
+    if status in ('review', 'reviewed'):
+        status = 'reviewed'
+    elif status in ('complete', 'completed'):
+        status = 'completed'
+    elif status in ('pay released', 'pay_released', 'released', 'paid'):
+        status = 'pay_released'
+
+    if status not in ('pending', 'reviewed', 'completed', 'pay_released'):
+        status = 'pending'
+
+    try:
+        db = get_db()
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS payroll_review_status (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                staff_id INTEGER NOT NULL,
+                year INTEGER NOT NULL,
+                month INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                reviewed_by TEXT,
+                reviewed_at TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(school_id, staff_id, year, month)
+            )
+        ''')
+
+        reviewed_by = session.get('full_name') or session.get('username') or str(session.get('user_id'))
+        reviewed_at = datetime.datetime.now().isoformat(timespec='seconds') if status != 'pending' else None
+
+        existing = db.execute('''
+            SELECT id
+            FROM payroll_review_status
+            WHERE school_id = ? AND staff_id = ? AND year = ? AND month = ?
+        ''', (school_id, staff_id, year, month)).fetchone()
+
+        if existing:
+            db.execute('''
+                UPDATE payroll_review_status
+                SET status = ?,
+                    reviewed_by = ?,
+                    reviewed_at = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (status, reviewed_by, reviewed_at, existing['id']))
+        else:
+            db.execute('''
+                INSERT INTO payroll_review_status
+                    (school_id, staff_id, year, month, status, reviewed_by, reviewed_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ''', (school_id, staff_id, year, month, status, reviewed_by, reviewed_at))
+
+        db.commit()
+    except Exception as e:
+        app.logger.exception('Failed to update payroll review status: %s', e)
+
+    return redirect(redirect_to)
+
+@app.route('/bulk_update_payroll_review_status', methods=['POST'])
+@requires_permission('salary_management', 'view')
+def bulk_update_payroll_review_status():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'message': 'Unauthorized'}), 401
+
+    school_id = session.get('school_id')
+    if not school_id:
+        return jsonify({'success': False, 'message': 'No school selected'}), 400
+
+    try:
+        # Get parameters
+        selected_staff_ids_str = request.form.get('selected_staff_ids', '[]')
+        
+        # If it's a JSON string, parse it
+        if isinstance(selected_staff_ids_str, str):
+            selected_staff_ids = json.loads(selected_staff_ids_str)
+        else:
+            selected_staff_ids = selected_staff_ids_str
+        
+        year = request.form.get('year', type=int)
+        month = request.form.get('month', type=int)
+        status = (request.form.get('status') or 'pending').strip().lower()
+
+        if not selected_staff_ids or not year or not month:
+            return jsonify({'success': False, 'message': 'Missing required parameters'}), 400
+
+        # Normalize status aliases for compatibility
+        if status in ('review', 'reviewed'):
+            status = 'reviewed'
+        elif status in ('complete', 'completed'):
+            status = 'completed'
+        elif status in ('pay released', 'pay_released', 'released', 'paid'):
+            status = 'pay_released'
+
+        if status not in ('pending', 'reviewed', 'completed', 'pay_released'):
+            status = 'pending'
+
+        db = get_db()
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS payroll_review_status (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                staff_id INTEGER NOT NULL,
+                year INTEGER NOT NULL,
+                month INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'pending',
+                reviewed_by TEXT,
+                reviewed_at TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(school_id, staff_id, year, month)
+            )
+        ''')
+
+        reviewed_by = session.get('full_name') or session.get('username') or str(session.get('user_id'))
+        reviewed_at = datetime.datetime.now().isoformat(timespec='seconds') if status != 'pending' else None
+
+        # Process each staff member
+        updated_count = 0
+        for staff_id in selected_staff_ids:
+            staff_id = int(staff_id)
+            
+            existing = db.execute('''
+                SELECT id
+                FROM payroll_review_status
+                WHERE school_id = ? AND staff_id = ? AND year = ? AND month = ?
+            ''', (school_id, staff_id, year, month)).fetchone()
+
+            if existing:
+                db.execute('''
+                    UPDATE payroll_review_status
+                    SET status = ?,
+                        reviewed_by = ?,
+                        reviewed_at = ?,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = ?
+                ''', (status, reviewed_by, reviewed_at, existing['id']))
+            else:
+                db.execute('''
+                    INSERT INTO payroll_review_status
+                        (school_id, staff_id, year, month, status, reviewed_by, reviewed_at, updated_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+                ''', (school_id, staff_id, year, month, status, reviewed_by, reviewed_at))
+            
+            updated_count += 1
+
+        db.commit()
+        
+        return jsonify({
+            'success': True,
+            'message': f'Successfully updated {updated_count} payroll records to {status}!'
+        })
+
+    except json.JSONDecodeError as e:
+        app.logger.exception('Failed to parse JSON in bulk update: %s', e)
+        return jsonify({'success': False, 'message': 'Invalid JSON format'}), 400
+    except Exception as e:
+        app.logger.exception('Failed to bulk update payroll review status: %s', e)
+        return jsonify({'success': False, 'message': f'Error: {str(e)}'}), 500
+
+@app.route('/save_salary_adjustment', methods=['POST'])
+@requires_permission('salary_management', 'view')
+def save_salary_adjustment():
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+    payload = request.get_json(silent=True) or request.form
+
+    def to_int(value):
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def to_float(value):
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    school_id = session.get('school_id')
+    staff_id = to_int(payload.get('staff_id'))
+    year = to_int(payload.get('year'))
+    month = to_int(payload.get('month'))
+    adjustment_type = str(payload.get('adjustment_type') or 'bonus').strip().lower()
+    amount = to_float(payload.get('amount'))
+    reason = str(payload.get('reason') or '').strip()
+
+    if not school_id or not staff_id or not year or not month or amount is None:
+        return jsonify({'success': False, 'error': 'Missing required fields'}), 400
+
+    if adjustment_type not in ('bonus', 'deduction'):
+        adjustment_type = 'bonus'
+
+    if amount < 0:
+        amount = abs(amount)
+
+    try:
+        db = get_db()
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS salary_adjustments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                staff_id INTEGER NOT NULL,
+                year INTEGER NOT NULL,
+                month INTEGER NOT NULL,
+                adjustment_type TEXT NOT NULL DEFAULT 'bonus',
+                amount REAL NOT NULL DEFAULT 0.0,
+                reason TEXT,
+                created_by TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(school_id, staff_id, year, month, adjustment_type)
+            )
+        ''')
+
+        created_by = session.get('full_name') or session.get('username') or str(session.get('user_id'))
+
+        existing = db.execute('''
+            SELECT id
+            FROM salary_adjustments
+            WHERE school_id = ? AND staff_id = ? AND year = ? AND month = ? AND adjustment_type = ?
+        ''', (school_id, staff_id, year, month, adjustment_type)).fetchone()
+
+        if existing:
+            db.execute('''
+                UPDATE salary_adjustments
+                SET amount = ?,
+                    reason = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (amount, reason, existing['id']))
+        else:
+            db.execute('''
+                INSERT INTO salary_adjustments
+                    (school_id, staff_id, year, month, adjustment_type, amount, reason, created_by, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ''', (school_id, staff_id, year, month, adjustment_type, amount, reason, created_by))
+
+        db.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'{adjustment_type.capitalize()} of ₹{amount:,.2f} saved for {year}-{month:02d}',
+            'amount': amount,
+            'adjustment_type': adjustment_type
+        })
+    except Exception as e:
+        app.logger.exception('Failed to save salary adjustment: %s', e)
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/get_summary_dashboard')
 def get_summary_dashboard():
@@ -16536,12 +17053,29 @@ def bulk_salary_calculation():
     year = request.form.get('year', type=int)
     month = request.form.get('month', type=int)
     department = request.form.get('department')
+    shift_type = request.form.get('shift')
+    gender = request.form.get('gender')
+    search = request.form.get('search')
     school_id = session.get('school_id')
 
     if not all([year, month]):
         return jsonify({'success': False, 'error': 'Year and month are required'})
 
     try:
+        # Persist latest salary calculation filters so Payroll Review can load matching records.
+        session['last_salary_calc_filters'] = {
+            'year': year,
+            'month': month,
+            'department': (department or '').strip(),
+            'shift': (shift_type or '').strip(),
+            'gender': (gender or '').strip(),
+            'search': (search or '').strip()
+        }
+        session['last_salary_calc_meta'] = {
+            'calculated_at': datetime.datetime.now().isoformat(timespec='seconds'),
+            'calculated_by': session.get('full_name') or session.get('username') or session.get('user_id')
+        }
+
         db = get_db()
         staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
 
@@ -17170,17 +17704,14 @@ def generate_individual_salary_slip_pdf(salary_data, year, month):
         if 'per_hour_salary' not in breakdown:
             breakdown['per_hour_salary'] = round((breakdown.get('per_day_salary', 0) or 0) / 8, 2)
         
-        # Calculate net salary with fallback logic
-        net_salary = breakdown.get('net_salary', 0)
-        total_earnings = earnings.get('total_earnings', 0)
-        total_deductions = deductions.get('total_deductions', 0)
-        
-        # If net_salary is missing or zero, calculate it manually
-        if not net_salary or net_salary == 0:
-            net_salary = total_earnings - total_deductions
-            print(f"DEBUG: Net salary missing or zero, calculated fallback: {total_earnings} - {total_deductions} = {net_salary}")
-        
-        print(f"DEBUG: Staff: {staff_info.get('full_name', 'Unknown')}, Total Earnings: {total_earnings}, Total Deductions: {total_deductions}, Net Salary: {net_salary}")
+        # Keep salary slip math aligned with Payroll Processing & Review.
+        total_earnings = float(earnings.get('total_earnings', 0) or 0)
+        total_deductions = float(deductions.get('total_deductions', 0) or 0)
+        manual_bonus = float(breakdown.get('manual_bonus', 0) or 0)
+        manual_deduction = float(breakdown.get('manual_deduction', 0) or 0)
+        adjusted_total_earnings = total_earnings + manual_bonus
+        adjusted_total_deductions = total_deductions + manual_deduction
+        net_salary = adjusted_total_earnings - adjusted_total_deductions
 
         # Create PDF buffer
         buffer = io.BytesIO()
@@ -17316,11 +17847,15 @@ def generate_individual_salary_slip_pdf(salary_data, year, month):
             salary_data.append(['Early Arrival Bonus', f'{earnings.get("early_arrival_bonus", 0):,.2f}', '', ''])
         if earnings.get("overtime_pay", 0) > 0:
             salary_data.append(['Overtime Pay', f'{earnings.get("overtime_pay", 0):,.2f}', '', ''])
+        if manual_bonus > 0:
+            salary_data.append(['Manual Bonus', f'{manual_bonus:,.2f}', '', ''])
+        if manual_deduction > 0:
+            salary_data.append(['', '', 'Manual Deduction', f'{manual_deduction:,.2f}'])
 
         # Add totals with calculated net salary
         salary_data.extend([
             ['', '', '', ''],
-            ['TOTAL EARNINGS', f'{total_earnings:,.2f}', 'TOTAL DEDUCTIONS', f'{total_deductions:,.2f}'],
+            ['TOTAL EARNINGS', f'{adjusted_total_earnings:,.2f}', 'TOTAL DEDUCTIONS', f'{adjusted_total_deductions:,.2f}'],
             ['', '', '', ''],
             [f'NET SALARY: {net_salary:,.2f}', '', '', '']
         ])

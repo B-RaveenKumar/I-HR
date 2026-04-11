@@ -203,13 +203,77 @@ class SalaryCalculator:
             # Start with defaults and update with database values
             loaded_rules = self.default_salary_rules.copy()
             for rule in rules:
-                loaded_rules[rule['rule_name']] = rule['rule_value']
+                loaded_rules[str(rule['rule_name'] or '')] = self._to_float(rule['rule_value'])
             
             return loaded_rules
             
         except Exception as e:
             print(f"Error loading salary rules from database: {e}")
             return self.default_salary_rules.copy()
+
+    def _get_manual_salary_adjustments(self, staff_id: int, year: int, month: int) -> Tuple[float, float, List[Dict]]:
+        """Load manual salary bonus and deduction entries for a staff member."""
+        try:
+            db = self._get_db_connection()
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS salary_adjustments (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    school_id INTEGER NOT NULL,
+                    staff_id INTEGER NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    adjustment_type TEXT NOT NULL DEFAULT 'bonus',
+                    amount REAL NOT NULL DEFAULT 0.0,
+                    reason TEXT,
+                    created_by TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(school_id, staff_id, year, month, adjustment_type)
+                )
+            ''')
+
+            rows = db.execute('''
+                SELECT adjustment_type, amount, reason
+                FROM salary_adjustments
+                WHERE school_id = ? AND staff_id = ? AND year = ? AND month = ?
+                ORDER BY adjustment_type
+            ''', (self.school_id or 0, staff_id, year, month)).fetchall()
+
+            manual_bonus = 0.0
+            manual_deduction = 0.0
+            adjustments = []
+
+            for row in rows:
+                adjustment_type = str(row['adjustment_type'] or '').strip().lower()
+                amount = self._to_float(row['amount'])
+                adjustments.append({
+                    'adjustment_type': adjustment_type,
+                    'amount': amount,
+                    'reason': row['reason'],
+                })
+                if adjustment_type == 'bonus':
+                    manual_bonus += amount
+                elif adjustment_type == 'deduction':
+                    manual_deduction += amount
+
+            return round(manual_bonus, 2), round(manual_deduction, 2), adjustments
+        except Exception:
+            return 0.0, 0.0, []
+
+    def _apply_manual_salary_adjustments(self, staff_id: int, year: int, month: int, salary_breakdown: Dict) -> Dict:
+        """Apply manual bonus and deduction to a salary breakdown."""
+        manual_bonus, manual_deduction, adjustments = self._get_manual_salary_adjustments(staff_id, year, month)
+
+        total_earnings = self._to_float(salary_breakdown.get('total_earnings', 0))
+        total_deductions = self._to_float(salary_breakdown.get('total_deductions', 0))
+        adjusted_net_salary = total_earnings - total_deductions + manual_bonus - manual_deduction
+
+        updated_breakdown = dict(salary_breakdown)
+        updated_breakdown['manual_bonus'] = manual_bonus
+        updated_breakdown['manual_deduction'] = manual_deduction
+        updated_breakdown['manual_adjustments'] = adjustments
+        updated_breakdown['net_salary'] = round(adjusted_net_salary, 2)
+        return updated_breakdown
     
     def _save_salary_rules_to_db(self, rules_to_save):
         """Save salary rules to database"""
@@ -364,6 +428,7 @@ class SalaryCalculator:
             salary_breakdown = self._calculate_salary_breakdown(
                 staff_info, attendance_data, leave_data, permission_data, working_days, year, month
             )
+            salary_breakdown = self._apply_manual_salary_adjustments(staff_id, year, month, salary_breakdown)
             
             return {
                 'success': True,
@@ -418,6 +483,7 @@ class SalaryCalculator:
                 staff_info, attendance_data, leave_data, permission_data, working_days,
                 actual_hours_worked, standard_monthly_hours, hourly_rate, year, month
             )
+            salary_breakdown = self._apply_manual_salary_adjustments(staff_id, year, month, salary_breakdown)
 
             return {
                 'success': True,
