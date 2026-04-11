@@ -1,7 +1,7 @@
 (function () {
     'use strict';
 
-    var MOBILE_BREAKPOINT = 768;
+    var MOBILE_BREAKPOINT = 991;
 
     function isMobileViewport() {
         return window.innerWidth <= MOBILE_BREAKPOINT;
@@ -13,6 +13,13 @@
             return title.textContent.trim();
         }
         return 'VishnoRex';
+    }
+
+    function getMobileNavbarHeight() {
+        var styles = getComputedStyle(document.documentElement);
+        var value = styles.getPropertyValue('--mobile-navbar-total-height') || styles.getPropertyValue('--mobile-navbar-height');
+        var parsed = parseInt(value, 10);
+        return Number.isFinite(parsed) ? parsed : 64;
     }
 
     function ensureOverlay() {
@@ -53,6 +60,31 @@
             label.textContent = schoolName;
         }
 
+        var logoutButton = navbar.querySelector('.mobile-navbar-logout');
+        if (!logoutButton) {
+            logoutButton = document.createElement('button');
+            logoutButton.type = 'button';
+            logoutButton.className = 'mobile-navbar-logout';
+            logoutButton.setAttribute('aria-label', 'Logout from admin panel');
+            logoutButton.setAttribute('title', 'Logout');
+            logoutButton.innerHTML = '<i class="bi bi-box-arrow-right" aria-hidden="true"></i>';
+            navbar.appendChild(logoutButton);
+        }
+
+        if (!logoutButton.dataset.bound) {
+            logoutButton.addEventListener('click', function () {
+                if (typeof window.logout === 'function') {
+                    window.logout();
+                    return;
+                }
+
+                if (window.confirm('Are you sure you want to logout?')) {
+                    window.location.href = '/logout';
+                }
+            });
+            logoutButton.dataset.bound = '1';
+        }
+
         return navbar;
     }
 
@@ -71,6 +103,41 @@
         var schoolName = getSchoolName(sidebar);
         var overlay = ensureOverlay();
         ensureMobileNavbar(toggleButton, schoolName);
+
+        function enforceScrollableSidebarLayout() {
+            var navbarHeight = getMobileNavbarHeight();
+
+            sidebar.style.setProperty('display', 'flex', 'important');
+            sidebar.style.setProperty('flex-direction', 'column', 'important');
+            sidebar.style.setProperty('overflow', 'hidden', 'important');
+            sidebar.style.setProperty('overflow-x', 'hidden', 'important');
+
+            if (isMobileViewport()) {
+                sidebar.style.setProperty('top', navbarHeight + 'px', 'important');
+                sidebar.style.setProperty('height', 'calc(100dvh - ' + navbarHeight + 'px)', 'important');
+                sidebar.style.setProperty('max-height', 'calc(100dvh - ' + navbarHeight + 'px)', 'important');
+            } else {
+                sidebar.style.setProperty('top', '0', 'important');
+                sidebar.style.setProperty('height', '100vh', 'important');
+                sidebar.style.setProperty('max-height', '100vh', 'important');
+            }
+
+            var sidebarContent = sidebar.querySelector('.sidebar-content');
+            if (sidebarContent) {
+                sidebarContent.style.setProperty('flex', '1 1 auto', 'important');
+                sidebarContent.style.setProperty('min-height', '0', 'important');
+                sidebarContent.style.setProperty('overflow-y', 'auto', 'important');
+                sidebarContent.style.setProperty('overflow-x', 'hidden', 'important');
+                sidebarContent.style.setProperty('padding-bottom', 'calc(0.75rem + env(safe-area-inset-bottom, 0px))', 'important');
+            }
+
+            var sidebarFooter = sidebar.querySelector('.sidebar-footer');
+            if (sidebarFooter) {
+                sidebarFooter.style.setProperty('position', 'static', 'important');
+                sidebarFooter.style.setProperty('bottom', 'auto', 'important');
+                sidebarFooter.style.setProperty('margin-top', '0', 'important');
+            }
+        }
 
         document.body.classList.add('legacy-mobile-navbar-ready');
         document.body.dataset.mobileNavbarReady = '1';
@@ -96,12 +163,14 @@
         }
 
         function applyViewportState() {
+            enforceScrollableSidebarLayout();
+
             if (isMobileViewport()) {
                 closeSidebar();
-                sidebar.style.display = 'block';
+                sidebar.style.setProperty('display', 'flex', 'important');
             } else {
                 closeSidebar();
-                sidebar.style.display = 'block';
+                sidebar.style.setProperty('display', 'flex', 'important');
                 sidebar.style.left = '0';
             }
         }

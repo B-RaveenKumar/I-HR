@@ -984,8 +984,11 @@
     max-width: 250px;
     flex: 0 0 250px;
     z-index: 1000;
-    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
     overflow-x: hidden;
+    overscroll-behavior: contain;
     transition: all 0.3s ease;
 }
 
@@ -1060,7 +1063,13 @@
 /* Sidebar Content */
 .sidebar-content {
     padding: 1rem 0;
-    flex: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
 }
 
 /* User Profile Section */
@@ -1293,7 +1302,7 @@
         z-index: 1050;
         transition: transform 0.3s ease;
         background: var(--sidebar-bg, #1a1a2e);
-        overflow-y: auto;
+        overflow: hidden;
     }
 
     .enhanced-sidebar.show {
@@ -1335,9 +1344,6 @@
         /* Show on desktop */
         transform: translateX(0) !important;
         /* Always visible on desktop */
-        position: relative !important;
-        height: auto !important;
-        width: auto !important;
     }
 }
 
@@ -1356,6 +1362,23 @@
 }
 
 .enhanced-sidebar::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 255, 255, 0.5);
+}
+
+.sidebar-content::-webkit-scrollbar {
+    width: 4px;
+}
+
+.sidebar-content::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.sidebar-content::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+}
+
+.sidebar-content::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.5);
 }
 

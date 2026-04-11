@@ -304,13 +304,6 @@
                             </li>
                             {% endif %}
 
-                            <li class="nav-item mt-2 pt-2" style="border-top: 1px solid rgba(255,255,255,0.1);">
-                                <a class="nav-link text-danger" href="javascript:void(0)" onclick="logout()">
-                                    <div class="nav-icon text-danger"><i class="bi bi-box-arrow-right"></i></div>
-                                    <span class="nav-text">Logout</span>
-                                    <div class="nav-indicator"></div>
-                                </a>
-                            </li>
                         </ul>
                     </div>
                 </div>
@@ -326,6 +319,10 @@
                             <span id="currentDate">-</span>
                         </div>
                     </div>
+                    <button type="button" class="logout-btn" onclick="logout()" title="Logout" aria-label="Logout from admin panel">
+                        <i class="bi bi-box-arrow-right"></i>
+                        <span>Logout</span>
+                    </button>
                 </div>
             </nav>
 
