@@ -3675,9 +3675,57 @@ def payroll_processing_review():
     if calculated_at_raw:
         try:
             calculated_at_dt = datetime.datetime.fromisoformat(str(calculated_at_raw))
-            calculated_at_display = calculated_at_dt.strftime('%d %b %Y, %I:%M %p')
+            calculated_at_display = f"{calculated_at_dt.strftime('%d %b %Y, %I:%M:%S')}.{calculated_at_dt.microsecond // 1000:03d} {calculated_at_dt.strftime('%p')}"
         except Exception:
             calculated_at_display = str(calculated_at_raw)
+
+    is_selected_month_calculated = False
+    if school_id and selected_year and selected_month:
+        try:
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS payroll_calculation_runs (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    school_id INTEGER NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    calculated_at TIMESTAMP NOT NULL,
+                    calculated_by TEXT,
+                    total_staff INTEGER NOT NULL DEFAULT 0,
+                    total_earnings REAL NOT NULL DEFAULT 0,
+                    total_deductions REAL NOT NULL DEFAULT 0,
+                    total_net_salary REAL NOT NULL DEFAULT 0,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(school_id, year, month)
+                )
+            ''')
+
+            month_run = db.execute('''
+                SELECT calculated_at, calculated_by
+                FROM payroll_calculation_runs
+                WHERE school_id = ? AND year = ? AND month = ?
+            ''', (school_id, selected_year, selected_month)).fetchone()
+
+            is_selected_month_calculated = bool(month_run)
+
+            if month_run:
+                if not calculated_by:
+                    calculated_by = (month_run['calculated_by'] or '').strip()
+                if not calculated_at_display and month_run['calculated_at']:
+                    try:
+                        month_calculated_at_dt = datetime.datetime.fromisoformat(str(month_run['calculated_at']))
+                        calculated_at_display = f"{month_calculated_at_dt.strftime('%d %b %Y, %I:%M:%S')}.{month_calculated_at_dt.microsecond // 1000:03d} {month_calculated_at_dt.strftime('%p')}"
+                    except Exception:
+                        calculated_at_display = str(month_run['calculated_at'])
+        except Exception:
+            is_selected_month_calculated = False
+
+    # Backward compatibility: treat current selected month as calculated if latest session meta matches.
+    if not is_selected_month_calculated and calculated_at_raw:
+        try:
+            if int(last_filters.get('year', 0) or 0) == int(selected_year) and int(last_filters.get('month', 0) or 0) == int(selected_month):
+                is_selected_month_calculated = True
+        except Exception:
+            pass
 
     # Build shift options from school-specific data used in Shift & Time Settings context.
     available_shifts = []
@@ -3753,7 +3801,7 @@ def payroll_processing_review():
     total_earnings = 0.0
     total_deductions = 0.0
 
-    if school_id and selected_year and selected_month:
+    if school_id and selected_year and selected_month and is_selected_month_calculated:
         try:
             db.execute('''
                 CREATE TABLE IF NOT EXISTS payroll_review_status (
@@ -3968,6 +4016,7 @@ def payroll_processing_review():
         search_term=search_term,
         calculated_by=calculated_by,
         calculated_at_display=calculated_at_display,
+        is_selected_month_calculated=is_selected_month_calculated,
         total_earnings=total_earnings,
         total_deductions=total_deductions,
         total_net_salary=total_net_salary,
@@ -17072,7 +17121,7 @@ def bulk_salary_calculation():
             'search': (search or '').strip()
         }
         session['last_salary_calc_meta'] = {
-            'calculated_at': datetime.datetime.now().isoformat(timespec='seconds'),
+            'calculated_at': datetime.datetime.now().isoformat(timespec='microseconds'),
             'calculated_by': session.get('full_name') or session.get('username') or session.get('user_id')
         }
 
@@ -17125,6 +17174,74 @@ def bulk_salary_calculation():
                     'present_days': breakdown['attendance_summary']['present_days'],
                     'absent_days': breakdown['attendance_summary']['absent_days']
                 })
+
+        total_earnings = sum(float(row.get('total_earnings', 0) or 0) for row in results)
+        total_deductions = sum(float(row.get('total_deductions', 0) or 0) for row in results)
+        total_net_salary = sum(float(row.get('net_salary', 0) or 0) for row in results)
+
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS payroll_calculation_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                year INTEGER NOT NULL,
+                month INTEGER NOT NULL,
+                calculated_at TIMESTAMP NOT NULL,
+                calculated_by TEXT,
+                total_staff INTEGER NOT NULL DEFAULT 0,
+                total_earnings REAL NOT NULL DEFAULT 0,
+                total_deductions REAL NOT NULL DEFAULT 0,
+                total_net_salary REAL NOT NULL DEFAULT 0,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(school_id, year, month)
+            )
+        ''')
+
+        calculated_at = datetime.datetime.now().isoformat(timespec='microseconds')
+        calculated_by = session.get('full_name') or session.get('username') or str(session.get('user_id'))
+        existing_month_run = db.execute('''
+            SELECT id
+            FROM payroll_calculation_runs
+            WHERE school_id = ? AND year = ? AND month = ?
+        ''', (school_id, year, month)).fetchone()
+
+        if existing_month_run:
+            db.execute('''
+                UPDATE payroll_calculation_runs
+                SET calculated_at = ?,
+                    calculated_by = ?,
+                    total_staff = ?,
+                    total_earnings = ?,
+                    total_deductions = ?,
+                    total_net_salary = ?,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (
+                calculated_at,
+                str(calculated_by),
+                len(results),
+                total_earnings,
+                total_deductions,
+                total_net_salary,
+                existing_month_run['id']
+            ))
+        else:
+            db.execute('''
+                INSERT INTO payroll_calculation_runs
+                (school_id, year, month, calculated_at, calculated_by, total_staff, total_earnings, total_deductions, total_net_salary)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ''', (
+                school_id,
+                year,
+                month,
+                calculated_at,
+                str(calculated_by),
+                len(results),
+                total_earnings,
+                total_deductions,
+                total_net_salary
+            ))
+
+        db.commit()
 
         return jsonify({
             'success': True,

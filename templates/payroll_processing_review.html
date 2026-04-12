@@ -779,6 +779,13 @@
                                     </div>
                                 </div>
 
+                                {% if not is_selected_month_calculated %}
+                                <div class="alert alert-warning mt-3 mb-0" role="alert">
+                                    <i class="bi bi-exclamation-triangle me-1"></i>
+                                    Salary not calculated for selected month. Please calculate salary for this month in Salary Management first.
+                                </div>
+                                {% endif %}
+
                                 <div class="mt-4">
                                     <div class="d-flex flex-wrap justify-content-between align-items-center mb-2">
                                         <h6 class="mb-0"><i class="bi bi-clipboard-check me-2"></i>Review Section</h6>
@@ -1008,7 +1015,13 @@
                                                     {% endfor %}
                                                 {% else %}
                                                     <tr>
-                                                        <td colspan="11" class="text-center text-muted py-4">No pending payroll review records found for the selected filters.</td>
+                                                        <td colspan="11" class="text-center text-muted py-4">
+                                                            {% if not is_selected_month_calculated %}
+                                                                Salary not calculated for selected month. Please calculate salary for this month in Salary Management first.
+                                                            {% else %}
+                                                                No pending payroll review records found for the selected filters.
+                                                            {% endif %}
+                                                        </td>
                                                     </tr>
                                                 {% endif %}
                                             </tbody>
@@ -1305,7 +1318,13 @@
                                                     {% endfor %}
                                                 {% else %}
                                                     <tr>
-                                                        <td colspan="11" class="text-center text-muted py-4">No reviewed payroll records yet. Mark staff as Reviewed in Review Section to move them here.</td>
+                                                        <td colspan="11" class="text-center text-muted py-4">
+                                                            {% if not is_selected_month_calculated %}
+                                                                Salary not calculated for selected month. Please calculate salary for this month in Salary Management first.
+                                                            {% else %}
+                                                                No reviewed payroll records yet. Mark staff as Reviewed in Review Section to move them here.
+                                                            {% endif %}
+                                                        </td>
                                                     </tr>
                                                 {% endif %}
                                             </tbody>
