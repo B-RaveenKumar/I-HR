@@ -398,6 +398,10 @@ function displaySalaryResults(data) {
     const resultsStats = document.getElementById('resultsStats');
     const exportBtn = document.getElementById('exportResultsBtn');
 
+    const getAdjustedEarnings = (salary) => Number(salary.adjusted_total_earnings ?? salary.total_earnings ?? 0);
+    const getAdjustedDeductions = (salary) => Number(salary.adjusted_total_deductions ?? salary.total_deductions ?? 0);
+    const getAdjustedNetSalary = (salary) => Number(salary.net_salary ?? (getAdjustedEarnings(salary) - getAdjustedDeductions(salary)) ?? 0);
+
     // Store results globally for export functionality
     currentSalaryCalculationResults = data;
 
@@ -430,9 +434,9 @@ function displaySalaryResults(data) {
     }
     
     // Calculate summary statistics
-    const totalEarnings = data.salary_calculations.reduce((sum, item) => sum + item.total_earnings, 0);
-    const totalDeductions = data.salary_calculations.reduce((sum, item) => sum + item.total_deductions, 0);
-    const totalNetSalary = data.salary_calculations.reduce((sum, item) => sum + item.net_salary, 0);
+    const totalEarnings = data.salary_calculations.reduce((sum, item) => sum + getAdjustedEarnings(item), 0);
+    const totalDeductions = data.salary_calculations.reduce((sum, item) => sum + getAdjustedDeductions(item), 0);
+    const totalNetSalary = data.salary_calculations.reduce((sum, item) => sum + getAdjustedNetSalary(item), 0);
     const totalPresentDays = data.salary_calculations.reduce((sum, item) => sum + item.present_days, 0);
     const totalAbsentDays = data.salary_calculations.reduce((sum, item) => sum + item.absent_days, 0);
 
@@ -504,6 +508,9 @@ function displaySalaryResults(data) {
     `;
     
     data.salary_calculations.forEach(salary => {
+        const totalEarningsValue = getAdjustedEarnings(salary);
+        const totalDeductionsValue = getAdjustedDeductions(salary);
+        const netSalaryValue = getAdjustedNetSalary(salary);
         html += `
             <tr>
                 <td><strong>${salary.staff_id}</strong></td>
@@ -511,9 +518,9 @@ function displaySalaryResults(data) {
                 <td><span class="badge bg-secondary">${salary.department}</span></td>
                 <td><span class="present-days">${salary.present_days}</span></td>
                 <td><span class="absent-days">${salary.absent_days}</span></td>
-                <td><span class="earnings-badge">₹${salary.total_earnings.toLocaleString('en-IN')}</span></td>
-                <td><span class="deductions-badge">₹${salary.total_deductions.toLocaleString('en-IN')}</span></td>
-                <td><span class="net-salary-badge">₹${salary.net_salary.toLocaleString('en-IN')}</span></td>
+                <td><span class="earnings-badge">₹${totalEarningsValue.toLocaleString('en-IN')}</span></td>
+                <td><span class="deductions-badge">₹${totalDeductionsValue.toLocaleString('en-IN')}</span></td>
+                <td><span class="net-salary-badge">₹${netSalaryValue.toLocaleString('en-IN')}</span></td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-outline-primary btn-sm btn-view-details"
@@ -576,6 +583,12 @@ function displayDetailedSalaryBreakdown(data) {
     const attendance = breakdown.attendance_summary;
     const earnings = breakdown.earnings;
     const deductions = breakdown.deductions;
+    const manualBonus = Number(breakdown.manual_bonus ?? 0);
+    const manualDeduction = Number(breakdown.manual_deduction ?? 0);
+    const adjustedTotalEarnings = Number(breakdown.adjusted_total_earnings ?? earnings.total_earnings ?? 0);
+    const adjustedTotalDeductions = Number(breakdown.adjusted_total_deductions ?? deductions.total_deductions ?? 0);
+    const adjustedNetSalary = Number(breakdown.net_salary ?? (adjustedTotalEarnings - adjustedTotalDeductions) ?? 0);
+    const singlePunchPenalty = Number(deductions.single_punch_penalty ?? 0);
     
     const content = document.getElementById('salaryDetailContent');
     
@@ -664,9 +677,15 @@ function displayDetailedSalaryBreakdown(data) {
                 <span class="breakdown-value">₹${earnings.overtime_pay.toLocaleString('en-IN')}</span>
             </div>
             ` : ''}
+            ${manualBonus > 0 ? `
+            <div class="breakdown-item bonus-item">
+                <span class="breakdown-label"><i class="bi bi-plus-circle"></i> Manual Bonus</span>
+                <span class="breakdown-value">₹${manualBonus.toLocaleString('en-IN')}</span>
+            </div>
+            ` : ''}
             <div class="breakdown-item total-row">
                 <span class="breakdown-label">Total Earnings</span>
-                <span class="breakdown-value">₹${earnings.total_earnings.toLocaleString('en-IN')}</span>
+                <span class="breakdown-value">₹${adjustedTotalEarnings.toLocaleString('en-IN')}</span>
             </div>
         </div>
         
@@ -691,6 +710,12 @@ function displayDetailedSalaryBreakdown(data) {
                 <span class="breakdown-value">₹${deductions.late_arrival_penalty.toLocaleString('en-IN')}</span>
             </div>
             ` : ''}
+            ${singlePunchPenalty > 0 ? `
+            <div class="breakdown-item penalty-item">
+                <span class="breakdown-label"><i class="bi bi-fingerprint"></i> Single Punch Penalty</span>
+                <span class="breakdown-value">₹${singlePunchPenalty.toLocaleString('en-IN')}</span>
+            </div>
+            ` : ''}
             <div class="breakdown-item">
                 <span class="breakdown-label">PF Deduction</span>
                 <span class="breakdown-value">₹${deductions.pf_deduction.toLocaleString('en-IN')}</span>
@@ -707,9 +732,15 @@ function displayDetailedSalaryBreakdown(data) {
                 <span class="breakdown-label">Other Deductions</span>
                 <span class="breakdown-value">₹${deductions.other_deductions.toLocaleString('en-IN')}</span>
             </div>
+            ${manualDeduction > 0 ? `
+            <div class="breakdown-item penalty-item">
+                <span class="breakdown-label"><i class="bi bi-receipt-cutoff"></i> Manual Deduction</span>
+                <span class="breakdown-value">₹${manualDeduction.toLocaleString('en-IN')}</span>
+            </div>
+            ` : ''}
             <div class="breakdown-item total-row">
                 <span class="breakdown-label">Total Deductions</span>
-                <span class="breakdown-value">₹${deductions.total_deductions.toLocaleString('en-IN')}</span>
+                <span class="breakdown-value">₹${adjustedTotalDeductions.toLocaleString('en-IN')}</span>
             </div>
         </div>
         
@@ -717,7 +748,7 @@ function displayDetailedSalaryBreakdown(data) {
         <div class="salary-breakdown-section">
             <div class="breakdown-item total-row" style="font-size: 1.2rem; color: white; padding: 15px; border-radius: 10px;">
                 <span class="breakdown-label">NET SALARY</span>
-                <span class="breakdown-value">₹${breakdown.net_salary.toLocaleString('en-IN')}</span>
+                <span class="breakdown-value">₹${adjustedNetSalary.toLocaleString('en-IN')}</span>
             </div>
         </div>
     `;

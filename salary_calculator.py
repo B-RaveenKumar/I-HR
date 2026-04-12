@@ -264,14 +264,22 @@ class SalaryCalculator:
         """Apply manual bonus and deduction to a salary breakdown."""
         manual_bonus, manual_deduction, adjustments = self._get_manual_salary_adjustments(staff_id, year, month)
 
-        total_earnings = self._to_float(salary_breakdown.get('total_earnings', 0))
-        total_deductions = self._to_float(salary_breakdown.get('total_deductions', 0))
-        adjusted_net_salary = total_earnings - total_deductions + manual_bonus - manual_deduction
+        earnings_info = salary_breakdown.get('earnings', {}) or {}
+        deductions_info = salary_breakdown.get('deductions', {}) or {}
+
+        base_total_earnings = self._to_float(earnings_info.get('total_earnings', salary_breakdown.get('total_earnings', 0)))
+        base_total_deductions = self._to_float(deductions_info.get('total_deductions', salary_breakdown.get('total_deductions', 0)))
+
+        adjusted_total_earnings = base_total_earnings + manual_bonus
+        adjusted_total_deductions = base_total_deductions + manual_deduction
+        adjusted_net_salary = adjusted_total_earnings - adjusted_total_deductions
 
         updated_breakdown = dict(salary_breakdown)
         updated_breakdown['manual_bonus'] = manual_bonus
         updated_breakdown['manual_deduction'] = manual_deduction
         updated_breakdown['manual_adjustments'] = adjustments
+        updated_breakdown['adjusted_total_earnings'] = round(adjusted_total_earnings, 2)
+        updated_breakdown['adjusted_total_deductions'] = round(adjusted_total_deductions, 2)
         updated_breakdown['net_salary'] = round(adjusted_net_salary, 2)
         return updated_breakdown
     

@@ -17103,16 +17103,27 @@ def bulk_salary_calculation():
         for staff in staff_list:
             salary_result = salary_calculator.calculate_monthly_salary(staff['id'], year, month)
             if salary_result['success']:
+                breakdown = salary_result['salary_breakdown']
+                earnings = breakdown.get('earnings', {})
+                deductions = breakdown.get('deductions', {})
+                manual_bonus = float(breakdown.get('manual_bonus', 0) or 0)
+                manual_deduction = float(breakdown.get('manual_deduction', 0) or 0)
+                adjusted_total_earnings = float(breakdown.get('adjusted_total_earnings', earnings.get('total_earnings', 0)) or 0)
+                adjusted_total_deductions = float(breakdown.get('adjusted_total_deductions', deductions.get('total_deductions', 0)) or 0)
+                adjusted_net_salary = float(adjusted_total_earnings - adjusted_total_deductions)
+
                 results.append({
                     'id': staff['id'],  # Add database ID
                     'staff_id': staff['staff_id'],
                     'staff_name': staff['full_name'],
                     'department': staff['department'],
-                    'net_salary': salary_result['salary_breakdown']['net_salary'],
-                    'total_earnings': salary_result['salary_breakdown']['earnings']['total_earnings'],
-                    'total_deductions': salary_result['salary_breakdown']['deductions']['total_deductions'],
-                    'present_days': salary_result['salary_breakdown']['attendance_summary']['present_days'],
-                    'absent_days': salary_result['salary_breakdown']['attendance_summary']['absent_days']
+                    'net_salary': adjusted_net_salary,
+                    'total_earnings': adjusted_total_earnings,
+                    'total_deductions': adjusted_total_deductions,
+                    'manual_bonus': manual_bonus,
+                    'manual_deduction': manual_deduction,
+                    'present_days': breakdown['attendance_summary']['present_days'],
+                    'absent_days': breakdown['attendance_summary']['absent_days']
                 })
 
         return jsonify({
