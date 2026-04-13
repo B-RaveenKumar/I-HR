@@ -246,6 +246,33 @@
             border-color: #dee2e6;
         }
 
+        .pay-slip-workflow {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            justify-content: center;
+            margin-bottom: 0.9rem;
+        }
+
+        .pay-slip-workflow .workflow-pill {
+            font-size: 0.72rem;
+            line-height: 1;
+            letter-spacing: 0.02em;
+            font-weight: 600;
+            padding: 0.34rem 0.56rem;
+            border-radius: 999px;
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #64748b;
+            text-transform: uppercase;
+        }
+
+        .pay-slip-workflow .workflow-pill.active {
+            border-color: #99f6e4;
+            background: #ccfbf1;
+            color: #0f766e;
+        }
+
         @media print {
             .pay-slip-preview {
                 box-shadow: none;
@@ -2355,6 +2382,9 @@
                             const earnings = breakdown.earnings;
                             const deductions = breakdown.deductions;
                             const attendance = breakdown.attendance_summary;
+                            const workflowStatus = salaryData.payroll_workflow && salaryData.payroll_workflow.current_status
+                                ? salaryData.payroll_workflow.current_status
+                                : 'pending';
                             const manualBonus = Number(breakdown.manual_bonus || 0);
                             const manualDeduction = Number(breakdown.manual_deduction || 0);
                             const adjustedTotalEarnings = Number(earnings.total_earnings || 0) + manualBonus;
@@ -2367,6 +2397,7 @@
                     <div class="text-center mb-4">
                         <h4 class="fw-bold text-primary">VishnoRex Staff Management System</h4>
                         <h5 class="text-secondary">Pay Slip for ${monthName} ${year}</h5>
+                        ${renderPayrollWorkflowPills(workflowStatus)}
                         <hr>
                     </div>
                     
@@ -2468,6 +2499,11 @@
                                         <span>Professional Tax:</span>
                                         <span class="fw-bold">₹${(deductions.professional_tax || 0).toFixed(2)}</span>
                                     </div>
+                                    ${deductions.single_punch_penalty > 0 ? `
+                                    <div class="d-flex justify-content-between">
+                                        <span>Single Punch Penalty:</span>
+                                        <span class="fw-bold text-warning">₹${deductions.single_punch_penalty.toFixed(2)}</span>
+                                    </div>` : ''}
                                     <div class="d-flex justify-content-between">
                                         <span>Other Deductions:</span>
                                         <span class="fw-bold">₹${(deductions.other_deductions || 0).toFixed(2)}</span>
@@ -2595,6 +2631,32 @@
                                     alertDiv.remove();
                                 }
                             }, 5000);
+                        }
+
+                        function normalizePayrollWorkflowStatus(rawStatus) {
+                            const status = (rawStatus || '').toString().trim().toLowerCase();
+                            if (status === 'review' || status === 'reviewed') return 'reviewed';
+                            if (status === 'complete' || status === 'completed') return 'completed';
+                            if (status === 'pay released' || status === 'pay_released' || status === 'released' || status === 'paid') return 'pay_released';
+                            return 'pending';
+                        }
+
+                        function renderPayrollWorkflowPills(rawStatus) {
+                            const status = normalizePayrollWorkflowStatus(rawStatus);
+                            const activeCountByStatus = {
+                                pending: 1,
+                                reviewed: 2,
+                                completed: 3,
+                                pay_released: 4
+                            };
+                            const labels = ['Auto Generated', 'Reviewed', 'Completed', 'Pay Released'];
+                            const activeCount = activeCountByStatus[status] || 1;
+
+                            return `
+                                <div class="pay-slip-workflow" aria-label="Payroll workflow status labels">
+                                    ${labels.map((label, index) => `<span class="workflow-pill ${index < activeCount ? 'active' : ''}">${label}</span>`).join('')}
+                                </div>
+                            `;
                         }
                     });
 

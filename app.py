@@ -16209,6 +16209,42 @@ def staff_download_pay_slip():
         
         if not staff_info:
             return jsonify({'success': False, 'error': 'Staff information not found'})
+
+        payroll_review_status = 'pending'
+        try:
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS payroll_review_status (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    school_id INTEGER NOT NULL,
+                    staff_id INTEGER NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    reviewed_by TEXT,
+                    reviewed_at TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(school_id, staff_id, year, month)
+                )
+            ''')
+
+            status_row = db.execute('''
+                SELECT status
+                FROM payroll_review_status
+                WHERE school_id = ? AND staff_id = ? AND year = ? AND month = ?
+            ''', (school_id, staff_db_id, year, month)).fetchone()
+
+            if status_row and status_row['status']:
+                normalized = str(status_row['status']).strip().lower()
+                if normalized in ('review', 'reviewed'):
+                    payroll_review_status = 'reviewed'
+                elif normalized in ('complete', 'completed'):
+                    payroll_review_status = 'completed'
+                elif normalized in ('pay released', 'pay_released', 'released', 'paid'):
+                    payroll_review_status = 'pay_released'
+                else:
+                    payroll_review_status = 'pending'
+        except Exception:
+            payroll_review_status = 'pending'
         
         # Initialize salary calculator
         salary_calculator = SalaryCalculator(school_id=school_id)
@@ -16220,7 +16256,7 @@ def staff_download_pay_slip():
             return jsonify({'success': False, 'error': result.get('error', 'Failed to generate salary data')})
         
         # Generate PDF pay slip
-        pdf_response = generate_individual_salary_slip_pdf(result, year, month)
+        pdf_response = generate_individual_salary_slip_pdf(result, year, month, payroll_review_status=payroll_review_status)
         return pdf_response
         
     except Exception as e:
@@ -16251,6 +16287,42 @@ def staff_preview_pay_slip():
         
         if not staff_info:
             return jsonify({'success': False, 'error': 'Staff information not found'})
+
+        payroll_review_status = 'pending'
+        try:
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS payroll_review_status (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    school_id INTEGER NOT NULL,
+                    staff_id INTEGER NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    status TEXT NOT NULL DEFAULT 'pending',
+                    reviewed_by TEXT,
+                    reviewed_at TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(school_id, staff_id, year, month)
+                )
+            ''')
+
+            status_row = db.execute('''
+                SELECT status
+                FROM payroll_review_status
+                WHERE school_id = ? AND staff_id = ? AND year = ? AND month = ?
+            ''', (school_id, staff_db_id, year, month)).fetchone()
+
+            if status_row and status_row['status']:
+                normalized = str(status_row['status']).strip().lower()
+                if normalized in ('review', 'reviewed'):
+                    payroll_review_status = 'reviewed'
+                elif normalized in ('complete', 'completed'):
+                    payroll_review_status = 'completed'
+                elif normalized in ('pay released', 'pay_released', 'released', 'paid'):
+                    payroll_review_status = 'pay_released'
+                else:
+                    payroll_review_status = 'pending'
+        except Exception:
+            payroll_review_status = 'pending'
         
         # Initialize salary calculator
         salary_calculator = SalaryCalculator(school_id=school_id)
@@ -16267,7 +16339,10 @@ def staff_preview_pay_slip():
             'data': {
                 'staff_info': result['staff_info'],
                 'salary_details': result['salary_breakdown'],
-                'salary_summary': result['salary_breakdown']  # Same data, for compatibility
+                'salary_summary': result['salary_breakdown'],  # Same data, for compatibility
+                'payroll_workflow': {
+                    'current_status': payroll_review_status
+                }
             }
         })
         
@@ -17801,7 +17876,7 @@ def generate_salary_calculation_pdf(salary_results, year, month, department=None
     except Exception as e:
         return jsonify({'success': False, 'error': f'PDF generation failed: {str(e)}'})
 
-def generate_individual_salary_slip_pdf(salary_data, year, month):
+def generate_individual_salary_slip_pdf(salary_data, year, month, payroll_review_status='pending'):
     """Generate PDF salary slip for an individual employee"""
     try:
         from reportlab.lib.pagesizes import letter, A4
@@ -17881,6 +17956,54 @@ def generate_individual_salary_slip_pdf(salary_data, year, month):
         title = f"SALARY SLIP<br/>{month_name} {year}"
         title_para = Paragraph(title, title_style)
         elements.append(title_para)
+        elements.append(Spacer(1, 8))
+
+        workflow_steps = [
+            ('auto_generated', 'Auto Generated'),
+            ('reviewed', 'Reviewed'),
+            ('completed', 'Completed'),
+            ('pay_released', 'Pay Released')
+        ]
+        status_value = str(payroll_review_status or 'pending').strip().lower()
+        if status_value in ('review', 'reviewed'):
+            status_value = 'reviewed'
+        elif status_value in ('complete', 'completed'):
+            status_value = 'completed'
+        elif status_value in ('pay released', 'pay_released', 'released', 'paid'):
+            status_value = 'pay_released'
+        else:
+            status_value = 'pending'
+
+        active_counts = {
+            'pending': 1,
+            'reviewed': 2,
+            'completed': 3,
+            'pay_released': 4
+        }
+        active_count = active_counts.get(status_value, 1)
+        workflow_labels = [label for _, label in workflow_steps]
+        workflow_table = Table([workflow_labels], colWidths=[1.35 * inch, 1.15 * inch, 1.1 * inch, 1.1 * inch])
+
+        workflow_style_cmds = [
+            ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            ('FONTNAME', (0, 0), (-1, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 8),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#64748b')),
+            ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#f1f5f9')),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#cbd5e1')),
+            ('LEFTPADDING', (0, 0), (-1, -1), 6),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 6),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ]
+
+        for i in range(active_count):
+            workflow_style_cmds.append(('BACKGROUND', (i, 0), (i, 0), colors.HexColor('#dcfce7')))
+            workflow_style_cmds.append(('TEXTCOLOR', (i, 0), (i, 0), colors.HexColor('#166534')))
+
+        workflow_table.setStyle(TableStyle(workflow_style_cmds))
+        elements.append(workflow_table)
         elements.append(Spacer(1, 20))
 
         # Employee Information Section
@@ -17965,7 +18088,8 @@ def generate_individual_salary_slip_pdf(salary_data, year, month):
             ['HRA', f'{earnings.get("hra", 0):,.2f}', 'PF Deduction', f'{deductions.get("pf_deduction", 0):,.2f}'],
             ['Transport Allowance', f'{earnings.get("transport_allowance", 0):,.2f}', 'ESI Deduction', f'{deductions.get("esi_deduction", 0):,.2f}'],
             ['Other Allowances', f'{earnings.get("other_allowances", 0):,.2f}', 'Professional Tax', f'{deductions.get("professional_tax", 0):,.2f}'],
-            ['Present Days Pay', f'{earnings.get("present_pay", 0):,.2f}', 'Early Departure Penalty', f'{deductions.get("early_departure_penalty", 0):,.2f}'],
+            ['Present Days Pay', f'{earnings.get("present_pay", 0):,.2f}', 'Single Punch Penalty', f'{deductions.get("single_punch_penalty", 0):,.2f}'],
+            ['', '', 'Early Departure Penalty', f'{deductions.get("early_departure_penalty", 0):,.2f}'],
             ['On Duty Pay', f'{earnings.get("on_duty_pay", 0):,.2f}', 'Late Arrival Penalty', f'{deductions.get("late_arrival_penalty", 0):,.2f}'],
             ['Leave Pay', f'{earnings.get("leave_pay", 0):,.2f}', 'Other Deductions', f'{deductions.get("other_deductions", 0):,.2f}']
         ]
