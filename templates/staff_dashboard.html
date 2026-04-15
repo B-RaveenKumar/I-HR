@@ -1939,6 +1939,15 @@
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
 
                                     <div class="mb-3">
+                                        <label for="regularizationType" class="form-label">Request Type</label>
+                                        <select class="form-select" id="regularizationType" required>
+                                            <option value="" selected disabled>Select regularization type</option>
+                                            <option value="late_arrival">Late Arrival</option>
+                                            <option value="early_departure">Early Departure</option>
+                                        </select>
+                                    </div>
+
+                                    <div class="mb-3">
                                         <label for="regularizationAttendance" class="form-label">Attendance Record</label>
                                         <select class="form-select" id="regularizationAttendance" required>
                                             <option value="" selected disabled>Select attendance date</option>
@@ -1965,15 +1974,6 @@
                                         {% if not regularization_candidates %}
                                         <div class="form-text text-danger">No eligible attendance records found in the last 7 days.</div>
                                         {% endif %}
-                                    </div>
-
-                                    <div class="mb-3">
-                                        <label for="regularizationType" class="form-label">Request Type</label>
-                                        <select class="form-select" id="regularizationType" required>
-                                            <option value="" selected disabled>Select regularization type</option>
-                                            <option value="late_arrival">Late Arrival</option>
-                                            <option value="early_departure">Early Departure</option>
-                                        </select>
                                     </div>
 
                                     <div class="row">
