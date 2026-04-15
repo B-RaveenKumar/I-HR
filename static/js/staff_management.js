@@ -17,7 +17,76 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Update stats display
     updateStatsDisplay();
+
+    // Wire deduction on/off toggles in add form
+    initializeDeductionToggles('add');
 });
+
+function deductionToggleConfig(prefix = 'add') {
+    if (prefix === 'edit') {
+        return [
+            { toggleId: 'editPFDeductionToggle', inputId: 'editPFDeduction', field: 'pf_deduction' },
+            { toggleId: 'editESIDeductionToggle', inputId: 'editESIDeduction', field: 'esi_deduction' },
+            { toggleId: 'editProfessionalTaxToggle', inputId: 'editProfessionalTax', field: 'professional_tax' },
+            { toggleId: 'editOtherDeductionsToggle', inputId: 'editOtherDeductions', field: 'other_deductions' }
+        ];
+    }
+
+    return [
+        { toggleId: 'addPFDeductionToggle', inputId: 'addPFDeduction', field: 'pf_deduction' },
+        { toggleId: 'addESIDeductionToggle', inputId: 'addESIDeduction', field: 'esi_deduction' },
+        { toggleId: 'addProfessionalTaxToggle', inputId: 'addProfessionalTax', field: 'professional_tax' },
+        { toggleId: 'addOtherDeductionsToggle', inputId: 'addOtherDeductions', field: 'other_deductions' }
+    ];
+}
+
+function initializeDeductionToggles(prefix = 'add') {
+    const configs = deductionToggleConfig(prefix);
+
+    configs.forEach(cfg => {
+        const toggle = document.getElementById(cfg.toggleId);
+        const input = document.getElementById(cfg.inputId);
+        if (!toggle || !input) return;
+
+        const syncState = () => {
+            if (toggle.checked) {
+                input.disabled = false;
+                input.classList.remove('bg-light');
+                if ((input.value === '0' || input.value === '') && input.dataset.previousValue) {
+                    input.value = input.dataset.previousValue;
+                }
+            } else {
+                if (input.value !== '0' && input.value !== '') {
+                    input.dataset.previousValue = input.value;
+                }
+                input.value = '0';
+                input.disabled = true;
+                input.classList.add('bg-light');
+            }
+        };
+
+        toggle.removeEventListener('change', syncState);
+        toggle.addEventListener('change', syncState);
+        syncState();
+    });
+}
+
+function normalizeDeductionFields(formData, prefix = 'add') {
+    deductionToggleConfig(prefix).forEach(cfg => {
+        const toggle = document.getElementById(cfg.toggleId);
+        const input = document.getElementById(cfg.inputId);
+
+        if (!toggle || !input) return;
+
+        if (!toggle.checked) {
+            formData.set(cfg.field, '0');
+            return;
+        }
+
+        const currentValue = String(input.value ?? '').trim();
+        formData.set(cfg.field, currentValue === '' ? '0' : currentValue);
+    });
+}
 
 function initializeEnhancedUI() {
     // Initialize sidebar toggle for mobile
@@ -365,6 +434,7 @@ function handleAddStaff(e) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
+    normalizeDeductionFields(formData, 'add');
     const addIsActive = document.getElementById('addIsActive');
     formData.set('is_active', addIsActive && addIsActive.checked ? '1' : '0');
     const submitBtn = e.target.querySelector('button[type="submit"]');
@@ -745,9 +815,14 @@ function populateEditForm(staff) {
             </h6>
             <div class="rules-grid">
                 <div class="rule-item">
-                    <label for="editPFDeduction" class="form-label">
-                        <i class="bi bi-piggy-bank"></i> PF Deduction
-                    </label>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label for="editPFDeduction" class="form-label mb-0">
+                            <i class="bi bi-piggy-bank"></i> PF Deduction
+                        </label>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input deduction-toggle" type="checkbox" id="editPFDeductionToggle" ${Number(staff.pf_deduction || 0) > 0 ? 'checked' : ''}>
+                        </div>
+                    </div>
                     <div class="input-group">
                         <span class="input-group-text">₹</span>
                         <input type="number" class="form-control" id="editPFDeduction" name="pf_deduction" step="0.01" min="0" value="${staff.pf_deduction || ''}" title="Enter PF deduction amount">
@@ -755,9 +830,14 @@ function populateEditForm(staff) {
                     <small class="form-text">Provident Fund deduction</small>
                 </div>
                 <div class="rule-item">
-                    <label for="editESIDeduction" class="form-label">
-                        <i class="bi bi-shield-plus"></i> ESI Deduction
-                    </label>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label for="editESIDeduction" class="form-label mb-0">
+                            <i class="bi bi-shield-plus"></i> ESI Deduction
+                        </label>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input deduction-toggle" type="checkbox" id="editESIDeductionToggle" ${Number(staff.esi_deduction || 0) > 0 ? 'checked' : ''}>
+                        </div>
+                    </div>
                     <div class="input-group">
                         <span class="input-group-text">₹</span>
                         <input type="number" class="form-control" id="editESIDeduction" name="esi_deduction" step="0.01" min="0" value="${staff.esi_deduction || ''}" title="Enter ESI deduction amount">
@@ -765,9 +845,14 @@ function populateEditForm(staff) {
                     <small class="form-text">Employee State Insurance deduction</small>
                 </div>
                 <div class="rule-item">
-                    <label for="editProfessionalTax" class="form-label">
-                        <i class="bi bi-receipt"></i> Professional Tax
-                    </label>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label for="editProfessionalTax" class="form-label mb-0">
+                            <i class="bi bi-receipt"></i> Professional Tax
+                        </label>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input deduction-toggle" type="checkbox" id="editProfessionalTaxToggle" ${Number(staff.professional_tax || 0) > 0 ? 'checked' : ''}>
+                        </div>
+                    </div>
                     <div class="input-group">
                         <span class="input-group-text">₹</span>
                         <input type="number" class="form-control" id="editProfessionalTax" name="professional_tax" step="0.01" min="0" value="${staff.professional_tax || ''}" title="Enter professional tax amount">
@@ -775,9 +860,14 @@ function populateEditForm(staff) {
                     <small class="form-text">Monthly professional tax</small>
                 </div>
                 <div class="rule-item">
-                    <label for="editOtherDeductions" class="form-label">
-                        <i class="bi bi-dash-square"></i> Other Deductions
-                    </label>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <label for="editOtherDeductions" class="form-label mb-0">
+                            <i class="bi bi-dash-square"></i> Other Deductions
+                        </label>
+                        <div class="form-check form-switch m-0">
+                            <input class="form-check-input deduction-toggle" type="checkbox" id="editOtherDeductionsToggle" ${Number(staff.other_deductions || 0) > 0 ? 'checked' : ''}>
+                        </div>
+                    </div>
                     <div class="input-group">
                         <span class="input-group-text">₹</span>
                         <input type="number" class="form-control" id="editOtherDeductions" name="other_deductions" step="0.01" min="0" value="${staff.other_deductions || ''}" title="Enter other deductions">
@@ -790,6 +880,9 @@ function populateEditForm(staff) {
 
     // Set the staff ID for the form
     document.getElementById('editStaffDbId').value = staff.id;
+
+    // Wire deduction toggles for dynamically rendered edit form
+    initializeDeductionToggles('edit');
 
     // Load departments dynamically for edit form
     loadDepartmentsForEdit(staff.department);
@@ -845,6 +938,7 @@ function handleEditStaff(e) {
     e.preventDefault();
     
     const formData = new FormData(e.target);
+    normalizeDeductionFields(formData, 'edit');
     const editIsActive = document.getElementById('editIsActive');
     formData.set('is_active', editIsActive && editIsActive.checked ? '1' : '0');
     const submitBtn = e.target.querySelector('button[type="submit"]');
