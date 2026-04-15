@@ -1751,32 +1751,61 @@ function onAssignGradeChange() {
 function onAssignSectionChange() {
     const levelId = document.getElementById('gradeSelectAssign').value;
     const sectionId = document.getElementById('sectionSelectAssign').value;
+    const dayOfWeek = document.getElementById('daySelectAssign').value;
     const periodSelect = document.getElementById('periodSelectAssign');
 
     periodSelect.innerHTML = '<option value="">-- Loading... --</option>';
 
-    if (!levelId || !sectionId) {
-        periodSelect.innerHTML = '<option value="">-- Choose Period --</option>';
+    if (!dayOfWeek || !levelId || !sectionId) {
+        periodSelect.innerHTML = '<option value="">-- Choose Day, Grade, and Section --</option>';
         return;
     }
 
-    // Fetch periods for this specific section
-    fetch(`/api/timetable/periods?school_id=${schoolId}&level_id=${levelId}&section_id=${sectionId}`)
-        .then(r => r.json())
-        .then(data => {
-            if (data.success && data.periods) {
-                periodSelect.innerHTML = '<option value="">-- Choose Period --</option>';
-                data.periods.forEach(p => {
-                    periodSelect.innerHTML += `<option value="${p.period_number}" data-id="${p.id}">${p.period_name || `Period ${p.period_number}`} (${p.start_time}-${p.end_time})</option>`;
-                });
-            } else {
-                periodSelect.innerHTML = '<option value="">No periods defined for this section</option>';
+    // Fetch periods and current section allocations for the selected day.
+    Promise.all([
+        fetch(`/api/timetable/periods?school_id=${schoolId}&level_id=${levelId}&section_id=${sectionId}&day_of_week=${dayOfWeek}`).then(r => r.json()),
+        fetch(`/api/hierarchical-timetable/section-schedule/${sectionId}`).then(r => r.json())
+    ])
+        .then(([periodData, sectionData]) => {
+            if (!(periodData.success && periodData.periods)) {
+                periodSelect.innerHTML = '<option value="">No periods defined for selected day</option>';
+                return;
             }
+
+            const periods = periodData.periods || [];
+            if (!periods.length) {
+                periodSelect.innerHTML = '<option value="">No periods defined for selected day</option>';
+                return;
+            }
+
+            const dayInt = parseInt(dayOfWeek, 10);
+            const sectionSchedule = sectionData.success && sectionData.data && Array.isArray(sectionData.data.schedule)
+                ? sectionData.data.schedule
+                : [];
+
+            const allocatedPeriods = new Set(
+                sectionSchedule
+                    .filter(s => parseInt(s.day_of_week, 10) === dayInt)
+                    .map(s => parseInt(s.period_number, 10))
+            );
+
+            periodSelect.innerHTML = '<option value="">-- Choose Period --</option>';
+            periods.forEach(p => {
+                const periodNumber = parseInt(p.period_number, 10);
+                const isAllocated = allocatedPeriods.has(periodNumber);
+                const label = `${p.period_name || `Period ${periodNumber}`} (${p.start_time}-${p.end_time})${isAllocated ? ' - Allocated' : ''}`;
+                periodSelect.innerHTML += `<option value="${periodNumber}" data-id="${p.id}" ${isAllocated ? 'disabled' : ''}>${label}</option>`;
+            });
         })
         .catch(err => {
             console.error('Error loading periods for assignment:', err);
             periodSelect.innerHTML = '<option value="">Error loading periods</option>';
         });
+}
+
+function onAssignDayChange() {
+    // Re-evaluate available periods whenever day changes.
+    onAssignSectionChange();
 }
 
 /**
