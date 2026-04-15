@@ -23,6 +23,7 @@ from data_visualization import DataVisualization
 from notification_system import NotificationManager
 from backup_manager import BackupManager
 from salary_calculator import SalaryCalculator
+from pf_calculator import calculate_pf_components
 
 from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
@@ -12649,6 +12650,18 @@ def add_staff_enhanced():
         is_active = 1 if str(status_raw).lower() == 'active' else 0
     password = generate_password_hash(request.form.get('password'))
 
+    # Salary fields
+    basic_salary = float(request.form.get('basic_salary', 0) or 0)
+    hra = float(request.form.get('hra', 0) or 0)
+    transport_allowance = float(request.form.get('transport_allowance', 0) or 0)
+    other_allowances = float(request.form.get('other_allowances', 0) or 0)
+    dearness_allowance = float(request.form.get('dearness_allowance', 0) or 0)
+    esi_deduction = float(request.form.get('esi_deduction', 0) or 0)
+    professional_tax = float(request.form.get('professional_tax', 0) or 0)
+    other_deductions = float(request.form.get('other_deductions', 0) or 0)
+    pf_toggle_raw = request.form.get('pf_enabled')
+    pf_opt_in = 1 if str(pf_toggle_raw).strip().lower() in ['1', 'true', 'on', 'yes'] else 0
+
     # Create full_name from first_name and last_name
     full_name = f"{first_name} {last_name}".strip() if first_name or last_name else ""
 
@@ -12664,6 +12677,21 @@ def add_staff_enhanced():
             return jsonify({'success': False, 'error': 'Invalid date of birth format'})
 
     db = get_db()
+
+    # PF auto-calculation per EPFO-style rule set
+    active_staff_count = db.execute('''
+        SELECT COUNT(*) AS total
+        FROM staff
+        WHERE school_id = ? AND COALESCE(is_active, 1) = 1
+    ''', (school_id,)).fetchone()
+    company_employee_count = int((active_staff_count['total'] if active_staff_count else 0) or 0)
+    pf_components = calculate_pf_components(
+        basic_salary=basic_salary,
+        dearness_allowance=dearness_allowance,
+        pf_opt_in=bool(pf_opt_in),
+        company_employee_count=company_employee_count,
+    )
+    pf_deduction = float(pf_components.get('employee_pf', 0))
 
     # Auto-assign shift type based on department if not manually specified
     if not shift_type or shift_type == 'general':
@@ -12776,6 +12804,36 @@ def add_staff_enhanced():
         if 'photo_url' in column_names and photo_url:
             insert_columns.append('photo_url')
             insert_values.append(photo_url)
+        if 'basic_salary' in column_names:
+            insert_columns.append('basic_salary')
+            insert_values.append(basic_salary)
+        if 'hra' in column_names:
+            insert_columns.append('hra')
+            insert_values.append(hra)
+        if 'transport_allowance' in column_names:
+            insert_columns.append('transport_allowance')
+            insert_values.append(transport_allowance)
+        if 'other_allowances' in column_names:
+            insert_columns.append('other_allowances')
+            insert_values.append(other_allowances)
+        if 'dearness_allowance' in column_names:
+            insert_columns.append('dearness_allowance')
+            insert_values.append(dearness_allowance)
+        if 'pf_opt_in' in column_names:
+            insert_columns.append('pf_opt_in')
+            insert_values.append(pf_opt_in)
+        if 'pf_deduction' in column_names:
+            insert_columns.append('pf_deduction')
+            insert_values.append(pf_deduction)
+        if 'esi_deduction' in column_names:
+            insert_columns.append('esi_deduction')
+            insert_values.append(esi_deduction)
+        if 'professional_tax' in column_names:
+            insert_columns.append('professional_tax')
+            insert_values.append(professional_tax)
+        if 'other_deductions' in column_names:
+            insert_columns.append('other_deductions')
+            insert_values.append(other_deductions)
         if 'is_active' in column_names:
             insert_columns.append('is_active')
             insert_values.append(is_active)
@@ -12825,7 +12883,9 @@ def add_staff():
     hra = float(request.form.get('hra', 0))
     transport_allowance = float(request.form.get('transport_allowance', 0))
     other_allowances = float(request.form.get('other_allowances', 0))
-    pf_deduction = float(request.form.get('pf_deduction', 0))
+    dearness_allowance = float(request.form.get('dearness_allowance', 0) or 0)
+    pf_toggle_raw = request.form.get('pf_enabled')
+    pf_opt_in = 1 if str(pf_toggle_raw).strip().lower() in ['1', 'true', 'on', 'yes'] else 0
     esi_deduction = float(request.form.get('esi_deduction', 0))
     professional_tax = float(request.form.get('professional_tax', 0))
     other_deductions = float(request.form.get('other_deductions', 0))
@@ -12838,6 +12898,20 @@ def add_staff():
     # biometric_enrolled = request.form.get('biometric_enrolled', 'false').lower() == 'true'  # Not used currently
 
     db = get_db()
+
+    active_staff_count = db.execute('''
+        SELECT COUNT(*) AS total
+        FROM staff
+        WHERE school_id = ? AND COALESCE(is_active, 1) = 1
+    ''', (school_id,)).fetchone()
+    company_employee_count = int((active_staff_count['total'] if active_staff_count else 0) or 0)
+    pf_components = calculate_pf_components(
+        basic_salary=basic_salary,
+        dearness_allowance=dearness_allowance,
+        pf_opt_in=bool(pf_opt_in),
+        company_employee_count=company_employee_count,
+    )
+    pf_deduction = float(pf_components.get('employee_pf', 0))
 
     # Always create staff in both app and device, do not check for staff ID existence
     device_ip, device_port = get_institution_device()
@@ -12897,11 +12971,11 @@ def add_staff():
         insert_cursor = db.execute('''
             INSERT INTO staff
             (school_id, staff_id, password_hash, full_name, email, phone, department, position, destination, photo_url, created_at,
-                         basic_salary, hra, transport_allowance, other_allowances, pf_deduction, esi_deduction, professional_tax, other_deductions,
+                         basic_salary, hra, transport_allowance, other_allowances, dearness_allowance, pf_opt_in, pf_deduction, esi_deduction, professional_tax, other_deductions,
                          bank_account_name, bank_name, bank_account_number, ifsc_code, pan_number)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ''', (school_id, staff_id, password, full_name, email, phone, department, position, position, photo_url, created_at,
-                            basic_salary, hra, transport_allowance, other_allowances, pf_deduction, esi_deduction, professional_tax, other_deductions,
+                            basic_salary, hra, transport_allowance, other_allowances, dearness_allowance, pf_opt_in, pf_deduction, esi_deduction, professional_tax, other_deductions,
                             bank_account_name, bank_name, bank_account_number, ifsc_code, pan_number))
 
         staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
@@ -12993,6 +13067,8 @@ def get_staff_details_enhanced():
     db = get_db()
 
     staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+    da_select = 'COALESCE(dearness_allowance, 0) AS dearness_allowance' if 'dearness_allowance' in staff_columns else '0 AS dearness_allowance'
+    pf_opt_in_select = 'COALESCE(pf_opt_in, 0) AS pf_opt_in' if 'pf_opt_in' in staff_columns else '0 AS pf_opt_in'
     if 'is_active' in staff_columns and 'status' in staff_columns:
         active_expr = "COALESCE(is_active, CASE WHEN LOWER(COALESCE(status, 'active')) = 'active' THEN 1 ELSE 0 END) AS is_active"
     elif 'is_active' in staff_columns:
@@ -13007,7 +13083,9 @@ def get_staff_details_enhanced():
                date_of_birth, date_of_joining, department, destination,
                position, gender, phone, email, shift_type, photo_url,
                basic_salary, hra, transport_allowance, other_allowances,
-               pf_deduction, esi_deduction, professional_tax, other_deductions,
+               {da_select},
+               {pf_opt_in_select},
+             pf_deduction, esi_deduction, professional_tax, other_deductions,
                bank_account_name, bank_name, bank_account_number, ifsc_code, pan_number,
                {active_expr}
         FROM staff
@@ -13057,7 +13135,11 @@ def update_staff_enhanced():
     hra = request.form.get('hra', type=float)
     transport_allowance = request.form.get('transport_allowance', type=float)
     other_allowances = request.form.get('other_allowances', type=float)
-    pf_deduction = request.form.get('pf_deduction', type=float)
+    dearness_allowance = request.form.get('dearness_allowance', type=float)
+    if dearness_allowance is None:
+        dearness_allowance = 0.0
+    pf_toggle_raw = request.form.get('pf_enabled')
+    pf_opt_in = 1 if str(pf_toggle_raw).strip().lower() in ['1', 'true', 'on', 'yes'] else 0
     esi_deduction = request.form.get('esi_deduction', type=float)
     professional_tax = request.form.get('professional_tax', type=float)
     other_deductions = request.form.get('other_deductions', type=float)
@@ -13071,6 +13153,20 @@ def update_staff_enhanced():
         return jsonify({'success': False, 'error': 'Staff ID, first name, and last name are required'})
 
     db = get_db()
+
+    active_staff_count = db.execute('''
+        SELECT COUNT(*) AS total
+        FROM staff
+        WHERE school_id = ? AND COALESCE(is_active, 1) = 1
+    ''', (school_id,)).fetchone()
+    company_employee_count = int((active_staff_count['total'] if active_staff_count else 0) or 0)
+    pf_components = calculate_pf_components(
+        basic_salary=float(basic_salary or 0),
+        dearness_allowance=float(dearness_allowance or 0),
+        pf_opt_in=bool(pf_opt_in),
+        company_employee_count=company_employee_count,
+    )
+    pf_deduction = float(pf_components.get('employee_pf', 0))
 
     # Handle photo upload (if any)
     photo_url = None
@@ -13192,7 +13288,13 @@ def update_staff_enhanced():
         if 'other_allowances' in column_names and other_allowances is not None:
             update_parts.append('other_allowances = ?')
             update_values.append(other_allowances)
-        if 'pf_deduction' in column_names and pf_deduction is not None:
+        if 'dearness_allowance' in column_names:
+            update_parts.append('dearness_allowance = ?')
+            update_values.append(dearness_allowance)
+        if 'pf_opt_in' in column_names:
+            update_parts.append('pf_opt_in = ?')
+            update_values.append(pf_opt_in)
+        if 'pf_deduction' in column_names:
             update_parts.append('pf_deduction = ?')
             update_values.append(pf_deduction)
         if 'esi_deduction' in column_names and esi_deduction is not None:

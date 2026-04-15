@@ -17,6 +17,7 @@ import sqlite3
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional, Tuple
 from database import get_db, calculate_hourly_rate, calculate_standard_working_hours_per_month, is_holiday
+from pf_calculator import calculate_pf_components
 import calendar
 
 
@@ -87,6 +88,133 @@ class SalaryCalculator:
             return value
         except (TypeError, ValueError):
             return None
+
+    @staticmethod
+    def _is_truthy(value) -> bool:
+        """Safely convert mixed DB/request values into boolean."""
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        if isinstance(value, (int, float)):
+            return value != 0
+        return str(value).strip().lower() in ['1', 'true', 'yes', 'on']
+
+    def _get_company_employee_count(self) -> int:
+        """Get active employee count for PF applicability threshold checks."""
+        if getattr(self, '_company_employee_count_cache', None) is not None:
+            return self._company_employee_count_cache
+
+        try:
+            db = self._get_db_connection()
+            staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+
+            if 'is_active' in staff_columns:
+                row = db.execute('''
+                    SELECT COUNT(*) AS total
+                    FROM staff
+                    WHERE school_id = ? AND COALESCE(is_active, 1) = 1
+                ''', (self.school_id,)).fetchone()
+            elif 'status' in staff_columns:
+                row = db.execute('''
+                    SELECT COUNT(*) AS total
+                    FROM staff
+                    WHERE school_id = ? AND LOWER(COALESCE(status, 'active')) = 'active'
+                ''', (self.school_id,)).fetchone()
+            else:
+                row = db.execute('''
+                    SELECT COUNT(*) AS total
+                    FROM staff
+                    WHERE school_id = ?
+                ''', (self.school_id,)).fetchone()
+
+            total = int((row['total'] if row and 'total' in row.keys() else row[0]) or 0)
+            self._company_employee_count_cache = total
+            return total
+        except Exception:
+            # Safe fallback to avoid blocking payroll calculations.
+            self._company_employee_count_cache = 0
+            return 0
+
+    def _calculate_pf_for_staff(self, staff_info: Dict) -> Dict[str, int]:
+        """Calculate PF contribution components for a staff member."""
+        basic_salary = self._to_float(staff_info.get('basic_salary', 0))
+        dearness_allowance = self._to_float(staff_info.get('dearness_allowance', 0))
+
+        # Backward-compatible opt-in interpretation for older records.
+        legacy_pf_deduction = self._to_float(staff_info.get('pf_deduction', 0))
+        pf_opt_in = self._is_truthy(staff_info.get('pf_opt_in')) or legacy_pf_deduction > 0
+
+        return calculate_pf_components(
+            basic_salary=basic_salary,
+            dearness_allowance=dearness_allowance,
+            pf_opt_in=pf_opt_in,
+            company_employee_count=self._get_company_employee_count(),
+        )
+
+    def _persist_pf_record(self, staff_info: Dict, year: int, month: int, pf_components: Dict[str, int]):
+        """Persist month-wise PF breakup for payroll audit/reporting."""
+        try:
+            db = self._get_db_connection()
+            db.execute('''
+                CREATE TABLE IF NOT EXISTS payroll_pf_records (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    school_id INTEGER NOT NULL,
+                    staff_id INTEGER NOT NULL,
+                    year INTEGER NOT NULL,
+                    month INTEGER NOT NULL,
+                    pf_wage REAL DEFAULT 0,
+                    employee_pf REAL DEFAULT 0,
+                    employer_epf REAL DEFAULT 0,
+                    eps REAL DEFAULT 0,
+                    edli REAL DEFAULT 0,
+                    admin_charges REAL DEFAULT 0,
+                    pf_applicable INTEGER DEFAULT 0,
+                    company_pf_applicable INTEGER DEFAULT 0,
+                    mandatory_pf INTEGER DEFAULT 0,
+                    pf_opt_in INTEGER DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    UNIQUE(school_id, staff_id, year, month)
+                )
+            ''')
+
+            db.execute('''
+                DELETE FROM payroll_pf_records
+                WHERE school_id = ? AND staff_id = ? AND year = ? AND month = ?
+            ''', (
+                staff_info.get('school_id', self.school_id),
+                staff_info.get('id'),
+                year,
+                month,
+            ))
+
+            db.execute('''
+                INSERT INTO payroll_pf_records (
+                    school_id, staff_id, year, month,
+                    pf_wage, employee_pf, employer_epf, eps, edli, admin_charges,
+                    pf_applicable, company_pf_applicable, mandatory_pf, pf_opt_in,
+                    created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            ''', (
+                staff_info.get('school_id', self.school_id),
+                staff_info.get('id'),
+                year,
+                month,
+                pf_components.get('pf_wage', 0),
+                pf_components.get('employee_pf', 0),
+                pf_components.get('employer_epf', 0),
+                pf_components.get('eps', 0),
+                pf_components.get('edli', 0),
+                pf_components.get('admin_charges', 0),
+                pf_components.get('pf_applicable', 0),
+                pf_components.get('company_pf_applicable', 0),
+                pf_components.get('mandatory_pf', 0),
+                pf_components.get('pf_opt_in', 0),
+            ))
+            db.commit()
+        except Exception as e:
+            print(f"Error persisting payroll PF record: {e}")
     
     def _ensure_salary_rules_table(self):
         """Ensure the salary_rules table exists"""
@@ -437,6 +565,18 @@ class SalaryCalculator:
                 staff_info, attendance_data, leave_data, permission_data, working_days, year, month
             )
             salary_breakdown = self._apply_manual_salary_adjustments(staff_id, year, month, salary_breakdown)
+            self._persist_pf_record(staff_info, year, month, {
+                'pf_wage': salary_breakdown.get('deductions', {}).get('pf_wage', 0),
+                'employee_pf': salary_breakdown.get('deductions', {}).get('employee_pf', 0),
+                'employer_epf': salary_breakdown.get('deductions', {}).get('employer_epf', 0),
+                'eps': salary_breakdown.get('deductions', {}).get('eps', 0),
+                'edli': salary_breakdown.get('deductions', {}).get('edli', 0),
+                'admin_charges': salary_breakdown.get('deductions', {}).get('admin_charges', 0),
+                'pf_applicable': salary_breakdown.get('deductions', {}).get('pf_applicable', 0),
+                'company_pf_applicable': salary_breakdown.get('deductions', {}).get('company_pf_applicable', 0),
+                'mandatory_pf': salary_breakdown.get('deductions', {}).get('mandatory_pf', 0),
+                'pf_opt_in': salary_breakdown.get('deductions', {}).get('pf_opt_in', 0),
+            })
             
             return {
                 'success': True,
@@ -492,6 +632,18 @@ class SalaryCalculator:
                 actual_hours_worked, standard_monthly_hours, hourly_rate, year, month
             )
             salary_breakdown = self._apply_manual_salary_adjustments(staff_id, year, month, salary_breakdown)
+            self._persist_pf_record(staff_info, year, month, {
+                'pf_wage': salary_breakdown.get('pf_wage', 0),
+                'employee_pf': salary_breakdown.get('employee_pf', 0),
+                'employer_epf': salary_breakdown.get('employer_epf', 0),
+                'eps': salary_breakdown.get('eps', 0),
+                'edli': salary_breakdown.get('edli', 0),
+                'admin_charges': salary_breakdown.get('admin_charges', 0),
+                'pf_applicable': salary_breakdown.get('pf_applicable', 0),
+                'company_pf_applicable': salary_breakdown.get('company_pf_applicable', 0),
+                'mandatory_pf': salary_breakdown.get('mandatory_pf', 0),
+                'pf_opt_in': salary_breakdown.get('pf_opt_in', 0),
+            })
 
             return {
                 'success': True,
@@ -619,7 +771,8 @@ class SalaryCalculator:
         leave_pay = leave_summary['leave_pay']
 
         # Calculate deductions
-        pf_deduction = self._to_float(staff_info.get('pf_deduction', 0))
+        pf_components = self._calculate_pf_for_staff(staff_info)
+        pf_deduction = self._to_float(pf_components.get('employee_pf', 0))
         esi_deduction = self._to_float(staff_info.get('esi_deduction', 0))
         professional_tax = self._to_float(staff_info.get('professional_tax', 0))
         other_deductions = self._to_float(staff_info.get('other_deductions', 0))
@@ -661,6 +814,16 @@ class SalaryCalculator:
             'leave_pay': round(leave_pay, 2),
             'total_earnings': round(total_earnings, 2),
             'pf_deduction': round(pf_deduction, 2),
+            'employee_pf': round(self._to_float(pf_components.get('employee_pf', 0)), 2),
+            'employer_epf': round(self._to_float(pf_components.get('employer_epf', 0)), 2),
+            'eps': round(self._to_float(pf_components.get('eps', 0)), 2),
+            'edli': round(self._to_float(pf_components.get('edli', 0)), 2),
+            'admin_charges': round(self._to_float(pf_components.get('admin_charges', 0)), 2),
+            'pf_wage': round(self._to_float(pf_components.get('pf_wage', 0)), 2),
+            'pf_applicable': int(pf_components.get('pf_applicable', 0)),
+            'company_pf_applicable': int(pf_components.get('company_pf_applicable', 0)),
+            'mandatory_pf': int(pf_components.get('mandatory_pf', 0)),
+            'pf_opt_in': int(pf_components.get('pf_opt_in', 0)),
             'esi_deduction': round(esi_deduction, 2),
             'professional_tax': round(professional_tax, 2),
             'other_deductions': round(other_deductions, 2),
@@ -675,6 +838,8 @@ class SalaryCalculator:
         """Get staff information including salary details"""
         db = self._get_db_connection()
         staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+        pf_opt_in_select = 'COALESCE(s.pf_opt_in, 0) AS pf_opt_in' if 'pf_opt_in' in staff_columns else '0 AS pf_opt_in'
+        da_select = 'COALESCE(s.dearness_allowance, 0) AS dearness_allowance' if 'dearness_allowance' in staff_columns else '0 AS dearness_allowance'
         active_filter = ''
         if 'is_active' in staff_columns:
             active_filter = ' AND COALESCE(s.is_active, 1) = 1'
@@ -689,6 +854,8 @@ class SalaryCalculator:
                    s.transport_allowance,
                    s.other_allowances,
                    s.pf_deduction,
+                     {pf_opt_in_select},
+                     {da_select},
                    s.esi_deduction,
                    s.professional_tax,
                    s.other_deductions
@@ -993,7 +1160,8 @@ class SalaryCalculator:
         )
         
         # Total deductions
-        pf_deduction = self._to_float(staff_info.get('pf_deduction', 0))
+        pf_components = self._calculate_pf_for_staff(staff_info)
+        pf_deduction = self._to_float(pf_components.get('employee_pf', 0))
         esi_deduction = self._to_float(staff_info.get('esi_deduction', 0))
         professional_tax = self._to_float(staff_info.get('professional_tax', 0))
         other_deductions = self._to_float(staff_info.get('other_deductions', 0))
@@ -1052,6 +1220,16 @@ class SalaryCalculator:
                 'late_arrival_penalty': round(late_arrival_penalty, 2),
                 'single_punch_penalty': round(single_punch_penalty, 2),
                 'pf_deduction': pf_deduction,
+                'employee_pf': self._to_float(pf_components.get('employee_pf', 0)),
+                'employer_epf': self._to_float(pf_components.get('employer_epf', 0)),
+                'eps': self._to_float(pf_components.get('eps', 0)),
+                'edli': self._to_float(pf_components.get('edli', 0)),
+                'admin_charges': self._to_float(pf_components.get('admin_charges', 0)),
+                'pf_wage': self._to_float(pf_components.get('pf_wage', 0)),
+                'pf_applicable': int(pf_components.get('pf_applicable', 0)),
+                'company_pf_applicable': int(pf_components.get('company_pf_applicable', 0)),
+                'mandatory_pf': int(pf_components.get('mandatory_pf', 0)),
+                'pf_opt_in': int(pf_components.get('pf_opt_in', 0)),
                 'esi_deduction': esi_deduction,
                 'professional_tax': professional_tax,
                 'other_deductions': other_deductions,

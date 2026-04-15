@@ -20,7 +20,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Wire deduction on/off toggles in add form
     initializeDeductionToggles('add');
+    initializePFAutoCalculation('add');
 });
+
+const PF_UI_RULES = {
+    employeeRate: 0.12
+};
 
 function deductionToggleConfig(prefix = 'add') {
     if (prefix === 'edit') {
@@ -85,7 +90,72 @@ function normalizeDeductionFields(formData, prefix = 'add') {
 
         const currentValue = String(input.value ?? '').trim();
         formData.set(cfg.field, currentValue === '' ? '0' : currentValue);
+
+        if (cfg.field === 'pf_deduction') {
+            formData.set('pf_enabled', toggle.checked ? '1' : '0');
+        }
     });
+}
+
+function calculatePfFromSalaryForUi(basicSalary, dearnessAllowance, pfEnabled) {
+    if (!pfEnabled) {
+        return 0;
+    }
+
+    const basic = Number(basicSalary || 0);
+    const da = Number(dearnessAllowance || 0);
+    const pfWage = Math.max(0, basic) + Math.max(0, da);
+    return Math.round(pfWage * PF_UI_RULES.employeeRate);
+}
+
+function syncPfDeductionField(prefix = 'add') {
+    const isEdit = prefix === 'edit';
+    const basicSalaryInput = document.getElementById(isEdit ? 'editBasicSalary' : 'addBasicSalary');
+    const daInput = document.getElementById(isEdit ? 'editDearnessAllowance' : 'addDearnessAllowance');
+    const pfToggle = document.getElementById(isEdit ? 'editPFDeductionToggle' : 'addPFDeductionToggle');
+    const pfInput = document.getElementById(isEdit ? 'editPFDeduction' : 'addPFDeduction');
+
+    if (!basicSalaryInput || !pfToggle || !pfInput) {
+        return;
+    }
+
+    const pfAmount = calculatePfFromSalaryForUi(
+        basicSalaryInput.value,
+        daInput ? daInput.value : 0,
+        pfToggle.checked
+    );
+
+    if (pfToggle.checked) {
+        pfInput.value = String(pfAmount);
+    } else {
+        pfInput.value = '0';
+    }
+}
+
+function initializePFAutoCalculation(prefix = 'add') {
+    const isEdit = prefix === 'edit';
+    const basicSalaryInput = document.getElementById(isEdit ? 'editBasicSalary' : 'addBasicSalary');
+    const daInput = document.getElementById(isEdit ? 'editDearnessAllowance' : 'addDearnessAllowance');
+    const pfToggle = document.getElementById(isEdit ? 'editPFDeductionToggle' : 'addPFDeductionToggle');
+
+    if (!basicSalaryInput || !pfToggle) {
+        return;
+    }
+
+    const recalculate = () => syncPfDeductionField(prefix);
+
+    basicSalaryInput.removeEventListener('input', recalculate);
+    basicSalaryInput.addEventListener('input', recalculate);
+
+    if (daInput) {
+        daInput.removeEventListener('input', recalculate);
+        daInput.addEventListener('input', recalculate);
+    }
+
+    pfToggle.removeEventListener('change', recalculate);
+    pfToggle.addEventListener('change', recalculate);
+
+    recalculate();
 }
 
 function initializeEnhancedUI() {
@@ -805,6 +875,16 @@ function populateEditForm(staff) {
                     </div>
                     <small class="form-text">Other monthly allowances</small>
                 </div>
+                <div class="rule-item">
+                    <label for="editDearnessAllowance" class="form-label">
+                        <i class="bi bi-calculator"></i> Dearness Allowance (DA)
+                    </label>
+                    <div class="input-group">
+                        <span class="input-group-text">₹</span>
+                        <input type="number" class="form-control" id="editDearnessAllowance" name="dearness_allowance" step="0.01" min="0" value="${staff.dearness_allowance || 0}" title="Enter dearness allowance used for PF wage">
+                    </div>
+                    <small class="form-text">PF wage = Basic + DA</small>
+                </div>
             </div>
         </div>
 
@@ -820,7 +900,7 @@ function populateEditForm(staff) {
                             <i class="bi bi-piggy-bank"></i> PF Deduction
                         </label>
                         <div class="form-check form-switch m-0">
-                            <input class="form-check-input deduction-toggle" type="checkbox" id="editPFDeductionToggle" ${Number(staff.pf_deduction || 0) > 0 ? 'checked' : ''}>
+                            <input class="form-check-input deduction-toggle" type="checkbox" id="editPFDeductionToggle" name="pf_enabled" ${Number(staff.pf_opt_in || 0) === 1 || Number(staff.pf_deduction || 0) > 0 ? 'checked' : ''}>
                         </div>
                     </div>
                     <div class="input-group">
@@ -883,6 +963,7 @@ function populateEditForm(staff) {
 
     // Wire deduction toggles for dynamically rendered edit form
     initializeDeductionToggles('edit');
+    initializePFAutoCalculation('edit');
 
     // Load departments dynamically for edit form
     loadDepartmentsForEdit(staff.department);

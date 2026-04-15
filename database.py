@@ -409,6 +409,8 @@ def init_db(app):
             hra DECIMAL(10,2) DEFAULT 0.00,
             transport_allowance DECIMAL(10,2) DEFAULT 0.00,
             other_allowances DECIMAL(10,2) DEFAULT 0.00,
+            dearness_allowance DECIMAL(10,2) DEFAULT 0.00,
+            pf_opt_in INTEGER DEFAULT 0,
             pf_deduction DECIMAL(10,2) DEFAULT 0.00,
             esi_deduction DECIMAL(10,2) DEFAULT 0.00,
             professional_tax DECIMAL(10,2) DEFAULT 0.00,
@@ -1073,6 +1075,29 @@ def init_db(app):
         )
         ''')
 
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS payroll_pf_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            staff_id INTEGER NOT NULL,
+            year INTEGER NOT NULL,
+            month INTEGER NOT NULL,
+            pf_wage REAL DEFAULT 0,
+            employee_pf REAL DEFAULT 0,
+            employer_epf REAL DEFAULT 0,
+            eps REAL DEFAULT 0,
+            edli REAL DEFAULT 0,
+            admin_charges REAL DEFAULT 0,
+            pf_applicable INTEGER DEFAULT 0,
+            company_pf_applicable INTEGER DEFAULT 0,
+            mandatory_pf INTEGER DEFAULT 0,
+            pf_opt_in INTEGER DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(school_id, staff_id, year, month)
+        )
+        ''')
+
         if _USE_MYSQL:
             cursor.execute(
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS "
@@ -1130,6 +1155,8 @@ def init_db(app):
         ensure_column_exists('staff', 'bank_account_number TEXT', 'bank_account_number')
         ensure_column_exists('staff', 'ifsc_code TEXT', 'ifsc_code')
         ensure_column_exists('staff', 'pan_number TEXT', 'pan_number')
+        ensure_column_exists('staff', 'dearness_allowance DECIMAL(10,2) DEFAULT 0.00', 'dearness_allowance')
+        ensure_column_exists('staff', 'pf_opt_in INTEGER DEFAULT 0', 'pf_opt_in')
 
         # Enhanced attendance tracking columns
         ensure_column_exists('attendance', 'late_duration_minutes INTEGER DEFAULT 0', 'late_duration_minutes')
