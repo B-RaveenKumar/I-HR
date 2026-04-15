@@ -557,7 +557,7 @@
                             <h5 class="card-title">Master Schedule Periods</h5>
                             <p class="card-subtitle">Define daily periods for timetable scheduling</p>
                         </div>
-                        <div class="header-actions d-flex gap-2">
+                        <div class="header-actions d-flex gap-2 flex-wrap">
                             <select id="filterDay" class="form-select form-select-sm" style="width: 150px;"
                                 onchange="loadPeriods()">
                                 <option value="">All Days</option>
@@ -578,6 +578,12 @@
                                 <option value="">All Sections</option>
                             </select>
                             {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Timetable', {}).get('edit') %}
+                            <button type="button" class="btn btn-outline-light btn-sm" onclick="downloadPeriodTemplate()" title="Download sample Master Schedule Periods sheet">
+                                <i class="bi bi-file-earmark-arrow-down"></i> Sample Sheet
+                            </button>
+                            <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#bulkUploadPeriodModal" title="Bulk upload periods from Excel or CSV">
+                                <i class="bi bi-upload"></i> Bulk Upload
+                            </button>
                             <button type="button" class="btn btn-primary btn-sm" onclick="showAddPeriodModal()">
                                 <i class="bi bi-plus-circle"></i> Add Period
                             </button>
@@ -1059,6 +1065,43 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         <button type="submit" class="btn btn-primary" id="bulkPeriodTimingUploadSubmitBtn">
                             <i class="bi bi-cloud-upload"></i> Upload Time Slots
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Upload Master Schedule Periods Modal -->
+    <div class="modal fade" id="bulkUploadPeriodModal" tabindex="-1" aria-labelledby="bulkUploadPeriodModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bulkUploadPeriodModalLabel">
+                        <i class="bi bi-upload"></i> Bulk Upload Master Schedule Periods
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="bulkUploadPeriodForm">
+                    <div class="modal-body">
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Download the sample sheet first, fill all fields exactly like Add Period form, then upload. Use Period Sequence from your school's Period Timings (dropdown provided in the sample sheet).
+                        </div>
+                        <div class="mb-3">
+                            <label for="bulkPeriodFile" class="form-label">Upload Periods File</label>
+                            <input type="file" class="form-control" id="bulkPeriodFile" name="file" accept=".xlsx,.xls,.csv" required>
+                            <small class="form-text text-muted">Supported formats: .xlsx, .xls, .csv. Use the same column names from sample sheet.</small>
+                        </div>
+                        <div id="bulkPeriodUploadResult" class="d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" onclick="downloadPeriodTemplate()">
+                            <i class="bi bi-download"></i> Download Sample Sheet
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="bulkPeriodUploadSubmitBtn">
+                            <i class="bi bi-cloud-upload"></i> Upload Periods
                         </button>
                     </div>
                 </form>

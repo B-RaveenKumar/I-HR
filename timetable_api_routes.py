@@ -518,6 +518,368 @@ def bulk_upload_period_timings():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@timetable_api.route('/api/timetable/periods/template', methods=['GET'])
+@admin_required
+def download_period_template():
+    """Download sample sheet for Master Schedule Periods bulk upload with school-wise Period Sequence dropdown."""
+    try:
+        import pandas as pd
+        from io import BytesIO
+        from openpyxl.worksheet.datavalidation import DataValidation
+
+        school_id = request.args.get('school_id') or session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+
+        db = get_db()
+        cursor = db.cursor()
+
+        # Get all active Period Timings for this school to populate period_sequence dropdown.
+        cursor.execute('''
+            SELECT id, slot_label, period_sequence, start_time, end_time
+            FROM timetable_period_timings
+            WHERE school_id = ? AND is_active = 1
+            ORDER BY COALESCE(period_sequence, 9999) ASC
+        ''', (school_id,))
+
+        timings = cursor.fetchall()
+        if not timings:
+            return jsonify({
+                'success': False,
+                'error': 'No Period Timings found. Create Period Timings first before adding Master Schedule Periods.'
+            }), 400
+
+        # Load class/section examples for this school.
+        cursor.execute('''
+            SELECT id, level_name
+            FROM timetable_academic_levels
+            WHERE school_id = ? AND COALESCE(is_active, 1) = 1
+            ORDER BY level_number ASC, id ASC
+        ''', (school_id,))
+        levels = cursor.fetchall()
+
+        sample_class = levels[0]['level_name'] if levels else 'Grade 1'
+        sample_section = 'A'
+        if levels:
+            cursor.execute('''
+                SELECT section_name
+                FROM timetable_sections
+                WHERE school_id = ? AND level_id = ? AND COALESCE(is_active, 1) = 1
+                ORDER BY section_name ASC, id ASC
+                LIMIT 1
+            ''', (school_id, levels[0]['id']))
+            sec = cursor.fetchone()
+            if sec and sec['section_name']:
+                sample_section = sec['section_name']
+
+        day_values = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+        period_sequences = [t['period_sequence'] for t in timings if t['period_sequence'] is not None]
+        period_sequences = sorted(set(period_sequences))
+        if not period_sequences:
+            return jsonify({
+                'success': False,
+                'error': 'Period Timings have no period_sequence values. Set sequence first.'
+            }), 400
+
+        # Template data with human-readable fields requested by user.
+        template_data = {
+            'class': [sample_class, sample_class],
+            'section': [sample_section, sample_section],
+            'day': ['Monday', 'Monday'],
+            'period': ['Period 1', 'Period 2'],
+            'period_sequence': [period_sequences[0], period_sequences[min(1, len(period_sequences) - 1)]]
+        }
+
+        instructions_data = {
+            'Field': [
+                'class',
+                'section',
+                'day',
+                'period',
+                'period_sequence'
+            ],
+            'Required': ['Yes', 'Yes', 'Yes', 'Yes', 'Yes'],
+            'Format / Notes': [
+                'Class/grade name exactly as in timetable setup. Example: Grade 8',
+                'Section name for the selected class. Example: A',
+                'Day name (Sunday..Saturday) or day number 0..6',
+                'Period label/subject. Example: Mathematics, Lab, Period 1',
+                'Use period sequence from Period Timings (not time_slot_id). Dropdown is provided in template.'
+            ]
+        }
+
+        dropdown_data = {
+            'period_sequence': [int(x) for x in period_sequences],
+            'slot_label': [next((t['slot_label'] for t in timings if t['period_sequence'] == x), '') for x in period_sequences],
+            'start_time': [next((_time_to_hhmm(t['start_time']) for t in timings if t['period_sequence'] == x), '') for x in period_sequences],
+            'end_time': [next((_time_to_hhmm(t['end_time']) for t in timings if t['period_sequence'] == x), '') for x in period_sequences]
+        }
+
+        class_section_rows = []
+        for lvl in levels:
+            cursor.execute('''
+                SELECT section_name
+                FROM timetable_sections
+                WHERE school_id = ? AND level_id = ? AND COALESCE(is_active, 1) = 1
+                ORDER BY section_name ASC
+            ''', (school_id, lvl['id']))
+            secs = cursor.fetchall()
+            for s in secs:
+                class_section_rows.append({'class': lvl['level_name'], 'section': s['section_name']})
+        if not class_section_rows:
+            class_section_rows = [{'class': sample_class, 'section': sample_section}]
+
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            pd.DataFrame(template_data).to_excel(
+                writer,
+                sheet_name='Master Schedule Periods',
+                index=False
+            )
+            pd.DataFrame(instructions_data).to_excel(
+                writer,
+                sheet_name='Instructions',
+                index=False
+            )
+            pd.DataFrame(dropdown_data).to_excel(
+                writer,
+                sheet_name='Period Timings Reference',
+                index=False
+            )
+            pd.DataFrame(day_values, columns=['day']).to_excel(
+                writer,
+                sheet_name='Day Reference',
+                index=False
+            )
+            pd.DataFrame(class_section_rows).to_excel(
+                writer,
+                sheet_name='Class Section Reference',
+                index=False
+            )
+
+            # Add dropdown validation in template sheet for period_sequence column.
+            workbook = writer.book
+            sheet = workbook['Master Schedule Periods']
+            ref_last_row = len(dropdown_data['period_sequence']) + 1
+            if ref_last_row >= 2:
+                dv = DataValidation(
+                    type='list',
+                    formula1=f"'Period Timings Reference'!$A$2:$A${ref_last_row}",
+                    allow_blank=False
+                )
+                sheet.add_data_validation(dv)
+                dv.add('E2:E500')
+
+        output.seek(0)
+        response = make_response(output.getvalue())
+        response.headers['Content-Disposition'] = 'attachment; filename=master_schedule_periods_template.xlsx'
+        response.headers['Content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        return response
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/periods/bulk-upload', methods=['POST'])
+@admin_required
+def bulk_upload_periods():
+    """Bulk upload Master Schedule Periods for a school."""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+
+        file = request.files['file']
+        if not file or not file.filename:
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+        filename = file.filename.lower()
+        if not (filename.endswith('.xlsx') or filename.endswith('.xls') or filename.endswith('.csv')):
+            return jsonify({'success': False, 'error': 'Unsupported file format. Use .xlsx, .xls, or .csv'}), 400
+
+        import pandas as pd
+
+        try:
+            if filename.endswith('.csv'):
+                df = pd.read_csv(file.stream)
+            else:
+                df = pd.read_excel(file)
+        except Exception as read_err:
+            return jsonify({'success': False, 'error': f'Unable to read file: {read_err}'}), 400
+
+        if df.empty:
+            return jsonify({'success': False, 'error': 'Uploaded file is empty'}), 400
+
+        school_id = request.form.get('school_id') or session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+
+        try:
+            school_id = int(school_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Invalid school ID'}), 400
+
+        df.columns = [str(c).strip().lower() for c in df.columns]
+
+        # Human-readable columns expected in sample sheet.
+        required_columns = ['class', 'section', 'day', 'period', 'period_sequence']
+        missing_columns = [c for c in required_columns if c not in df.columns]
+        if missing_columns:
+            return jsonify({
+                'success': False,
+                'error': f"Missing required column(s): {', '.join(missing_columns)}"
+            }), 400
+
+        def clean_text(value):
+            if pd.isna(value):
+                return ''
+            text = str(value).strip()
+            if text.lower() in {'nan', 'none', 'null'}:
+                return ''
+            return text
+
+        db = get_db()
+        cursor = db.cursor()
+
+        errors = []
+        imported_count = 0
+
+        day_map = {
+            '0': 0, 'sun': 0, 'sunday': 0,
+            '1': 1, 'mon': 1, 'monday': 1,
+            '2': 2, 'tue': 2, 'tues': 2, 'tuesday': 2,
+            '3': 3, 'wed': 3, 'wednesday': 3,
+            '4': 4, 'thu': 4, 'thur': 4, 'thurs': 4, 'thursday': 4,
+            '5': 5, 'fri': 5, 'friday': 5,
+            '6': 6, 'sat': 6, 'saturday': 6
+        }
+
+        for row_no, row in enumerate(df.to_dict(orient='records'), start=2):
+            class_name = clean_text(row.get('class'))
+            section_name = clean_text(row.get('section'))
+            day_raw = clean_text(row.get('day'))
+            period_name = clean_text(row.get('period'))
+            period_sequence_raw = clean_text(row.get('period_sequence'))
+
+            if not all([class_name, section_name, day_raw, period_name, period_sequence_raw]):
+                errors.append(f'Row {row_no}: class, section, day, period, and period_sequence are required')
+                continue
+
+            # Resolve class/section names to IDs.
+            cursor.execute('''
+                SELECT id
+                FROM timetable_academic_levels
+                WHERE school_id = ? AND LOWER(level_name) = LOWER(?) AND COALESCE(is_active, 1) = 1
+                LIMIT 1
+            ''', (school_id, class_name))
+            level_row = cursor.fetchone()
+            if not level_row:
+                errors.append(f'Row {row_no}: class "{class_name}" not found')
+                continue
+            level_id = level_row['id']
+
+            cursor.execute('''
+                SELECT id
+                FROM timetable_sections
+                WHERE school_id = ? AND level_id = ? AND LOWER(section_name) = LOWER(?) AND COALESCE(is_active, 1) = 1
+                LIMIT 1
+            ''', (school_id, level_id, section_name))
+            section_row = cursor.fetchone()
+            if not section_row:
+                errors.append(f'Row {row_no}: section "{section_name}" not found under class "{class_name}"')
+                continue
+            section_id = section_row['id']
+
+            day_key = day_raw.strip().lower()
+            if day_key not in day_map:
+                errors.append(f'Row {row_no}: day must be Sunday..Saturday or 0..6')
+                continue
+            day_of_week = day_map[day_key]
+
+            # Map period_sequence to school's time slot.
+            try:
+                period_sequence = int(float(period_sequence_raw))
+            except (TypeError, ValueError):
+                errors.append(f'Row {row_no}: period_sequence must be a valid integer')
+                continue
+
+            cursor.execute('''
+                SELECT id, period_sequence, start_time, end_time, duration_minutes
+                FROM timetable_period_timings
+                WHERE school_id = ? AND period_sequence = ? AND is_active = 1
+                ORDER BY id DESC
+                LIMIT 1
+            ''', (school_id, period_sequence))
+            timing = cursor.fetchone()
+            if not timing:
+                errors.append(f'Row {row_no}: no active Period Timing found for period_sequence {period_sequence}')
+                continue
+            time_slot_id = timing['id']
+
+            # Check for duplicates: (level_id, section_id, day_of_week, period_name, time_slot_id)
+            cursor.execute('''
+                SELECT id FROM timetable_periods
+                WHERE school_id = ? 
+                    AND COALESCE(level_id, 0) = COALESCE(?, 0)
+                    AND COALESCE(section_id, 0) = COALESCE(?, 0)
+                    AND day_of_week = ?
+                    AND LOWER(period_name) = LOWER(?)
+                    AND time_slot_id = ?
+            ''', (school_id, level_id, section_id, day_of_week, period_name, time_slot_id))
+
+            if cursor.fetchone():
+                errors.append(f'Row {row_no}: this period combination already exists')
+                continue
+
+            # Get period_number from time slot sequence.
+            period_number = timing['period_sequence'] if timing and timing['period_sequence'] else None
+
+            if period_number is None:
+                # Auto-increment if no sequence is defined
+                cursor.execute('''
+                    SELECT MAX(period_number) FROM timetable_periods
+                    WHERE school_id = ? AND COALESCE(level_id, 0) = COALESCE(?, 0)
+                    AND COALESCE(section_id, 0) = COALESCE(?, 0)
+                ''', (school_id, level_id, section_id))
+
+                max_val = cursor.fetchone()[0]
+                period_number = (max_val or 0) + 1
+
+            start_time = timing['start_time']
+            end_time = timing['end_time']
+            duration = timing['duration_minutes']
+
+            # Insert the period
+            try:
+                cursor.execute('''
+                    INSERT INTO timetable_periods
+                    (school_id, level_id, section_id, day_of_week, period_number, period_name,
+                     start_time, end_time, duration_minutes, time_slot_id)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (school_id, level_id, section_id, day_of_week, period_number, period_name,
+                      start_time, end_time, duration, time_slot_id))
+                imported_count += 1
+            except Exception as insert_err:
+                errors.append(f'Row {row_no}: failed to insert - {str(insert_err)}')
+
+        if imported_count > 0:
+            db.commit()
+
+        total_rows = len(df.index)
+        failed_count = max(total_rows - imported_count, 0)
+
+        return jsonify({
+            'success': True,
+            'message': 'Master Schedule Periods bulk upload completed',
+            'total_rows': total_rows,
+            'imported_count': imported_count,
+            'failed_count': failed_count,
+            'errors': errors
+        })
+
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @timetable_api.route('/api/timetable/period-timing/save', methods=['POST'])
 @admin_required
 def save_period_timing():

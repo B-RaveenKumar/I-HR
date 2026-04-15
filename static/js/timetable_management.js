@@ -29,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadStaffList();
     loadStaffAssignmentsSummary();
     initPeriodTimingBulkUpload();
+    initPeriodBulkUpload();
 });
 
 // ==========================================================================
@@ -543,6 +544,111 @@ function savePeriod() {
             }
         })
         .catch(err => showAlert('Error saving period: ' + err.message, 'error'));
+}
+
+function downloadPeriodTemplate() {
+    window.location.href = '/api/timetable/periods/template?school_id=' + schoolId;
+}
+
+function initPeriodBulkUpload() {
+    const form = document.getElementById('bulkUploadPeriodForm');
+    if (!form) return;
+
+    form.addEventListener('submit', handlePeriodBulkUpload);
+
+    const modalEl = document.getElementById('bulkUploadPeriodModal');
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            const resultBox = document.getElementById('bulkPeriodUploadResult');
+            if (resultBox) {
+                resultBox.className = 'd-none';
+                resultBox.innerHTML = '';
+            }
+            form.reset();
+        });
+    }
+}
+
+function handlePeriodBulkUpload(e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const fileInput = document.getElementById('bulkPeriodFile');
+    const submitBtn = document.getElementById('bulkPeriodUploadSubmitBtn');
+    const resultBox = document.getElementById('bulkPeriodUploadResult');
+
+    if (!fileInput || !fileInput.files || !fileInput.files.length) {
+        showAlert('Please select an Excel/CSV file to upload.', 'error');
+        return;
+    }
+
+    const formData = new FormData(form);
+    formData.append('school_id', schoolId);
+
+    const originalBtnHtml = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+
+    resultBox.className = 'd-none';
+    resultBox.innerHTML = '';
+
+    fetch('/api/timetable/periods/bulk-upload', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                resultBox.className = 'alert alert-danger';
+                resultBox.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${data.error || 'Bulk upload failed'}`;
+                resultBox.classList.remove('d-none');
+                return;
+            }
+
+            const importedCount = data.imported_count || 0;
+            const totalRows = data.total_rows || 0;
+            const failedCount = Math.max((data.failed_count ?? (totalRows - importedCount)), 0);
+            const errors = Array.isArray(data.errors) ? data.errors : [];
+
+            let errorsHtml = '';
+            if (errors.length) {
+                const topErrors = errors.slice(0, 10).map(err => `<li>${err}</li>`).join('');
+                const moreErrors = errors.length > 10 ? `<li>...and ${errors.length - 10} more error(s)</li>` : '';
+                errorsHtml = `
+                    <hr>
+                    <div class="mb-1"><strong>Import issues:</strong></div>
+                    <ul class="mb-0">${topErrors}${moreErrors}</ul>
+                `;
+            }
+
+            resultBox.className = errors.length ? 'alert alert-warning' : 'alert alert-success';
+            resultBox.innerHTML = `
+                <div><strong>Bulk upload completed.</strong></div>
+                <div>Imported: ${importedCount} | Failed: ${failedCount} | Total rows: ${totalRows}</div>
+                ${errorsHtml}
+            `;
+            resultBox.classList.remove('d-none');
+
+            if (importedCount > 0) {
+                showAlert(`Bulk upload complete: ${importedCount} period(s) imported.`, 'success');
+                loadPeriods();
+            } else {
+                showAlert('No periods were imported. Check the file and try again.', 'error');
+            }
+        })
+        .catch(err => {
+            resultBox.className = 'alert alert-danger';
+            resultBox.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Upload failed: ${err.message}`;
+            resultBox.classList.remove('d-none');
+            showAlert('Bulk upload failed. Please try again.', 'error');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
+        });
 }
 
 // ==========================================================================
