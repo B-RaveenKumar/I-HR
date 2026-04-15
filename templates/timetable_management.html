@@ -443,7 +443,14 @@
                                     <h6 class="section-title m-0">
                                         <i class="bi bi-stack me-2"></i> Grades / Academic Levels
                                     </h6>
-                                    <span class="badge bg-secondary" id="orgTypeBadge">School</span>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <span class="badge bg-secondary" id="orgTypeBadge">School</span>
+                                        {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Timetable', {}).get('edit') %}
+                                        <button class="btn btn-primary btn-sm shadow-sm" onclick="showAddLevelModal()">
+                                            <i class="bi bi-plus-circle"></i> Add Class
+                                        </button>
+                                        {% endif %}
+                                    </div>
                                 </div>
                                 <div id="levelsListContainer" class="list-group shadow-sm border rounded"
                                     style="max-height: 350px; overflow-y: auto; background: white;">
@@ -1129,6 +1136,43 @@
                     <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-primary px-4 shadow-sm" onclick="saveSection()">Create
                         Section</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Class/Level Modal -->
+    <div class="modal fade" id="addLevelModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content shadow-lg border-0">
+                <div class="modal-header border-0 pb-0">
+                    <h5 class="modal-title fw-bold">Add Class / Academic Level</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <form id="addLevelForm">
+                        <div class="mb-3">
+                            <label class="form-label fw-600">Class / Level Name</label>
+                            <input type="text" id="newLevelName" class="form-control enhanced-select"
+                                placeholder="e.g. Class 13 or Year 5" required>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-600">Level Number (Optional)</label>
+                            <input type="number" id="newLevelNumber" class="form-control enhanced-select" min="1"
+                                placeholder="e.g. 13">
+                            <small class="text-muted">Leave empty to auto-assign next level number.</small>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label fw-600">Description (Optional)</label>
+                            <input type="text" id="newLevelDescription" class="form-control enhanced-select"
+                                placeholder="Optional description">
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light px-4" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary px-4 shadow-sm" onclick="createLevel()">Create
+                        Class</button>
                 </div>
             </div>
         </div>

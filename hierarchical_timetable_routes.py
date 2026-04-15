@@ -109,6 +109,46 @@ def update_academic_level(level_id):
         logger.error(f"Error updating academic level: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@hierarchical_bp.route('/levels/create', methods=['POST'])
+@check_admin_auth
+def create_academic_level():
+    """Create a new academic level"""
+    try:
+        school_id = session.get('school_id')
+        data = request.json or {}
+
+        level_name = data.get('level_name')
+        level_number = data.get('level_number')
+        description = data.get('description')
+
+        if not level_name:
+            return jsonify({'success': False, 'error': 'Level name is required'}), 400
+
+        result = HierarchicalTimetableManager.create_academic_level(
+            school_id,
+            level_name,
+            level_number,
+            description
+        )
+        return jsonify(result), 200 if result['success'] else 400
+
+    except Exception as e:
+        logger.error(f"Error creating academic level: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@hierarchical_bp.route('/levels/<int:level_id>', methods=['DELETE'])
+@check_admin_auth
+def delete_academic_level(level_id):
+    """Delete an academic level"""
+    try:
+        school_id = session.get('school_id')
+        result = HierarchicalTimetableManager.delete_academic_level(school_id, level_id)
+        return jsonify(result), 200 if result['success'] else 400
+
+    except Exception as e:
+        logger.error(f"Error deleting academic level: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 # ==================== SECTIONS MANAGEMENT ====================
 
 @hierarchical_bp.route('/sections/create', methods=['POST'])

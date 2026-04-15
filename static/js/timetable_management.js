@@ -500,27 +500,139 @@ function renderLevelsList() {
     const container = document.getElementById('levelsListContainer');
     if (!container) return;
 
-    if (allLevels.length === 0) {
+    const renderableLevels = allLevels.filter(level => Number.isInteger(Number.parseInt(level.id, 10)));
+
+    if (renderableLevels.length === 0) {
         container.innerHTML = '<div class="p-4 text-center text-muted">No levels generated. Set Org Type first.</div>';
         return;
     }
 
-    container.innerHTML = allLevels.map(level => `
+    container.innerHTML = renderableLevels.map(level => {
+        const levelId = Number.parseInt(level.id, 10);
+        return `
         <div class="list-group-item list-group-item-action d-flex justify-content-between align-items-center level-item border-start-0 border-end-0" 
-             style="cursor: pointer; padding: 1rem;" onclick="filterSectionsByLevel(${level.id}, this)">
+             style="cursor: pointer; padding: 1rem;" onclick="filterSectionsByLevel(${levelId}, this)">
             <div class="d-flex align-items-center flex-grow-1">
                 <div class="me-3">
                    <span class="fw-600 d-block">${level.level_name}</span>
                    <small class="text-muted" style="font-size: 0.75rem;">${level.description || ''}</small>
                 </div>
-                <button class="btn btn-sm btn-outline-secondary ms-auto me-2 border-0 opacity-50 hover-opacity-100" 
-                        onclick="event.stopPropagation(); editLevel(${level.id})" title="Edit Grade Name">
-                    <i class="bi bi-pencil-square"></i>
-                </button>
+                <div class="d-flex align-items-center ms-auto me-2 gap-1">
+                    <button class="btn btn-sm btn-outline-secondary border-0 opacity-50 hover-opacity-100"
+                            onclick="event.stopPropagation(); editLevel(${levelId})" title="Edit Grade Name">
+                        <i class="bi bi-pencil-square"></i>
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger border-0 opacity-50 hover-opacity-100"
+                            onclick="event.stopPropagation(); deleteLevel(${levelId})" title="Delete Class">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
             </div>
             <i class="bi bi-chevron-right text-muted small"></i>
         </div>
-    `).join('');
+    `;
+    }).join('');
+}
+
+function showAddLevelModal() {
+    const form = document.getElementById('addLevelForm');
+    if (form) form.reset();
+
+    const modalEl = document.getElementById('addLevelModal');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) {
+        modal = new bootstrap.Modal(modalEl);
+    }
+    modal.show();
+}
+
+function createLevel() {
+    const levelName = document.getElementById('newLevelName')?.value?.trim();
+    const levelNumberRaw = document.getElementById('newLevelNumber')?.value;
+    const description = document.getElementById('newLevelDescription')?.value?.trim() || '';
+
+    if (!levelName) {
+        showAlert('Class name is required', 'error');
+        return;
+    }
+
+    const payload = {
+        level_name: levelName,
+        description: description
+    };
+
+    if (levelNumberRaw !== '') {
+        payload.level_number = Number.parseInt(levelNumberRaw, 10);
+    }
+
+    fetch('/api/hierarchical-timetable/levels/create', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify(payload)
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showAlert(data.message || 'Class added successfully', 'success');
+                const modal = bootstrap.Modal.getInstance(document.getElementById('addLevelModal'));
+                if (modal) modal.hide();
+
+                currentLevelFilter = data.level_id || currentLevelFilter;
+                loadAcademicLevels();
+                loadAllSections();
+            } else {
+                showAlert(data.error || 'Failed to create class', 'error');
+            }
+        })
+        .catch(err => showAlert('Error creating class: ' + err.message, 'error'));
+}
+
+function deleteLevel(levelId) {
+    const normalizedLevelId = Number.parseInt(levelId, 10);
+    if (!Number.isInteger(normalizedLevelId) || normalizedLevelId <= 0) {
+        showAlert('Invalid class id', 'error');
+        return;
+    }
+
+    const level = allLevels.find(l => Number.parseInt(l.id, 10) === normalizedLevelId);
+    if (!level) {
+        showAlert('Class not found', 'error');
+        return;
+    }
+
+    const currentIndex = allLevels.findIndex(l => Number.parseInt(l.id, 10) === normalizedLevelId);
+    const fallbackLevel = allLevels[currentIndex + 1] || allLevels[currentIndex - 1] || null;
+
+    const confirmed = confirm(`Delete ${level.level_name}? This will also remove linked sections, periods, and assignments.`);
+    if (!confirmed) return;
+
+    fetch(`/api/hierarchical-timetable/levels/${normalizedLevelId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        }
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                const deletedTotal = data.cascade_deleted?.total || 0;
+                const msg = deletedTotal > 0
+                    ? `${data.message} (${deletedTotal} related record(s) removed)`
+                    : (data.message || 'Class deleted successfully');
+
+                currentLevelFilter = fallbackLevel ? Number.parseInt(fallbackLevel.id, 10) : null;
+                showAlert(msg, 'success');
+                loadAcademicLevels();
+                loadAllSections();
+                loadPeriods();
+            } else {
+                showAlert(data.error || 'Failed to delete class', 'error');
+            }
+        })
+        .catch(err => showAlert('Error deleting class: ' + err.message, 'error'));
 }
 
 function editLevel(levelId) {

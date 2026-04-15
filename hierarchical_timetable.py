@@ -101,7 +101,22 @@ class HierarchicalTimetableManager:
             # Instead of deleting, we update existing levels or insert new ones
             # This preserves the level IDs so sections don't get orphaned
             cursor.execute('SELECT id, level_number FROM timetable_academic_levels WHERE school_id = ?', (school_id,))
-            existing_levels = {row[1]: row[0] for row in cursor.fetchall()}
+            existing_levels = {}
+            for row in cursor.fetchall():
+                row_id = row[0]
+                row_level_number = row[1]
+
+                # Ignore corrupt rows without id; these should never block regeneration.
+                if row_id is None:
+                    continue
+
+                if row_level_number not in existing_levels:
+                    existing_levels[row_level_number] = row_id
+
+            cursor.execute('SELECT COALESCE(MAX(id), 0) FROM timetable_academic_levels WHERE id IS NOT NULL')
+            max_id_row = cursor.fetchone()
+            max_id_val = max_id_row[0] if max_id_row else 0
+            next_level_id = int(max_id_val or 0) + 1
             
             for i in range(1, total_levels + 1):
                 if org_type == 'school':
@@ -122,9 +137,10 @@ class HierarchicalTimetableManager:
                     # Insert new level
                     cursor.execute('''
                         INSERT INTO timetable_academic_levels
-                        (school_id, level_type, level_number, level_name, description, is_active)
-                        VALUES (?, ?, ?, ?, ?, 1)
-                    ''', (school_id, level_type, i, level_name, description))
+                        (id, school_id, level_type, level_number, level_name, description, is_active)
+                        VALUES (?, ?, ?, ?, ?, ?, 1)
+                    ''', (next_level_id, school_id, level_type, i, level_name, description))
+                    next_level_id += 1
             
             # Deactivate any existing levels that are beyond the new total_levels
             for level_num in existing_levels:
@@ -134,6 +150,13 @@ class HierarchicalTimetableManager:
                         SET is_active = 0
                         WHERE id = ?
                     ''', (existing_levels[level_num],))
+
+            # Deactivate corrupted rows with NULL ids so they don't appear in UI/API.
+            cursor.execute('''
+                UPDATE timetable_academic_levels
+                SET is_active = 0
+                WHERE school_id = ? AND id IS NULL
+            ''', (school_id,))
             
             db.commit()
             return {'success': True, 'message': f'Generated {total_levels} academic levels'}
@@ -152,11 +175,71 @@ class HierarchicalTimetableManager:
             cursor.execute('''
                 SELECT id, level_type, level_number, level_name, description, is_active
                 FROM timetable_academic_levels
-                WHERE school_id = ? AND is_active = 1
+                WHERE school_id = ? AND is_active = 1 AND id IS NOT NULL
                 ORDER BY level_number
             ''', (school_id,))
-            
-            levels = [dict(row) for row in cursor.fetchall()]
+
+            rows = cursor.fetchall()
+
+            # If org config exists but no active levels are available, regenerate defaults.
+            if not rows:
+                cursor.execute('''
+                    SELECT organization_type, total_levels
+                    FROM timetable_organization_config
+                    WHERE school_id = ?
+                    ORDER BY id DESC
+                    LIMIT 1
+                ''', (school_id,))
+                org_row = cursor.fetchone()
+
+                if org_row:
+                    org_type = org_row[0] if not isinstance(org_row, dict) else org_row.get('organization_type')
+                    total_levels = org_row[1] if not isinstance(org_row, dict) else org_row.get('total_levels')
+                    total_levels = int(total_levels or (12 if org_type == 'school' else 4))
+
+                    regen_result = HierarchicalTimetableManager.generate_default_levels(
+                        school_id,
+                        org_type,
+                        total_levels
+                    )
+
+                    if regen_result.get('success'):
+                        cursor.execute('''
+                            SELECT id, level_type, level_number, level_name, description, is_active
+                            FROM timetable_academic_levels
+                            WHERE school_id = ? AND is_active = 1 AND id IS NOT NULL
+                            ORDER BY level_number
+                        ''', (school_id,))
+                        rows = cursor.fetchall()
+
+            # Build explicit payload so id/level fields are stable across sqlite/mysql row types.
+            levels = []
+            for row in rows:
+                if isinstance(row, dict):
+                    row_id = row.get('id')
+                    row_level_type = row.get('level_type')
+                    row_level_number = row.get('level_number')
+                    row_level_name = row.get('level_name')
+                    row_description = row.get('description')
+                    row_is_active = row.get('is_active')
+                else:
+                    row_id = row[0]
+                    row_level_type = row[1]
+                    row_level_number = row[2]
+                    row_level_name = row[3]
+                    row_description = row[4]
+                    row_is_active = row[5]
+
+                levels.append({
+                    'id': int(row_id) if row_id is not None else None,
+                    'level_id': int(row_id) if row_id is not None else None,
+                    'level_type': row_level_type,
+                    'level_number': int(row_level_number) if row_level_number is not None else None,
+                    'level_name': row_level_name,
+                    'description': row_description,
+                    'is_active': int(row_is_active) if row_is_active is not None else 1
+                })
+
             return {'success': True, 'data': levels}
         
         except Exception as e:
@@ -186,6 +269,171 @@ class HierarchicalTimetableManager:
             
         except Exception as e:
             logger.error(f"Error updating academic level: {e}")
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def create_academic_level(school_id, level_name, level_number=None, description=None):
+        """Create a new academic level for the school"""
+        try:
+            db = get_db()
+            cursor = db.cursor()
+
+            level_name = (level_name or '').strip()
+            if not level_name:
+                return {'success': False, 'error': 'Level name is required'}
+
+            cursor.execute('''
+                SELECT organization_type
+                FROM timetable_organization_config
+                WHERE school_id = ?
+                ORDER BY id DESC
+                LIMIT 1
+            ''', (school_id,))
+            org_row = cursor.fetchone()
+            if not org_row:
+                return {'success': False, 'error': 'Please configure org type first'}
+
+            org_type = org_row[0] if not isinstance(org_row, dict) else org_row.get('organization_type')
+            level_type = 'class' if org_type == 'school' else 'year'
+
+            if level_number is None:
+                cursor.execute('''
+                    SELECT COALESCE(MAX(level_number), 0) + 1
+                    FROM timetable_academic_levels
+                    WHERE school_id = ?
+                ''', (school_id,))
+                next_level_row = cursor.fetchone()
+                next_level_val = next_level_row[0] if next_level_row else 1
+                level_number = int(next_level_val or 1)
+            else:
+                try:
+                    level_number = int(level_number)
+                except (TypeError, ValueError):
+                    return {'success': False, 'error': 'Level number must be a valid number'}
+
+            if level_number <= 0:
+                return {'success': False, 'error': 'Level number must be greater than 0'}
+
+            cursor.execute('''
+                SELECT id
+                FROM timetable_academic_levels
+                WHERE school_id = ? AND level_number = ? AND is_active = 1
+            ''', (school_id, level_number))
+            if cursor.fetchone():
+                return {'success': False, 'error': f'Level number {level_number} already exists'}
+
+            cursor.execute('''
+                SELECT id
+                FROM timetable_academic_levels
+                WHERE school_id = ? AND LOWER(level_name) = LOWER(?) AND is_active = 1
+            ''', (school_id, level_name))
+            if cursor.fetchone():
+                return {'success': False, 'error': f'Level "{level_name}" already exists'}
+
+            cursor.execute('SELECT COALESCE(MAX(id), 0) + 1 FROM timetable_academic_levels WHERE id IS NOT NULL')
+            next_id_row = cursor.fetchone()
+            next_id_val = next_id_row[0] if next_id_row else 1
+            next_level_id = int(next_id_val or 1)
+
+            cursor.execute('''
+                INSERT INTO timetable_academic_levels
+                (id, school_id, level_type, level_number, level_name, description, is_active)
+                VALUES (?, ?, ?, ?, ?, ?, 1)
+            ''', (next_level_id, school_id, level_type, level_number, level_name, description))
+
+            db.commit()
+            return {
+                'success': True,
+                'message': f'{level_name} created successfully',
+                'level_id': next_level_id
+            }
+
+        except Exception as e:
+            logger.error(f"Error creating academic level: {e}")
+            return {'success': False, 'error': str(e)}
+
+    @staticmethod
+    def delete_academic_level(school_id, level_id):
+        """Delete an academic level and related records"""
+        db = None
+        try:
+            db = get_db()
+            cursor = db.cursor()
+
+            cursor.execute('''
+                SELECT id, level_name
+                FROM timetable_academic_levels
+                WHERE id = ? AND school_id = ? AND is_active = 1
+            ''', (level_id, school_id))
+            row = cursor.fetchone()
+            if not row:
+                return {'success': False, 'error': 'Level not found'}
+
+            level_name = row[1] if not isinstance(row, dict) else row.get('level_name')
+
+            cursor.execute('BEGIN')
+
+            cursor.execute('SELECT id FROM timetable_sections WHERE school_id = ? AND level_id = ?', (school_id, level_id))
+            section_rows = cursor.fetchall()
+            section_ids = [r[0] if not isinstance(r, dict) else r.get('id') for r in section_rows]
+
+            deleted_hierarchical = 0
+            deleted_direct = 0
+            deleted_periods = 0
+            deleted_sections = 0
+
+            cursor.execute('DELETE FROM timetable_hierarchical_assignments WHERE school_id = ? AND level_id = ?', (school_id, level_id))
+            deleted_hierarchical += cursor.rowcount
+
+            cursor.execute('DELETE FROM timetable_assignments WHERE school_id = ? AND level_id = ?', (school_id, level_id))
+            deleted_direct += cursor.rowcount
+
+            cursor.execute('DELETE FROM timetable_periods WHERE school_id = ? AND level_id = ?', (school_id, level_id))
+            deleted_periods += cursor.rowcount
+
+            if section_ids:
+                placeholders = ','.join(['?'] * len(section_ids))
+                params = [school_id] + section_ids
+
+                cursor.execute(f'''DELETE FROM timetable_hierarchical_assignments
+                                   WHERE school_id = ? AND section_id IN ({placeholders})''', params)
+                deleted_hierarchical += cursor.rowcount
+
+                cursor.execute(f'''DELETE FROM timetable_assignments
+                                   WHERE school_id = ? AND section_id IN ({placeholders})''', params)
+                deleted_direct += cursor.rowcount
+
+                cursor.execute(f'''DELETE FROM timetable_periods
+                                   WHERE school_id = ? AND section_id IN ({placeholders})''', params)
+                deleted_periods += cursor.rowcount
+
+                cursor.execute(f'''DELETE FROM timetable_sections
+                                   WHERE school_id = ? AND id IN ({placeholders})''', params)
+                deleted_sections += cursor.rowcount
+
+            cursor.execute('DELETE FROM timetable_academic_levels WHERE school_id = ? AND id = ?', (school_id, level_id))
+
+            db.commit()
+
+            return {
+                'success': True,
+                'message': f'{level_name} deleted successfully',
+                'cascade_deleted': {
+                    'hierarchical_assignments': deleted_hierarchical,
+                    'direct_assignments': deleted_direct,
+                    'periods': deleted_periods,
+                    'sections': deleted_sections,
+                    'total': deleted_hierarchical + deleted_direct + deleted_periods + deleted_sections
+                }
+            }
+
+        except Exception as e:
+            try:
+                if db is not None:
+                    db.rollback()
+            except Exception:
+                pass
+            logger.error(f"Error deleting academic level: {e}")
             return {'success': False, 'error': str(e)}
     
     # ==================== SECTIONS MANAGEMENT ====================
