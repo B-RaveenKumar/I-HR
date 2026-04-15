@@ -771,8 +771,18 @@ class SalaryCalculator:
         leave_pay = leave_summary['leave_pay']
 
         # Calculate deductions
+        # Always calculate PF components for detailed breakdown, but use stored value if set
         pf_components = self._calculate_pf_for_staff(staff_info)
-        pf_deduction = self._to_float(pf_components.get('employee_pf', 0))
+        pf_opt_in = self._is_truthy(staff_info.get('pf_opt_in'))
+        stored_pf_deduction = self._to_float(staff_info.get('pf_deduction', 0))
+        
+        # Use stored PF if it exists and is greater than 0 (indicates manual override); otherwise use calculated
+        if pf_opt_in and stored_pf_deduction > 0:
+            # Use the manually set PF deduction from staff table
+            pf_deduction = stored_pf_deduction
+        else:
+            # Use calculated PF based on salary components
+            pf_deduction = self._to_float(pf_components.get('employee_pf', 0))
         esi_deduction = self._to_float(staff_info.get('esi_deduction', 0))
         professional_tax = self._to_float(staff_info.get('professional_tax', 0))
         other_deductions = self._to_float(staff_info.get('other_deductions', 0))
@@ -1160,8 +1170,18 @@ class SalaryCalculator:
         )
         
         # Total deductions
+        # Always calculate PF components for detailed breakdown, but use stored value if set
         pf_components = self._calculate_pf_for_staff(staff_info)
-        pf_deduction = self._to_float(pf_components.get('employee_pf', 0))
+        pf_opt_in = self._is_truthy(staff_info.get('pf_opt_in'))
+        stored_pf_deduction = self._to_float(staff_info.get('pf_deduction', 0))
+        
+        # Use stored PF if it exists and is greater than 0 (indicates manual override); otherwise use calculated
+        if pf_opt_in and stored_pf_deduction > 0:
+            # Use the manually set PF deduction from staff table
+            pf_deduction = stored_pf_deduction
+        else:
+            # Use calculated PF based on salary components
+            pf_deduction = self._to_float(pf_components.get('employee_pf', 0))
         esi_deduction = self._to_float(staff_info.get('esi_deduction', 0))
         professional_tax = self._to_float(staff_info.get('professional_tax', 0))
         other_deductions = self._to_float(staff_info.get('other_deductions', 0))

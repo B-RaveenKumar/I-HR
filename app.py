@@ -12661,6 +12661,9 @@ def add_staff_enhanced():
     other_deductions = float(request.form.get('other_deductions', 0) or 0)
     pf_toggle_raw = request.form.get('pf_enabled')
     pf_opt_in = 1 if str(pf_toggle_raw).strip().lower() in ['1', 'true', 'on', 'yes'] else 0
+    pf_manual_override_raw = request.form.get('pf_manual_override')
+    pf_manual_override = 1 if str(pf_manual_override_raw).strip().lower() in ['1', 'true', 'on', 'yes'] else 0
+    pf_deduction_input = float(request.form.get('pf_deduction', 0) or 0)
 
     # Create full_name from first_name and last_name
     full_name = f"{first_name} {last_name}".strip() if first_name or last_name else ""
@@ -12691,7 +12694,13 @@ def add_staff_enhanced():
         pf_opt_in=bool(pf_opt_in),
         company_employee_count=company_employee_count,
     )
-    pf_deduction = float(pf_components.get('employee_pf', 0))
+    auto_pf_deduction = float(pf_components.get('employee_pf', 0))
+    if pf_opt_in == 0:
+        pf_deduction = 0.0
+    elif pf_manual_override == 1:
+        pf_deduction = max(0.0, pf_deduction_input)
+    else:
+        pf_deduction = auto_pf_deduction
 
     # Auto-assign shift type based on department if not manually specified
     if not shift_type or shift_type == 'general':
@@ -12886,6 +12895,9 @@ def add_staff():
     dearness_allowance = float(request.form.get('dearness_allowance', 0) or 0)
     pf_toggle_raw = request.form.get('pf_enabled')
     pf_opt_in = 1 if str(pf_toggle_raw).strip().lower() in ['1', 'true', 'on', 'yes'] else 0
+    pf_manual_override_raw = request.form.get('pf_manual_override')
+    pf_manual_override = 1 if str(pf_manual_override_raw).strip().lower() in ['1', 'true', 'on', 'yes'] else 0
+    pf_deduction_input = float(request.form.get('pf_deduction', 0) or 0)
     esi_deduction = float(request.form.get('esi_deduction', 0))
     professional_tax = float(request.form.get('professional_tax', 0))
     other_deductions = float(request.form.get('other_deductions', 0))
@@ -12911,7 +12923,13 @@ def add_staff():
         pf_opt_in=bool(pf_opt_in),
         company_employee_count=company_employee_count,
     )
-    pf_deduction = float(pf_components.get('employee_pf', 0))
+    auto_pf_deduction = float(pf_components.get('employee_pf', 0))
+    if pf_opt_in == 0:
+        pf_deduction = 0.0
+    elif pf_manual_override == 1:
+        pf_deduction = max(0.0, pf_deduction_input)
+    else:
+        pf_deduction = auto_pf_deduction
 
     # Always create staff in both app and device, do not check for staff ID existence
     device_ip, device_port = get_institution_device()
@@ -13140,6 +13158,11 @@ def update_staff_enhanced():
         dearness_allowance = 0.0
     pf_toggle_raw = request.form.get('pf_enabled')
     pf_opt_in = 1 if str(pf_toggle_raw).strip().lower() in ['1', 'true', 'on', 'yes'] else 0
+    pf_manual_override_raw = request.form.get('pf_manual_override')
+    pf_manual_override = 1 if str(pf_manual_override_raw).strip().lower() in ['1', 'true', 'on', 'yes'] else 0
+    pf_deduction_input = request.form.get('pf_deduction', type=float)
+    if pf_deduction_input is None:
+        pf_deduction_input = 0.0
     esi_deduction = request.form.get('esi_deduction', type=float)
     professional_tax = request.form.get('professional_tax', type=float)
     other_deductions = request.form.get('other_deductions', type=float)
@@ -13166,7 +13189,13 @@ def update_staff_enhanced():
         pf_opt_in=bool(pf_opt_in),
         company_employee_count=company_employee_count,
     )
-    pf_deduction = float(pf_components.get('employee_pf', 0))
+    auto_pf_deduction = float(pf_components.get('employee_pf', 0))
+    if pf_opt_in == 0:
+        pf_deduction = 0.0
+    elif pf_manual_override == 1:
+        pf_deduction = max(0.0, float(pf_deduction_input or 0))
+    else:
+        pf_deduction = auto_pf_deduction
 
     # Handle photo upload (if any)
     photo_url = None

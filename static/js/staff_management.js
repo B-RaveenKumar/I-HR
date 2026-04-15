@@ -93,6 +93,8 @@ function normalizeDeductionFields(formData, prefix = 'add') {
 
         if (cfg.field === 'pf_deduction') {
             formData.set('pf_enabled', toggle.checked ? '1' : '0');
+            const isManualOverride = toggle.checked && input.dataset.manualOverride === '1';
+            formData.set('pf_manual_override', isManualOverride ? '1' : '0');
         }
     });
 }
@@ -119,6 +121,9 @@ function syncPfDeductionField(prefix = 'add') {
         return;
     }
 
+    // Respect manual overrides and only auto-calc while override is not active.
+    const hasManualOverride = pfInput.dataset.manualOverride === '1';
+
     const pfAmount = calculatePfFromSalaryForUi(
         basicSalaryInput.value,
         daInput ? daInput.value : 0,
@@ -126,8 +131,11 @@ function syncPfDeductionField(prefix = 'add') {
     );
 
     if (pfToggle.checked) {
-        pfInput.value = String(pfAmount);
+        if (!hasManualOverride) {
+            pfInput.value = String(pfAmount);
+        }
     } else {
+        pfInput.dataset.manualOverride = '0';
         pfInput.value = '0';
     }
 }
@@ -137,12 +145,40 @@ function initializePFAutoCalculation(prefix = 'add') {
     const basicSalaryInput = document.getElementById(isEdit ? 'editBasicSalary' : 'addBasicSalary');
     const daInput = document.getElementById(isEdit ? 'editDearnessAllowance' : 'addDearnessAllowance');
     const pfToggle = document.getElementById(isEdit ? 'editPFDeductionToggle' : 'addPFDeductionToggle');
+    const pfInput = document.getElementById(isEdit ? 'editPFDeduction' : 'addPFDeduction');
 
-    if (!basicSalaryInput || !pfToggle) {
+    if (!basicSalaryInput || !pfToggle || !pfInput) {
         return;
     }
 
+    // Initialize override state. For edit mode, infer manual override if value differs from computed amount.
+    if (pfInput.dataset.manualOverride === undefined) {
+        pfInput.dataset.manualOverride = '0';
+    }
+    if (isEdit && pfToggle.checked) {
+        const currentPfValue = Number(pfInput.value || 0);
+        const autoPfValue = calculatePfFromSalaryForUi(
+            basicSalaryInput.value,
+            daInput ? daInput.value : 0,
+            true
+        );
+        if (Math.abs(currentPfValue - autoPfValue) >= 1) {
+            pfInput.dataset.manualOverride = '1';
+        }
+    }
+
     const recalculate = () => syncPfDeductionField(prefix);
+    const enableManualOverride = () => {
+        if (pfToggle.checked) {
+            pfInput.dataset.manualOverride = '1';
+        }
+    };
+    const onPfToggleChange = () => {
+        if (!pfToggle.checked) {
+            pfInput.dataset.manualOverride = '0';
+        }
+        recalculate();
+    };
 
     basicSalaryInput.removeEventListener('input', recalculate);
     basicSalaryInput.addEventListener('input', recalculate);
@@ -152,8 +188,11 @@ function initializePFAutoCalculation(prefix = 'add') {
         daInput.addEventListener('input', recalculate);
     }
 
-    pfToggle.removeEventListener('change', recalculate);
-    pfToggle.addEventListener('change', recalculate);
+    pfToggle.removeEventListener('change', onPfToggleChange);
+    pfToggle.addEventListener('change', onPfToggleChange);
+
+    pfInput.removeEventListener('input', enableManualOverride);
+    pfInput.addEventListener('input', enableManualOverride);
 
     recalculate();
 }
@@ -582,31 +621,31 @@ function loadStaffForEdit(staffId) {
 // Load departments dynamically for edit form
 async function loadDepartmentsForEdit(currentDepartment) {
     const editDepartmentSelect = document.getElementById('editDepartment');
-    
+
     if (!editDepartmentSelect) {
         console.error('Edit department select not found');
         return;
     }
-    
+
     try {
         const response = await fetch('/admin/get_departments_list');
         const result = await response.json();
-        
+
         if (result.success && result.departments) {
             // Clear existing options except the first one
             editDepartmentSelect.innerHTML = '<option value="">Select Department</option>';
-            
+
             // Add department options
             result.departments.forEach(dept => {
                 const option = document.createElement('option');
                 option.value = dept.department_name;
                 option.textContent = dept.department_name;
-                
+
                 // Select the current department
                 if (dept.department_name === currentDepartment) {
                     option.selected = true;
                 }
-                
+
                 editDepartmentSelect.appendChild(option);
             });
         }
@@ -618,37 +657,37 @@ async function loadDepartmentsForEdit(currentDepartment) {
 // Load positions dynamically for edit form
 async function loadPositionsForEdit(currentPosition) {
     const editPositionSelect = document.getElementById('editDestination');
-    
+
     if (!editPositionSelect) {
         console.error('Edit position select not found');
         return;
     }
-    
+
     try {
         const response = await fetch('/admin/get_positions_list');
         const result = await response.json();
-        
+
         if (result.success && result.positions) {
             // Clear existing options except the first one
             editPositionSelect.innerHTML = '<option value="">Select Position</option>';
-            
+
             // Trim currentPosition for comparison
             const trimmedCurrentPosition = currentPosition ? currentPosition.trim() : '';
-            
+
             // Add position options
             result.positions.forEach(pos => {
                 const option = document.createElement('option');
                 option.value = pos.position_name;
                 option.textContent = pos.position_name;
-                
+
                 // Select the current position (case-sensitive comparison with trimming)
                 if (pos.position_name.trim() === trimmedCurrentPosition) {
                     option.selected = true;
                 }
-                
+
                 editPositionSelect.appendChild(option);
             });
-            
+
             // Debug: Log if position was selected
             console.log('Current position:', trimmedCurrentPosition, 'Selected:', editPositionSelect.value);
         }
