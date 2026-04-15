@@ -3,7 +3,7 @@ Timetable API Routes
 Handles all API endpoints for timetable management
 """
 
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, make_response
 from database import get_db
 from functools import wraps
 import sqlite3
@@ -289,6 +289,231 @@ def get_period_timings():
             })
 
         return jsonify({'success': True, 'timings': timings})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/period-timings/template', methods=['GET'])
+@admin_required
+def download_period_timing_template():
+    """Download sample sheet for Period Timings bulk upload."""
+    try:
+        import pandas as pd
+        from io import BytesIO
+
+        template_data = {
+            'slot_label': ['Period 1', 'Lunch Break'],
+            'period_sequence': [1, 5],
+            'start_time': ['08:45', '12:40'],
+            'start_meridiem': ['AM', 'PM'],
+            'end_time': ['09:30', '13:20'],
+            'end_meridiem': ['AM', 'PM']
+        }
+
+        instructions_data = {
+            'Field': [
+                'slot_label',
+                'period_sequence',
+                'start_time',
+                'start_meridiem',
+                'end_time',
+                'end_meridiem'
+            ],
+            'Required': ['Yes', 'Yes', 'Yes', 'Optional', 'Yes', 'Optional'],
+            'Format / Notes': [
+                'Unique label per school. Example: Period 1, Lunch Break',
+                'Positive integer. Must be unique among active slots',
+                'Time value like 08:45 or 13:15',
+                'AM or PM. Use if start_time is entered in 12-hour format',
+                'Time value like 09:30 or 14:00',
+                'AM or PM. Use if end_time is entered in 12-hour format'
+            ]
+        }
+
+        output = BytesIO()
+        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+            pd.DataFrame(template_data).to_excel(writer, sheet_name='Period Timings Template', index=False)
+            pd.DataFrame(instructions_data).to_excel(writer, sheet_name='Instructions', index=False)
+
+        output.seek(0)
+        response = make_response(output.getvalue())
+        response.headers['Content-Disposition'] = 'attachment; filename=period_timings_template.xlsx'
+        response.headers['Content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        return response
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/period-timings/bulk-upload', methods=['POST'])
+@admin_required
+def bulk_upload_period_timings():
+    """Bulk upload period timing slots for a school."""
+    try:
+        if 'file' not in request.files:
+            return jsonify({'success': False, 'error': 'No file uploaded'}), 400
+
+        file = request.files['file']
+        if not file or not file.filename:
+            return jsonify({'success': False, 'error': 'No file selected'}), 400
+
+        filename = file.filename.lower()
+        if not (filename.endswith('.xlsx') or filename.endswith('.xls') or filename.endswith('.csv')):
+            return jsonify({'success': False, 'error': 'Unsupported file format. Use .xlsx, .xls, or .csv'}), 400
+
+        import pandas as pd
+
+        try:
+            if filename.endswith('.csv'):
+                df = pd.read_csv(file.stream)
+            else:
+                df = pd.read_excel(file)
+        except Exception as read_err:
+            return jsonify({'success': False, 'error': f'Unable to read file: {read_err}'}), 400
+
+        if df.empty:
+            return jsonify({'success': False, 'error': 'Uploaded file is empty'}), 400
+
+        school_id = request.form.get('school_id') or session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID required'}), 400
+
+        try:
+            school_id = int(school_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Invalid school ID'}), 400
+
+        df.columns = [str(c).strip().lower() for c in df.columns]
+
+        required_columns = ['slot_label', 'period_sequence', 'start_time', 'end_time']
+        missing_columns = [c for c in required_columns if c not in df.columns]
+        if missing_columns:
+            return jsonify({
+                'success': False,
+                'error': f"Missing required column(s): {', '.join(missing_columns)}"
+            }), 400
+
+        def clean_text(value):
+            if pd.isna(value):
+                return ''
+            text = str(value).strip()
+            if text.lower() in {'nan', 'none', 'null'}:
+                return ''
+            return text
+
+        def parse_time_to_hhmm(value, meridiem=''):
+            if pd.isna(value):
+                return None
+
+            if hasattr(value, 'hour') and hasattr(value, 'minute'):
+                return f"{value.hour:02d}:{value.minute:02d}"
+
+            text = clean_text(value)
+            if not text:
+                return None
+
+            meridiem_text = clean_text(meridiem).upper()
+            candidate = text
+            if meridiem_text in {'AM', 'PM'} and ('AM' not in text.upper() and 'PM' not in text.upper()):
+                candidate = f"{text} {meridiem_text}"
+
+            for fmt in ('%H:%M', '%H:%M:%S', '%I:%M %p', '%I:%M:%S %p'):
+                try:
+                    parsed = datetime.strptime(candidate, fmt)
+                    return parsed.strftime('%H:%M')
+                except ValueError:
+                    continue
+
+            return None
+
+        db = get_db()
+        cursor = db.cursor()
+
+        errors = []
+        imported_count = 0
+        seen_labels = set()
+        seen_sequences = set()
+
+        for row_no, row in enumerate(df.to_dict(orient='records'), start=2):
+
+            slot_label = clean_text(row.get('slot_label'))
+            seq_raw = clean_text(row.get('period_sequence'))
+            start_meridiem = clean_text(row.get('start_meridiem')) if 'start_meridiem' in df.columns else ''
+            end_meridiem = clean_text(row.get('end_meridiem')) if 'end_meridiem' in df.columns else ''
+            start_time = parse_time_to_hhmm(row.get('start_time'), start_meridiem)
+            end_time = parse_time_to_hhmm(row.get('end_time'), end_meridiem)
+
+            if not slot_label or not seq_raw or not start_time or not end_time:
+                errors.append(f'Row {row_no}: slot_label, period_sequence, start_time, and end_time are required')
+                continue
+
+            try:
+                period_sequence = int(float(seq_raw))
+                if period_sequence <= 0:
+                    raise ValueError()
+            except (TypeError, ValueError):
+                errors.append(f'Row {row_no}: period_sequence must be a positive integer')
+                continue
+
+            try:
+                start_dt = datetime.strptime(start_time, '%H:%M')
+                end_dt = datetime.strptime(end_time, '%H:%M')
+                duration = int((end_dt - start_dt).total_seconds() / 60)
+                if duration <= 0:
+                    errors.append(f'Row {row_no}: end_time must be after start_time')
+                    continue
+            except ValueError:
+                errors.append(f'Row {row_no}: invalid time format, use HH:MM (with optional AM/PM columns)')
+                continue
+
+            label_key = slot_label.lower()
+            if label_key in seen_labels:
+                errors.append(f'Row {row_no}: duplicate slot_label "{slot_label}" in uploaded file')
+                continue
+            seen_labels.add(label_key)
+
+            if period_sequence in seen_sequences:
+                errors.append(f'Row {row_no}: duplicate period_sequence "{period_sequence}" in uploaded file')
+                continue
+            seen_sequences.add(period_sequence)
+
+            cursor.execute('''
+                SELECT id FROM timetable_period_timings
+                WHERE school_id = ? AND LOWER(slot_label) = LOWER(?) AND is_active = 1
+            ''', (school_id, slot_label))
+            if cursor.fetchone():
+                errors.append(f'Row {row_no}: slot_label "{slot_label}" already exists')
+                continue
+
+            cursor.execute('''
+                SELECT id FROM timetable_period_timings
+                WHERE school_id = ? AND period_sequence = ? AND is_active = 1
+            ''', (school_id, period_sequence))
+            if cursor.fetchone():
+                errors.append(f'Row {row_no}: period_sequence "{period_sequence}" already exists')
+                continue
+
+            cursor.execute('''
+                INSERT INTO timetable_period_timings
+                    (school_id, slot_label, period_sequence, start_time, end_time, duration_minutes)
+                VALUES (?, ?, ?, ?, ?, ?)
+            ''', (school_id, slot_label, period_sequence, start_time, end_time, duration))
+            imported_count += 1
+
+        if imported_count > 0:
+            db.commit()
+
+        total_rows = len(df.index)
+        failed_count = max(total_rows - imported_count, 0)
+
+        return jsonify({
+            'success': True,
+            'message': 'Period timings bulk upload completed',
+            'total_rows': total_rows,
+            'imported_count': imported_count,
+            'failed_count': failed_count,
+            'errors': errors
+        })
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
