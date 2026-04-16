@@ -203,6 +203,49 @@
         .level-item:hover {
             background-color: #f1f3f5 !important;
         }
+
+        /* Section Mentor Assigner responsive layout */
+        .mentor-assignment-row {
+            align-items: flex-end;
+        }
+
+        .mentor-assignment-search {
+            width: 100%;
+        }
+
+        .mentor-assignment-actions {
+            display: flex;
+            align-items: flex-end;
+        }
+
+        .mentor-assignment-actions .btn {
+            width: 100%;
+        }
+
+        @media (max-width: 991.98px) {
+            .mentor-assignment-row {
+                gap: 0.75rem;
+            }
+
+            .mentor-assignment-actions {
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 767.98px) {
+            .mentor-assignment-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .mentor-assignment-row > div {
+                width: 100%;
+            }
+
+            .mentor-assignment-actions {
+                margin-top: 0.25rem;
+            }
+        }
     </style>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/print.css') }}" media="print">
     <!-- PWA Meta Tags -->
@@ -879,6 +922,68 @@
                                     </tbody>
                                 </table>
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section Mentor Assigner Card -->
+                <div class="salary-filters-card mb-4">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-person-heart"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Section Mentor Assigner</h5>
+                            <p class="card-subtitle">Assign a mentor to each class section for guidance and support</p>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3 align-items-end mb-3 mentor-assignment-row">
+                            <div class="col-lg-5 col-md-6">
+                                <label for="mentorSectionSelect" class="form-label fw-600">
+                                    <i class="bi bi-grid-3x3"></i> Select Section
+                                </label>
+                                <select id="mentorSectionSelect" class="form-select enhanced-select">
+                                    <option value="">-- Choose Section --</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-5 col-md-6">
+                                <label for="mentorStaffSelect" class="form-label fw-600">
+                                    <i class="bi bi-person-badge"></i> Assign Mentor
+                                </label>
+                                <input type="search" id="mentorStaffSearch" class="form-control enhanced-select mb-2 mentor-assignment-search"
+                                    placeholder="Search staff name, login ID, or department"
+                                    oninput="filterMentorStaffList()">
+                                <select id="mentorStaffSelect" class="form-select enhanced-select">
+                                    <option value="">-- Choose Staff Member --</option>
+                                </select>
+                            </div>
+                            <div class="col-lg-2 col-md-12 d-grid mentor-assignment-actions">
+                                <button type="button" class="btn btn-primary mentor-save-btn" onclick="saveSectionMentor()">
+                                    <i class="bi bi-check-circle"></i> Save Mentor
+                                </button>
+                            </div>
+                        </div>
+                        <div id="sectionMentorMessage"></div>
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Section</th>
+                                        <th>Mentor</th>
+                                        <th>Login Staff ID</th>
+                                        <th>Department</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="sectionMentorsTableBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">
+                                            <i class="bi bi-inbox me-2"></i> Loading mentor assignments...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>

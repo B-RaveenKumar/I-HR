@@ -44,6 +44,20 @@ def check_auth_either(f):
         return f(*args, **kwargs)
     return decorated_function
 
+
+def _ensure_section_mentor_table(db):
+    db.execute('''
+        CREATE TABLE IF NOT EXISTS timetable_section_mentors (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            section_id INTEGER NOT NULL,
+            staff_id INTEGER NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(school_id, section_id)
+        )
+    ''')
+
 # ==================== ORGANIZATION CONFIGURATION ====================
 
 @hierarchical_bp.route('/organization/set-type', methods=['POST'])
@@ -406,6 +420,134 @@ def get_all_assignments():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@hierarchical_bp.route('/section-mentor/list', methods=['GET'])
+@check_auth_either
+def list_section_mentors():
+    """List mentor assignments for class sections."""
+    try:
+        school_id = session.get('school_id')
+        db = get_db()
+        _ensure_section_mentor_table(db)
+        cursor = db.cursor()
+
+        cursor.execute('''
+            SELECT sm.id, sm.section_id, sm.staff_id, sm.created_at, sm.updated_at,
+                   s.section_name, l.level_name, l.level_number,
+                   st.full_name, st.staff_id AS login_staff_id, st.department
+            FROM timetable_section_mentors sm
+            JOIN timetable_sections s ON sm.section_id = s.id
+            JOIN timetable_academic_levels l ON s.level_id = l.id
+            JOIN staff st ON sm.staff_id = st.id
+            WHERE sm.school_id = ?
+            ORDER BY l.level_number, s.section_name
+        ''', (school_id,))
+
+        mentors = []
+        for row in cursor.fetchall():
+            mentors.append({
+                'id': row[0],
+                'section_id': row[1],
+                'staff_id': row[2],
+                'created_at': row[3],
+                'updated_at': row[4],
+                'section_name': row[5],
+                'level_name': row[6],
+                'level_number': row[7],
+                'full_name': row[8],
+                'login_staff_id': row[9],
+                'department': row[10]
+            })
+
+        return jsonify({'success': True, 'data': mentors})
+    except Exception as e:
+        logger.error(f"Error listing section mentors: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@hierarchical_bp.route('/section-mentor/save', methods=['POST'])
+@check_admin_auth
+def save_section_mentor():
+    """Assign a mentor to a section."""
+    try:
+        school_id = session.get('school_id')
+        data = request.get_json() or {}
+        section_id = data.get('section_id')
+        staff_id = data.get('staff_id')
+
+        if not section_id or not staff_id:
+            return jsonify({'success': False, 'error': 'Section and staff are required'}), 400
+
+        db = get_db()
+        _ensure_section_mentor_table(db)
+        cursor = db.cursor()
+
+        cursor.execute('''
+            SELECT s.id, s.section_name, l.level_name
+            FROM timetable_sections s
+            JOIN timetable_academic_levels l ON s.level_id = l.id
+            WHERE s.id = ? AND s.school_id = ? AND s.is_active = 1
+        ''', (section_id, school_id))
+        section_row = cursor.fetchone()
+        if not section_row:
+            return jsonify({'success': False, 'error': 'Section not found'}), 404
+
+        cursor.execute('''
+            SELECT id, staff_id, full_name
+            FROM staff
+            WHERE id = ? AND school_id = ?
+        ''', (staff_id, school_id))
+        staff_row = cursor.fetchone()
+        if not staff_row:
+            return jsonify({'success': False, 'error': 'Staff not found'}), 404
+
+        cursor.execute('''
+            SELECT id
+            FROM timetable_section_mentors
+            WHERE school_id = ? AND section_id = ?
+        ''', (school_id, section_id))
+        existing_row = cursor.fetchone()
+
+        if existing_row:
+            cursor.execute('''
+                UPDATE timetable_section_mentors
+                SET staff_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE school_id = ? AND section_id = ?
+            ''', (staff_id, school_id, section_id))
+        else:
+            cursor.execute('''
+                INSERT INTO timetable_section_mentors (school_id, section_id, staff_id)
+                VALUES (?, ?, ?)
+            ''', (school_id, section_id, staff_id))
+        db.commit()
+
+        return jsonify({
+            'success': True,
+            'message': f'{staff_row[2]} assigned as mentor for {section_row[2]} - {section_row[1]}'
+        })
+    except Exception as e:
+        logger.error(f"Error saving section mentor: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@hierarchical_bp.route('/section-mentor/remove/<int:mentor_id>', methods=['POST', 'DELETE'])
+@check_admin_auth
+def remove_section_mentor(mentor_id):
+    """Remove mentor assignment from a section."""
+    try:
+        school_id = session.get('school_id')
+        db = get_db()
+        _ensure_section_mentor_table(db)
+        cursor = db.cursor()
+
+        cursor.execute('DELETE FROM timetable_section_mentors WHERE id = ? AND school_id = ?', (mentor_id, school_id))
+        db.commit()
+
+        return jsonify({'success': True, 'message': 'Mentor assignment removed successfully'})
+    except Exception as e:
+        logger.error(f"Error removing section mentor: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @hierarchical_bp.route('/staff-period/template', methods=['GET'])
 @check_admin_auth
 def download_staff_period_template():
@@ -514,6 +656,33 @@ def download_staff_period_template():
             pd.DataFrame(staff_lookup).to_excel(writer, sheet_name='Staff Lookup', index=False)
             pd.DataFrame(grade_section_lookup).to_excel(writer, sheet_name='Grade Section Lookup', index=False)
             pd.DataFrame(period_reference).to_excel(writer, sheet_name='Period Reference', index=False)
+
+        from openpyxl import load_workbook
+        from openpyxl.styles import Alignment, Font
+        from openpyxl.utils import get_column_letter
+
+        output.seek(0)
+        workbook = load_workbook(output)
+        header_font = Font(bold=True)
+        wrap_center = Alignment(wrap_text=True, horizontal='center', vertical='center')
+
+        for sheet in workbook.worksheets:
+            sheet.freeze_panes = 'A2'
+            if sheet.title == 'Assignment Template':
+                sheet.freeze_panes = 'A2'
+            for cell in sheet[1]:
+                cell.font = header_font
+                cell.alignment = wrap_center
+            for column_index, column_cells in enumerate(sheet.columns, start=1):
+                max_length = 0
+                column_letter = get_column_letter(column_index)
+                for cell in column_cells:
+                    value = '' if cell.value is None else str(cell.value)
+                    max_length = max(max_length, len(value))
+                sheet.column_dimensions[column_letter].width = min(max_length + 4, 24)
+
+        output = BytesIO()
+        workbook.save(output)
 
         output.seek(0)
         response = make_response(output.getvalue())

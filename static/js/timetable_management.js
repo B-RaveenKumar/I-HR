@@ -31,6 +31,7 @@ document.addEventListener('DOMContentLoaded', function () {
     initPeriodTimingBulkUpload();
     initPeriodBulkUpload();
     initStaffPeriodBulkUpload();
+    loadSectionMentors();
 });
 
 // ==========================================================================
@@ -916,6 +917,8 @@ function loadAllSections() {
 
                 // Refresh labels in periods table once sections are available
                 renderPeriodsTable();
+                populateSectionMentorControls();
+                loadSectionMentors();
             }
         })
         .catch(err => console.error('❌ Error loading sections:', err));
@@ -1483,11 +1486,163 @@ function loadStaffList() {
             allStaff = data.staff || [];
             console.log(`Loaded ${allStaff.length} staff members`);
             populateStaffSelect();
+            populateSectionMentorControls();
+            loadSectionMentors();
         })
         .catch(err => {
             console.error('Error loading staff:', err);
             showAlert('Failed to load staff: ' + err.message, 'warning');
         });
+}
+
+function populateSectionMentorControls() {
+    const sectionSelect = document.getElementById('mentorSectionSelect');
+    if (sectionSelect) {
+        sectionSelect.innerHTML = '<option value="">-- Choose Section --</option>' +
+            allSections.map(section => `<option value="${section.id}">${section.level_name} - ${section.section_name}</option>`).join('');
+    }
+
+    filterMentorStaffList();
+}
+
+function filterMentorStaffList() {
+    const staffSelect = document.getElementById('mentorStaffSelect');
+    if (!staffSelect) return;
+
+    const searchValue = (document.getElementById('mentorStaffSearch')?.value || '').trim().toLowerCase();
+    const filteredStaff = allStaff.filter(staff => {
+        const fullName = (staff.full_name || '').toLowerCase();
+        const loginId = (staff.staff_id || '').toLowerCase();
+        const department = (staff.department || '').toLowerCase();
+        return !searchValue || fullName.includes(searchValue) || loginId.includes(searchValue) || department.includes(searchValue);
+    });
+
+    const previousValue = staffSelect.value;
+    staffSelect.innerHTML = '<option value="">-- Choose Staff Member --</option>' +
+        filteredStaff.map(staff => `<option value="${staff.id}">${staff.full_name} (${staff.staff_id})${staff.department ? ` - ${staff.department}` : ''}</option>`).join('');
+
+    if (filteredStaff.some(staff => String(staff.id) === String(previousValue))) {
+        staffSelect.value = previousValue;
+    }
+}
+
+function loadSectionMentors() {
+    const tbody = document.getElementById('sectionMentorsTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><div class="spinner-border spinner-border-sm me-2" role="status"></div> Loading mentor assignments...</td></tr>';
+
+    fetch('/api/hierarchical-timetable/section-mentor/list')
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${data.error || 'Failed to load mentor assignments'}</td></tr>`;
+                return;
+            }
+
+            const mentors = data.data || [];
+            if (mentors.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4"><i class="bi bi-inbox me-2"></i>No mentor assignments yet.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = mentors.map(mentor => `
+                <tr>
+                    <td>
+                        <div class="fw-bold">${mentor.level_name} - ${mentor.section_name}</div>
+                    </td>
+                    <td>
+                        <div class="fw-bold">${mentor.full_name}</div>
+                    </td>
+                    <td>${mentor.login_staff_id || '-'}</td>
+                    <td>${mentor.department || '-'}</td>
+                    <td class="text-center">
+                        <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeSectionMentor(${mentor.id})">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        })
+        .catch(err => {
+            console.error('Error loading section mentors:', err);
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger py-4">Error loading mentor assignments</td></tr>';
+        });
+}
+
+function saveSectionMentor() {
+    const sectionId = document.getElementById('mentorSectionSelect')?.value;
+    const staffId = document.getElementById('mentorStaffSelect')?.value;
+
+    if (!sectionId || !staffId) {
+        showSectionMentorMessage('Please select both a section and a mentor staff member.', 'warning');
+        return;
+    }
+
+    fetch('/api/hierarchical-timetable/section-mentor/save', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify({
+            section_id: parseInt(sectionId),
+            staff_id: parseInt(staffId)
+        })
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showSectionMentorMessage(data.message || 'Mentor assigned successfully.', 'success');
+                loadSectionMentors();
+            } else {
+                showSectionMentorMessage(data.error || 'Failed to assign mentor', 'danger');
+            }
+        })
+        .catch(err => {
+            console.error('Error saving section mentor:', err);
+            showSectionMentorMessage('Error saving mentor assignment.', 'danger');
+        });
+}
+
+function removeSectionMentor(mentorId) {
+    if (!confirm('Remove this mentor assignment?')) return;
+
+    fetch(`/api/hierarchical-timetable/section-mentor/remove/${mentorId}`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        }
+    })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                showSectionMentorMessage(data.message || 'Mentor assignment removed.', 'success');
+                loadSectionMentors();
+            } else {
+                showSectionMentorMessage(data.error || 'Failed to remove mentor assignment', 'danger');
+            }
+        })
+        .catch(err => {
+            console.error('Error removing section mentor:', err);
+            showSectionMentorMessage('Error removing mentor assignment.', 'danger');
+        });
+}
+
+function showSectionMentorMessage(message, type = 'info') {
+    const messageBox = document.getElementById('sectionMentorMessage');
+    if (!messageBox) return;
+
+    messageBox.innerHTML = `
+        <div class="alert alert-${type} alert-dismissible fade show" role="alert">
+            ${message}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    `;
+
+    setTimeout(() => {
+        messageBox.innerHTML = '';
+    }, 4000);
 }
 
 function populateStaffSelect() {
