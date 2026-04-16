@@ -1760,6 +1760,29 @@ def _record_mode_attendance(staff_db_id, school_id, mode_name, event_time=None):
     timestamp = event_time or datetime.datetime.now()
     event_date = timestamp.date()
     current_time = timestamp.strftime('%H:%M:%S')
+
+    attendance_columns = {
+        col['name']
+        for col in db.execute('PRAGMA table_info(attendance)').fetchall()
+    }
+
+    def _has_column(column_name):
+        return column_name in attendance_columns
+
+    def _parse_hhmmss(value):
+        if not value:
+            return None
+        for fmt in ('%H:%M:%S', '%H:%M'):
+            try:
+                return datetime.datetime.strptime(str(value), fmt).time()
+            except ValueError:
+                continue
+        return None
+
+    staff_row = db.execute('SELECT shift_type FROM staff WHERE id = ?', (staff_db_id,)).fetchone()
+    staff_shift_type = staff_row['shift_type'] if staff_row and staff_row['shift_type'] else 'general'
+    shift_manager = ShiftManager()
+
     existing = db.execute(
         '''
         SELECT id, time_in, time_out, status
@@ -1777,17 +1800,24 @@ def _record_mode_attendance(staff_db_id, school_id, mode_name, event_time=None):
         (staff_db_id, school_id, event_date)
     ).fetchone()
 
-    def _update_attendance_row(set_sql_with_mode, params_with_mode, set_sql_fallback, params_fallback, is_checkout=False):
-        """Update by primary id when available; fallback to staff/date scoped update for legacy schemas."""
+    def _update_attendance_row(field_values, is_checkout=False):
         target_id = existing['id'] if existing and existing['id'] else None
 
+        set_parts = []
+        params = []
+        for key, value in field_values.items():
+            if value is None:
+                continue
+            if key in {'time_in', 'time_out', 'status', 'notes'} or _has_column(key):
+                set_parts.append(f'{key} = ?')
+                params.append(value)
+
+        if not set_parts:
+            return
+
         if target_id:
-            try:
-                db.execute(set_sql_with_mode + ' WHERE id = ?', params_with_mode + (target_id,))
-                return
-            except Exception:
-                db.execute(set_sql_fallback + ' WHERE id = ?', params_fallback + (target_id,))
-                return
+            db.execute(f"UPDATE attendance SET {', '.join(set_parts)} WHERE id = ?", tuple(params + [target_id]))
+            return
 
         if is_checkout:
             where_clause = '''
@@ -1801,53 +1831,154 @@ def _record_mode_attendance(staff_db_id, school_id, mode_name, event_time=None):
                   AND (time_in IS NULL OR time_in = '')
             '''
 
-        where_params = (staff_db_id, school_id, event_date)
-        try:
-            db.execute(set_sql_with_mode + where_clause, params_with_mode + where_params)
-        except Exception:
-            db.execute(set_sql_fallback + where_clause, params_fallback + where_params)
+        where_params = [staff_db_id, school_id, event_date]
+        db.execute(
+            f"UPDATE attendance SET {', '.join(set_parts)} {where_clause}",
+            tuple(params + where_params)
+        )
+
+    def _insert_attendance_row(field_values):
+        insert_parts = []
+        params = []
+        for key, value in field_values.items():
+            if value is None:
+                continue
+            if key in {'staff_id', 'school_id', 'date', 'time_in', 'time_out', 'status', 'notes'} or _has_column(key):
+                insert_parts.append(key)
+                params.append(value)
+
+        if not insert_parts:
+            return
+
+        db.execute(
+            f"INSERT INTO attendance ({', '.join(insert_parts)}) VALUES ({', '.join(['?'] * len(insert_parts))})",
+            tuple(params)
+        )
+
+    def _recompute_and_persist_metrics(row_id=None):
+        if row_id:
+            row = db.execute(
+                'SELECT id, time_in, time_out, status FROM attendance WHERE id = ?',
+                (row_id,)
+            ).fetchone()
+        else:
+            row = db.execute(
+                '''
+                SELECT id, time_in, time_out, status
+                FROM attendance
+                WHERE staff_id = ? AND school_id = ? AND date = ?
+                ORDER BY
+                    CASE
+                        WHEN COALESCE(time_in, '') <> '' AND COALESCE(time_out, '') = '' THEN 0
+                        WHEN COALESCE(time_in, '') = '' THEN 1
+                        ELSE 2
+                    END,
+                    COALESCE(time_in, '') DESC
+                LIMIT 1
+                ''',
+                (staff_db_id, school_id, event_date)
+            ).fetchone()
+
+        if not row or not row['time_in']:
+            return
+
+        check_in_time = _parse_hhmmss(row['time_in'])
+        check_out_time = _parse_hhmmss(row['time_out']) if row['time_out'] else None
+        if not check_in_time:
+            return
+
+        status_result = shift_manager.calculate_attendance_status(staff_shift_type, check_in_time, check_out_time)
+        late_minutes = int(status_result.get('late_duration_minutes', 0) or 0)
+        early_minutes = int(status_result.get('early_departure_minutes', 0) or 0)
+
+        existing_status = str(row['status'] or '').strip().lower()
+        if existing_status in {'approved_regularization', 'leave', 'holiday', 'on_duty', 'on_permission', 'absent'}:
+            final_status = row['status']
+        elif late_minutes > 0:
+            final_status = 'late'
+        elif early_minutes > 0:
+            final_status = 'left_soon'
+        else:
+            final_status = 'present'
+
+        db.execute(
+            '''
+            UPDATE attendance
+            SET status = ?,
+                late_duration_minutes = ?,
+                early_departure_minutes = ?,
+                shift_type = ?,
+                shift_start_time = ?,
+                shift_end_time = ?
+            WHERE id = ?
+            ''',
+            (
+                final_status,
+                late_minutes,
+                early_minutes,
+                staff_shift_type,
+                status_result.get('shift_start_time').strftime('%H:%M:%S') if status_result.get('shift_start_time') else None,
+                status_result.get('shift_end_time').strftime('%H:%M:%S') if status_result.get('shift_end_time') else None,
+                row['id']
+            )
+        )
 
     if existing and existing['time_in'] and existing['time_out']:
         return {'success': False, 'message': 'Already checked in and checked out for today'}
 
     try:
         if not existing:
-            try:
-                db.execute(
-                    '''
-                    INSERT INTO attendance
-                    (staff_id, school_id, date, time_in, status, notes, attendance_mode)
-                    VALUES (?, ?, ?, ?, 'present', ?, ?)
-                    ''',
-                    (staff_db_id, school_id, event_date, current_time, f'Attendance via {mode_name}', mode_name)
-                )
-            except Exception:
-                db.execute(
-                    '''
-                    INSERT INTO attendance
-                    (staff_id, school_id, date, time_in, status, notes)
-                    VALUES (?, ?, ?, ?, 'present', ?)
-                    ''',
-                    (staff_db_id, school_id, event_date, current_time, f'Attendance via {mode_name}')
-                )
+            status_result = shift_manager.calculate_attendance_status(staff_shift_type, timestamp.time())
+            _insert_attendance_row({
+                'staff_id': staff_db_id,
+                'school_id': school_id,
+                'date': event_date,
+                'time_in': current_time,
+                'status': status_result.get('status', 'present'),
+                'notes': f'Attendance via {mode_name}',
+                'attendance_mode': mode_name,
+                'late_duration_minutes': int(status_result.get('late_duration_minutes', 0) or 0),
+                'shift_type': staff_shift_type,
+                'shift_start_time': status_result.get('shift_start_time').strftime('%H:%M:%S') if status_result.get('shift_start_time') else None,
+                'shift_end_time': status_result.get('shift_end_time').strftime('%H:%M:%S') if status_result.get('shift_end_time') else None,
+            })
             action = 'check-in'
         elif not existing['time_in']:
-            _update_attendance_row(
-                'UPDATE attendance SET time_in = ?, attendance_mode = ?, notes = ?',
-                (current_time, mode_name, f'Attendance via {mode_name}'),
-                'UPDATE attendance SET time_in = ?, notes = ?',
-                (current_time, f'Attendance via {mode_name}')
-            )
+            status_result = shift_manager.calculate_attendance_status(staff_shift_type, timestamp.time())
+            _update_attendance_row({
+                'time_in': current_time,
+                'status': status_result.get('status', 'present'),
+                'attendance_mode': mode_name,
+                'notes': f'Attendance via {mode_name}',
+                'late_duration_minutes': int(status_result.get('late_duration_minutes', 0) or 0),
+                'shift_type': staff_shift_type,
+                'shift_start_time': status_result.get('shift_start_time').strftime('%H:%M:%S') if status_result.get('shift_start_time') else None,
+                'shift_end_time': status_result.get('shift_end_time').strftime('%H:%M:%S') if status_result.get('shift_end_time') else None,
+            })
             action = 'check-in'
         else:
-            _update_attendance_row(
-                'UPDATE attendance SET time_out = ?, attendance_mode = ?, notes = ?',
-                (current_time, mode_name, f'Attendance via {mode_name}'),
-                'UPDATE attendance SET time_out = ?, notes = ?',
-                (current_time, f'Attendance via {mode_name}'),
-                is_checkout=True
+            parsed_check_in = _parse_hhmmss(existing['time_in'])
+            checkout_result = shift_manager.calculate_attendance_status(
+                staff_shift_type,
+                parsed_check_in or timestamp.time(),
+                timestamp.time()
             )
+
+            final_status = existing['status'] or 'present'
+            early_minutes = int(checkout_result.get('early_departure_minutes', 0) or 0)
+            if early_minutes > 0 and str(final_status).lower() != 'late':
+                final_status = 'left_soon'
+
+            _update_attendance_row({
+                'time_out': current_time,
+                'status': final_status,
+                'attendance_mode': mode_name,
+                'notes': f'Attendance via {mode_name}',
+                'early_departure_minutes': early_minutes,
+            }, is_checkout=True)
             action = 'check-out'
+
+        _recompute_and_persist_metrics(existing['id'] if existing else None)
 
         db.commit()
         return {'success': True, 'message': f'{action.title()} recorded via {mode_name}', 'action': action}
@@ -16029,6 +16160,17 @@ def staff_profile_page():
         LIMIT 20
     ''', (staff_id,)).fetchall()
 
+    # 🚀 OPTIMIZATION 3B: Get ALL attendance records (including web punches: id_scan, otp, dynamic_qr)
+    # This combines with biometric verifications to show complete daily attendance
+    all_attendance_records = db.execute('''
+        SELECT date, time_in, time_out, status, late_duration_minutes, 
+               early_departure_minutes, shift_type, shift_start_time, shift_end_time, notes
+        FROM attendance
+        WHERE staff_id = ? AND date >= DATE('now', '-30 days')
+        ORDER BY date DESC
+        LIMIT 60
+    ''', (staff_id,)).fetchall()
+
     # 🚀 OPTIMIZATION 4: Get attendance summary with optimized function call
     attendance_summary_dict = _get_cached_attendance_summary(staff_id, today.year, today.month)
 
@@ -16047,6 +16189,7 @@ def staff_profile_page():
                          on_duty_applications=on_duty_applications,
                          permission_applications=permission_applications,
                          recent_verifications=recent_verifications,
+                         all_attendance_records=all_attendance_records,
                          today=today,
                          current_month=today.strftime('%B %Y'),
                          quota_summary=quota_summary,

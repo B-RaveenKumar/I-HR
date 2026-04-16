@@ -1578,46 +1578,46 @@
                                 </div>
                                 <div class="header-content">
                                     <h5 class="card-title">Daily Attendance Records</h5>
-                                    <p class="card-subtitle">Your attendance entries (one check-in and check-out per day)</p>
+                                    <p class="card-subtitle">Your attendance entries from all punch methods (biometric & web punches)</p>
                                 </div>
                             </div>
                             <div class="card-body">
-                                {% if recent_verifications %}
-                                {% set daily_records = {} %}
-                                {% for verification in recent_verifications %}
-                                    {% set date_key = verification.verification_time.strftime('%Y-%m-%d') if verification.verification_time and verification.verification_time.strftime is defined else (verification.verification_time[:10] if verification.verification_time else '') %}
-                                    {% if date_key not in daily_records %}
-                                        {% set parsed_date = date_key %}
-                                        {% set _ = daily_records.update({date_key: {'date': parsed_date, 'check_in': None, 'check_out': None}}) %}
-                                    {% endif %}
-                                    {% if verification.verification_type == 'check-in' %}
-                                        {% set _ = daily_records[date_key].update({'check_in': verification}) %}
-                                    {% elif verification.verification_type == 'check-out' %}
-                                        {% set _ = daily_records[date_key].update({'check_out': verification}) %}
-                                    {% endif %}
-                                {% endfor %}
-                                
+                                {% if all_attendance_records %}
                                 <div class="daily-attendance-list">
-                                    {% for date_key, record in daily_records.items() %}
+                                    {% for record in all_attendance_records %}
                                     <div class="daily-attendance-card mb-3">
                                         <div class="card border-0 shadow-sm">
                                             <div class="card-body">
                                                 <div class="d-flex justify-content-between align-items-center mb-3">
                                                     <h6 class="mb-0 text-primary">
-                                                        <i class="bi bi-calendar-day me-2"></i>{{ record.date|simple_date }}
+                                                        <i class="bi bi-calendar-day me-2"></i>
+                                                        {{ record.date|simple_date if record.date else '--' }}
                                                     </h6>
+                                                    <!-- Status Badge -->
+                                                    {% if record.status %}
+                                                    <span class="badge bg-{% if record.status == 'present' %}success{% elif record.status == 'late' %}warning{% elif record.status == 'left_soon' %}info{% else %}secondary{% endif %}">
+                                                        {{ record.status|title }}
+                                                        {% if record.status == 'late' and record.late_duration_minutes %}
+                                                            ({{ record.late_duration_minutes }} min)
+                                                        {% endif %}
+                                                    </span>
+                                                    {% endif %}
                                                 </div>
                                                 <div class="row">
                                                     <div class="col-md-6">
                                                         <div class="attendance-time-entry">
-                                                            {% if record.check_in %}
+                                                            {% if record.time_in %}
                                                             <div class="d-flex align-items-center">
                                                                 <span class="badge bg-success me-3">
                                                                     <i class="bi bi-box-arrow-in-right"></i> Check In
                                                                 </span>
                                                                 <div>
-                                                                    <div class="fw-bold">{{ record.check_in.verification_time|timeformat if record.check_in.verification_time else '--:--' }}</div>
-                                                                    <small class="text-muted">{{ record.check_in.biometric_method|title }}</small>
+                                                                    <div class="fw-bold">
+                                                                        {{ record.time_in|timeformat if record.time_in and record.time_in.strftime is defined else (record.time_in[-8:] if record.time_in else '--:--') }}
+                                                                    </div>
+                                                                    {% if record.shift_start_time %}
+                                                                    <small class="text-muted">Shift: {{ record.shift_start_time[-8:] if record.shift_start_time else '--:--' }}</small>
+                                                                    {% endif %}
                                                                 </div>
                                                             </div>
                                                             {% else %}
@@ -1632,14 +1632,18 @@
                                                     </div>
                                                     <div class="col-md-6">
                                                         <div class="attendance-time-entry">
-                                                            {% if record.check_out %}
+                                                            {% if record.time_out %}
                                                             <div class="d-flex align-items-center">
                                                                 <span class="badge bg-info me-3">
                                                                     <i class="bi bi-box-arrow-left"></i> Check Out
                                                                 </span>
                                                                 <div>
-                                                                    <div class="fw-bold">{{ record.check_out.verification_time|timeformat if record.check_out.verification_time else '--:--' }}</div>
-                                                                    <small class="text-muted">{{ record.check_out.biometric_method|title }}</small>
+                                                                    <div class="fw-bold">
+                                                                        {{ record.time_out|timeformat if record.time_out and record.time_out.strftime is defined else (record.time_out[-8:] if record.time_out else '--:--') }}
+                                                                    </div>
+                                                                    {% if record.shift_end_time %}
+                                                                    <small class="text-muted">Shift: {{ record.shift_end_time[-8:] if record.shift_end_time else '--:--' }}</small>
+                                                                    {% endif %}
                                                                 </div>
                                                             </div>
                                                             {% else %}
@@ -1653,12 +1657,24 @@
                                                         </div>
                                                     </div>
                                                 </div>
-                                                {% if record.check_in and record.check_out %}
-                                                <div class="mt-2 pt-2 border-top">
-                                                    <small class="text-success">
-                                                        <i class="bi bi-clock me-1"></i>
-                                                        Work session completed
+                                                <!-- Punch Method and Details -->
+                                                {% if record.notes or record.late_duration_minutes or record.early_departure_minutes %}
+                                                <div class="mt-3 pt-2 border-top">
+                                                    <small class="d-block text-muted">
+                                                        {% if record.notes %}
+                                                        <i class="bi bi-info-circle me-1"></i>{{ record.notes }}
+                                                        {% endif %}
                                                     </small>
+                                                    {% if record.late_duration_minutes and record.late_duration_minutes > 0 %}
+                                                    <small class="d-block text-danger">
+                                                        <i class="bi bi-exclamation-circle me-1"></i>Late by {{ record.late_duration_minutes }} minutes
+                                                    </small>
+                                                    {% endif %}
+                                                    {% if record.early_departure_minutes and record.early_departure_minutes > 0 %}
+                                                    <small class="d-block text-warning">
+                                                        <i class="bi bi-clock me-1"></i>Left {{ record.early_departure_minutes }} minutes early
+                                                    </small>
+                                                    {% endif %}
                                                 </div>
                                                 {% endif %}
                                             </div>
@@ -1672,7 +1688,7 @@
                                         <i class="bi bi-calendar-check"></i>
                                     </div>
                                     <h6 class="empty-title">No Attendance Records</h6>
-                                    <p class="empty-text">Your daily attendance records will appear here once you start using biometric verification.</p>
+                                    <p class="empty-text">Your daily attendance records will appear here once you start recording attendance using biometric, QR code, ID scan, or OTP.</p>
                                 </div>
                                 {% endif %}
                             </div>
