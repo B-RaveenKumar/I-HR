@@ -839,7 +839,7 @@
                                                             </button>
                                                         </td>
                                                         <td><span class="badge bg-secondary">{{ row.department }}</span></td>
-                                                        <td>{{ row.shift_type }}</td>
+                                                        <td>{{ row.effective_shift_type or row.shift_type }}</td>
                                                         <td>{{ row.gender }}</td>
                                                         <td>{{ row.present_days }}</td>
                                                         <td>{{ row.absent_days }}</td>
@@ -1101,7 +1101,7 @@
                                                             </button>
                                                         </td>
                                                         <td><span class="badge bg-secondary">{{ row.department }}</span></td>
-                                                        <td>{{ row.shift_type }}</td>
+                                                        <td>{{ row.effective_shift_type or row.shift_type }}</td>
                                                         <td>{{ row.gender }}</td>
                                                         <td>{{ row.present_days }}</td>
                                                         <td>{{ row.absent_days }}</td>

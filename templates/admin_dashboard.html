@@ -1599,6 +1599,10 @@
                             return;
                         }
 
+                        if (record.shift_type) {
+                            row.setAttribute('data-shift', String(record.shift_type).toLowerCase());
+                        }
+
                         const timeInSpan = row.querySelector('.time-in span');
                         const timeOutSpan = row.querySelector('.time-out span');
                         const statusCell = row.querySelector('.status');

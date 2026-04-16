@@ -3021,7 +3021,8 @@ def get_realtime_attendance():
 
     # Get all active staff for this school
     staff_query = f'''
-        SELECT s.id as staff_id, s.staff_id as staff_number, s.full_name, s.department,
+         SELECT s.id as staff_id, s.staff_id as staff_number, s.full_name, s.department,
+             s.shift_type, s.next_shift_type, s.next_shift_effective_date,
                a.time_in, a.time_out
         FROM staff s
         LEFT JOIN (
@@ -3062,7 +3063,8 @@ def get_realtime_attendance():
             'department': staff['department'],
             'time_in': staff['time_in'],
             'time_out': staff['time_out'],
-            'status': status
+            'status': status,
+            'shift_type': resolve_effective_shift_type(staff, today)
         }
         
         # Format times to 12-hour format
@@ -3780,6 +3782,7 @@ def payroll_processing_review():
 
     school_id = session.get('school_id')
     today = datetime.datetime.now()
+    today_str = today.strftime('%Y-%m-%d')
     db = get_db()
 
     module_enabled = get_module_enabled(school_id) if school_id else {}
@@ -3962,11 +3965,18 @@ def payroll_processing_review():
             staff_query = '''
                 SELECT id, staff_id, full_name, department,
                        COALESCE(shift_type, '') AS shift_type,
+                       CASE
+                           WHEN COALESCE(next_shift_type, '') <> ''
+                                AND COALESCE(next_shift_effective_date, '') <> ''
+                                AND ? >= next_shift_effective_date
+                           THEN next_shift_type
+                           ELSE COALESCE(shift_type, '')
+                       END AS effective_shift_type,
                        COALESCE(gender, '') AS gender
                 FROM staff
                 WHERE school_id = ?
             '''
-            staff_params = [school_id]
+            staff_params = [today_str, school_id]
 
             if 'is_active' in staff_columns:
                 staff_query += ' AND COALESCE(is_active, 1) = 1'
@@ -3978,7 +3988,8 @@ def payroll_processing_review():
                 staff_params.append(selected_department)
 
             if selected_shift:
-                staff_query += " AND LOWER(COALESCE(shift_type, '')) = LOWER(?)"
+                staff_query += " AND LOWER(CASE WHEN COALESCE(next_shift_type, '') <> '' AND COALESCE(next_shift_effective_date, '') <> '' AND ? >= next_shift_effective_date THEN next_shift_type ELSE COALESCE(shift_type, '') END) = LOWER(?)"
+                staff_params.append(today_str)
                 staff_params.append(selected_shift)
 
             if selected_gender:
@@ -4100,6 +4111,7 @@ def payroll_processing_review():
                     'staff_name': staff.get('full_name'),
                     'department': staff.get('department') or 'N/A',
                     'shift_type': staff.get('shift_type') or 'General',
+                    'effective_shift_type': staff.get('effective_shift_type') or staff.get('shift_type') or 'General',
                     'gender': staff.get('gender') or 'N/A',
                     'present_days': attendance_summary.get('present_days', 0),
                     'absent_days': attendance_summary.get('absent_days', 0),
@@ -6956,30 +6968,34 @@ def generate_daily_attendance_report(school_id, date_str=None, department=None, 
     dept_clause = ''
     params = [date_str, school_id]
     if department and str(department).strip():
-        dept_clause = ' AND COALESCE(s.department, "") = ? '
-        params.append(department)
+        dept_clause = ' AND COALESCE(s.department, "") = ?'
+        params.append(department.strip())
 
-    # Pull per-staff daily records
     select_fields = [
-        "s.staff_id", "s.full_name", "s.department", "COALESCE(s.destination,'') AS position",
-        "a.time_in", "a.time_out", "a.status",
+        's.staff_id',
+        's.full_name',
+        's.department',
+        "COALESCE(s.destination, '') AS position",
+        'a.time_in',
+        'a.time_out',
+        'a.status',
     ]
     if has_work_hours:
-        select_fields.append("a.work_hours")
+        select_fields.append('a.work_hours')
     else:
-        select_fields.append("0 AS work_hours")
+        select_fields.append('0 AS work_hours')
     if has_overtime:
-        select_fields.append("a.overtime_hours")
+        select_fields.append('a.overtime_hours')
     else:
-        select_fields.append("0 AS overtime_hours")
+        select_fields.append('0 AS overtime_hours')
     if has_late_min:
-        select_fields.append("a.late_duration_minutes")
+        select_fields.append('a.late_duration_minutes')
     else:
-        select_fields.append("0 AS late_duration_minutes")
+        select_fields.append('0 AS late_duration_minutes')
     if has_early_min:
-        select_fields.append("a.early_departure_minutes")
+        select_fields.append('a.early_departure_minutes')
     else:
-        select_fields.append("0 AS early_departure_minutes")
+        select_fields.append('0 AS early_departure_minutes')
 
     query = f"""
         SELECT {', '.join(select_fields)}
@@ -7670,6 +7686,7 @@ def department_shifts():
 
     db = get_db()
     school_id = session['school_id']
+    today_str = datetime.date.today().strftime('%Y-%m-%d')
 
     # Get current department shift mappings
     mappings = db.execute('''
@@ -7947,20 +7964,43 @@ def staff_management():
     
     db = get_db()
     school_id = session['school_id']
+    today_str = datetime.date.today().strftime('%Y-%m-%d')
+    staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+    has_next_shift = 'next_shift_type' in staff_columns and 'next_shift_effective_date' in staff_columns
 
     # Initialize default departments and positions if needed
     initialize_default_departments(school_id)
     initialize_default_positions(school_id)
 
     # Get all staff with comprehensive details
-    staff = db.execute('''
-        SELECT id, staff_id, full_name, first_name, last_name,
-               date_of_birth, date_of_joining, department, destination,
-               position, gender, phone, email, shift_type, photo_url
-        FROM staff
-        WHERE school_id = ?
-        ORDER BY CAST(staff_id AS INTEGER) ASC
-    ''', (school_id,)).fetchall()
+    if has_next_shift:
+        staff = db.execute('''
+            SELECT id, staff_id, full_name, first_name, last_name,
+                   date_of_birth, date_of_joining, department, destination,
+                   position, gender, phone, email, shift_type,
+                   CASE
+                       WHEN COALESCE(next_shift_type, '') <> ''
+                            AND COALESCE(next_shift_effective_date, '') <> ''
+                            AND ? >= next_shift_effective_date
+                       THEN next_shift_type
+                       ELSE COALESCE(shift_type, 'general')
+                   END AS effective_shift_type,
+                   photo_url
+            FROM staff
+            WHERE school_id = ?
+            ORDER BY CAST(staff_id AS INTEGER) ASC
+        ''', (today_str, school_id)).fetchall()
+    else:
+        staff = db.execute('''
+            SELECT id, staff_id, full_name, first_name, last_name,
+                   date_of_birth, date_of_joining, department, destination,
+                   position, gender, phone, email, shift_type,
+                   COALESCE(shift_type, 'general') AS effective_shift_type,
+                   photo_url
+            FROM staff
+            WHERE school_id = ?
+            ORDER BY CAST(staff_id AS INTEGER) ASC
+        ''', (school_id,)).fetchall()
 
     # Get department shift mappings for reference
     dept_mappings = db.execute('''
@@ -8358,14 +8398,14 @@ def admin_dashboard():
     for record in today_attendance:
         # Get staff active status
         staff_info = db.execute('''
-            SELECT COALESCE(is_active, 1) as is_active, shift_type
+            SELECT COALESCE(is_active, 1) as is_active, shift_type, next_shift_type, next_shift_effective_date
             FROM staff
             WHERE id = ? AND school_id = ?
         ''', (record['staff_id'], school_id)).fetchone()
         
         if staff_info:
             record['is_active'] = bool(staff_info['is_active'])
-            record['shift_type'] = staff_info['shift_type'] or 'general'
+            record['shift_type'] = resolve_effective_shift_type(staff_info, today)
             today_attendance_with_status.append(record)
     
     today_attendance = today_attendance_with_status
@@ -12750,6 +12790,30 @@ def format_attendance_times_to_12hr(attendance_record):
     return formatted_record
 
 
+def resolve_effective_shift_type(staff_row, target_date=None):
+    """Resolve a staff member's effective shift for a given date."""
+    if not staff_row:
+        return 'general'
+
+    date_value = target_date or datetime.date.today()
+    if isinstance(date_value, datetime.datetime):
+        date_str = date_value.date().strftime('%Y-%m-%d')
+    elif isinstance(date_value, datetime.date):
+        date_str = date_value.strftime('%Y-%m-%d')
+    else:
+        date_str = str(date_value)
+
+    current_shift = staff_row['shift_type'] if 'shift_type' in staff_row.keys() else None
+    next_shift = staff_row['next_shift_type'] if 'next_shift_type' in staff_row.keys() else None
+    next_effective = staff_row['next_shift_effective_date'] if 'next_shift_effective_date' in staff_row.keys() else None
+
+    effective_shift = current_shift or 'general'
+    if next_shift and next_effective and date_str >= str(next_effective):
+        effective_shift = next_shift
+
+    return effective_shift
+
+
 @app.route('/add_staff_enhanced', methods=['POST'])
 def add_staff_enhanced():
     if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
@@ -13664,29 +13728,66 @@ def update_department_shift():
                 VALUES (?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
             ''', (school_id, department, shift_type))
 
-        # Update all staff members in this department to the new shift type
-        # First, fetch existing staff IDs so we can record shift history for each
-        affected_staff_rows = db.execute('''
-            SELECT id FROM staff
-            WHERE school_id = ? AND department = ? AND shift_type != ?
-        ''', (school_id, department, shift_type)).fetchall()
+        staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+        has_next_shift = 'next_shift_type' in staff_columns and 'next_shift_effective_date' in staff_columns
 
-        staff_updated = db.execute('''
-            UPDATE staff
-            SET shift_type = ?
-            WHERE school_id = ? AND department = ?
-        ''', (shift_type, school_id, department))
+        if has_next_shift:
+            # Keep department shift updates consistent with enhanced staff update behavior.
+            _tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
 
-        affected_rows = staff_updated.rowcount
+            affected_staff_rows = db.execute('''
+                SELECT id, shift_type
+                FROM staff
+                WHERE school_id = ? AND department = ?
+                AND (
+                    COALESCE(shift_type, 'general') != ?
+                    OR COALESCE(next_shift_type, '') != ?
+                    OR COALESCE(next_shift_effective_date, '') != ?
+                )
+            ''', (school_id, department, shift_type, shift_type, _tomorrow)).fetchall()
 
-        # Record shift history for each affected staff member (change is immediate)
-        _today = datetime.datetime.now().strftime('%Y-%m-%d')
-        for _row in affected_staff_rows:
-            record_shift_history(db, _row['id'], school_id, shift_type, _today)
+            staff_updated = db.execute('''
+                UPDATE staff
+                SET next_shift_type = ?,
+                    next_shift_effective_date = ?
+                WHERE school_id = ? AND department = ?
+                AND (
+                    COALESCE(shift_type, 'general') != ?
+                    OR COALESCE(next_shift_type, '') != ?
+                    OR COALESCE(next_shift_effective_date, '') != ?
+                )
+            ''', (shift_type, _tomorrow, school_id, department, shift_type, shift_type, _tomorrow))
+
+            affected_rows = staff_updated.rowcount
+
+            # Record history only when actual current shift differs from requested shift.
+            for _row in affected_staff_rows:
+                if (_row['shift_type'] or 'general') != shift_type:
+                    record_shift_history(db, _row['id'], school_id, shift_type, _tomorrow)
+
+            message = f'Department {department} scheduled to {shift_type} shift for tomorrow. {affected_rows} staff members updated.'
+        else:
+            # Legacy schema fallback: apply immediately if next-shift columns are unavailable.
+            affected_staff_rows = db.execute('''
+                SELECT id FROM staff
+                WHERE school_id = ? AND department = ? AND COALESCE(shift_type, 'general') != ?
+            ''', (school_id, department, shift_type)).fetchall()
+
+            staff_updated = db.execute('''
+                UPDATE staff
+                SET shift_type = ?
+                WHERE school_id = ? AND department = ? AND COALESCE(shift_type, 'general') != ?
+            ''', (shift_type, school_id, department, shift_type))
+
+            affected_rows = staff_updated.rowcount
+
+            _today = datetime.datetime.now().strftime('%Y-%m-%d')
+            for _row in affected_staff_rows:
+                record_shift_history(db, _row['id'], school_id, shift_type, _today)
+
+            message = f'Department {department} assigned to {shift_type} shift successfully. {affected_rows} staff members updated.'
 
         db.commit()
-
-        message = f'Department {department} assigned to {shift_type} shift successfully. {affected_rows} staff members updated.'
         return jsonify({'success': True, 'message': message, 'affected_staff': affected_rows})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -13723,23 +13824,55 @@ def bulk_update_staff_shifts():
     db = get_db()
 
     try:
-        # Get all staff with departments that have shift mappings
-        staff_to_update = db.execute('''
-            SELECT s.id, s.full_name, s.department, s.shift_type, dsm.default_shift_type
-            FROM staff s
-            JOIN department_shift_mappings dsm ON s.department = dsm.department AND s.school_id = dsm.school_id
-            WHERE s.school_id = ? AND s.department IS NOT NULL AND s.department != ''
-            AND (s.shift_type IS NULL OR s.shift_type != dsm.default_shift_type)
-        ''', (school_id,)).fetchall()
+        staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+        has_next_shift = 'next_shift_type' in staff_columns and 'next_shift_effective_date' in staff_columns
 
         updated_count = 0
-        for staff in staff_to_update:
-            db.execute('''
-                UPDATE staff
-                SET shift_type = ?
-                WHERE id = ?
-            ''', (staff['default_shift_type'], staff['id']))
-            updated_count += 1
+
+        if has_next_shift:
+            _tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
+
+            # Find staff needing a new schedule and avoid re-scheduling identical tomorrow entries.
+            staff_to_update = db.execute('''
+                SELECT s.id, s.full_name, s.department, s.shift_type, dsm.default_shift_type,
+                       s.next_shift_type, s.next_shift_effective_date
+                FROM staff s
+                JOIN department_shift_mappings dsm ON s.department = dsm.department AND s.school_id = dsm.school_id
+                WHERE s.school_id = ? AND s.department IS NOT NULL AND s.department != ''
+                AND COALESCE(s.shift_type, 'general') != dsm.default_shift_type
+                AND (
+                    COALESCE(s.next_shift_type, '') != dsm.default_shift_type
+                    OR COALESCE(s.next_shift_effective_date, '') != ?
+                )
+            ''', (school_id, _tomorrow)).fetchall()
+
+            for staff in staff_to_update:
+                db.execute('''
+                    UPDATE staff
+                    SET next_shift_type = ?, next_shift_effective_date = ?
+                    WHERE id = ?
+                ''', (staff['default_shift_type'], _tomorrow, staff['id']))
+                record_shift_history(db, staff['id'], school_id, staff['default_shift_type'], _tomorrow)
+                updated_count += 1
+        else:
+            # Legacy schema fallback: immediate update and history logging.
+            staff_to_update = db.execute('''
+                SELECT s.id, s.full_name, s.department, s.shift_type, dsm.default_shift_type
+                FROM staff s
+                JOIN department_shift_mappings dsm ON s.department = dsm.department AND s.school_id = dsm.school_id
+                WHERE s.school_id = ? AND s.department IS NOT NULL AND s.department != ''
+                AND COALESCE(s.shift_type, 'general') != dsm.default_shift_type
+            ''', (school_id,)).fetchall()
+
+            _today = datetime.datetime.now().strftime('%Y-%m-%d')
+            for staff in staff_to_update:
+                db.execute('''
+                    UPDATE staff
+                    SET shift_type = ?
+                    WHERE id = ?
+                ''', (staff['default_shift_type'], staff['id']))
+                record_shift_history(db, staff['id'], school_id, staff['default_shift_type'], _today)
+                updated_count += 1
 
         db.commit()
         return jsonify({'success': True, 'updated_count': updated_count})
