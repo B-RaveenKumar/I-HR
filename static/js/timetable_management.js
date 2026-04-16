@@ -30,6 +30,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadStaffAssignmentsSummary();
     initPeriodTimingBulkUpload();
     initPeriodBulkUpload();
+    initStaffPeriodBulkUpload();
 });
 
 // ==========================================================================
@@ -1954,6 +1955,115 @@ function assignStaffPeriod() {
         .catch(err => {
             console.error('Error assigning period:', err);
             showAlert('Error assigning period. Please check network/auth.', 'error');
+        });
+}
+
+function downloadStaffPeriodTemplate() {
+    window.location.href = '/api/hierarchical-timetable/staff-period/template';
+}
+
+function initStaffPeriodBulkUpload() {
+    const form = document.getElementById('bulkUploadStaffPeriodForm');
+    if (!form) return;
+
+    form.addEventListener('submit', handleStaffPeriodBulkUpload);
+
+    const modalEl = document.getElementById('bulkUploadStaffPeriodModal');
+    if (modalEl) {
+        modalEl.addEventListener('hidden.bs.modal', () => {
+            const resultBox = document.getElementById('bulkStaffPeriodUploadResult');
+            if (resultBox) {
+                resultBox.className = 'd-none';
+                resultBox.innerHTML = '';
+            }
+            form.reset();
+        });
+    }
+}
+
+function handleStaffPeriodBulkUpload(e) {
+    e.preventDefault();
+
+    const form = e.target;
+    const fileInput = document.getElementById('bulkStaffPeriodFile');
+    const submitBtn = document.getElementById('bulkStaffPeriodUploadSubmitBtn');
+    const resultBox = document.getElementById('bulkStaffPeriodUploadResult');
+
+    if (!fileInput || !fileInput.files || !fileInput.files.length) {
+        showAlert('Please select an Excel/CSV file to upload.', 'error');
+        return;
+    }
+
+    const formData = new FormData(form);
+
+    const originalBtnHtml = submitBtn.innerHTML;
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Uploading...';
+
+    resultBox.className = 'd-none';
+    resultBox.innerHTML = '';
+
+    fetch('/api/hierarchical-timetable/staff-period/bulk-upload', {
+        method: 'POST',
+        body: formData,
+        headers: {
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        }
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (!data.success) {
+                resultBox.className = 'alert alert-danger';
+                resultBox.innerHTML = `<i class="bi bi-exclamation-triangle"></i> ${data.error || 'Bulk upload failed'}`;
+                resultBox.classList.remove('d-none');
+                return;
+            }
+
+            const createdCount = data.created_count || 0;
+            const updatedCount = data.updated_count || 0;
+            const totalRows = data.total_rows || 0;
+            const skippedCount = data.skipped_count || 0;
+            const errors = Array.isArray(data.errors) ? data.errors : [];
+
+            let errorsHtml = '';
+            if (errors.length) {
+                const topErrors = errors.slice(0, 10).map(err => `<li>${err}</li>`).join('');
+                const moreErrors = errors.length > 10 ? `<li>...and ${errors.length - 10} more error(s)</li>` : '';
+                errorsHtml = `
+                    <hr>
+                    <div class="mb-1"><strong>Import issues:</strong></div>
+                    <ul class="mb-0">${topErrors}${moreErrors}</ul>
+                `;
+            }
+
+            resultBox.className = errors.length ? 'alert alert-warning' : 'alert alert-success';
+            resultBox.innerHTML = `
+                <div><strong>Bulk upload completed.</strong></div>
+                <div>Created: ${createdCount} | Updated: ${updatedCount} | Skipped: ${skippedCount} | Total rows: ${totalRows}</div>
+                ${errorsHtml}
+            `;
+            resultBox.classList.remove('d-none');
+
+            if (createdCount > 0 || updatedCount > 0) {
+                showAlert(`Bulk upload complete: ${createdCount} created, ${updatedCount} updated.`, 'success');
+                const selectedStaffId = document.getElementById('staffSelectAssign')?.value;
+                if (selectedStaffId) {
+                    loadStaffCurrentAllocations(selectedStaffId);
+                }
+                loadStaffAssignmentsSummary();
+            } else {
+                showAlert('No allocations were imported. Check the file and try again.', 'error');
+            }
+        })
+        .catch(err => {
+            resultBox.className = 'alert alert-danger';
+            resultBox.innerHTML = `<i class="bi bi-exclamation-triangle"></i> Upload failed: ${err.message}`;
+            resultBox.classList.remove('d-none');
+            showAlert('Bulk upload failed. Please try again.', 'error');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalBtnHtml;
         });
 }
 

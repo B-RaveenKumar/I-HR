@@ -731,6 +731,16 @@
                             <p class="card-subtitle">Manage and allocate periods to individual staff members separately
                             </p>
                         </div>
+                        <div class="header-actions d-flex gap-2 flex-wrap">
+                            {% if not session.get('is_sub_admin') or session.get('permissions', {}).get('Timetable', {}).get('edit') %}
+                            <button type="button" class="btn btn-outline-light btn-sm" onclick="downloadStaffPeriodTemplate()" title="Download sample staff period allocation sheet">
+                                <i class="bi bi-file-earmark-arrow-down"></i> Sample Sheet
+                            </button>
+                            <button type="button" class="btn btn-outline-light btn-sm" data-bs-toggle="modal" data-bs-target="#bulkUploadStaffPeriodModal" title="Bulk upload staff period allocations from Excel or CSV">
+                                <i class="bi bi-upload"></i> Bulk Upload
+                            </button>
+                            {% endif %}
+                        </div>
                     </div>
                     <div class="card-body">
                         <!-- Step 1: Select Staff Member -->
@@ -1102,6 +1112,43 @@
                         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
                         <button type="submit" class="btn btn-primary" id="bulkPeriodUploadSubmitBtn">
                             <i class="bi bi-cloud-upload"></i> Upload Periods
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bulk Upload Staff Period Allocations Modal -->
+    <div class="modal fade" id="bulkUploadStaffPeriodModal" tabindex="-1" aria-labelledby="bulkUploadStaffPeriodModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="bulkUploadStaffPeriodModalLabel">
+                        <i class="bi bi-upload"></i> Bulk Upload Staff Period Allocations
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="bulkUploadStaffPeriodForm">
+                    <div class="modal-body">
+                        <div class="alert alert-info mb-3">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Download sample sheet first, fill login staff ID and complete details, then upload the file.
+                        </div>
+                        <div class="mb-3">
+                            <label for="bulkStaffPeriodFile" class="form-label">Upload Staff Allocation File</label>
+                            <input type="file" class="form-control" id="bulkStaffPeriodFile" name="file" accept=".xlsx,.xls,.csv" required>
+                            <small class="form-text text-muted">Supported formats: .xlsx, .xls, .csv. Keep the same column headers as sample sheet.</small>
+                        </div>
+                        <div id="bulkStaffPeriodUploadResult" class="d-none"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" onclick="downloadStaffPeriodTemplate()">
+                            <i class="bi bi-download"></i> Download Sample Sheet
+                        </button>
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="bulkStaffPeriodUploadSubmitBtn">
+                            <i class="bi bi-cloud-upload"></i> Upload Allocations
                         </button>
                     </div>
                 </form>
