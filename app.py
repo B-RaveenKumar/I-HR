@@ -18437,6 +18437,10 @@ def generate_individual_salary_slip_pdf(salary_data, year, month, payroll_review
             ['Staff ID:', staff_info['staff_id']],
             ['Department:', staff_info['department']],
             ['Position:', staff_info.get('position', 'N/A')],
+            ['Bank A/C Name:', staff_info.get('bank_account_name') or 'N/A'],
+            ['Bank Name:', staff_info.get('bank_name') or 'N/A'],
+            ['Account Number:', staff_info.get('bank_account_number') or 'N/A'],
+            ['IFSC Code:', staff_info.get('ifsc_code') or 'N/A'],
             ['Calculation Period:', breakdown['calculation_period']]
         ]
 

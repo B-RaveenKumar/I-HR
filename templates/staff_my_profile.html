@@ -2753,6 +2753,10 @@
                                         <p><strong>Name:</strong> ${staff.full_name}</p>
                                         <p><strong>Department:</strong> ${staff.department || 'N/A'}</p>
                                         <p><strong>Position:</strong> ${staff.position || 'N/A'}</p>
+                                        <p><strong>Bank A/C Name:</strong> ${staff.bank_account_name || 'N/A'}</p>
+                                        <p><strong>Bank Name:</strong> ${staff.bank_name || 'N/A'}</p>
+                                        <p><strong>Account Number:</strong> ${staff.bank_account_number || 'N/A'}</p>
+                                        <p><strong>IFSC Code:</strong> ${staff.ifsc_code || 'N/A'}</p>
                                     </div>
                                 </div>
                             </div>
@@ -2838,6 +2842,10 @@
                                         <div class="d-flex justify-content-between">
                                             <span>Professional Tax:</span>
                                             <span class="fw-bold">₹${(deductions.professional_tax || 0).toFixed(2)}</span>
+                                        </div>
+                                        <div class="d-flex justify-content-between">
+                                            <span>Single Punch Penalty:</span>
+                                            <span class="fw-bold text-warning">₹${(deductions.single_punch_penalty || 0).toFixed(2)}</span>
                                         </div>
                                         <div class="d-flex justify-content-between">
                                             <span>Other Deductions:</span>
