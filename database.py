@@ -646,13 +646,16 @@ def init_db(app):
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS shift_definitions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            shift_type TEXT NOT NULL UNIQUE,
+            school_id INTEGER NOT NULL,
+            shift_type TEXT NOT NULL,
             start_time TIME NOT NULL,
             end_time TIME NOT NULL,
             grace_period_minutes INTEGER DEFAULT 10,
             description TEXT,
             is_active BOOLEAN DEFAULT 1,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            UNIQUE(school_id, shift_type)
         )
         ''')
 
@@ -1449,20 +1452,46 @@ def init_db(app):
         )
         ''')
 
-        # Initialize default shift definitions
-        cursor.execute('SELECT COUNT(*) FROM shift_definitions')
-        if cursor.fetchone()[0] == 0:
-            # Insert default shift types as per requirements
-            cursor.execute('''
-                INSERT INTO shift_definitions (shift_type, start_time, end_time, grace_period_minutes, description)
-                VALUES
-                ('general', '09:00:00', '17:00:00', 15, 'General Institution Shift'),
-                ('morning', '06:00:00', '14:00:00', 15, 'Morning Shift: 6:00 AM - 2:00 PM'),
-                ('afternoon', '14:00:00', '22:00:00', 15, 'Afternoon Shift: 2:00 PM - 10:00 PM'),
-                ('evening', '16:00:00', '00:00:00', 15, 'Evening Shift: 4:00 PM - 12:00 AM'),
-                ('night', '22:00:00', '06:00:00', 15, 'Night Shift: 10:00 PM - 6:00 AM'),
-                ('overtime', '18:00:00', '22:00:00', 0, 'Overtime Shift: 6:00 PM - 10:00 PM')
-            ''')
+        # Ensure shift_definitions can safely be queried/seeded in both legacy and new schemas.
+        shift_definitions_had_school_id = True
+        if _USE_MYSQL:
+            cursor.execute(
+                "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+                "WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = %s AND COLUMN_NAME = %s",
+                ('shift_definitions', 'school_id')
+            )
+            shift_definitions_had_school_id = (cursor.fetchone()[0] or 0) > 0
+
+        ensure_shift_school_column = False
+        if not shift_definitions_had_school_id:
+            cursor.execute('ALTER TABLE shift_definitions ADD COLUMN school_id INTEGER NULL')
+            ensure_shift_school_column = True
+
+        # Initialize default shift definitions for each school only when the schema already supports school scope.
+        default_shifts = [
+            ('general', '09:00:00', '17:00:00', 15, 'General Institution Shift'),
+            ('morning', '06:00:00', '14:00:00', 15, 'Morning Shift: 6:00 AM - 2:00 PM'),
+            ('afternoon', '14:00:00', '22:00:00', 15, 'Afternoon Shift: 2:00 PM - 10:00 PM'),
+            ('evening', '16:00:00', '00:00:00', 15, 'Evening Shift: 4:00 PM - 12:00 AM'),
+            ('night', '22:00:00', '06:00:00', 15, 'Night Shift: 10:00 PM - 6:00 AM'),
+            ('overtime', '18:00:00', '22:00:00', 0, 'Overtime Shift: 6:00 PM - 10:00 PM')
+        ]
+
+        if shift_definitions_had_school_id:
+            school_rows = cursor.execute('SELECT id FROM schools').fetchall()
+            for school in school_rows:
+                school_id = school['id'] if isinstance(school, dict) or hasattr(school, 'keys') else school[0]
+                for shift_type, start_time, end_time, grace_period, desc in default_shifts:
+                    exists = cursor.execute('''
+                        SELECT 1 FROM shift_definitions
+                        WHERE school_id = ? AND LOWER(shift_type) = LOWER(?)
+                    ''', (school_id, shift_type)).fetchone()
+                    if not exists:
+                        cursor.execute('''
+                            INSERT INTO shift_definitions
+                            (school_id, shift_type, start_time, end_time, grace_period_minutes, description, is_active)
+                            VALUES (?, ?, ?, ?, ?, ?, 1)
+                        ''', (school_id, shift_type, start_time, end_time, grace_period, desc))
 
         db.commit()
 
@@ -1563,32 +1592,165 @@ def migrate_department_shift_constraint():
             db.commit()
             print('Migration: department_shift_mappings CHECK constraint expanded to include afternoon/overtime')
 
-        # Ensure overtime exists in shift_definitions
-        exists = db.execute(
-            "SELECT 1 FROM shift_definitions WHERE shift_type = 'overtime'"
-        ).fetchone()
-        if not exists:
-            db.execute('''
-                INSERT INTO shift_definitions (shift_type, start_time, end_time, grace_period_minutes, description)
-                VALUES ('overtime', '18:00:00', '22:00:00', 0, 'Overtime Shift: 6:00 PM - 10:00 PM')
-            ''')
-            db.commit()
-            print('Migration: overtime shift added to shift_definitions')
+        # Ensure default multi-school shifts exist in shift_definitions.
+        school_rows = db.execute('SELECT id FROM schools').fetchall()
+        for school in school_rows:
+            school_id = school['id']
 
-        # Ensure afternoon exists in shift_definitions
-        exists2 = db.execute(
-            "SELECT 1 FROM shift_definitions WHERE shift_type = 'afternoon'"
-        ).fetchone()
-        if not exists2:
-            db.execute('''
-                INSERT INTO shift_definitions (shift_type, start_time, end_time, grace_period_minutes, description)
-                VALUES ('afternoon', '14:00:00', '22:00:00', 15, 'Afternoon Shift: 2:00 PM - 10:00 PM')
-            ''')
-            db.commit()
-            print('Migration: afternoon shift added to shift_definitions')
+            exists = db.execute(
+                "SELECT 1 FROM shift_definitions WHERE school_id = ? AND shift_type = 'overtime'",
+                (school_id,)
+            ).fetchone()
+            if not exists:
+                db.execute('''
+                    INSERT INTO shift_definitions (school_id, shift_type, start_time, end_time, grace_period_minutes, description, is_active)
+                    VALUES (?, 'overtime', '18:00:00', '22:00:00', 0, 'Overtime Shift: 6:00 PM - 10:00 PM', 1)
+                ''', (school_id,))
+
+            exists2 = db.execute(
+                "SELECT 1 FROM shift_definitions WHERE school_id = ? AND shift_type = 'afternoon'",
+                (school_id,)
+            ).fetchone()
+            if not exists2:
+                db.execute('''
+                    INSERT INTO shift_definitions (school_id, shift_type, start_time, end_time, grace_period_minutes, description, is_active)
+                    VALUES (?, 'afternoon', '14:00:00', '22:00:00', 15, 'Afternoon Shift: 2:00 PM - 10:00 PM', 1)
+                ''', (school_id,))
+
+        db.commit()
+        if school_rows:
+            print('Migration: overtime/afternoon shifts ensured for all schools')
 
     except Exception as e:
         print(f'Warning: migrate_department_shift_constraint failed: {e}')
+
+
+def migrate_shift_definitions():
+    """
+    Migration: make shift_definitions school-scoped and repair legacy MySQL
+    schemas where id is not AUTO_INCREMENT.
+    """
+    try:
+        db = get_db()
+
+        # Ensure table exists first.
+        db.execute('''
+            CREATE TABLE IF NOT EXISTS shift_definitions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                school_id INTEGER NOT NULL,
+                shift_type TEXT NOT NULL,
+                start_time TIME NOT NULL,
+                end_time TIME NOT NULL,
+                grace_period_minutes INTEGER DEFAULT 10,
+                description TEXT,
+                is_active BOOLEAN DEFAULT 1,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (school_id) REFERENCES schools(id),
+                UNIQUE(school_id, shift_type)
+            )
+        ''')
+        db.commit()
+
+        if _USE_MYSQL:
+            cols = db.execute('''
+                SELECT COLUMN_NAME, COLUMN_KEY, EXTRA
+                FROM INFORMATION_SCHEMA.COLUMNS
+                WHERE TABLE_SCHEMA = DATABASE()
+                  AND TABLE_NAME = 'shift_definitions'
+            ''').fetchall()
+            col_map = {row['COLUMN_NAME']: row for row in cols}
+
+            if 'school_id' not in col_map:
+                db.execute('ALTER TABLE shift_definitions ADD COLUMN school_id INT NULL')
+                db.commit()
+
+            # Repair legacy id column so INSERT does not hit Duplicate entry '0'.
+            id_meta = col_map.get('id')
+            has_auto_increment = id_meta and 'auto_increment' in str(id_meta.get('EXTRA', '')).lower()
+            is_primary = id_meta and str(id_meta.get('COLUMN_KEY', '')).upper() == 'PRI'
+            if not (has_auto_increment and is_primary):
+                db.execute('ALTER TABLE shift_definitions MODIFY COLUMN id INT NOT NULL AUTO_INCREMENT')
+                db.execute('ALTER TABLE shift_definitions AUTO_INCREMENT = 1')
+                db.commit()
+
+            school_ids = [row['id'] for row in db.execute('SELECT id FROM schools ORDER BY id').fetchall()]
+            if school_ids:
+                default_school_id = school_ids[0]
+                db.execute('UPDATE shift_definitions SET school_id = ? WHERE school_id IS NULL', (default_school_id,))
+                db.commit()
+
+                # Drop old unique index on shift_type only.
+                unique_indexes = db.execute('''
+                    SELECT s.INDEX_NAME,
+                           MAX(CASE WHEN s.COLUMN_NAME = 'shift_type' THEN 1 ELSE 0 END) AS has_shift_type,
+                           MAX(CASE WHEN s.COLUMN_NAME = 'school_id' THEN 1 ELSE 0 END) AS has_school_id
+                    FROM INFORMATION_SCHEMA.STATISTICS s
+                    WHERE s.TABLE_SCHEMA = DATABASE()
+                      AND s.TABLE_NAME = 'shift_definitions'
+                      AND s.NON_UNIQUE = 0
+                      AND s.INDEX_NAME <> 'PRIMARY'
+                    GROUP BY s.INDEX_NAME
+                ''').fetchall()
+
+                for idx in unique_indexes:
+                    if idx['has_shift_type'] and not idx['has_school_id']:
+                        db.execute(f"ALTER TABLE shift_definitions DROP INDEX `{idx['INDEX_NAME']}`")
+                db.commit()
+
+                # Ensure composite uniqueness for scoped shifts.
+                composite_idx = db.execute('''
+                    SELECT 1
+                    FROM INFORMATION_SCHEMA.STATISTICS
+                    WHERE TABLE_SCHEMA = DATABASE()
+                      AND TABLE_NAME = 'shift_definitions'
+                      AND INDEX_NAME = 'uq_shift_definitions_school_shift'
+                    LIMIT 1
+                ''').fetchone()
+                if not composite_idx:
+                    db.execute('''
+                        ALTER TABLE shift_definitions
+                        ADD UNIQUE INDEX uq_shift_definitions_school_shift (school_id, shift_type)
+                    ''')
+                    db.commit()
+
+            # Enforce NOT NULL now that values are backfilled.
+            db.execute('ALTER TABLE shift_definitions MODIFY COLUMN school_id INT NOT NULL')
+            db.commit()
+        else:
+            pragma = db.execute("PRAGMA table_info(shift_definitions)").fetchall()
+            col_names = {row['name'] for row in pragma}
+            if 'school_id' not in col_names:
+                db.execute('ALTER TABLE shift_definitions ADD COLUMN school_id INTEGER')
+                db.execute('UPDATE shift_definitions SET school_id = 1 WHERE school_id IS NULL')
+                db.commit()
+
+        defaults = [
+            ('general', '09:00:00', '17:00:00', 15, 'General Institution Shift'),
+            ('morning', '06:00:00', '14:00:00', 15, 'Morning Shift: 6:00 AM - 2:00 PM'),
+            ('afternoon', '14:00:00', '22:00:00', 15, 'Afternoon Shift: 2:00 PM - 10:00 PM'),
+            ('evening', '16:00:00', '00:00:00', 15, 'Evening Shift: 4:00 PM - 12:00 AM'),
+            ('night', '22:00:00', '06:00:00', 15, 'Night Shift: 10:00 PM - 6:00 AM'),
+            ('overtime', '18:00:00', '22:00:00', 0, 'Overtime Shift: 6:00 PM - 10:00 PM')
+        ]
+
+        schools = db.execute('SELECT id FROM schools').fetchall()
+        for school in schools:
+            school_id = school['id']
+            for shift_type, start_time, end_time, grace_period, desc in defaults:
+                exists = db.execute('''
+                    SELECT 1 FROM shift_definitions
+                    WHERE school_id = ? AND LOWER(shift_type) = LOWER(?)
+                ''', (school_id, shift_type)).fetchone()
+                if not exists:
+                    db.execute('''
+                        INSERT INTO shift_definitions
+                            (school_id, shift_type, start_time, end_time, grace_period_minutes, description, is_active)
+                        VALUES (?, ?, ?, ?, ?, ?, 1)
+                    ''', (school_id, shift_type, start_time, end_time, grace_period, desc))
+
+        db.commit()
+    except Exception as e:
+        print(f'Warning: migrate_shift_definitions failed: {e}')
 
 
 def migrate_shift_history():

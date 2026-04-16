@@ -1388,11 +1388,19 @@ class SalaryCalculator:
         """Return active shift definitions indexed by shift_type."""
         db = self._get_db_connection()
         try:
-            rows = db.execute('''
-                SELECT shift_type, start_time, end_time, grace_period_minutes
-                FROM shift_definitions
-                WHERE is_active = 1
-            ''').fetchall()
+            shift_columns = [col['name'] for col in db.execute("PRAGMA table_info(shift_definitions)").fetchall()]
+            if 'school_id' in shift_columns and self.school_id is not None:
+                rows = db.execute('''
+                    SELECT shift_type, start_time, end_time, grace_period_minutes
+                    FROM shift_definitions
+                    WHERE school_id = ? AND is_active = 1
+                ''', (self.school_id,)).fetchall()
+            else:
+                rows = db.execute('''
+                    SELECT shift_type, start_time, end_time, grace_period_minutes
+                    FROM shift_definitions
+                    WHERE is_active = 1
+                ''').fetchall()
             return {r['shift_type']: dict(r) for r in rows}
         except Exception:
             return {}

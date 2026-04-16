@@ -378,6 +378,12 @@ def ensure_system_settings_capacity():
 with app.app_context():
     ensure_on_duty_permission_table()
     ensure_system_settings_capacity()
+    # Repair/seed shift definitions as school-scoped records.
+    try:
+        from database import migrate_shift_definitions
+        migrate_shift_definitions()
+    except Exception as _shift_mig_err:
+        print(f'Startup shift definitions migration warning: {_shift_mig_err}')
     # Expand department_shift_mappings CHECK constraint + seed overtime shift
     try:
         from database import migrate_department_shift_constraint
@@ -3478,11 +3484,14 @@ def update_shift():
         
     try:
         db = get_db()
+        school_id = session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School context is required'})
         db.execute('''
             UPDATE shift_definitions 
             SET start_time = ?, end_time = ?, grace_period_minutes = ?, description = ?
-            WHERE id = ?
-        ''', (start_time, end_time, grace_period, description, shift_id))
+            WHERE id = ? AND school_id = ?
+        ''', (start_time, end_time, grace_period, description, shift_id, school_id))
         db.commit()
         
         # Reload shift manager
@@ -3522,16 +3531,20 @@ def add_shift():
 
     try:
         db = get_db()
+        school_id = session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School context is required'})
         existing = db.execute('''
-            SELECT id FROM shift_definitions WHERE LOWER(shift_type) = LOWER(?)
-        ''', (shift_type,)).fetchone()
+            SELECT id FROM shift_definitions
+            WHERE school_id = ? AND LOWER(shift_type) = LOWER(?)
+        ''', (school_id, shift_type)).fetchone()
         if existing:
             return jsonify({'success': False, 'error': 'A shift with this name already exists'})
 
         db.execute('''
-            INSERT INTO shift_definitions (shift_type, start_time, end_time, grace_period_minutes, description, is_active)
-            VALUES (?, ?, ?, ?, ?, 1)
-        ''', (shift_type, start_time, end_time, grace_period_value, description))
+            INSERT INTO shift_definitions (school_id, shift_type, start_time, end_time, grace_period_minutes, description, is_active)
+            VALUES (?, ?, ?, ?, ?, ?, 1)
+        ''', (school_id, shift_type, start_time, end_time, grace_period_value, description))
         db.commit()
 
         # Reload shift manager so custom shift can be used immediately
@@ -3559,11 +3572,13 @@ def delete_shift():
     try:
         db = get_db()
         school_id = session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School context is required'})
 
         shift_row = db.execute('''
             SELECT id, shift_type FROM shift_definitions
-            WHERE id = ? AND is_active = 1
-        ''', (shift_id,)).fetchone()
+            WHERE id = ? AND school_id = ? AND is_active = 1
+        ''', (shift_id, school_id)).fetchone()
 
         if not shift_row:
             return jsonify({'success': False, 'error': 'Shift not found or already deleted'})
@@ -3599,8 +3614,8 @@ def delete_shift():
         db.execute('''
             UPDATE shift_definitions
             SET is_active = 0
-            WHERE id = ?
-        ''', (shift_id,))
+            WHERE id = ? AND school_id = ?
+        ''', (shift_id, school_id))
         db.commit()
 
         if hasattr(app, 'shift_manager'):
@@ -3871,9 +3886,9 @@ def payroll_processing_review():
             configured_shifts = db.execute('''
                 SELECT shift_type
                 FROM shift_definitions
-                WHERE is_active = 1
+                WHERE school_id = ? AND is_active = 1
                 ORDER BY start_time, shift_type
-            ''').fetchall()
+            ''', (school_id,)).fetchall()
             for row in configured_shifts:
                 shift_name = (row['shift_type'] or '').strip()
                 if not shift_name:
@@ -7707,8 +7722,8 @@ def department_shifts():
     # Get all active shift definitions with times for dropdowns
     shift_defs = db.execute('''
         SELECT shift_type, start_time, end_time, grace_period_minutes, description
-        FROM shift_definitions WHERE is_active = 1 ORDER BY id
-    ''').fetchall()
+        FROM shift_definitions WHERE school_id = ? AND is_active = 1 ORDER BY id
+    ''', (school_id,)).fetchall()
 
     # Build a quick lookup dict: shift_type -> {start, end}
     shift_time_map = {s['shift_type']: {'start': s['start_time'][:5], 'end': s['end_time'][:5]}
@@ -7743,7 +7758,9 @@ def api_department_shifts():
                        sd.start_time, sd.end_time
                 FROM department_shift_mappings dsm
                 LEFT JOIN shift_definitions sd
-                    ON sd.shift_type = dsm.default_shift_type AND sd.is_active = 1
+                    ON sd.shift_type = dsm.default_shift_type
+                    AND sd.school_id = dsm.school_id
+                    AND sd.is_active = 1
                 WHERE dsm.school_id = ?
                 ORDER BY dsm.department
             ''', [school_id]).fetchall()
@@ -8018,8 +8035,8 @@ def staff_management():
     # Get all active shift definitions for dropdowns
     shift_defs = db.execute('''
         SELECT shift_type, start_time, end_time, description
-        FROM shift_definitions WHERE is_active = 1 ORDER BY id
-    ''').fetchall()
+        FROM shift_definitions WHERE school_id = ? AND is_active = 1 ORDER BY id
+    ''', (school_id,)).fetchall()
 
     # Auto-fix any staff records with 'User' suffix (run once when page loads)
     try:
@@ -8211,9 +8228,9 @@ def shift_management():
     # Get defined shifts
     shifts = db.execute('''
         SELECT * FROM shift_definitions 
-        WHERE is_active = 1
+        WHERE school_id = ? AND is_active = 1
         ORDER BY id ASC
-    ''').fetchall()
+    ''', (school_id,)).fetchall()
     
     # Get institution info for branding
     institution = db.execute(
@@ -8372,9 +8389,9 @@ def admin_dashboard():
     all_shifts = db.execute('''
         SELECT id, shift_type, start_time, end_time
         FROM shift_definitions
-        WHERE is_active = 1
+        WHERE school_id = ? AND is_active = 1
         ORDER BY start_time
-    ''').fetchall()
+    ''', (school_id,)).fetchall()
     
     # Determine current shift based on current time
     current_time = datetime.datetime.now().time()
@@ -12426,8 +12443,8 @@ def get_weekly_attendance():
         shift_defs_raw = db.execute('''
             SELECT shift_type, start_time, end_time, grace_period_minutes
             FROM shift_definitions
-            WHERE is_active = 1
-        ''').fetchall()
+            WHERE school_id = ? AND is_active = 1
+        ''', (staff_info['school_id'],)).fetchall()
         
         all_shift_defs = {sd['shift_type']: sd for sd in shift_defs_raw}
 
@@ -18633,13 +18650,19 @@ def get_institution_timings():
     """Get current institution check-in and check-out timings from the general shift definition."""
     try:
         db = get_db()
+        school_id = session.get('school_id')
+        if not school_id:
+            return jsonify({
+                'success': False,
+                'message': 'School context is required'
+            }), 400
 
         # Read directly from shift_definitions (general shift is the single source of truth)
         row = db.execute("""
             SELECT start_time, end_time FROM shift_definitions
-            WHERE shift_type = 'general' AND is_active = 1
+            WHERE school_id = ? AND shift_type = 'general' AND is_active = 1
             LIMIT 1
-        """).fetchone()
+        """, (school_id,)).fetchone()
 
         if row:
             # Strip seconds part if present (HH:MM:SS -> HH:MM)
@@ -18704,21 +18727,27 @@ def update_institution_timings():
             }), 400
 
         db = get_db()
+        school_id = session.get('school_id')
+        if not school_id:
+            return jsonify({
+                'success': False,
+                'message': 'School context is required'
+            }), 400
 
         # Write directly to shift_definitions (general shift) — single source of truth
         db.execute("""
             UPDATE shift_definitions
             SET start_time = ?, end_time = ?
-            WHERE shift_type = 'general' AND is_active = 1
-        """, (checkin_time + ':00', checkout_time + ':00'))
+            WHERE school_id = ? AND shift_type = 'general' AND is_active = 1
+        """, (checkin_time + ':00', checkout_time + ':00', school_id))
 
         if db.execute("SELECT changes()").fetchone()[0] == 0:
             # Row didn't exist yet — insert it
             db.execute("""
                 INSERT INTO shift_definitions
-                (shift_type, start_time, end_time, grace_period_minutes, description, is_active)
-                VALUES ('general', ?, ?, 15, 'General Institution Shift', 1)
-            """, (checkin_time + ':00', checkout_time + ':00'))
+                (school_id, shift_type, start_time, end_time, grace_period_minutes, description, is_active)
+                VALUES (?, 'general', ?, ?, 15, 'General Institution Shift', 1)
+            """, (school_id, checkin_time + ':00', checkout_time + ':00'))
 
         db.commit()
         print(f"General shift timing updated: {checkin_time} - {checkout_time}")

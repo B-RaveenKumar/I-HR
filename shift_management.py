@@ -11,14 +11,25 @@ This module handles the core logic for:
 
 import datetime
 from typing import Dict, Tuple, Optional
+from flask import has_request_context, session
 from database import get_db
 
 
 class ShiftManager:
     """Manages shift definitions and attendance calculations"""
     
-    def __init__(self):
+    def __init__(self, school_id: Optional[int] = None):
+        self.school_id = school_id if school_id is not None else self._resolve_school_id()
         self.shift_definitions = self._load_shift_definitions()
+
+    def _resolve_school_id(self) -> Optional[int]:
+        """Resolve the current school context when running inside a request."""
+        try:
+            if has_request_context():
+                return session.get('school_id')
+        except Exception:
+            return None
+        return None
     
     def _load_shift_definitions(self) -> Dict:
         """Load shift definitions from database"""
@@ -53,11 +64,24 @@ class ShiftManager:
 
         # Then try to load additional shifts from shift_definitions table
         try:
-            shifts = db.execute('''
+            shift_columns = {col['name'] for col in db.execute("PRAGMA table_info(shift_definitions)").fetchall()}
+            has_school_id = 'school_id' in shift_columns
+
+            shift_query = '''
                 SELECT shift_type, start_time, end_time, grace_period_minutes, description
                 FROM shift_definitions
                 WHERE is_active = 1 AND shift_type != 'general'
-            ''').fetchall()
+            '''
+            params = []
+            if has_school_id and self.school_id is not None:
+                shift_query = '''
+                    SELECT shift_type, start_time, end_time, grace_period_minutes, description
+                    FROM shift_definitions
+                    WHERE school_id = ? AND is_active = 1 AND shift_type != 'general'
+                '''
+                params = [self.school_id]
+
+            shifts = db.execute(shift_query, params).fetchall()
 
             for shift in shifts:
                 shift_dict[shift['shift_type']] = {
