@@ -23032,6 +23032,44 @@ def staff_mark_student_attendance():
 
         return students, scope_text
 
+    def _build_assigned_class_options(students):
+        """Create distinct class-section options from accessible students."""
+        options = []
+        seen = set()
+        for student in students:
+            class_name = (student['class'] or '').strip()
+            section_name = (student['section'] or '').strip()
+            if not class_name or not section_name:
+                continue
+
+            key = (class_name, section_name)
+            if key in seen:
+                continue
+
+            seen.add(key)
+            options.append({
+                'class_name': class_name,
+                'section_name': section_name,
+                'display_name': f"{class_name}-{section_name}"
+            })
+
+        options.sort(key=lambda item: (item['class_name'], item['section_name']))
+        return options
+
+    def _filter_students_by_selection(students, class_name, section_name):
+        """Filter students by selected class/section."""
+        selected_class = (class_name or '').strip()
+        selected_section = (section_name or '').strip()
+
+        if not selected_class and not selected_section:
+            return []
+
+        return [
+            student for student in students
+            if (student['class'] or '').strip() == selected_class
+            and (student['section'] or '').strip() == selected_section
+        ]
+
     selected_date = request.args.get('date', today)
     try:
         selected_date = datetime.date.fromisoformat(selected_date).strftime('%Y-%m-%d')
@@ -23056,6 +23094,8 @@ def staff_mark_student_attendance():
 
         notes = request.form.get('notes', '').strip()
         attendance_payload = request.form.get('attendance_payload', '')
+        selected_class_name = (request.form.get('class_name') or '').strip()
+        selected_section_name = (request.form.get('section_name') or '').strip()
 
         try:
             attendance_map = json.loads(attendance_payload) if attendance_payload else {}
@@ -23069,11 +23109,42 @@ def staff_mark_student_attendance():
         current_time = datetime.datetime.now().strftime('%H:%M:%S')
 
         students, _ = _get_accessible_students(date)
+        assigned_classes = _build_assigned_class_options(students)
+
+        if assigned_classes and (not selected_class_name or not selected_section_name):
+            flash('Please select an assigned class before marking attendance', 'error')
+            return redirect(url_for(
+                'staff_mark_student_attendance',
+                date=date,
+                session_type=session_type
+            ))
+
+        if assigned_classes:
+            is_valid_selection = any(
+                option['class_name'] == selected_class_name
+                and option['section_name'] == selected_section_name
+                for option in assigned_classes
+            )
+            if not is_valid_selection:
+                flash('Selected class is not in your assigned attendance scope', 'error')
+                return redirect(url_for(
+                    'staff_mark_student_attendance',
+                    date=date,
+                    session_type=session_type
+                ))
+
+        students = _filter_students_by_selection(students, selected_class_name, selected_section_name)
         student_ids = [student['id'] for student in students]
 
         if not student_ids:
             flash('No eligible students are assigned for your attendance scope', 'error')
-            return redirect(url_for('staff_mark_student_attendance', date=date, session_type=session_type))
+            return redirect(url_for(
+                'staff_mark_student_attendance',
+                date=date,
+                session_type=session_type,
+                class_name=selected_class_name,
+                section_name=selected_section_name
+            ))
 
         placeholders = ','.join('?' for _ in student_ids)
         existing_records = db.execute(f'''
@@ -23127,10 +23198,32 @@ def staff_mark_student_attendance():
 
         db.commit()
         flash(f'Attendance saved for {marked_count} students', 'success')
-        return redirect(url_for('staff_mark_student_attendance', date=date, session_type=session_type))
+        return redirect(url_for(
+            'staff_mark_student_attendance',
+            date=date,
+            session_type=session_type,
+            class_name=selected_class_name,
+            section_name=selected_section_name
+        ))
 
     # GET request - show form
-    students, attendance_scope_text = _get_accessible_students(selected_date)
+    selected_class_name = (request.args.get('class_name') or '').strip()
+    selected_section_name = (request.args.get('section_name') or '').strip()
+
+    all_students, attendance_scope_text = _get_accessible_students(selected_date)
+    assigned_classes = _build_assigned_class_options(all_students)
+
+    if selected_class_name or selected_section_name:
+        is_valid_selection = any(
+            option['class_name'] == selected_class_name
+            and option['section_name'] == selected_section_name
+            for option in assigned_classes
+        )
+        if not is_valid_selection:
+            selected_class_name = ''
+            selected_section_name = ''
+
+    students = _filter_students_by_selection(all_students, selected_class_name, selected_section_name)
     student_ids = [student['id'] for student in students]
 
     if student_ids:
@@ -23161,6 +23254,9 @@ def staff_mark_student_attendance():
     return render_template('student/mark_student_attendance.html',
                          students=prepared_students,
                          today_attendance=attendance_records,
+                         assigned_classes=assigned_classes,
+                         selected_class_name=selected_class_name,
+                         selected_section_name=selected_section_name,
                          current_date=selected_date,
                          selected_session=selected_session,
                          max_date=today,

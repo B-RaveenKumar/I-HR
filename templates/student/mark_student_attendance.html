@@ -105,6 +105,163 @@
             margin: 1rem 0;
         }
 
+        .class-selector-wrap {
+            margin: .4rem 0 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: .55rem;
+        }
+
+        .class-chip {
+            border: 1px solid #cbd5e1;
+            background: #f8fafc;
+            color: #0f172a;
+            border-radius: 999px;
+            padding: .38rem .82rem;
+            font-size: .8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all .16s ease;
+        }
+
+        .class-chip:hover {
+            border-color: #0ea5e9;
+            color: #0369a1;
+            transform: translateY(-1px);
+        }
+
+        .class-chip.active {
+            background: #0ea5e9;
+            border-color: #0284c7;
+            color: #ffffff;
+            box-shadow: 0 8px 18px rgba(14, 165, 233, .25);
+        }
+
+        .attendance-entry-card .card-header {
+            border-radius: 1rem 1rem 0 0;
+        }
+
+        .attendance-entry-card .header-content {
+            width: 100%;
+        }
+
+        .attendance-entry-card .card-title {
+            margin-bottom: .25rem;
+            letter-spacing: .01em;
+        }
+
+        .attendance-entry-card .card-subtitle {
+            margin-bottom: .2rem;
+            line-height: 1.35;
+        }
+
+        .attendance-entry-card .scope-line {
+            margin-top: .3rem;
+            margin-bottom: .2rem;
+            font-size: .89rem;
+            opacity: .95;
+        }
+
+        .attendance-entry-card .class-selector-wrap {
+            margin: .55rem 0 0;
+        }
+
+        @media (max-width: 1024px) {
+            .attendance-entry-card .card-header {
+                padding: 1rem .95rem;
+                border-radius: .95rem .95rem 0 0;
+            }
+
+            .attendance-entry-card .header-title {
+                display: flex;
+                align-items: flex-start;
+                gap: .6rem;
+            }
+
+            .attendance-entry-card .title-icon {
+                width: 2rem;
+                height: 2rem;
+                min-width: 2rem;
+                border-radius: .6rem;
+            }
+
+            .attendance-entry-card .title-icon i {
+                font-size: 1rem;
+            }
+
+            .attendance-entry-card .card-title {
+                font-size: 1.5rem;
+                margin-bottom: .18rem;
+            }
+
+            .attendance-entry-card .card-subtitle {
+                font-size: .96rem;
+                margin-bottom: .1rem;
+            }
+
+            .attendance-entry-card .scope-line {
+                font-size: .84rem;
+            }
+
+            .attendance-entry-card .class-selector-wrap {
+                gap: .45rem;
+                margin-top: .45rem;
+            }
+
+            .attendance-entry-card .class-chip {
+                padding: .32rem .68rem;
+                font-size: .76rem;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .attendance-entry-card .card-header {
+                padding: .82rem .72rem;
+                border-radius: .82rem .82rem 0 0;
+            }
+
+            .attendance-entry-card .header-title {
+                gap: .5rem;
+            }
+
+            .attendance-entry-card .title-icon {
+                width: 1.7rem;
+                height: 1.7rem;
+                min-width: 1.7rem;
+                border-radius: .5rem;
+            }
+
+            .attendance-entry-card .title-icon i {
+                font-size: .85rem;
+            }
+
+            .attendance-entry-card .card-title {
+                font-size: 1.2rem;
+                line-height: 1.15;
+            }
+
+            .attendance-entry-card .card-subtitle {
+                font-size: .83rem;
+                line-height: 1.25;
+            }
+
+            .attendance-entry-card .scope-line {
+                font-size: .78rem;
+                line-height: 1.25;
+            }
+
+            .attendance-entry-card .class-selector-wrap {
+                margin-top: .38rem;
+                gap: .38rem;
+            }
+
+            .attendance-entry-card .class-chip {
+                padding: .26rem .58rem;
+                font-size: .72rem;
+                border-radius: .75rem;
+            }
+        }
+
         .summary-pill {
             display: inline-flex;
             align-items: center;
@@ -490,14 +647,28 @@
                 </div>
 
                 <!-- Mark Attendance Form Card -->
-                <div class="salary-filters-card">
+                <div class="salary-filters-card attendance-entry-card">
                     <div class="card-header">
                         <div class="header-icon"><i class="bi bi-plus-circle"></i></div>
                         <div class="header-content">
                             <h5 class="card-title">Mark Attendance</h5>
-                            <p class="card-subtitle">Only students allowed by your attendance scope are shown. They start as present, click a row to mark absent.</p>
+                            <p class="card-subtitle">Select one assigned class, then mark attendance for students in that class only.</p>
                             {% if attendance_scope_text %}
-                            <p class="card-subtitle" style="margin-top:.25rem; color:#0f172a; font-weight:500;">{{ attendance_scope_text }}</p>
+                            <p class="card-subtitle scope-line" style="color:#0f172a; font-weight:500;">{{ attendance_scope_text }}</p>
+                            {% endif %}
+
+                            {% if assigned_classes %}
+                            <div class="class-selector-wrap" id="assignedClassSelector">
+                                {% for cls in assigned_classes %}
+                                <button
+                                    type="button"
+                                    class="class-chip {% if selected_class_name == cls.class_name and selected_section_name == cls.section_name %}active{% endif %}"
+                                    data-class-name="{{ cls.class_name }}"
+                                    data-section-name="{{ cls.section_name }}">
+                                    {{ cls.display_name }}
+                                </button>
+                                {% endfor %}
+                            </div>
                             {% endif %}
                         </div>
                     </div>
@@ -505,6 +676,8 @@
                         <form method="POST" action="{{ url_for('staff_mark_student_attendance') }}" id="attendanceForm">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <input type="hidden" name="attendance_payload" id="attendancePayload">
+                            <input type="hidden" name="class_name" id="selectedClassName" value="{{ selected_class_name }}">
+                            <input type="hidden" name="section_name" id="selectedSectionName" value="{{ selected_section_name }}">
                             <div class="att-form-grid">
                                 <div>
                                     <label for="date" class="form-label fw-semibold">Date <span class="text-danger">*</span></label>
@@ -575,7 +748,11 @@
                                 {% else %}
                                 <div class="student-empty">
                                     <i class="bi bi-people" style="font-size: 1.5rem; display:block; margin-bottom:.5rem;"></i>
+                                    {% if assigned_classes and not selected_class_name %}
+                                    Select one assigned class to view students.
+                                    {% else %}
                                     No students are available for attendance.
+                                    {% endif %}
                                 </div>
                                 {% endif %}
                             </div>
@@ -698,6 +875,9 @@
         const draftFeedback = document.getElementById('draftFeedback');
         const presentCount = document.getElementById('presentCount');
         const absentCount = document.getElementById('absentCount');
+        const selectedClassNameInput = document.getElementById('selectedClassName');
+        const selectedSectionNameInput = document.getElementById('selectedSectionName');
+        const classSelectorButtons = Array.from(document.querySelectorAll('#assignedClassSelector .class-chip'));
         const studentRows = Array.from(document.querySelectorAll('.student-row'));
         const attendanceState = {};
 
@@ -716,7 +896,9 @@
         }
 
         function getDraftKey() {
-            return `student-attendance-draft:${dateInput.value}:${sessionInput.value}`;
+            const cls = selectedClassNameInput ? selectedClassNameInput.value : '';
+            const sec = selectedSectionNameInput ? selectedSectionNameInput.value : '';
+            return `student-attendance-draft:${dateInput.value}:${sessionInput.value}:${cls}:${sec}`;
         }
 
         function getBaseStatus(row) {
@@ -814,8 +996,34 @@
                 date: dateInput.value,
                 session_type: sessionInput.value
             });
+
+            if (selectedClassNameInput && selectedClassNameInput.value) {
+                params.set('class_name', selectedClassNameInput.value);
+            }
+
+            if (selectedSectionNameInput && selectedSectionNameInput.value) {
+                params.set('section_name', selectedSectionNameInput.value);
+            }
+
             window.location.href = `{{ url_for('staff_mark_student_attendance') }}?${params.toString()}`;
         }
+
+        classSelectorButtons.forEach((button) => {
+            button.addEventListener('click', () => {
+                const className = button.dataset.className || '';
+                const sectionName = button.dataset.sectionName || '';
+
+                if (selectedClassNameInput) {
+                    selectedClassNameInput.value = className;
+                }
+
+                if (selectedSectionNameInput) {
+                    selectedSectionNameInput.value = sectionName;
+                }
+
+                reloadAttendanceView();
+            });
+        });
 
         studentRows.forEach((row) => {
             const studentId = row.dataset.studentId;
