@@ -9603,7 +9603,7 @@ def api_student_attendance_rules():
                 # Backward compatibility for older data saved with period_numbers.
                 if slot_ids is None:
                     slot_ids = parsed.get('period_numbers', [])
-                if mode in ['all', 'selected'] and isinstance(slot_ids, list):
+                if mode in ['all', 'selected', 'mentor_only'] and isinstance(slot_ids, list):
                     rule['mode'] = mode
                     unique_slot_ids = []
                     for item in slot_ids:
@@ -9625,7 +9625,7 @@ def api_student_attendance_rules():
             mode = str(data.get('mode', 'all')).lower()
             time_slot_ids = data.get('time_slot_ids', [])
 
-            if mode not in ['all', 'selected']:
+            if mode not in ['all', 'selected', 'mentor_only']:
                 return jsonify({'success': False, 'error': 'Invalid attendance mode'}), 400
 
             if not isinstance(time_slot_ids, list):
@@ -9643,7 +9643,7 @@ def api_student_attendance_rules():
             if mode == 'selected' and not clean_time_slot_ids:
                 return jsonify({'success': False, 'error': 'Select at least one time slot'}), 400
 
-            if mode == 'all':
+            if mode in ['all', 'mentor_only']:
                 clean_time_slot_ids = []
 
             rule = {
@@ -9651,7 +9651,7 @@ def api_student_attendance_rules():
                 'time_slot_ids': clean_time_slot_ids
             }
 
-            description = 'Student attendance rule per school: all time slots or selected time slots'
+            description = 'Student attendance rule per school: all time slots, selected time slots, or mentor only'
             serialized_rule = json.dumps(rule)
 
             save_ok = set_system_setting(setting_key, serialized_rule, description)
@@ -22864,7 +22864,7 @@ def staff_mark_student_attendance():
             if slot_ids is None:
                 slot_ids = parsed.get('period_numbers', [])
 
-            if mode not in ['all', 'selected'] or not isinstance(slot_ids, list):
+            if mode not in ['all', 'selected', 'mentor_only'] or not isinstance(slot_ids, list):
                 return default_rule
 
             cleaned_slot_ids = []
@@ -22941,6 +22941,47 @@ def staff_mark_student_attendance():
 
         if attendance_rule['mode'] == 'selected' and not allowed_period_numbers:
             return [], 'Selected time slot rule has no mapped periods for this school'
+
+        if attendance_rule['mode'] == 'mentor_only':
+            students = db.execute('''
+                SELECT DISTINCT s.id, s.student_id, s.full_name, s.`class`, s.section, s.roll_number
+                FROM students s
+                JOIN timetable_academic_levels tal
+                  ON tal.school_id = s.school_id
+                 AND tal.level_name = s.`class`
+                 AND tal.is_active = 1
+                JOIN timetable_sections ts
+                  ON ts.school_id = s.school_id
+                 AND ts.level_id = tal.id
+                 AND ts.section_name = s.section
+                 AND ts.is_active = 1
+                JOIN timetable_section_mentors sm
+                  ON sm.school_id = s.school_id
+                 AND sm.section_id = ts.id
+                WHERE s.school_id = ?
+                  AND sm.staff_id = ?
+                ORDER BY s.`class`, s.section, s.roll_number
+            ''', (school_id, staff_id)).fetchall()
+
+            assigned_classes = db.execute('''
+                SELECT DISTINCT tal.level_name AS class_name, ts.section_name AS section_name
+                FROM timetable_section_mentors sm
+                JOIN timetable_sections ts ON sm.section_id = ts.id
+                JOIN timetable_academic_levels tal ON ts.level_id = tal.id
+                WHERE sm.school_id = ?
+                  AND sm.staff_id = ?
+                  AND ts.is_active = 1
+                  AND tal.is_active = 1
+                ORDER BY tal.level_number, ts.section_name
+            ''', (school_id, staff_id)).fetchall()
+
+            if assigned_classes:
+                class_text = ', '.join([f"{row['class_name']}-{row['section_name']}" for row in assigned_classes])
+                scope_text = f"Mentor scope: you are the mentor for {class_text}; only those students are shown"
+            else:
+                scope_text = 'Mentor scope: no class has been assigned to you yet'
+
+            return students, scope_text
 
         period_filter_sql = ''
         period_params = []

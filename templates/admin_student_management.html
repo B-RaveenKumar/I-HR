@@ -2044,7 +2044,7 @@
                                 <i class="bi bi-sliders" style="font-size:1.3rem;"></i>
                                 <div>
                                     <h5>Attendance Rules</h5>
-                                    <p>Choose whether attendance is counted for all time slots or selected time slots only.</p>
+                                    <p>Choose whether attendance is counted for all time slots, selected time slots, or mentor-only access.</p>
                                 </div>
                             </div>
                             <div>
@@ -2062,6 +2062,10 @@
                                 <label class="attendance-mode-pill">
                                     <input type="radio" name="attendanceMode" value="selected" id="attendanceModeSelected">
                                     Selected Time Slots
+                                </label>
+                                <label class="attendance-mode-pill">
+                                    <input type="radio" name="attendanceMode" value="mentor_only" id="attendanceModeMentorOnly">
+                                    Mentor Only
                                 </label>
                             </div>
 
@@ -4237,10 +4241,12 @@ showStep(currentStep);
             const mode = attendanceRuleState.mode || 'all';
             const allRadio = document.getElementById('attendanceModeAll');
             const selectedRadio = document.getElementById('attendanceModeSelected');
+            const mentorOnlyRadio = document.getElementById('attendanceModeMentorOnly');
             const wrap = document.getElementById('periodPickerWrap');
 
             if (allRadio) allRadio.checked = mode === 'all';
             if (selectedRadio) selectedRadio.checked = mode === 'selected';
+            if (mentorOnlyRadio) mentorOnlyRadio.checked = mode === 'mentor_only';
             if (wrap) {
                 wrap.style.opacity = mode === 'selected' ? '1' : '.55';
                 wrap.style.pointerEvents = mode === 'selected' ? 'auto' : 'none';
@@ -4297,7 +4303,9 @@ showStep(currentStep);
                     }
 
                     const incomingRule = data.rule || {};
-                    attendanceRuleState.mode = incomingRule.mode === 'selected' ? 'selected' : 'all';
+                    attendanceRuleState.mode = incomingRule.mode === 'selected' || incomingRule.mode === 'mentor_only'
+                        ? incomingRule.mode
+                        : 'all';
                     attendanceRuleState.time_slot_ids = Array.isArray(incomingRule.time_slot_ids) ? incomingRule.time_slot_ids.map(Number) : [];
                     attendanceRuleState.available_time_slots = Array.isArray(data.available_time_slots) ? data.available_time_slots : [];
 
@@ -4311,7 +4319,9 @@ showStep(currentStep);
         }
 
         function saveAttendanceRules() {
-            const mode = document.getElementById('attendanceModeSelected')?.checked ? 'selected' : 'all';
+            const mode = document.getElementById('attendanceModeSelected')?.checked
+                ? 'selected'
+                : (document.getElementById('attendanceModeMentorOnly')?.checked ? 'mentor_only' : 'all');
             const selectedTimeSlots = mode === 'selected' ? readSelectedAttendancePeriods() : [];
 
             if (mode === 'selected' && selectedTimeSlots.length === 0) {
@@ -4358,6 +4368,11 @@ showStep(currentStep);
 
         document.getElementById('attendanceModeSelected')?.addEventListener('change', () => {
             attendanceRuleState.mode = 'selected';
+            updateAttendanceRulesModeUI();
+        });
+
+        document.getElementById('attendanceModeMentorOnly')?.addEventListener('change', () => {
+            attendanceRuleState.mode = 'mentor_only';
             updateAttendanceRulesModeUI();
         });
 
