@@ -22952,6 +22952,8 @@ def staff_mark_student_attendance():
 
     def _get_accessible_students(date_str):
         """Return students this user can mark attendance for on the given date."""
+        day_of_week = _to_day_of_week(date_str)
+
         if is_admin_user:
             all_students = db.execute('''
                 SELECT id, student_id, full_name, `class`, section, roll_number
@@ -22985,8 +22987,17 @@ def staff_mark_student_attendance():
                  AND sm.section_id = ts.id
                 WHERE s.school_id = ?
                   AND sm.staff_id = ?
+                                    AND EXISTS (
+                                            SELECT 1
+                                            FROM timetable_hierarchical_assignments ha
+                                            WHERE ha.school_id = s.school_id
+                                                AND ha.staff_id = ?
+                                                AND ha.level_id = tal.id
+                                                AND ha.section_id = ts.id
+                                                AND ha.day_of_week = ?
+                                    )
                 ORDER BY s.`class`, s.section, s.roll_number
-            ''', (school_id, staff_id)).fetchall()
+                        ''', (school_id, staff_id, staff_id, day_of_week)).fetchall()
 
             assigned_classes = db.execute('''
                 SELECT DISTINCT tal.level_name AS class_name, ts.section_name AS section_name
@@ -23033,9 +23044,10 @@ def staff_mark_student_attendance():
              AND ha.section_id = ts.id
             WHERE s.school_id = ?
               AND ha.staff_id = ?
+                            AND ha.day_of_week = ?
               {period_filter_sql}
             ORDER BY s.`class`, s.section, s.roll_number
-        ''', (school_id, staff_id, *period_params)).fetchall()
+                ''', (school_id, staff_id, day_of_week, *period_params)).fetchall()
 
         assigned_classes = db.execute(f'''
             SELECT DISTINCT tal.level_name AS class_name, ts.section_name AS section_name
@@ -23044,9 +23056,10 @@ def staff_mark_student_attendance():
             JOIN timetable_sections ts ON ha.section_id = ts.id
             WHERE ha.school_id = ?
               AND ha.staff_id = ?
+                            AND ha.day_of_week = ?
               {period_filter_sql}
             ORDER BY tal.level_number, ts.section_name
-        ''', (school_id, staff_id, *period_params)).fetchall()
+                ''', (school_id, staff_id, day_of_week, *period_params)).fetchall()
 
         rule_label = 'all time slots' if attendance_rule['mode'] == 'all' else 'selected time slots'
         if assigned_classes:
