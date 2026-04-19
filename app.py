@@ -22956,7 +22956,7 @@ def staff_mark_student_attendance():
 
         if is_admin_user:
             all_students = db.execute('''
-                SELECT id, student_id, full_name, `class`, section, roll_number
+                SELECT id, student_id, full_name, `class`, section, roll_number, photo_data
                 FROM students
                 WHERE school_id = ?
                 ORDER BY `class`, section, roll_number
@@ -22971,7 +22971,7 @@ def staff_mark_student_attendance():
 
         if attendance_rule['mode'] == 'mentor_only':
             students = db.execute('''
-                SELECT DISTINCT s.id, s.student_id, s.full_name, s.`class`, s.section, s.roll_number
+                                SELECT DISTINCT s.id, s.student_id, s.full_name, s.`class`, s.section, s.roll_number, s.photo_data
                 FROM students s
                 JOIN timetable_academic_levels tal
                   ON tal.school_id = s.school_id
@@ -23004,12 +23004,18 @@ def staff_mark_student_attendance():
                 FROM timetable_section_mentors sm
                 JOIN timetable_sections ts ON sm.section_id = ts.id
                 JOIN timetable_academic_levels tal ON ts.level_id = tal.id
+                JOIN timetable_hierarchical_assignments ha
+                    ON ha.school_id = sm.school_id
+                 AND ha.staff_id = sm.staff_id
+                 AND ha.level_id = tal.id
+                 AND ha.section_id = ts.id
                 WHERE sm.school_id = ?
                   AND sm.staff_id = ?
+                  AND ha.day_of_week = ?
                   AND ts.is_active = 1
                   AND tal.is_active = 1
                 ORDER BY tal.level_number, ts.section_name
-            ''', (school_id, staff_id)).fetchall()
+            ''', (school_id, staff_id, day_of_week)).fetchall()
 
             if assigned_classes:
                 class_text = ', '.join([f"{row['class_name']}-{row['section_name']}" for row in assigned_classes])
@@ -23027,7 +23033,7 @@ def staff_mark_student_attendance():
             period_params = allowed_period_numbers
 
         students = db.execute(f'''
-            SELECT DISTINCT s.id, s.student_id, s.full_name, s.`class`, s.section, s.roll_number
+                        SELECT DISTINCT s.id, s.student_id, s.full_name, s.`class`, s.section, s.roll_number, s.photo_data
             FROM students s
             JOIN timetable_academic_levels tal
               ON tal.school_id = s.school_id
