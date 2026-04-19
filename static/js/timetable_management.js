@@ -11,6 +11,7 @@ let allLevels = [];
 let allSections = [];
 let allPeriodTimings = [];
 let currentAssignments = [];
+let adminSwapRequests = [];
 let currentLevelFilter = null; // Track selected academic level
 
 // Initialize on page load
@@ -28,6 +29,7 @@ document.addEventListener('DOMContentLoaded', function () {
     loadDepartments();
     loadStaffList();
     loadStaffAssignmentsSummary();
+    loadAdminSwapRequests();
     initPeriodTimingBulkUpload();
     initPeriodBulkUpload();
     initStaffPeriodBulkUpload();
@@ -1662,6 +1664,16 @@ function populateStaffSelect() {
         console.log(`✅ Populated overrideStaffSelect with ${allStaff.length} staff`);
     }
 
+    const adminSwapSelect = document.getElementById('adminSwapStaffSelect');
+    if (adminSwapSelect) {
+        const currentValue = adminSwapSelect.value;
+        adminSwapSelect.innerHTML = '<option value="">-- Choose staff member --</option>' +
+            allStaff.map(s => `<option value="${s.id}">${s.full_name} (${s.department})</option>`).join('');
+        if (currentValue) {
+            adminSwapSelect.value = currentValue;
+        }
+    }
+
     // Populate the staff filter dropdown in assignments summary
     const filterSelect = document.getElementById('staffAssignmentStaffFilter');
     if (filterSelect) {
@@ -1823,6 +1835,7 @@ function showAlert(message, type = 'info') {
 function refreshData() {
     loadPeriods();
     loadDepartments();
+    loadAdminSwapRequests();
     if (document.getElementById('daySelector').value) {
         loadDayAssignments();
     }
@@ -2475,4 +2488,185 @@ function renderStaffAssignmentsSummary(data) {
         `;
         tbody.innerHTML += row;
     });
+}
+
+function loadAdminSwapRequests() {
+    const tbody = document.getElementById('adminSwapRequestsTableBody');
+    if (!tbody) return;
+
+    tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="5" class="text-center p-4"><div class="spinner-border text-primary" role="status"></div><div class="mt-2 text-muted">Loading swap requests...</div></td></tr>';
+
+    fetch(`/api/timetable/admin/swap-requests?school_id=${schoolId}`)
+        .then(r => r.json())
+        .then(data => {
+            if (!data.success) {
+                tbody.innerHTML = `<tr style="background: #f8f9fa;"><td colspan="5" class="text-center p-4 text-danger">${data.error || 'Failed to load swap requests'}</td></tr>`;
+                return;
+            }
+
+            adminSwapRequests = data.requests || [];
+            renderAdminSwapRequests();
+        })
+        .catch(err => {
+            console.error('Error loading admin swap requests:', err);
+            tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="5" class="text-center p-4 text-danger">Failed to load swap requests</td></tr>';
+        });
+}
+
+function renderAdminSwapRequests() {
+    const tbody = document.getElementById('adminSwapRequestsTableBody');
+    if (!tbody) return;
+
+    if (!adminSwapRequests.length) {
+        tbody.innerHTML = '<tr style="background: #f8f9fa;"><td colspan="5" class="text-center p-4 text-muted"><i class="bi bi-inbox me-2"></i>No pending swap requests.</td></tr>';
+        return;
+    }
+
+    tbody.innerHTML = adminSwapRequests.map(request => `
+        <tr>
+            <td style="padding: 1rem;">
+                <div class="fw-bold text-white">${request.requester_name || '-'}</div>
+                <small class="opacity-75">${request.requester_dept || '-'}</small>
+            </td>
+            <td style="padding: 1rem;">
+                <div class="fw-bold text-white">${request.class_subject || '-'}</div>
+                <small class="opacity-75">${request.period_name || 'Period ' + (request.period_number || '-')} ${request.start_time && request.end_time ? `(${request.start_time} - ${request.end_time})` : ''}</small>
+            </td>
+            <td style="padding: 1rem;">
+                <div class="fw-bold text-white">${request.target_name || 'Pending target'}</div>
+                <small class="opacity-75">${request.target_dept || '-'}</small>
+            </td>
+            <td style="padding: 1rem;">
+                <div class="text-white">${request.reason || '<span class="text-muted">No reason provided</span>'}</div>
+                <small class="opacity-75">${request.created_at || ''}</small>
+            </td>
+            <td style="padding: 1rem; text-align: center;">
+                <div class="action-buttons d-flex flex-wrap justify-content-center gap-2">
+                    <button class="btn btn-success btn-sm" onclick="approveAdminSwapRequest(${request.id})">
+                        <i class="bi bi-check2-circle"></i> Approve
+                    </button>
+                    <button class="btn btn-outline-warning btn-sm" onclick="openAdminSwapModal(${request.id}, 'reassign')">
+                        <i class="bi bi-arrow-repeat"></i> Reassign
+                    </button>
+                    <button class="btn btn-outline-danger btn-sm" onclick="openAdminSwapModal(${request.id}, 'reject')">
+                        <i class="bi bi-x-circle"></i> Reject
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `).join('');
+}
+
+function openAdminSwapModal(requestId, action = 'approve') {
+    const request = adminSwapRequests.find(item => String(item.id) === String(requestId));
+    if (!request) {
+        showAlert('Swap request not found. Please reload and try again.', 'error');
+        return;
+    }
+
+    document.getElementById('adminSwapRequestId').value = request.id;
+    document.getElementById('adminSwapAction').value = action;
+    document.getElementById('adminSwapNotes').value = '';
+
+    const staffSelect = document.getElementById('adminSwapStaffSelect');
+    if (staffSelect) {
+        staffSelect.value = request.target_id ? String(request.target_id) : '';
+    }
+
+    toggleAdminSwapReassignControls();
+    new bootstrap.Modal(document.getElementById('adminSwapModal')).show();
+}
+
+function toggleAdminSwapReassignControls() {
+    const action = document.getElementById('adminSwapAction')?.value || 'approve';
+    const wrap = document.getElementById('adminSwapStaffWrap');
+    if (!wrap) return;
+    wrap.style.display = action === 'reassign' ? 'block' : 'none';
+}
+
+function approveAdminSwapRequest(requestId) {
+    const request = adminSwapRequests.find(item => String(item.id) === String(requestId));
+    if (!request) {
+        showAlert('Swap request not found. Please reload and try again.', 'error');
+        return;
+    }
+
+    const payload = {
+        school_id: schoolId,
+        request_id: request.id,
+        action: 'approve',
+        admin_notes: ''
+    };
+
+    fetch('/api/timetable/admin/swap-requests/process', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify(payload)
+    })
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(result.message || 'Swap request approved', 'success');
+                loadAdminSwapRequests();
+                loadDayAssignments();
+            } else {
+                showAlert(result.error || 'Failed to approve swap request', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error approving swap request:', err);
+            showAlert('Error approving swap request', 'error');
+        });
+}
+
+function processAdminSwapRequest() {
+    const requestId = document.getElementById('adminSwapRequestId')?.value;
+    const action = document.getElementById('adminSwapAction')?.value || 'approve';
+    const notes = document.getElementById('adminSwapNotes')?.value || '';
+    const newStaffId = document.getElementById('adminSwapStaffSelect')?.value || '';
+
+    if (!requestId) {
+        showAlert('Missing swap request reference', 'error');
+        return;
+    }
+
+    if (action === 'reassign' && !newStaffId) {
+        showAlert('Please choose a staff member for reassignment', 'error');
+        return;
+    }
+
+    const payload = {
+        school_id: schoolId,
+        request_id: requestId,
+        action,
+        new_staff_id: action === 'reassign' ? newStaffId : undefined,
+        admin_notes: notes
+    };
+
+    fetch('/api/timetable/admin/swap-requests/process', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value || ''
+        },
+        body: JSON.stringify(payload)
+    })
+        .then(r => r.json())
+        .then(result => {
+            if (result.success) {
+                showAlert(result.message || 'Swap request processed', 'success');
+                bootstrap.Modal.getInstance(document.getElementById('adminSwapModal'))?.hide();
+                loadAdminSwapRequests();
+                loadDayAssignments();
+            } else {
+                showAlert(result.error || 'Failed to process swap request', 'error');
+            }
+        })
+        .catch(err => {
+            console.error('Error processing swap request:', err);
+            showAlert('Error processing swap request', 'error');
+        });
 }

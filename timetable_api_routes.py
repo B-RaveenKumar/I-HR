@@ -1915,6 +1915,143 @@ def get_swap_requests():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@timetable_api.route('/api/timetable/admin/swap-requests', methods=['GET'])
+@admin_required
+def get_admin_swap_requests():
+    """Get all pending swap requests for admin review."""
+    try:
+        school_id = request.args.get('school_id') or session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'Missing school_id'}), 400
+
+        db = get_db()
+        cursor = db.cursor()
+
+        cursor.execute('''
+            SELECT tar.id, tar.requester_staff_id, tar.target_staff_id, tar.assignment_id,
+                   tar.reason, tar.status, tar.created_at,
+                   s1.full_name AS requester_name, s1.department AS requester_dept,
+                   s2.full_name AS target_name, s2.department AS target_dept,
+                   ha.day_of_week, ha.period_number, ha.subject_name,
+                   l.level_name, sec.section_name,
+                   tp.period_name, tp.start_time, tp.end_time
+            FROM timetable_alteration_requests tar
+            JOIN staff s1 ON tar.requester_staff_id = s1.id
+            LEFT JOIN staff s2 ON tar.target_staff_id = s2.id
+            JOIN timetable_hierarchical_assignments ha ON tar.assignment_id = ha.id
+            LEFT JOIN timetable_academic_levels l ON ha.level_id = l.id
+            LEFT JOIN timetable_sections sec ON ha.section_id = sec.id
+            LEFT JOIN timetable_periods tp ON ha.school_id = tp.school_id
+                AND ha.period_number = tp.period_number
+                AND (tp.level_id IS NULL OR tp.level_id = ha.level_id)
+                AND (tp.section_id IS NULL OR tp.section_id = ha.section_id)
+            WHERE tar.school_id = ?
+              AND tar.status = 'pending'
+              AND tar.alteration_type = 'peer_swap'
+            ORDER BY tar.created_at DESC
+        ''', (school_id,))
+
+        requests = []
+        for row in cursor.fetchall():
+            level_name = row['level_name'] or 'Unknown Level'
+            section_name = row['section_name'] or 'Unknown Section'
+            subject = row['subject_name'] or 'Unknown Subject'
+            class_subject = f"{level_name} - {section_name} - {subject}"
+
+            requests.append({
+                'id': row['id'],
+                'requester_id': row['requester_staff_id'],
+                'requester_name': row['requester_name'],
+                'requester_dept': row['requester_dept'],
+                'target_id': row['target_staff_id'],
+                'target_name': row['target_name'],
+                'target_dept': row['target_dept'],
+                'assignment_id': row['assignment_id'],
+                'day_of_week': row['day_of_week'],
+                'period_number': row['period_number'],
+                'period_name': row['period_name'],
+                'start_time': row['start_time'],
+                'end_time': row['end_time'],
+                'class_subject': class_subject,
+                'reason': row['reason'],
+                'status': row['status'],
+                'created_at': row['created_at']
+            })
+
+        return jsonify({'success': True, 'requests': requests})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@timetable_api.route('/api/timetable/admin/swap-requests/process', methods=['POST'])
+@admin_required
+def process_admin_swap_request():
+    """Approve, reject, or reassign a swap request as admin."""
+    try:
+        data = request.get_json(silent=True) or {}
+        request_id = data.get('request_id')
+        action = str(data.get('action', '')).strip().lower()
+        new_staff_id = data.get('new_staff_id')
+        admin_notes = str(data.get('admin_notes', '')).strip()
+        school_id = data.get('school_id') or session.get('school_id')
+        admin_id = session.get('user_id')
+
+        try:
+            request_id = int(request_id)
+        except (TypeError, ValueError):
+            return jsonify({'success': False, 'error': 'Invalid request ID'}), 400
+
+        if action not in ['approve', 'reject', 'reassign']:
+            return jsonify({'success': False, 'error': 'Invalid action'}), 400
+
+        db = get_db()
+        cursor = db.cursor()
+
+        cursor.execute('''
+            SELECT *
+            FROM timetable_alteration_requests
+            WHERE id = ? AND school_id = ? AND status = 'pending'
+        ''', (request_id, school_id))
+        request_row = cursor.fetchone()
+
+        if not request_row:
+            return jsonify({'success': False, 'error': 'Pending request not found'}), 404
+
+        effective_staff_id = request_row['target_staff_id']
+        if action == 'reassign':
+            try:
+                effective_staff_id = int(new_staff_id)
+            except (TypeError, ValueError):
+                return jsonify({'success': False, 'error': 'Select a staff member to reassign to'}), 400
+
+        if action == 'reject':
+            cursor.execute('''
+                UPDATE timetable_alteration_requests
+                SET status = 'rejected', admin_notes = ?, processed_by = ?, processed_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (admin_notes, admin_id, request_id))
+        else:
+            cursor.execute('''
+                UPDATE timetable_hierarchical_assignments
+                SET staff_id = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ? AND school_id = ?
+            ''', (effective_staff_id, request_row['assignment_id'], school_id))
+
+            cursor.execute('''
+                UPDATE timetable_alteration_requests
+                SET status = 'admin_override', alteration_type = 'admin_override',
+                    target_staff_id = ?, admin_notes = ?, processed_by = ?, processed_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ''', (effective_staff_id, admin_notes, admin_id, request_id))
+
+        db.commit()
+        return jsonify({'success': True, 'message': 'Swap request processed successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @timetable_api.route('/api/timetable/swap/request', methods=['POST'])
 def request_swap():
     """Submit a swap request"""

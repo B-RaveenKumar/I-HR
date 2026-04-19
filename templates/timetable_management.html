@@ -700,6 +700,48 @@
                     </div>
                 </div>
 
+                {% if module_enabled.get('admin_swap_management', True) %}
+                <!-- Swap Request Management Card -->
+                <div class="salary-filters-card">
+                    <div class="card-header">
+                        <div class="header-icon">
+                            <i class="bi bi-arrow-left-right"></i>
+                        </div>
+                        <div class="header-content">
+                            <h5 class="card-title">Swap Request Management</h5>
+                            <p class="card-subtitle">Review pending swap requests and approve, reject, or reassign them</p>
+                        </div>
+                        <div class="header-actions d-flex gap-2">
+                            <button type="button" class="btn btn-outline-light btn-sm" onclick="loadAdminSwapRequests()">
+                                <i class="bi bi-arrow-clockwise"></i> Reload
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body">
+                        <div class="table-responsive">
+                            <table class="table salary-results-table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Requester</th>
+                                        <th>Assignment</th>
+                                        <th>Target</th>
+                                        <th>Reason</th>
+                                        <th class="text-center">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="adminSwapRequestsTableBody">
+                                    <tr style="background: #f8f9fa;">
+                                        <td colspan="5" style="padding: 2rem; text-align: center; color: white;">
+                                            <i class="bi bi-inbox"></i> Loading swap requests...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                {% endif %}
+
                 <!-- Staff Assignments Card -->
                 <!--<div class="salary-results-card">
                     <div class="card-header">
@@ -1292,6 +1334,50 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
                     <button type="button" class="btn btn-warning" onclick="performAdminOverride()">
                         <i class="bi bi-shield-check"></i> Perform Override
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Swap Request Modal -->
+    <div class="modal fade" id="adminSwapModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" style="background: #e0f2fe; border-bottom: 1px solid #38bdf8;">
+                    <h5 class="modal-title">
+                        <i class="bi bi-arrow-left-right text-primary"></i> Process Swap Request
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="adminSwapRequestId">
+                    <div class="mb-3">
+                        <label class="form-label">Action</label>
+                        <select id="adminSwapAction" class="form-select" onchange="toggleAdminSwapReassignControls()">
+                            <option value="approve">Approve swap</option>
+                            <option value="reassign">Approve with reassignment</option>
+                            <option value="reject">Reject request</option>
+                        </select>
+                    </div>
+                    <div class="mb-3" id="adminSwapStaffWrap" style="display:none;">
+                        <label class="form-label">Reassign To Staff</label>
+                        <select id="adminSwapStaffSelect" class="form-select">
+                            <option value="">-- Choose staff member --</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Admin Notes</label>
+                        <textarea id="adminSwapNotes" class="form-control" rows="3" placeholder="Add a note for approval or rejection..."></textarea>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="bi bi-info-circle"></i> Approve will transfer the assignment to the request target. Reassign lets you choose another staff member.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" onclick="processAdminSwapRequest()">
+                        <i class="bi bi-check2-circle"></i> Submit
                     </button>
                 </div>
             </div>

@@ -113,6 +113,7 @@ def get_module_enabled(school_id):
         'salary_management': bool(get_setting_value(school_settings, 'salary_management_enabled')),
         'payroll_processing_review': bool(get_setting_value(school_settings, 'salary_management_enabled')),
         'timetable_management': bool(get_setting_value(school_settings, 'timetable_management_enabled')),
+        'admin_swap_management': bool(get_setting_value(school_settings, 'admin_swap_management_enabled')),
         'reports': bool(get_setting_value(school_settings, 'reports_enabled')),
         'biometric_devices': bool(get_setting_value(school_settings, 'biometric_devices_enabled')),
         'department_shift_assignments': bool(get_setting_value(school_settings, 'department_shift_assignments_enabled')),
@@ -1170,6 +1171,7 @@ def school_details(school_id):
         'salary_management': get_column_value(school, 'salary_management_enabled'),
         'payroll_processing_review': get_column_value(school, 'salary_management_enabled'),
         'timetable_management': get_column_value(school, 'timetable_management_enabled'),
+        'admin_swap_management': get_column_value(school, 'admin_swap_management_enabled'),
         'reports': get_column_value(school, 'reports_enabled'),
         'biometric_devices': get_column_value(school, 'biometric_devices_enabled'),
         'department_shift_assignments': get_column_value(school, 'department_shift_assignments_enabled'),
@@ -7939,6 +7941,7 @@ def toggle_module_settings():
             'salary_management': 'salary_management_enabled',
             'payroll_processing_review': 'salary_management_enabled',
             'timetable_management': 'timetable_management_enabled',
+            'admin_swap_management': 'admin_swap_management_enabled',
             'reports': 'reports_enabled',
             'biometric_devices': 'biometric_devices_enabled',
             'department_shift_assignments': 'department_shift_assignments_enabled',
@@ -7953,6 +7956,28 @@ def toggle_module_settings():
             return jsonify({'success': False, 'error': 'Invalid module name'}), 400
         
         db = get_db()
+
+        # Backfill missing module columns so older databases can be updated without
+        # requiring a separate migration step before the toggle works.
+        if module_name == 'admin_swap_management':
+            try:
+                if DATABASE_URL.startswith('mysql'):
+                    column_check = db.execute(
+                        "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'schools' AND COLUMN_NAME = ?",
+                        (column_name,)
+                    ).fetchone()
+                else:
+                    column_check = db.execute('PRAGMA table_info(schools)').fetchall()
+                    column_check = any(row['name'] == column_name for row in column_check)
+
+                if not column_check:
+                    if DATABASE_URL.startswith('mysql'):
+                        db.execute(f'ALTER TABLE schools ADD COLUMN {column_name} TINYINT DEFAULT 1')
+                    else:
+                        db.execute(f'ALTER TABLE schools ADD COLUMN {column_name} INTEGER DEFAULT 1')
+                    db.commit()
+            except Exception as schema_error:
+                logger.warning(f'Unable to ensure {column_name} exists: {schema_error}')
         
         # Update the module status
         db.execute(

@@ -50,6 +50,7 @@ def add_module_columns():
         'shift_management_enabled', 
         'salary_management_enabled',
         'timetable_management_enabled',
+        'admin_swap_management_enabled',
         'reports_enabled',
         'biometric_devices_enabled',
         'department_shift_assignments_enabled',
