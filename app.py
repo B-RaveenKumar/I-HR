@@ -1214,9 +1214,10 @@ def school_details(school_id):
             'smtp_password': '',
             'smtp_use_tls': True,
             'smtp_from_email': '',
-            'twilio_enabled': False,
-            'twilio_sid': '',
-            'twilio_from_number': ''
+            'fast2sms_enabled': False,
+            'fast2sms_api_key': '',
+            'fast2sms_sender_id': '',
+            'fast2sms_entity_id': ''
         }
     )
 
@@ -1290,7 +1291,7 @@ def attendance_settings_api(school_id):
             provider = get_attendance_config('company_otp_provider_config', {})
 
         has_email = _as_bool(provider.get('smtp_enabled'))
-        has_sms = _as_bool(provider.get('twilio_enabled'))
+        has_sms = _as_bool(provider.get('fast2sms_enabled'))
         if not (has_email or has_sms):
             return jsonify({
                 'success': False,
@@ -1306,11 +1307,9 @@ def attendance_settings_api(school_id):
         if has_email and not str(provider.get('smtp_password', '')).strip():
             return jsonify({'success': False, 'error': 'SMTP app password is required when SMTP is enabled.'}), 400
         if has_sms and (
-            not str(provider.get('twilio_sid', '')).strip() or
-            not str(provider.get('twilio_auth_token', '')).strip() or
-            not str(provider.get('twilio_from_number', '')).strip()
+            not str(provider.get('fast2sms_api_key', '')).strip()
         ):
-            return jsonify({'success': False, 'error': 'Twilio SID, Auth Token, and From Number are required when Twilio is enabled.'}), 400
+            return jsonify({'success': False, 'error': 'Fast2SMS API Key is required when Fast2SMS is enabled.'}), 400
 
         # If provider config is submitted together with attendance settings,
         # persist it atomically in the same save flow.
@@ -1325,10 +1324,15 @@ def attendance_settings_api(school_id):
                     'smtp_from_email': str(provider.get('smtp_from_email', '')).strip(),
                     'smtp_host': str(provider.get('smtp_host', '')).strip(),
                     'smtp_port': int(provider.get('smtp_port', 587) or 587),
-                    'twilio_enabled': _as_bool(provider.get('twilio_enabled')),
-                    'twilio_sid': str(provider.get('twilio_sid', '')).strip(),
-                    'twilio_auth_token': str(provider.get('twilio_auth_token', '')).strip(),
-                    'twilio_from_number': str(provider.get('twilio_from_number', '')).strip()
+                    'fast2sms_enabled': _as_bool(provider.get('fast2sms_enabled')),
+                    'fast2sms_api_key': str(provider.get('fast2sms_api_key', '')).strip(),
+                    'fast2sms_sender_id': str(provider.get('fast2sms_sender_id', '')).strip(),
+                    'fast2sms_entity_id': str(provider.get('fast2sms_entity_id', '')).strip(),
+                    'fast2sms_otp_template_id': str(provider.get('fast2sms_otp_template_id', '')).strip(),
+                    'fast2sms_checkin_template_id': str(provider.get('fast2sms_checkin_template_id', '')).strip(),
+                    'fast2sms_checkout_template_id': str(provider.get('fast2sms_checkout_template_id', '')).strip(),
+                    'fast2sms_absent_template_id': str(provider.get('fast2sms_absent_template_id', '')).strip(),
+                    'fast2sms_leave_template_id': str(provider.get('fast2sms_leave_template_id', '')).strip()
                 },
                 'Company-level OTP provider settings for attendance verification'
             )
@@ -1378,10 +1382,15 @@ def company_otp_provider_settings_api():
         'smtp_from_email': '',
         'smtp_host': '',
         'smtp_port': 587,
-        'twilio_enabled': False,
-        'twilio_sid': '',
-        'twilio_auth_token': '',
-        'twilio_from_number': ''
+        'fast2sms_enabled': False,
+        'fast2sms_api_key': '',
+        'fast2sms_sender_id': '',
+        'fast2sms_entity_id': '',
+        'fast2sms_otp_template_id': '',
+        'fast2sms_checkin_template_id': '',
+        'fast2sms_checkout_template_id': '',
+        'fast2sms_absent_template_id': '',
+        'fast2sms_leave_template_id': ''
     }
 
     if request.method == 'GET':
@@ -1389,11 +1398,8 @@ def company_otp_provider_settings_api():
         masked = dict(defaults)
         masked.update(config)
 
-        sid = str(masked.get('twilio_sid') or '')
-        token = str(masked.get('twilio_auth_token') or '')
-        smtp_password = str(masked.get('smtp_password') or '')
-        masked['twilio_sid'] = (sid[:4] + '...' + sid[-4:]) if len(sid) > 8 else sid
-        masked['twilio_auth_token'] = '********' if token else ''
+        api_key = str(masked.get('fast2sms_api_key') or '')
+        masked['fast2sms_api_key'] = (api_key[:4] + '...' + api_key[-4:]) if len(api_key) > 8 else api_key
         masked['smtp_password_set'] = bool(smtp_password)
         masked['smtp_password'] = ''
         return jsonify({'success': True, 'settings': masked})
@@ -1409,17 +1415,22 @@ def company_otp_provider_settings_api():
         'smtp_from_email': str(data.get('smtp_from_email', '')).strip(),
         'smtp_host': str(data.get('smtp_host', '')).strip(),
         'smtp_port': int(data.get('smtp_port', 587) or 587),
-        'twilio_enabled': _as_bool(data.get('twilio_enabled', False)),
-        'twilio_sid': str(data.get('twilio_sid', '')).strip(),
-        'twilio_auth_token': str(data.get('twilio_auth_token', '')).strip(),
-        'twilio_from_number': str(data.get('twilio_from_number', '')).strip()
+        'fast2sms_enabled': _as_bool(data.get('fast2sms_enabled', False)),
+        'fast2sms_api_key': str(data.get('fast2sms_api_key', '')).strip(),
+        'fast2sms_sender_id': str(data.get('fast2sms_sender_id', '')).strip(),
+        'fast2sms_entity_id': str(data.get('fast2sms_entity_id', '')).strip(),
+        'fast2sms_otp_template_id': str(data.get('fast2sms_otp_template_id', '')).strip(),
+        'fast2sms_checkin_template_id': str(data.get('fast2sms_checkin_template_id', '')).strip(),
+        'fast2sms_checkout_template_id': str(data.get('fast2sms_checkout_template_id', '')).strip(),
+        'fast2sms_absent_template_id': str(data.get('fast2sms_absent_template_id', '')).strip(),
+        'fast2sms_leave_template_id': str(data.get('fast2sms_leave_template_id', '')).strip()
     })
 
     # Preserve existing secrets unless explicitly replaced.
     if config['smtp_enabled'] and not config['smtp_password']:
         config['smtp_password'] = str(existing_config.get('smtp_password', '')).strip()
-    if config['twilio_enabled'] and not config['twilio_auth_token']:
-        config['twilio_auth_token'] = str(existing_config.get('twilio_auth_token', '')).strip()
+    if config['fast2sms_enabled'] and not config['fast2sms_api_key']:
+        config['fast2sms_api_key'] = str(existing_config.get('fast2sms_api_key', '')).strip()
 
     if config['smtp_enabled'] and not config['smtp_from_email']:
         return jsonify({'success': False, 'error': 'SMTP from email is required when SMTP is enabled.'}), 400
@@ -1427,8 +1438,8 @@ def company_otp_provider_settings_api():
         return jsonify({'success': False, 'error': 'SMTP host is required when SMTP is enabled.'}), 400
     if config['smtp_enabled'] and not config['smtp_password']:
         return jsonify({'success': False, 'error': 'SMTP app password is required when SMTP is enabled.'}), 400
-    if config['twilio_enabled'] and (not config['twilio_sid'] or not config['twilio_auth_token'] or not config['twilio_from_number']):
-        return jsonify({'success': False, 'error': 'Twilio SID, Auth Token, and From Number are required when Twilio is enabled.'}), 400
+    if config['fast2sms_enabled'] and not config['fast2sms_api_key']:
+        return jsonify({'success': False, 'error': 'Fast2SMS API Key is required when Fast2SMS is enabled.'}), 400
 
     save_ok = set_attendance_config(
         'company_otp_provider_config',
@@ -1552,14 +1563,10 @@ def _smtp_provider_ready(provider_config):
     return smtp_enabled or complete
 
 
-def _twilio_provider_ready(provider_config):
-    twilio_enabled = _as_bool(provider_config.get('twilio_enabled'))
-    sid = str(provider_config.get('twilio_sid', '')).strip()
-    token = str(provider_config.get('twilio_auth_token', '')).strip()
-    from_number = str(provider_config.get('twilio_from_number', '')).strip()
-
-    complete = bool(sid and token and from_number)
-    return twilio_enabled or complete
+def _fast2sms_provider_ready(provider_config):
+    fast2sms_enabled = _as_bool(provider_config.get('fast2sms_enabled'))
+    api_key = str(provider_config.get('fast2sms_api_key', '')).strip()
+    return fast2sms_enabled or bool(api_key)
 
 
 def _send_smtp_email(provider_config, to_email, subject, body_text):
@@ -1608,36 +1615,138 @@ def _send_smtp_email(provider_config, to_email, subject, body_text):
         return {'success': False, 'error': f'SMTP OTP delivery failed: {exc}'}
 
 
-def _send_twilio_sms(provider_config, to_number, body_text):
-    """Send SMS via Twilio REST API without requiring external SDK."""
-    sid = str(provider_config.get('twilio_sid', '')).strip()
-    token = str(provider_config.get('twilio_auth_token', '')).strip()
-    from_number = str(provider_config.get('twilio_from_number', '')).strip()
+def _send_fast2sms(provider_config, to_number, message_or_template_id, variables_values=""):
+    """Send SMS via Fast2SMS Bulk V2 API (DLT route)."""
+    api_key = str(provider_config.get('fast2sms_api_key', '')).strip()
+    sender_id = str(provider_config.get('fast2sms_sender_id', '')).strip()
+    entity_id = str(provider_config.get('fast2sms_entity_id', '')).strip()
 
-    if not sid or not token or not from_number:
-        return {'success': False, 'error': 'Twilio credentials are incomplete'}
+    if not api_key:
+        return {'success': False, 'error': 'Fast2SMS API Key is missing'}
 
-    endpoint = f'https://api.twilio.com/2010-04-01/Accounts/{sid}/Messages.json'
-    form_data = urllib.parse.urlencode({
-        'From': from_number,
-        'To': to_number,
-        'Body': body_text
-    }).encode('utf-8')
+    # Fast2SMS expects 10-digit Indian numbers. Clean any prefixes or formatting.
+    def clean_num(n):
+        digits = re.sub(r'\D', '', str(n))
+        if len(digits) == 12 and digits.startswith('91'):
+            return digits[2:]
+        return digits[-10:] if len(digits) >= 10 else digits
 
-    request_obj = urllib.request.Request(endpoint, data=form_data, method='POST')
-    basic_token = base64.b64encode(f'{sid}:{token}'.encode('utf-8')).decode('utf-8')
-    request_obj.add_header('Authorization', f'Basic {basic_token}')
-    request_obj.add_header('Content-Type', 'application/x-www-form-urlencoded')
+    cleaned_numbers = ",".join([clean_num(n.strip()) for n in str(to_number).split(',') if n.strip()])
+
+    endpoint = 'https://www.fast2sms.com/dev/bulkV2'
+
+    # Payload for Fast2SMS POST
+    payload = {
+        "route": "dlt",
+        "sender_id": sender_id,
+        "entity_id": entity_id,
+        "message": str(message_or_template_id),
+        "variables_values": str(variables_values),
+        "numbers": cleaned_numbers,
+        "flash": 0
+    }
 
     try:
+        json_data = json.dumps(payload).encode('utf-8')
+        request_obj = urllib.request.Request(endpoint, data=json_data, method='POST')
+        request_obj.add_header('authorization', api_key)
+        request_obj.add_header('Content-Type', 'application/json')
+
         with urllib.request.urlopen(request_obj, timeout=15) as response:
-            status_code = getattr(response, 'status', 200)
-            payload = response.read().decode('utf-8')
-            if status_code >= 300:
-                return {'success': False, 'error': f'Twilio rejected request ({status_code})', 'details': payload}
-            return {'success': True, 'details': payload}
+            payload_res = response.read().decode('utf-8')
+            res_json = json.loads(payload_res)
+
+            if not res_json.get('return'):
+                return {'success': False, 'error': res_json.get('message', 'Fast2SMS rejected request'), 'details': payload_res}
+            return {'success': True, 'details': payload_res}
+    except urllib.error.HTTPError as e:
+        try:
+            error_body = e.read().decode('utf-8')
+            res_json = json.loads(error_body)
+            return {'success': False, 'error': f"Fast2SMS API Error: {res_json.get('message', 'Bad Request')}", 'details': error_body}
+        except:
+            return {'success': False, 'error': f'Fast2SMS HTTP Error {e.code}: {e.reason}'}
     except Exception as exc:
-        return {'success': False, 'error': f'Twilio SMS delivery failed: {exc}'}
+        return {'success': False, 'error': f'Fast2SMS delivery failed: {exc}'}
+
+
+def get_company_otp_provider_settings(school_id=None):
+    """Retrieve global OTP/SMS provider configuration."""
+    defaults = {
+        'fast2sms_enabled': False,
+        'fast2sms_api_key': '',
+        'fast2sms_sender_id': '',
+        'fast2sms_entity_id': '',
+        'fast2sms_otp_template_id': '',
+        'fast2sms_checkin_template_id': '',
+        'fast2sms_checkout_template_id': '',
+        'fast2sms_absent_template_id': '',
+        'fast2sms_leave_template_id': ''
+    }
+    # Currently global, school_id is a placeholder for future per-school overrides
+    return get_attendance_config('company_otp_provider_config', defaults)
+
+
+def _send_student_attendance_notification(school_id, student_id, ntype, variables):
+    """Send automated student attendance SMS."""
+    db = get_db()
+    provider_config = get_company_otp_provider_settings(school_id)
+    if not provider_config.get('fast2sms_enabled'):
+        return
+
+    # Check for template ID based on type
+    template_id = provider_config.get(f'fast2sms_{ntype}_template_id', '')
+    if not template_id:
+        return
+
+    # Fetch parent contact info and academic details
+    student = db.execute('SELECT full_name, phone, parent_phone, class, section FROM students WHERE id = ?', (student_id,)).fetchone()
+    if not student:
+        return
+
+    recipient = student['parent_phone'] or student['phone']
+    if not recipient:
+        return
+
+    # Special handling for 'leave' ntype variables as per new requirement: [Class-Section | Date Range]
+    if ntype == 'leave':
+        class_section = f"{student['class']} - {student['section']}" if student['section'] else str(student['class'])
+        # If variables[1] is already a range (from holiday assigner), use it. 
+        # Otherwise, if it's a single date, format it as a range.
+        date_info = variables[1] 
+        if " to " not in str(date_info):
+            date_info = f"From {date_info} to {date_info}"
+        variables = [class_section, date_info]
+
+    # Join variables for Fast2SMS
+    vars_str = "|".join(map(str, variables))
+    return _send_fast2sms(provider_config, recipient, template_id, vars_str)
+
+
+def _send_staff_attendance_notification(school_id, staff_id, ntype, variables):
+    """Send automated staff attendance SMS."""
+    db = get_db()
+    provider_config = get_company_otp_provider_settings(school_id)
+    if not provider_config.get('fast2sms_enabled'):
+        return
+
+    # Use existing student template IDs for staff as per configuration request
+    template_id = provider_config.get(f'fast2sms_{ntype}_template_id', '')
+    if not template_id:
+        return
+
+    # Fetch staff contact info
+    staff = db.execute('SELECT full_name, phone FROM staff WHERE id = ?', (staff_id,)).fetchone()
+    if not staff:
+        return
+
+    recipient = staff['phone']
+    if not recipient:
+        return
+
+    # Join variables for Fast2SMS: [Staff Name | Date & Time]
+    vars_str = "|".join(map(str, variables))
+    return _send_fast2sms(provider_config, recipient, template_id, vars_str)
 
 
 def _build_signed_qr_token(school_id, ttl_seconds):
@@ -1988,6 +2097,13 @@ def _record_mode_attendance(staff_db_id, school_id, mode_name, event_time=None):
 
         _recompute_and_persist_metrics(existing['id'] if existing else None)
 
+        # Trigger Staff Attendance Notification
+        # Variables: [Staff Name | Date and Time]
+        staff_row = db.execute('SELECT full_name FROM staff WHERE id = ?', (staff_db_id,)).fetchone()
+        if staff_row:
+             ntype = 'checkin' if action == 'check-in' else 'checkout'
+             _send_staff_attendance_notification(school_id, staff_db_id, ntype, [staff_row['full_name'], f"{event_date} {current_time}"])
+
         db.commit()
         return {'success': True, 'message': f'{action.title()} recorded via {mode_name}', 'action': action}
     except Exception as exc:
@@ -2190,7 +2306,7 @@ def attendance_otp_request():
 
     provider_config = get_attendance_config('company_otp_provider_config', {})
     email_ready = _smtp_provider_ready(provider_config)
-    sms_ready = _twilio_provider_ready(provider_config)
+    sms_ready = _fast2sms_provider_ready(provider_config)
 
     db = get_db()
     staff_row = db.execute('SELECT email, phone, full_name FROM staff WHERE id = ?', (session['user_id'],)).fetchone()
@@ -2217,7 +2333,7 @@ def attendance_otp_request():
                 if not sms_ready:
                     return jsonify({
                         'success': False,
-                        'error': 'SMS OTP provider is not configured. Please set Twilio SID, Auth Token, and From Number.'
+                        'error': 'SMS OTP provider is not configured. Please set Fast2SMS API Key and Sender ID.'
                     }), 400
                 return jsonify({'success': False, 'error': 'Staff phone number is not configured'}), 400
 
@@ -2254,8 +2370,14 @@ def attendance_otp_request():
             return jsonify({'success': False, 'error': email_result.get('error', 'Unable to send OTP email')}), 500
         delivery_message = 'OTP sent to your email.'
     else:
-        sms_body = f'Your attendance OTP is {otp_code}. It expires in {ttl_seconds} seconds.'
-        sms_result = _send_twilio_sms(provider_config, staff_phone, sms_body)
+        # Use Fast2SMS DLT with variables
+        template_id = provider_config.get('fast2sms_otp_template_id', '')
+        if not template_id:
+            return jsonify({'success': False, 'error': 'Fast2SMS OTP Template ID is not configured.'}), 400
+            
+        # Convert ttl_seconds to human-readable format for the second SMS variable
+        expiry_text = f"{ttl_seconds // 60} minutes" if ttl_seconds >= 60 else f"{ttl_seconds} seconds"
+        sms_result = _send_fast2sms(provider_config, staff_phone, template_id, f"{otp_code}|{expiry_text}")
         if not sms_result.get('success'):
             return jsonify({'success': False, 'error': sms_result.get('error', 'Unable to send SMS OTP')}), 500
         delivery_message = 'OTP sent to your mobile number.'
@@ -8903,11 +9025,57 @@ def admin_student_management():
                 ))
                 db.commit()
 
+                # Notify parents about the holiday using the 'Leave' template
+                try:
+                    query = 'SELECT full_name, phone, parent_phone, `class`, section FROM students WHERE school_id = ?'
+                    params = [school_id]
+                    if holiday_mode == 'class_section':
+                        query += ' AND `class` = ?'
+                        params.append(target_class_value)
+                        if target_section_value:
+                            query += ' AND section = ?'
+                            params.append(target_section_value)
+                    
+                    target_students = db.execute(query, params).fetchall()
+                    provider_config = get_company_otp_provider_settings(school_id)
+                    template_id = provider_config.get('fast2sms_leave_template_id', '')
+
+                    if provider_config.get('fast2sms_enabled') and template_id:
+                        date_range = f"From {start_date} to {end_date}"
+                        
+                        # Group students by class and section to use batch sending (much faster)
+                        batches = {} # key: "class-section", value: list of phones
+                        for student in target_students:
+                            cs_key = f"{student['class']} - {student['section']}" if student['section'] else str(student['class'] or 'School')
+                            recipient = student['parent_phone'] or student['phone']
+                            if recipient:
+                                # Clean phone number
+                                clean_phone = "".join(filter(str.isdigit, str(recipient)))
+                                if clean_phone.startswith('91') and len(clean_phone) > 10:
+                                    clean_phone = clean_phone[2:]
+                                
+                                if len(clean_phone) == 10:
+                                    if cs_key not in batches:
+                                        batches[cs_key] = []
+                                    batches[cs_key].append(clean_phone)
+                        
+                        # Send one bulk request per class/section group
+                        for cs_label, phone_list in batches.items():
+                            # Fast2SMS supports multiple numbers separated by comma
+                            # We'll batch them in groups of 50 to stay safe with URL/Payload lengths
+                            for i in range(0, len(phone_list), 50):
+                                chunk = phone_list[i:i+50]
+                                recipients_str = ",".join(chunk)
+                                # [Class-Section | Date Range] as requested
+                                _send_fast2sms(provider_config, recipients_str, template_id, f"{cs_label}|{date_range}")
+                except Exception as e:
+                    print(f"Error sending holiday notifications: {e}")
+
                 if holiday_mode == 'bulk':
-                    flash('Student holiday assigned in bulk successfully.', 'success')
+                    flash('Student holiday assigned and notifications sent successfully.', 'success')
                 else:
                     section_suffix = f" - {target_section_value}" if target_section_value else ' (All Sections)'
-                    flash(f'Student holiday assigned for {target_class_value}{section_suffix}.', 'success')
+                    flash(f'Student holiday assigned for {target_class_value}{section_suffix} and notifications sent.', 'success')
 
             elif action == 'update_student_holiday':
                 _ensure_student_holidays_table()
@@ -9845,7 +10013,7 @@ def api_student_attendance_override_save():
                 return jsonify({'success': False, 'error': 'Invalid student id in update payload'}), 400
 
             belongs = db.execute('''
-                SELECT id
+                SELECT id, full_name
                 FROM students
                 WHERE id = ? AND school_id = ?
             ''', (student_id, school_id)).fetchone()
@@ -9911,6 +10079,9 @@ def api_student_attendance_override_save():
                     marked_by_staff_id if afternoon_status else None,
                     'Admin manual override' if afternoon_status else None
                 ))
+            
+            # Log status for debug if needed
+            print(f"Override: student {student_id} morning:{morning_status} afternoon:{afternoon_status}")
 
         db.commit()
         return jsonify({'success': True, 'message': 'Attendance override saved successfully'})
@@ -23201,9 +23372,10 @@ def staff_mark_student_attendance():
         existing_map = {record['student_id']: record['id'] for record in existing_records}
 
         marked_count = 0
-        for student_id in student_ids:
+        for student in students:
+            student_id = student['id']
             raw_status = str(attendance_map.get(str(student_id), 'present')).strip().lower()
-            status = 'absent' if raw_status == 'absent' else 'present'
+            status = raw_status if raw_status in ['absent', 'leave'] else 'present'
 
             if student_id in existing_map:
                 if session_type == 'morning':
@@ -23239,6 +23411,12 @@ def staff_mark_student_attendance():
                     ''', (student_id, school_id, date, status, current_time, staff_id, notes))
 
             marked_count += 1
+            
+            # Send notification if status changed or marked for the first time
+            if status == 'absent':
+                _send_student_attendance_notification(school_id, student_id, 'absent', [student['full_name'], f"{date} {session_type.capitalize()}"])
+            elif status == 'leave':
+                _send_student_attendance_notification(school_id, student_id, 'leave', [student['full_name'], date])
 
         db.commit()
         flash(f'Attendance saved for {marked_count} students', 'success')

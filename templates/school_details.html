@@ -1230,22 +1230,45 @@
                             </div>
                             <div class="col-md-6">
                                 <div class="attendance-config-box">
-                                    <h6>Twilio SMS Provider</h6>
+                                    <h6>Fast2SMS SMS Provider</h6>
                                     <div class="form-check form-switch mb-2">
-                                        <input class="form-check-input" type="checkbox" id="twilioEnabled">
-                                        <label class="form-check-label" for="twilioEnabled">Enable Twilio OTP</label>
+                                        <input class="form-check-input" type="checkbox" id="fast2smsEnabled">
+                                        <label class="form-check-label" for="fast2smsEnabled">Enable Fast2SMS SMS</label>
                                     </div>
                                     <div class="mb-2">
-                                        <label class="form-label" for="twilioSid">Account SID</label>
-                                        <input type="text" class="form-control" id="twilioSid" placeholder="ACxxxxxxxxxxxxxxxx">
+                                        <label class="form-label" for="fast2smsApiKey">API Key</label>
+                                        <input type="password" class="form-control" id="fast2smsApiKey" placeholder="Fast2SMS Authorization Key">
                                     </div>
                                     <div class="mb-2">
-                                        <label class="form-label" for="twilioAuthToken">Auth Token</label>
-                                        <input type="password" class="form-control" id="twilioAuthToken" placeholder="Twilio Auth Token">
+                                        <label class="form-label" for="fast2smsSenderId">Sender ID</label>
+                                        <input type="text" class="form-control" id="fast2smsSenderId" placeholder="6-char Sender ID (e.g. FSTSMS)">
                                     </div>
-                                    <div class="mb-0">
-                                        <label class="form-label" for="twilioFromNumber">From Number</label>
-                                        <input type="text" class="form-control" id="twilioFromNumber" placeholder="+1xxxxxxxxxx">
+                                    <div class="mb-2">
+                                        <label class="form-label" for="fast2smsEntityId">Entity ID (DLT)</label>
+                                        <input type="text" class="form-control" id="fast2smsEntityId" placeholder="Principal Entity ID">
+                                    </div>
+                                    <div class="mb-2">
+                                        <label class="form-label">Fast2SMS Template IDs (6 digits)</label>
+                                        <div class="input-group mb-2">
+                                            <span class="input-group-text small">OTP</span>
+                                            <input type="text" class="form-control form-control-sm" id="fast2smsOtpTemplateId" placeholder="ID from DLT Manager">
+                                        </div>
+                                        <div class="input-group mb-2">
+                                            <span class="input-group-text small">Checkin</span>
+                                            <input type="text" class="form-control form-control-sm" id="fast2smsCheckinTemplateId" placeholder="Template ID">
+                                        </div>
+                                        <div class="input-group mb-2">
+                                            <span class="input-group-text small">Checkout</span>
+                                            <input type="text" class="form-control form-control-sm" id="fast2smsCheckoutTemplateId" placeholder="Template ID">
+                                        </div>
+                                        <div class="input-group mb-2">
+                                            <span class="input-group-text small">Absent</span>
+                                            <input type="text" class="form-control form-control-sm" id="fast2smsAbsentTemplateId" placeholder="Template ID">
+                                        </div>
+                                        <div class="input-group">
+                                            <span class="input-group-text small">Leave</span>
+                                            <input type="text" class="form-control form-control-sm" id="fast2smsLeaveTemplateId" placeholder="Template ID">
+                                        </div>
                                     </div>
                                 </div>
                             </div>
@@ -1845,10 +1868,15 @@
             document.getElementById('smtpFromEmail').value = provider.smtp_from_email || '';
             document.getElementById('smtpUseTls').checked = provider.smtp_use_tls !== false;
 
-            document.getElementById('twilioEnabled').checked = !!provider.twilio_enabled;
-            document.getElementById('twilioSid').value = provider.twilio_sid || '';
-            document.getElementById('twilioAuthToken').value = provider.twilio_auth_token || '';
-            document.getElementById('twilioFromNumber').value = provider.twilio_from_number || '';
+            document.getElementById('fast2smsEnabled').checked = !!provider.fast2sms_enabled;
+            document.getElementById('fast2smsApiKey').value = provider.fast2sms_api_key || '';
+            document.getElementById('fast2smsSenderId').value = provider.fast2sms_sender_id || '';
+            document.getElementById('fast2smsEntityId').value = provider.fast2sms_entity_id || '';
+            document.getElementById('fast2smsOtpTemplateId').value = provider.fast2sms_otp_template_id || '';
+            document.getElementById('fast2smsCheckinTemplateId').value = provider.fast2sms_checkin_template_id || '';
+            document.getElementById('fast2smsCheckoutTemplateId').value = provider.fast2sms_checkout_template_id || '';
+            document.getElementById('fast2smsAbsentTemplateId').value = provider.fast2sms_absent_template_id || '';
+            document.getElementById('fast2smsLeaveTemplateId').value = provider.fast2sms_leave_template_id || '';
         }
 
         function collectAttendanceSettingsPayload() {
@@ -1882,10 +1910,15 @@
                     smtp_password: document.getElementById('smtpPassword').value.trim(),
                     smtp_use_tls: document.getElementById('smtpUseTls').checked,
                     smtp_from_email: document.getElementById('smtpFromEmail').value.trim(),
-                    twilio_enabled: document.getElementById('twilioEnabled').checked,
-                    twilio_sid: document.getElementById('twilioSid').value.trim(),
-                    twilio_auth_token: document.getElementById('twilioAuthToken').value.trim(),
-                    twilio_from_number: document.getElementById('twilioFromNumber').value.trim()
+                    fast2sms_enabled: document.getElementById('fast2smsEnabled').checked,
+                    fast2sms_api_key: document.getElementById('fast2smsApiKey').value.trim(),
+                    fast2sms_sender_id: document.getElementById('fast2smsSenderId').value.trim(),
+                    fast2sms_entity_id: document.getElementById('fast2smsEntityId').value.trim(),
+                    fast2sms_otp_template_id: document.getElementById('fast2smsOtpTemplateId').value.trim(),
+                    fast2sms_checkin_template_id: document.getElementById('fast2smsCheckinTemplateId').value.trim(),
+                    fast2sms_checkout_template_id: document.getElementById('fast2smsCheckoutTemplateId').value.trim(),
+                    fast2sms_absent_template_id: document.getElementById('fast2smsAbsentTemplateId').value.trim(),
+                    fast2sms_leave_template_id: document.getElementById('fast2smsLeaveTemplateId').value.trim()
                 }
             };
         }
@@ -1943,10 +1976,15 @@
                 smtp_password: document.getElementById('smtpPassword').value.trim(),
                 smtp_use_tls: document.getElementById('smtpUseTls').checked,
                 smtp_from_email: document.getElementById('smtpFromEmail').value.trim(),
-                twilio_enabled: document.getElementById('twilioEnabled').checked,
-                twilio_sid: document.getElementById('twilioSid').value.trim(),
-                twilio_auth_token: document.getElementById('twilioAuthToken').value.trim(),
-                twilio_from_number: document.getElementById('twilioFromNumber').value.trim()
+                fast2sms_enabled: document.getElementById('fast2smsEnabled').checked,
+                fast2sms_api_key: document.getElementById('fast2smsApiKey').value.trim(),
+                fast2sms_sender_id: document.getElementById('fast2smsSenderId').value.trim(),
+                fast2sms_entity_id: document.getElementById('fast2smsEntityId').value.trim(),
+                fast2sms_otp_template_id: document.getElementById('fast2smsOtpTemplateId').value.trim(),
+                fast2sms_checkin_template_id: document.getElementById('fast2smsCheckinTemplateId').value.trim(),
+                fast2sms_checkout_template_id: document.getElementById('fast2smsCheckoutTemplateId').value.trim(),
+                fast2sms_absent_template_id: document.getElementById('fast2smsAbsentTemplateId').value.trim(),
+                fast2sms_leave_template_id: document.getElementById('fast2smsLeaveTemplateId').value.trim()
             };
 
             fetch('/api/company/otp-provider-settings', {
