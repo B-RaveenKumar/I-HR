@@ -540,11 +540,118 @@
         .attendance-config-box .form-select {
             font-size: 0.9rem;
         }
+
+        /* Compact modern style for School Attendance card */
+        #attendance-section.compact-attendance-card .card-header {
+            padding: 0.95rem 1rem;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        #attendance-section.compact-attendance-card .header-icon {
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
+            border-radius: 10px;
+            font-size: 1rem;
+        }
+
+        #attendance-section.compact-attendance-card .card-title {
+            font-size: 1rem;
+            margin-bottom: 0.1rem;
+        }
+
+        #attendance-section.compact-attendance-card .card-subtitle {
+            font-size: 0.8rem;
+            margin-bottom: 0;
+            opacity: 0.85;
+        }
+
+        #attendance-section.compact-attendance-card .header-actions {
+            margin-left: auto;
+        }
+
+        #attendance-section.compact-attendance-card .attendance-badges {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: flex-end;
+            gap: 0.35rem;
+        }
+
+        #attendance-section.compact-attendance-card .attendance-mini-pill {
+            border-radius: 999px;
+            padding: 0.3rem 0.55rem;
+            font-size: 0.74rem;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+        }
+
+        #attendance-section.compact-attendance-card .card-body {
+            padding: 0.9rem 1rem 1rem;
+        }
+
+        #attendance-section.compact-attendance-card .compact-attendance-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(110px, 1fr));
+            gap: 0.6rem;
+        }
+
+        #attendance-section.compact-attendance-card .compact-attendance-stat {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.6rem 0.7rem;
+            border-radius: 12px;
+            background: #f8fafc;
+            border: 1px solid #e6edf5;
+        }
+
+        #attendance-section.compact-attendance-card .compact-attendance-stat.present {
+            border-left: 4px solid #198754;
+        }
+
+        #attendance-section.compact-attendance-card .compact-attendance-stat.absent {
+            border-left: 4px solid #dc3545;
+        }
+
+        #attendance-section.compact-attendance-card .compact-attendance-stat.late {
+            border-left: 4px solid #ffc107;
+        }
+
+        #attendance-section.compact-attendance-card .compact-attendance-stat.leave {
+            border-left: 4px solid #0dcaf0;
+        }
+
+        #attendance-section.compact-attendance-card .compact-label {
+            font-size: 0.74rem;
+            color: #5b6678;
+            font-weight: 600;
+        }
+
+        #attendance-section.compact-attendance-card .compact-value {
+            font-size: 1.1rem;
+            line-height: 1;
+            color: #1e2a3b;
+            font-weight: 700;
+        }
         
         @media (max-width: 768px) {
             #modules-section .col-md-6 {
                 flex: 0 0 100%;
                 max-width: 100%;
+            }
+
+            #attendance-section.compact-attendance-card .header-actions {
+                width: 100%;
+                margin-left: 0;
+            }
+
+            #attendance-section.compact-attendance-card .attendance-badges {
+                justify-content: flex-start;
+            }
+
+            #attendance-section.compact-attendance-card .compact-attendance-grid {
+                grid-template-columns: repeat(2, minmax(120px, 1fr));
             }
 
             .attendance-mode-grid {
@@ -988,7 +1095,7 @@
                 </div>
 
                 <!-- Today's Attendance Section -->
-                <div class="salary-filters-card" id="attendance-section">
+                <div class="salary-filters-card compact-attendance-card" id="attendance-section">
                     <div class="card-header">
                         <div class="header-icon">
                             <i class="bi bi-calendar-check"></i>
@@ -999,19 +1106,19 @@
                         </div>
                         <div class="header-actions">
                             <div class="attendance-badges">
-                                <span class="badge bg-success me-2">
+                                <span class="badge bg-success attendance-mini-pill">
                                     <i class="bi bi-check-circle me-1"></i>
                                     {{ attendance_summary.present if attendance_summary else 0 }} Present
                                 </span>
-                                <span class="badge bg-danger me-2">
+                                <span class="badge bg-danger attendance-mini-pill">
                                     <i class="bi bi-x-circle me-1"></i>
                                     {{ attendance_summary.absent if attendance_summary else 0 }} Absent
                                 </span>
-                                <span class="badge bg-warning me-2">
+                                <span class="badge bg-warning text-dark attendance-mini-pill">
                                     <i class="bi bi-clock me-1"></i>
                                     {{ attendance_summary.late if attendance_summary else 0 }} Late
                                 </span>
-                                <span class="badge bg-info">
+                                <span class="badge bg-info text-dark attendance-mini-pill">
                                     <i class="bi bi-calendar-x me-1"></i>
                                     {{ attendance_summary.on_leave if attendance_summary else 0 }} On Leave
                                 </span>
@@ -1019,52 +1126,22 @@
                         </div>
                     </div>
                     <div class="card-body">
-                        <div class="attendance-overview">
-                            <div class="row">
-                                <div class="col-md-3">
-                                    <div class="stat-card bg-success">
-                                        <div class="stat-icon">
-                                            <i class="bi bi-check-circle"></i>
-                                        </div>
-                                        <div class="stat-content">
-                                            <div class="stat-value">{{ attendance_summary.present if attendance_summary else 0 }}</div>
-                                            <div class="stat-label">Present</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="stat-card bg-danger">
-                                        <div class="stat-icon">
-                                            <i class="bi bi-x-circle"></i>
-                                        </div>
-                                        <div class="stat-content">
-                                            <div class="stat-value">{{ attendance_summary.absent if attendance_summary else 0 }}</div>
-                                            <div class="stat-label">Absent</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="stat-card bg-warning">
-                                        <div class="stat-icon">
-                                            <i class="bi bi-clock"></i>
-                                        </div>
-                                        <div class="stat-content">
-                                            <div class="stat-value">{{ attendance_summary.late if attendance_summary else 0 }}</div>
-                                            <div class="stat-label">Late</div>
-                                        </div>
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="stat-card bg-info">
-                                        <div class="stat-icon">
-                                            <i class="bi bi-calendar-x"></i>
-                                        </div>
-                                        <div class="stat-content">
-                                            <div class="stat-value">{{ attendance_summary.on_leave if attendance_summary else 0 }}</div>
-                                            <div class="stat-label">On Leave</div>
-                                        </div>
-                                    </div>
-                                </div>
+                        <div class="compact-attendance-grid">
+                            <div class="compact-attendance-stat present">
+                                <span class="compact-label">Present</span>
+                                <span class="compact-value">{{ attendance_summary.present if attendance_summary else 0 }}</span>
+                            </div>
+                            <div class="compact-attendance-stat absent">
+                                <span class="compact-label">Absent</span>
+                                <span class="compact-value">{{ attendance_summary.absent if attendance_summary else 0 }}</span>
+                            </div>
+                            <div class="compact-attendance-stat late">
+                                <span class="compact-label">Late</span>
+                                <span class="compact-value">{{ attendance_summary.late if attendance_summary else 0 }}</span>
+                            </div>
+                            <div class="compact-attendance-stat leave">
+                                <span class="compact-label">On Leave</span>
+                                <span class="compact-value">{{ attendance_summary.on_leave if attendance_summary else 0 }}</span>
                             </div>
                         </div>
                     </div>
