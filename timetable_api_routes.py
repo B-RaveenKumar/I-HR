@@ -1948,6 +1948,7 @@ def get_admin_swap_requests():
             WHERE tar.school_id = ?
               AND tar.status = 'pending'
               AND tar.alteration_type = 'peer_swap'
+            GROUP BY tar.id
             ORDER BY tar.created_at DESC
         ''', (school_id,))
 
@@ -1959,12 +1960,12 @@ def get_admin_swap_requests():
             class_subject = f"{level_name} - {section_name} - {subject}"
 
             requests.append({
-                'id': row['id'],
+                'id': row[0], # Using index 0 for tar.id
                 'requester_id': row['requester_staff_id'],
-                'requester_name': row['requester_name'],
+                'requester_name': row['requester_name'] or "Unknown Staff",
                 'requester_dept': row['requester_dept'],
                 'target_id': row['target_staff_id'],
-                'target_name': row['target_name'],
+                'target_name': row['target_name'] or "Pending Target",
                 'target_dept': row['target_dept'],
                 'assignment_id': row['assignment_id'],
                 'day_of_week': row['day_of_week'],

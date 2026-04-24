@@ -2525,16 +2525,16 @@ function renderAdminSwapRequests() {
     tbody.innerHTML = adminSwapRequests.map(request => `
         <tr>
             <td style="padding: 1rem;">
-                <div class="fw-bold text-white">${request.requester_name || '-'}</div>
-                <small class="opacity-75">${request.requester_dept || '-'}</small>
+                <div class="fw-bold text-success" style="font-size: 1rem;">${request.requester_name || '-'}</div>
+                <small class="text-muted d-block">${request.requester_dept || '-'}</small>
             </td>
             <td style="padding: 1rem;">
                 <div class="fw-bold text-white">${request.class_subject || '-'}</div>
                 <small class="opacity-75">${request.period_name || 'Period ' + (request.period_number || '-')} ${request.start_time && request.end_time ? `(${request.start_time} - ${request.end_time})` : ''}</small>
             </td>
             <td style="padding: 1rem;">
-                <div class="fw-bold text-white">${request.target_name || 'Pending target'}</div>
-                <small class="opacity-75">${request.target_dept || '-'}</small>
+                <div class="fw-bold text-warning" style="font-size: 1rem;">${request.target_name || 'Pending target'}</div>
+                <small class="text-muted d-block">${request.target_dept || '-'}</small>
             </td>
             <td style="padding: 1rem;">
                 <div class="text-white">${request.reason || '<span class="text-muted">No reason provided</span>'}</div>
@@ -2542,13 +2542,13 @@ function renderAdminSwapRequests() {
             </td>
             <td style="padding: 1rem; text-align: center;">
                 <div class="action-buttons d-flex flex-wrap justify-content-center gap-2">
-                    <button class="btn btn-success btn-sm" onclick="approveAdminSwapRequest(${request.id})">
+                    <button class="btn btn-success btn-sm" onclick="approveAdminSwapRequest('${request.id}')">
                         <i class="bi bi-check2-circle"></i> Approve
                     </button>
-                    <button class="btn btn-outline-warning btn-sm" onclick="openAdminSwapModal(${request.id}, 'reassign')">
+                    <button class="btn btn-outline-warning btn-sm" onclick="openAdminSwapModal('${request.id}', 'reassign')">
                         <i class="bi bi-arrow-repeat"></i> Reassign
                     </button>
-                    <button class="btn btn-outline-danger btn-sm" onclick="openAdminSwapModal(${request.id}, 'reject')">
+                    <button class="btn btn-outline-danger btn-sm" onclick="openAdminSwapModal('${request.id}', 'reject')">
                         <i class="bi bi-x-circle"></i> Reject
                     </button>
                 </div>
@@ -2564,6 +2564,7 @@ function openAdminSwapModal(requestId, action = 'approve') {
         return;
     }
 
+    const modalEl = document.getElementById('adminSwapModal');
     document.getElementById('adminSwapRequestId').value = request.id;
     document.getElementById('adminSwapAction').value = action;
     document.getElementById('adminSwapNotes').value = '';
@@ -2573,8 +2574,17 @@ function openAdminSwapModal(requestId, action = 'approve') {
         staffSelect.value = request.target_id ? String(request.target_id) : '';
     }
 
+    // CRITICAL: Directly set the onclick to avoid missing ID errors
+    const submitBtn = modalEl.querySelector('.btn-primary');
+    if (submitBtn) {
+        submitBtn.setAttribute('onclick', `processAdminSwapRequest('${request.id}')`);
+    }
+
     toggleAdminSwapReassignControls();
-    new bootstrap.Modal(document.getElementById('adminSwapModal')).show();
+    
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (!modal) modal = new bootstrap.Modal(modalEl);
+    modal.show();
 }
 
 function toggleAdminSwapReassignControls() {
