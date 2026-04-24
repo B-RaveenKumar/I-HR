@@ -1,0 +1,9 @@
+{
+  "appId": "com.vishnorex.app",
+  "appName": "i-HR",
+  "webDir": "static",
+  "server": {
+    "url": "https://g7b4z7s1-5500.inc1.devtunnels.ms/",
+    "cleartext": true
+  }
+}
