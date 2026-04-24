@@ -1388,6 +1388,18 @@ def delete_period():
 
 # ==================== DEPARTMENT PERMISSIONS ENDPOINTS ====================
 
+def _to_bool(value):
+    """Normalize DB/API values to strict booleans across SQLite/MySQL wrappers."""
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+    return bool(value)
+
 @timetable_api.route('/api/timetable/departments', methods=['GET'])
 def get_departments():
     """Get departments and their timetable permissions"""
@@ -1405,7 +1417,13 @@ def get_departments():
         
         # Get existing permissions
         cursor.execute('SELECT department, allow_alterations, allow_inbound FROM timetable_department_permissions WHERE school_id = ?', (school_id,))
-        permissions = {row[0]: {'allow_alterations': bool(row[1]), 'allow_inbound': bool(row[2])} for row in cursor.fetchall()}
+        permissions = {
+            row[0]: {
+                'allow_alterations': _to_bool(row[1]),
+                'allow_inbound': _to_bool(row[2])
+            }
+            for row in cursor.fetchall()
+        }
         
         results = []
         for dept in all_depts:
@@ -1429,8 +1447,8 @@ def update_department_permission():
         data = request.get_json()
         school_id = data.get('school_id') or session.get('school_id')
         department = data.get('department')
-        allow_alterations = data.get('allow_alterations', True)
-        allow_inbound = data.get('allow_inbound', True)
+        allow_alterations = _to_bool(data.get('allow_alterations', True))
+        allow_inbound = _to_bool(data.get('allow_inbound', True))
         
         if not department:
             return jsonify({'success': False, 'error': 'Department name required'}), 400
@@ -1438,16 +1456,28 @@ def update_department_permission():
         db = get_db()
         cursor = db.cursor()
         
-        cursor.execute('''
-            INSERT INTO timetable_department_permissions 
-            (school_id, department, allow_alterations, allow_inbound)
-            VALUES (?, ?, ?, ?)
-            ON CONFLICT(school_id, department) 
-            DO UPDATE SET 
-                allow_alterations = excluded.allow_alterations,
-                allow_inbound = excluded.allow_inbound,
-                updated_at = CURRENT_TIMESTAMP
-        ''', (school_id, department, allow_alterations, allow_inbound))
+        # Use MySQL 'ON DUPLICATE KEY UPDATE' syntax for MySQL, or 'ON CONFLICT' for SQLite
+        if hasattr(db, '_conn') and db.__class__.__name__ == '_MySQLConnectionWrapper':
+            cursor.execute('''
+                INSERT INTO timetable_department_permissions 
+                (school_id, department, allow_alterations, allow_inbound)
+                VALUES (?, ?, ?, ?)
+                ON DUPLICATE KEY UPDATE 
+                    allow_alterations = VALUES(allow_alterations),
+                    allow_inbound = VALUES(allow_inbound),
+                    updated_at = CURRENT_TIMESTAMP
+            ''', (school_id, department, allow_alterations, allow_inbound))
+        else:
+            cursor.execute('''
+                INSERT INTO timetable_department_permissions 
+                (school_id, department, allow_alterations, allow_inbound)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(school_id, department) 
+                DO UPDATE SET 
+                    allow_alterations = excluded.allow_alterations,
+                    allow_inbound = excluded.allow_inbound,
+                    updated_at = CURRENT_TIMESTAMP
+            ''', (school_id, department, allow_alterations, allow_inbound))
         
         db.commit()
         return jsonify({'success': True, 'message': 'Permissions updated successfully'})
@@ -1490,8 +1520,8 @@ def get_staff_department_permissions():
         return jsonify({
             'success': True,
             'department': department,
-            'allow_sending': perm['allow_alterations'] if perm else True,
-            'allow_receiving': perm['allow_inbound'] if perm else True
+            'allow_sending': _to_bool(perm['allow_alterations']) if perm else True,
+            'allow_receiving': _to_bool(perm['allow_inbound']) if perm else True
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -1520,7 +1550,7 @@ def get_departments_allowing_receiving():
             WHERE school_id = ?
         ''', (school_id,))
         
-        restrictions = {row['department']: row['allow_inbound'] for row in cursor.fetchall()}
+        restrictions = {row['department']: _to_bool(row['allow_inbound']) for row in cursor.fetchall()}
         
         # Filter departments: include if no restriction OR allow_inbound is True
         allowed_departments = [

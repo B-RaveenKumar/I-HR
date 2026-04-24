@@ -1408,19 +1408,19 @@ function renderDepartmentsTable() {
             <td style="padding: 1rem; text-align: center;">
                 <label class="custom-switch">
                     <input type="checkbox" ${d.allow_alterations ? 'checked' : ''} 
-                        onchange="toggleDepartmentPermission('${d.department}', 'alterations', this.checked)">
+                        onchange="toggleDepartmentPermission(this, '${d.department}', 'alterations', this.checked)">
                     <span class="slider"></span>
                 </label>
             </td>
             <td style="padding: 1rem; text-align: center;">
                 <label class="custom-switch">
                     <input type="checkbox" ${d.allow_inbound ? 'checked' : ''} 
-                        onchange="toggleDepartmentPermission('${d.department}', 'inbound', this.checked)">
+                        onchange="toggleDepartmentPermission(this, '${d.department}', 'inbound', this.checked)">
                     <span class="slider"></span>
                 </label>
             </td>
             <td style="padding: 1rem; text-align: center;">
-                <button class="btn btn-sm btn-outline-primary" onclick="saveDepartmentPermission('${d.department}')">
+                <button class="btn btn-sm btn-outline-primary" onclick="saveDepartmentPermission(this, '${d.department}')">
                     <i class="bi bi-check-circle"></i> Save
                 </button>
             </td>
@@ -1428,9 +1428,9 @@ function renderDepartmentsTable() {
     `).join('');
 }
 
-function toggleDepartmentPermission(department, permType, value) {
+function toggleDepartmentPermission(sourceEl, department, permType, value) {
     // Store in data attribute for later save
-    const row = event.target.closest('tr');
+    const row = sourceEl.closest('tr');
     if (!row.dataset.permissions) row.dataset.permissions = JSON.stringify({});
     const perms = JSON.parse(row.dataset.permissions);
     if (permType === 'alterations') perms.allow_alterations = value;
@@ -1438,15 +1438,22 @@ function toggleDepartmentPermission(department, permType, value) {
     row.dataset.permissions = JSON.stringify(perms);
 }
 
-function saveDepartmentPermission(department) {
-    const row = event.target.closest('tr');
+function saveDepartmentPermission(sourceEl, department) {
+    const row = sourceEl.closest('tr');
     const perms = JSON.parse(row.dataset.permissions || '{}');
+
+    const alterationsInput = row.querySelector('input[type="checkbox"][onchange*="alterations"]');
+    const inboundInput = row.querySelector('input[type="checkbox"][onchange*="inbound"]');
 
     const data = {
         school_id: schoolId,
         department: department,
-        allow_alterations: perms.allow_alterations !== false,
-        allow_inbound: perms.allow_inbound !== false
+        allow_alterations: typeof perms.allow_alterations === 'boolean'
+            ? perms.allow_alterations
+            : !!(alterationsInput && alterationsInput.checked),
+        allow_inbound: typeof perms.allow_inbound === 'boolean'
+            ? perms.allow_inbound
+            : !!(inboundInput && inboundInput.checked)
     };
 
     fetch('/api/timetable/department/permission', {

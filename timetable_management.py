@@ -18,11 +18,18 @@ class TimetableManager:
         """Toggle timetable system for a school (Company Admin)"""
         db = get_db()
         try:
-            db.execute('''
-                INSERT INTO timetable_settings (school_id, is_enabled)
-                VALUES (?, ?)
-                ON CONFLICT(school_id) DO UPDATE SET is_enabled = excluded.is_enabled
-            ''', (school_id, is_enabled))
+            if hasattr(db, '_conn') and db.__class__.__name__ == '_MySQLConnectionWrapper':
+                db.execute('''
+                    INSERT INTO timetable_settings (school_id, is_enabled)
+                    VALUES (?, ?)
+                    ON DUPLICATE KEY UPDATE is_enabled = VALUES(is_enabled)
+                ''', (school_id, is_enabled))
+            else:
+                db.execute('''
+                    INSERT INTO timetable_settings (school_id, is_enabled)
+                    VALUES (?, ?)
+                    ON CONFLICT(school_id) DO UPDATE SET is_enabled = excluded.is_enabled
+                ''', (school_id, is_enabled))
             db.commit()
             return {'success': True, 'message': f'Timetable {"enabled" if is_enabled else "disabled"}'}
         except Exception as e:
@@ -57,18 +64,31 @@ class TimetableManager:
             end = datetime.strptime(end_time, '%H:%M')
             duration = int((end - start).total_seconds() / 60)
             
-            db.execute('''
-                INSERT INTO timetable_periods 
-                (school_id, period_number, period_name, start_time, end_time, duration_minutes)
-                VALUES (?, ?, ?, ?, ?, ?)
-                ON CONFLICT(school_id, period_number) 
-                DO UPDATE SET 
-                    period_name = excluded.period_name,
-                    start_time = excluded.start_time,
-                    end_time = excluded.end_time,
-                    duration_minutes = excluded.duration_minutes,
-                    updated_at = CURRENT_TIMESTAMP
-            ''', (school_id, period_number, period_name, start_time, end_time, duration))
+            if hasattr(db, '_conn') and db.__class__.__name__ == '_MySQLConnectionWrapper':
+                db.execute('''
+                    INSERT INTO timetable_periods 
+                    (school_id, period_number, period_name, start_time, end_time, duration_minutes)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE 
+                        period_name = VALUES(period_name),
+                        start_time = VALUES(start_time),
+                        end_time = VALUES(end_time),
+                        duration_minutes = VALUES(duration_minutes),
+                        updated_at = CURRENT_TIMESTAMP
+                ''', (school_id, period_number, period_name, start_time, end_time, duration))
+            else:
+                db.execute('''
+                    INSERT INTO timetable_periods 
+                    (school_id, period_number, period_name, start_time, end_time, duration_minutes)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(school_id, period_number) 
+                    DO UPDATE SET 
+                        period_name = excluded.period_name,
+                        start_time = excluded.start_time,
+                        end_time = excluded.end_time,
+                        duration_minutes = excluded.duration_minutes,
+                        updated_at = CURRENT_TIMESTAMP
+                ''', (school_id, period_number, period_name, start_time, end_time, duration))
             db.commit()
             return {'success': True, 'period_id': period_number}
         except Exception as e:
@@ -110,16 +130,27 @@ class DepartmentPermissionManager:
         """Set alteration permissions for a department"""
         db = get_db()
         try:
-            db.execute('''
-                INSERT INTO timetable_department_permissions 
-                (school_id, department, allow_alterations, allow_inbound)
-                VALUES (?, ?, ?, ?)
-                ON CONFLICT(school_id, department)
-                DO UPDATE SET 
-                    allow_alterations = excluded.allow_alterations,
-                    allow_inbound = excluded.allow_inbound,
-                    updated_at = CURRENT_TIMESTAMP
-            ''', (school_id, department, allow_alterations, allow_inbound))
+            if hasattr(db, '_conn') and db.__class__.__name__ == '_MySQLConnectionWrapper':
+                db.execute('''
+                    INSERT INTO timetable_department_permissions 
+                    (school_id, department, allow_alterations, allow_inbound)
+                    VALUES (?, ?, ?, ?)
+                    ON DUPLICATE KEY UPDATE 
+                        allow_alterations = VALUES(allow_alterations),
+                        allow_inbound = VALUES(allow_inbound),
+                        updated_at = CURRENT_TIMESTAMP
+                ''', (school_id, department, allow_alterations, allow_inbound))
+            else:
+                db.execute('''
+                    INSERT INTO timetable_department_permissions 
+                    (school_id, department, allow_alterations, allow_inbound)
+                    VALUES (?, ?, ?, ?)
+                    ON CONFLICT(school_id, department)
+                    DO UPDATE SET 
+                        allow_alterations = excluded.allow_alterations,
+                        allow_inbound = excluded.allow_inbound,
+                        updated_at = CURRENT_TIMESTAMP
+                ''', (school_id, department, allow_alterations, allow_inbound))
             db.commit()
             return {'success': True}
         except Exception as e:
@@ -168,16 +199,27 @@ class TimetableAssignmentManager:
         """Assign staff to a period"""
         db = get_db()
         try:
-            db.execute('''
-                INSERT INTO timetable_assignments 
-                (school_id, staff_id, day_of_week, period_number, class_subject, is_assigned)
-                VALUES (?, ?, ?, ?, ?, 1)
-                ON CONFLICT(school_id, staff_id, day_of_week, period_number)
-                DO UPDATE SET 
-                    class_subject = excluded.class_subject,
-                    is_assigned = 1,
-                    updated_at = CURRENT_TIMESTAMP
-            ''', (school_id, staff_id, day_of_week, period_number, class_subject))
+            if hasattr(db, '_conn') and db.__class__.__name__ == '_MySQLConnectionWrapper':
+                db.execute('''
+                    INSERT INTO timetable_assignments 
+                    (school_id, staff_id, day_of_week, period_number, class_subject, is_assigned)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                    ON DUPLICATE KEY UPDATE 
+                        class_subject = VALUES(class_subject),
+                        is_assigned = 1,
+                        updated_at = CURRENT_TIMESTAMP
+                ''', (school_id, staff_id, day_of_week, period_number, class_subject))
+            else:
+                db.execute('''
+                    INSERT INTO timetable_assignments 
+                    (school_id, staff_id, day_of_week, period_number, class_subject, is_assigned)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                    ON CONFLICT(school_id, staff_id, day_of_week, period_number)
+                    DO UPDATE SET 
+                        class_subject = excluded.class_subject,
+                        is_assigned = 1,
+                        updated_at = CURRENT_TIMESTAMP
+                ''', (school_id, staff_id, day_of_week, period_number, class_subject))
             db.commit()
             return {'success': True}
         except Exception as e:
@@ -433,13 +475,21 @@ class SelfAllocationManager:
                 return {'success': False, 'error': 'Slot is already assigned'}
             
             # Create self-allocation (automatically locked to staff)
-            db.execute('''
-                INSERT INTO timetable_self_allocations 
-                (school_id, staff_id, day_of_week, period_number, class_subject, is_admin_locked)
-                VALUES (?, ?, ?, ?, ?, 1)
-                ON CONFLICT(school_id, staff_id, day_of_week, period_number)
-                DO UPDATE SET is_admin_locked = 1, updated_at = CURRENT_TIMESTAMP
-            ''', (school_id, staff_id, day_of_week, period_number, class_subject))
+            if hasattr(db, '_conn') and db.__class__.__name__ == '_MySQLConnectionWrapper':
+                db.execute('''
+                    INSERT INTO timetable_self_allocations 
+                    (school_id, staff_id, day_of_week, period_number, class_subject, is_admin_locked)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                    ON DUPLICATE KEY UPDATE is_admin_locked = 1, updated_at = CURRENT_TIMESTAMP
+                ''', (school_id, staff_id, day_of_week, period_number, class_subject))
+            else:
+                db.execute('''
+                    INSERT INTO timetable_self_allocations 
+                    (school_id, staff_id, day_of_week, period_number, class_subject, is_admin_locked)
+                    VALUES (?, ?, ?, ?, ?, 1)
+                    ON CONFLICT(school_id, staff_id, day_of_week, period_number)
+                    DO UPDATE SET is_admin_locked = 1, updated_at = CURRENT_TIMESTAMP
+                ''', (school_id, staff_id, day_of_week, period_number, class_subject))
             
             db.commit()
             return {'success': True, 'message': 'Slot allocated successfully'}
