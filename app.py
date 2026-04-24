@@ -8829,19 +8829,38 @@ def admin_student_management():
                 class_name = request.form.get('class')
                 section = request.form.get('section')
                 academic_year = request.form.get('academic_year')
+
+                photo_data = None
+                if 'student_photo' in request.files:
+                    photo_file = request.files['student_photo']
+                    if photo_file and photo_file.filename:
+                        import base64
+                        photo_bytes = photo_file.read()
+                        photo_data = f"data:image/{photo_file.filename.rsplit('.', 1)[1].lower()};base64,{base64.b64encode(photo_bytes).decode('utf-8')}"
                 
                 # Create full_name
                 full_name = f"{first_name} {last_name}"
                 
-                db.execute('''
-                    UPDATE students SET
-                        roll_number = ?, first_name = ?, last_name = ?, full_name = ?,
-                        date_of_birth = ?, age = ?, gender = ?, phone = ?, parent_phone = ?,
-                        address = ?, `class` = ?, section = ?, academic_year = ?
-                    WHERE id = ? AND school_id = ?
-                ''', (roll_number, first_name, last_name, full_name, date_of_birth, age,
-                      gender, student_mobile, parent_mobile, address, class_name, section,
-                      academic_year, student_id, school_id))
+                if photo_data:
+                    db.execute('''
+                        UPDATE students SET
+                            roll_number = ?, first_name = ?, last_name = ?, full_name = ?,
+                            date_of_birth = ?, age = ?, gender = ?, phone = ?, parent_phone = ?,
+                            address = ?, `class` = ?, section = ?, academic_year = ?, photo_data = ?
+                        WHERE id = ? AND school_id = ?
+                    ''', (roll_number, first_name, last_name, full_name, date_of_birth, age,
+                          gender, student_mobile, parent_mobile, address, class_name, section,
+                          academic_year, photo_data, student_id, school_id))
+                else:
+                    db.execute('''
+                        UPDATE students SET
+                            roll_number = ?, first_name = ?, last_name = ?, full_name = ?,
+                            date_of_birth = ?, age = ?, gender = ?, phone = ?, parent_phone = ?,
+                            address = ?, `class` = ?, section = ?, academic_year = ?
+                        WHERE id = ? AND school_id = ?
+                    ''', (roll_number, first_name, last_name, full_name, date_of_birth, age,
+                          gender, student_mobile, parent_mobile, address, class_name, section,
+                          academic_year, student_id, school_id))
                 db.commit()
                 flash('Student updated successfully!', 'success')
                 
@@ -9830,6 +9849,7 @@ def api_student_dashboard_data():
             'class': s['class'],
             'section': s['section'],
             'roll_number': s['roll_number'],
+            'photo_data': s['photo_data'] or '',
             'gender': s['gender'] or '',
             'morning_status': morning,
             'morning_time': _serialize_time_value(s['morning_time']),
