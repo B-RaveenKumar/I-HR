@@ -2826,10 +2826,35 @@
                         </div>
                     </div>
                     <div class="card-body">
+                        <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3 p-2 rounded" style="background:#f8fafc;border:1px solid #e2e8f0;">
+                            <div>
+                                <strong class="text-primary"><i class="bi bi-arrow-up-right-circle me-1"></i>Promotion Tools</strong>
+                                <small id="selectedStudentsInfo" class="text-muted ms-2">0 selected</small>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="openPromotionModal('class_bulk')" title="Promote all students in a class">
+                                    <i class="bi bi-people"></i> Bulk Class Promote
+                                </button>
+                                <button type="button" class="btn btn-primary btn-sm" id="promoteSelectedBtn" onclick="openPromotionModal('selected_students')" disabled title="Promote selected students">
+                                    <i class="bi bi-check2-square"></i> Promote Selected
+                                </button>
+                                <button type="button" class="btn btn-outline-success btn-sm" id="markCompletedSelectedBtn" onclick="markSelectedStudentsCompleted()" disabled title="Mark selected students as completed">
+                                    <i class="bi bi-mortarboard"></i> Mark Completed
+                                </button>
+                            </div>
+                        </div>
+                        <form method="POST" action="{{ url_for('admin_student_management') }}" id="markCompletedBulkForm" class="d-none">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <input type="hidden" name="action" value="mark_completed">
+                            <input type="hidden" name="selected_student_ids" id="markCompletedSelectedIdsInput">
+                        </form>
                         <div class="table-responsive">
                             <table class="table table-hover align-middle" id="studentsTable">
                                 <thead class="table-light">
                                     <tr>
+                                        <th style="width: 46px;">
+                                            <input type="checkbox" id="selectAllStudentsCheckbox" class="form-check-input" title="Select all visible students">
+                                        </th>
                                         <th>Roll No.</th>
                                         <th>Student Name</th>
                                         <th>Class - Section</th>
@@ -2845,6 +2870,9 @@
                                     {% if students %}
                                         {% for student in students %}
                                         <tr>
+                                            <td>
+                                                <input type="checkbox" class="form-check-input student-select-checkbox" value="{{ student.id }}" title="Select {{ student.first_name }} {{ student.last_name }}">
+                                            </td>
                                             <td><strong>{{ student.roll_number }}</strong></td>
                                             <td>
                                                 <div class="d-flex align-items-center">
@@ -2873,6 +2901,14 @@
                                                     <button class="btn btn-outline-primary" onclick="editStudent({{ student.id }})" title="Edit">
                                                         <i class="bi bi-pencil"></i>
                                                     </button>
+                                                    <form method="POST" action="{{ url_for('admin_student_management') }}" class="d-inline" onsubmit="return confirm('Mark this student as completed (Alumni - Completed)?');">
+                                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                                        <input type="hidden" name="action" value="mark_completed">
+                                                        <input type="hidden" name="student_id" value="{{ student.id }}">
+                                                        <button type="submit" class="btn btn-outline-success" title="Mark Completed">
+                                                            <i class="bi bi-mortarboard"></i>
+                                                        </button>
+                                                    </form>
                                                     <form method="POST" action="{{ url_for('admin_student_management') }}" class="d-inline" onsubmit="return confirm('Delete this student?');">
                                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                                         <input type="hidden" name="action" value="delete">
@@ -2887,7 +2923,7 @@
                                         {% endfor %}
                                     {% else %}
                                         <tr>
-                                            <td colspan="9" class="text-center py-5">
+                                            <td colspan="10" class="text-center py-5">
                                                 <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
                                                 <p class="text-muted mt-2">No students found. Click "Add Student" to create your first record.</p>
                                             </td>
@@ -2900,6 +2936,95 @@
                 </div>
                 </div><!-- end view-students -->
             </main>
+        </div>
+    </div>
+
+    <!-- Bulk Promotion Modal -->
+    <div class="modal fade" id="bulkPromotionModal" tabindex="-1" aria-labelledby="bulkPromotionModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="bulkPromotionModalLabel">
+                        <i class="bi bi-arrow-up-right-circle"></i> Promote Students
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form method="POST" action="{{ url_for('admin_student_management') }}" id="bulkPromotionForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="bulk_promote">
+                    <input type="hidden" name="selected_student_ids" id="selectedStudentIdsInput">
+
+                    <div class="modal-body">
+                        <div class="alert alert-info py-2">
+                            <i class="bi bi-info-circle"></i>
+                            You can promote all students in a class or only selected students.
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold d-block">Promotion Type</label>
+                            <div class="d-flex flex-wrap gap-3">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="promotion_mode" id="promotionModeSelected" value="selected_students" checked>
+                                    <label class="form-check-label" for="promotionModeSelected">Selected Students</label>
+                                </div>
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="promotion_mode" id="promotionModeClassBulk" value="class_bulk">
+                                    <label class="form-check-label" for="promotionModeClassBulk">Bulk by Class</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3" id="selectedStudentsSummaryBox">
+                            <label class="form-label fw-semibold">Selected Students</label>
+                            <div class="form-control bg-light" id="selectedStudentsSummaryText">0 students selected</div>
+                        </div>
+
+                        <div class="row g-3">
+                            <div class="col-md-6" id="sourceClassWrap" style="display:none;">
+                                <label for="promotionSourceClass" class="form-label fw-semibold">Source Class</label>
+                                <select id="promotionSourceClass" name="source_class" class="form-select">
+                                    <option value="">Choose source class</option>
+                                    {% for class_name in unique_classes %}
+                                    <option value="{{ class_name }}">{{ class_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6" id="sourceSectionWrap" style="display:none;">
+                                <label for="promotionSourceSection" class="form-label fw-semibold">Source Section</label>
+                                <select id="promotionSourceSection" name="source_section" class="form-select">
+                                    <option value="">Choose source section</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="promotionTargetClass" class="form-label fw-semibold">Target Class <span class="text-danger">*</span></label>
+                                <select id="promotionTargetClass" name="target_class" class="form-select" required>
+                                    <option value="">Choose target class</option>
+                                    {% for class_name in unique_classes %}
+                                    <option value="{{ class_name }}">{{ class_name }}</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="promotionTargetSection" class="form-label fw-semibold">Target Section <span class="text-danger">*</span></label>
+                                <select id="promotionTargetSection" name="target_section" class="form-select" required>
+                                    <option value="">Choose target section</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="promotionTargetAcademicYear" class="form-label fw-semibold">Academic Year (Optional)</label>
+                                <input type="text" id="promotionTargetAcademicYear" name="target_academic_year" class="form-control" placeholder="2026-2027">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-arrow-up-right-circle"></i> Promote Now
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -3432,6 +3557,28 @@
         </div>
     </div>
 
+    <!-- Dashboard Student Details Modal -->
+    <div class="modal fade" id="dashboardStudentDetailsModal" tabindex="-1" aria-labelledby="dashboardStudentDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header bg-info text-white">
+                    <h5 class="modal-title" id="dashboardStudentDetailsModalLabel">
+                        <i class="bi bi-person-vcard"></i> Student Full Details
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="dashboardStudentDetailsBody" class="table-responsive">
+                        <div class="text-center text-muted py-4">Loading student details...</div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
@@ -3549,6 +3696,17 @@
         });
 
         // Edit student
+        function formatDateForInput(value) {
+            if (!value) return '';
+            if (typeof value === 'string') {
+                let text = value.trim();
+                if (text.includes(' ')) text = text.split(' ')[0];
+                if (text.includes('T')) text = text.split('T')[0];
+                return text.slice(0, 10);
+            }
+            return '';
+        }
+
         function editStudent(studentId) {
             fetch(`/api/get-student/${studentId}`)
                 .then(response => response.json())
@@ -3559,7 +3717,7 @@
                         document.getElementById('edit_roll_number').value = student.roll_number;
                         document.getElementById('edit_first_name').value = student.first_name;
                         document.getElementById('edit_last_name').value = student.last_name;
-                        document.getElementById('edit_date_of_birth').value = student.date_of_birth;
+                        document.getElementById('edit_date_of_birth').value = formatDateForInput(student.date_of_birth);
                         document.getElementById('edit_age').value = student.age || '';
                         document.getElementById('edit_gender').value = student.gender;
                         document.getElementById('edit_student_mobile').value = student.phone || '';
@@ -5147,10 +5305,104 @@ showStep(currentStep);
                     <td>${morningBadge}</td>
                     <td>${afternoonBadge}</td>
                     <td>${statusBadge}</td>
-                    <td><button class="btn btn-sm btn-outline-primary" title="View"><i class="bi bi-eye"></i></button></td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-primary" onclick="viewDashboardStudentDetails(${st.id})" title="View Full Details">
+                            <i class="bi bi-eye"></i>
+                        </button>
+                    </td>
                 </tr>`;
             });
             tbody.innerHTML = html;
+        }
+
+        function formatDetailLabel(key) {
+            return (key || '')
+                .replace(/_/g, ' ')
+                .replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function renderStudentDetailsTable(student) {
+            const excludedKeys = new Set([
+                'password',
+                'photo_data'
+            ]);
+
+            const preferredOrder = [
+                'student_id', 'admission_number', 'roll_number',
+                'first_name', 'last_name', 'full_name',
+                'date_of_birth', 'age', 'gender', 'student_type',
+                'class', 'section', 'academic_year',
+                'student_mobile', 'phone', 'parent_phone', 'parent_mobile',
+                'parent_name', 'mother_name', 'parent_email', 'mother_phone',
+                'address', 'skills', 'tc_number', 'aadhar_number',
+                'created_at', 'updated_at'
+            ];
+
+            const seen = new Set();
+            const rows = [];
+
+            preferredOrder.forEach(key => {
+                if (excludedKeys.has(key)) return;
+                if (Object.prototype.hasOwnProperty.call(student, key)) {
+                    const value = student[key];
+                    if (value !== null && value !== undefined && String(value).trim() !== '') {
+                        rows.push([formatDetailLabel(key), value]);
+                        seen.add(key);
+                    }
+                }
+            });
+
+            Object.keys(student).forEach(key => {
+                if (excludedKeys.has(key) || seen.has(key)) return;
+                const value = student[key];
+                if (value !== null && value !== undefined && String(value).trim() !== '') {
+                    rows.push([formatDetailLabel(key), value]);
+                }
+            });
+
+            if (!rows.length) {
+                return '<div class="text-center text-muted py-4">No student details available.</div>';
+            }
+
+            return `
+                <table class="table table-sm table-hover align-middle">
+                    <tbody>
+                        ${rows.map(([label, value]) => `
+                            <tr>
+                                <th style="width: 34%;" class="text-muted">${escapeHtml(label)}</th>
+                                <td>${escapeHtml(String(value))}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+
+        function viewDashboardStudentDetails(studentId) {
+            const body = document.getElementById('dashboardStudentDetailsBody');
+            if (!body) return;
+
+            body.innerHTML = '<div class="text-center text-muted py-4">Loading student details...</div>';
+
+            fetch(`/api/get-student/${studentId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success || !data.student) {
+                        body.innerHTML = '<div class="alert alert-warning mb-0">Failed to load student details.</div>';
+                        return;
+                    }
+
+                    body.innerHTML = renderStudentDetailsTable(data.student);
+                })
+                .catch(() => {
+                    body.innerHTML = '<div class="alert alert-danger mb-0">Unable to fetch student details right now.</div>';
+                });
+
+            const modalEl = document.getElementById('dashboardStudentDetailsModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
         }
 
         function getStatusBadge(status) {
@@ -6584,6 +6836,219 @@ showStep(currentStep);
         }
 
         initStudentBulkUpload();
+
+        function getSelectedStudentIds() {
+            const checkboxes = Array.from(document.querySelectorAll('.student-select-checkbox:checked'));
+            return checkboxes.map(cb => cb.value);
+        }
+
+        function updatePromotionSelectionState() {
+            const selectedIds = getSelectedStudentIds();
+            const selectedCount = selectedIds.length;
+            const infoLabel = document.getElementById('selectedStudentsInfo');
+            const promoteBtn = document.getElementById('promoteSelectedBtn');
+            const markCompletedBtn = document.getElementById('markCompletedSelectedBtn');
+            const summaryText = document.getElementById('selectedStudentsSummaryText');
+
+            if (infoLabel) {
+                infoLabel.textContent = `${selectedCount} selected`;
+            }
+            if (promoteBtn) {
+                promoteBtn.disabled = selectedCount === 0;
+            }
+            if (markCompletedBtn) {
+                markCompletedBtn.disabled = selectedCount === 0;
+            }
+            if (summaryText) {
+                summaryText.textContent = `${selectedCount} student(s) selected`;
+            }
+
+            const selectedInput = document.getElementById('selectedStudentIdsInput');
+            if (selectedInput) {
+                selectedInput.value = selectedIds.join(',');
+            }
+
+            const markCompletedInput = document.getElementById('markCompletedSelectedIdsInput');
+            if (markCompletedInput) {
+                markCompletedInput.value = selectedIds.join(',');
+            }
+
+            const selectAll = document.getElementById('selectAllStudentsCheckbox');
+            const allCheckboxes = Array.from(document.querySelectorAll('.student-select-checkbox'));
+            if (selectAll) {
+                const allChecked = allCheckboxes.length > 0 && allCheckboxes.every(cb => cb.checked);
+                selectAll.checked = allChecked;
+            }
+        }
+
+        function updatePromotionTargetSections() {
+            const targetClassSelect = document.getElementById('promotionTargetClass');
+            const targetSectionSelect = document.getElementById('promotionTargetSection');
+            if (!targetClassSelect || !targetSectionSelect) return;
+
+            const selectedClass = targetClassSelect.value;
+            targetSectionSelect.innerHTML = '<option value="">Choose target section</option>';
+
+            if (selectedClass && sectionsByClass[selectedClass]) {
+                sectionsByClass[selectedClass].forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    option.textContent = section;
+                    targetSectionSelect.appendChild(option);
+                });
+            }
+        }
+
+        function updatePromotionSourceSections() {
+            const sourceClassSelect = document.getElementById('promotionSourceClass');
+            const sourceSectionSelect = document.getElementById('promotionSourceSection');
+            if (!sourceClassSelect || !sourceSectionSelect) return;
+
+            const selectedClass = sourceClassSelect.value;
+            sourceSectionSelect.innerHTML = '<option value="">Choose source section</option>';
+
+            if (selectedClass && sectionsByClass[selectedClass]) {
+                sectionsByClass[selectedClass].forEach(section => {
+                    const option = document.createElement('option');
+                    option.value = section;
+                    option.textContent = section;
+                    sourceSectionSelect.appendChild(option);
+                });
+            }
+        }
+
+        function syncPromotionModeUI() {
+            const selectedMode = document.getElementById('promotionModeSelected')?.checked;
+            const sourceClassWrap = document.getElementById('sourceClassWrap');
+            const sourceSectionWrap = document.getElementById('sourceSectionWrap');
+            const selectedSummaryBox = document.getElementById('selectedStudentsSummaryBox');
+
+            if (sourceClassWrap) {
+                sourceClassWrap.style.display = selectedMode ? 'none' : 'block';
+            }
+            if (sourceSectionWrap) {
+                sourceSectionWrap.style.display = selectedMode ? 'none' : 'block';
+            }
+            if (selectedSummaryBox) {
+                selectedSummaryBox.style.display = selectedMode ? 'block' : 'none';
+            }
+        }
+
+        function openPromotionModal(mode) {
+            const selectedModeRadio = document.getElementById('promotionModeSelected');
+            const classModeRadio = document.getElementById('promotionModeClassBulk');
+
+            if (mode === 'class_bulk' && classModeRadio) {
+                classModeRadio.checked = true;
+            } else if (selectedModeRadio) {
+                selectedModeRadio.checked = true;
+            }
+
+            updatePromotionSelectionState();
+            syncPromotionModeUI();
+
+            const modalEl = document.getElementById('bulkPromotionModal');
+            if (modalEl) {
+                const modal = new bootstrap.Modal(modalEl);
+                modal.show();
+            }
+        }
+
+        function markSelectedStudentsCompleted() {
+            const selectedIds = getSelectedStudentIds();
+            if (!selectedIds.length) {
+                alert('Please select at least one student.');
+                return;
+            }
+
+            if (!confirm(`Mark ${selectedIds.length} selected student(s) as completed (Alumni - Completed)?`)) {
+                return;
+            }
+
+            const idsInput = document.getElementById('markCompletedSelectedIdsInput');
+            const form = document.getElementById('markCompletedBulkForm');
+            if (idsInput && form) {
+                idsInput.value = selectedIds.join(',');
+                form.submit();
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const selectAll = document.getElementById('selectAllStudentsCheckbox');
+            const rowCheckboxes = document.querySelectorAll('.student-select-checkbox');
+            const sourceClassSelect = document.getElementById('promotionSourceClass');
+            const targetClassSelect = document.getElementById('promotionTargetClass');
+            const promotionForm = document.getElementById('bulkPromotionForm');
+            const modeRadios = document.querySelectorAll('input[name="promotion_mode"]');
+
+            if (selectAll) {
+                selectAll.addEventListener('change', function() {
+                    rowCheckboxes.forEach(cb => {
+                        cb.checked = selectAll.checked;
+                    });
+                    updatePromotionSelectionState();
+                });
+            }
+
+            rowCheckboxes.forEach(cb => cb.addEventListener('change', updatePromotionSelectionState));
+
+            if (sourceClassSelect) {
+                sourceClassSelect.addEventListener('change', updatePromotionSourceSections);
+            }
+
+            if (targetClassSelect) {
+                targetClassSelect.addEventListener('change', updatePromotionTargetSections);
+            }
+
+            modeRadios.forEach(radio => radio.addEventListener('change', syncPromotionModeUI));
+
+            if (promotionForm) {
+                promotionForm.addEventListener('submit', function(event) {
+                    const isSelectedMode = document.getElementById('promotionModeSelected')?.checked;
+                    const selectedIds = getSelectedStudentIds();
+                    const sourceClass = document.getElementById('promotionSourceClass')?.value || '';
+                    const sourceSection = document.getElementById('promotionSourceSection')?.value || '';
+                    const targetClass = document.getElementById('promotionTargetClass')?.value || '';
+                    const targetSection = document.getElementById('promotionTargetSection')?.value || '';
+
+                    if (!targetClass) {
+                        event.preventDefault();
+                        alert('Please choose target class.');
+                        return;
+                    }
+                    if (!targetSection) {
+                        event.preventDefault();
+                        alert('Please choose target section.');
+                        return;
+                    }
+
+                    if (isSelectedMode && selectedIds.length === 0) {
+                        event.preventDefault();
+                        alert('Please select at least one student for selected-student promotion.');
+                        return;
+                    }
+
+                    if (!isSelectedMode && !sourceClass) {
+                        event.preventDefault();
+                        alert('Please choose source class for bulk class promotion.');
+                        return;
+                    }
+
+                    if (!isSelectedMode && !sourceSection) {
+                        event.preventDefault();
+                        alert('Please choose source section for bulk class promotion.');
+                        return;
+                    }
+
+                    updatePromotionSelectionState();
+                });
+            }
+
+            updatePromotionSelectionState();
+            syncPromotionModeUI();
+            updatePromotionSourceSections();
+            updatePromotionTargetSections();
+        });
     </script>
     <script src="{{ url_for('static', filename='js/mobile_sidebar_navbar.js') }}"></script>
 </body>

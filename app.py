@@ -8853,6 +8853,133 @@ def admin_student_management():
                 db.commit()
                 flash('Student deleted successfully!', 'success')
 
+            elif action == 'bulk_promote':
+                promotion_mode = (request.form.get('promotion_mode') or 'selected_students').strip()
+                source_class = (request.form.get('source_class') or '').strip()
+                source_section = (request.form.get('source_section') or '').strip()
+                target_class = (request.form.get('target_class') or '').strip()
+                target_section = (request.form.get('target_section') or '').strip()
+                target_academic_year = (request.form.get('target_academic_year') or '').strip()
+                selected_student_ids_raw = (request.form.get('selected_student_ids') or '').strip()
+
+                if promotion_mode not in ('class_bulk', 'selected_students'):
+                    promotion_mode = 'selected_students'
+
+                if not target_class:
+                    flash('Target class is required for promotion.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if not target_section:
+                    flash('Target section is required for promotion.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                if promotion_mode == 'class_bulk':
+                    if not source_class:
+                        flash('Source class is required for bulk class promotion.', 'error')
+                        return redirect(url_for('admin_student_management'))
+
+                    if not source_section:
+                        flash('Source section is required for bulk class promotion.', 'error')
+                        return redirect(url_for('admin_student_management'))
+
+                    if target_academic_year:
+                        result = db.execute('''
+                            UPDATE students
+                            SET `class` = ?, section = ?, academic_year = ?
+                            WHERE school_id = ? AND `class` = ? AND section = ?
+                        ''', (target_class, target_section, target_academic_year, school_id, source_class, source_section))
+                    else:
+                        result = db.execute('''
+                            UPDATE students
+                            SET `class` = ?, section = ?
+                            WHERE school_id = ? AND `class` = ? AND section = ?
+                        ''', (target_class, target_section, school_id, source_class, source_section))
+
+                    db.commit()
+                    promoted_count = result.rowcount or 0
+
+                    if promoted_count > 0:
+                        flash(f'{promoted_count} student(s) promoted from {source_class} - {source_section} to {target_class} - {target_section}.', 'success')
+                    else:
+                        flash(f'No students found in class {source_class} - {source_section} to promote.', 'warning')
+
+                else:
+                    selected_student_ids = []
+                    if selected_student_ids_raw:
+                        for value in selected_student_ids_raw.split(','):
+                            value = value.strip()
+                            if value.isdigit():
+                                selected_student_ids.append(int(value))
+
+                    selected_student_ids = list(dict.fromkeys(selected_student_ids))
+
+                    if not selected_student_ids:
+                        flash('Please select at least one student for selected-student promotion.', 'error')
+                        return redirect(url_for('admin_student_management'))
+
+                    placeholders = ','.join(['?'] * len(selected_student_ids))
+
+                    if target_academic_year:
+                        query = f'''
+                            UPDATE students
+                            SET `class` = ?, section = ?, academic_year = ?
+                            WHERE school_id = ? AND id IN ({placeholders})
+                        '''
+                        params = [target_class, target_section, target_academic_year, school_id] + selected_student_ids
+                    else:
+                        query = f'''
+                            UPDATE students
+                            SET `class` = ?, section = ?
+                            WHERE school_id = ? AND id IN ({placeholders})
+                        '''
+                        params = [target_class, target_section, school_id] + selected_student_ids
+
+                    result = db.execute(query, tuple(params))
+                    db.commit()
+                    promoted_count = result.rowcount or 0
+
+                    if promoted_count > 0:
+                        flash(f'{promoted_count} selected student(s) promoted to {target_class} - {target_section}.', 'success')
+                    else:
+                        flash('Selected students could not be promoted. Please try again.', 'warning')
+
+            elif action == 'mark_completed':
+                selected_student_ids_raw = (request.form.get('selected_student_ids') or '').strip()
+                single_student_id = (request.form.get('student_id') or '').strip()
+
+                selected_student_ids = []
+                if selected_student_ids_raw:
+                    for value in selected_student_ids_raw.split(','):
+                        value = value.strip()
+                        if value.isdigit():
+                            selected_student_ids.append(int(value))
+
+                if single_student_id.isdigit():
+                    selected_student_ids.append(int(single_student_id))
+
+                selected_student_ids = list(dict.fromkeys(selected_student_ids))
+
+                if not selected_student_ids:
+                    flash('Please select at least one student to mark as completed.', 'error')
+                    return redirect(url_for('admin_student_management'))
+
+                placeholders = ','.join(['?'] * len(selected_student_ids))
+                query = f'''
+                    UPDATE students
+                    SET `class` = ?, section = ?
+                    WHERE school_id = ? AND id IN ({placeholders})
+                '''
+                params = ['Alumni', 'Completed', school_id] + selected_student_ids
+
+                result = db.execute(query, tuple(params))
+                db.commit()
+                completed_count = result.rowcount or 0
+
+                if completed_count > 0:
+                    flash(f'{completed_count} student(s) marked as completed and moved to Alumni - Completed.', 'success')
+                else:
+                    flash('No matching students found to mark as completed.', 'warning')
+
             elif action == 'assign_exam':
                 _ensure_exam_assignments_table()
 
@@ -10865,10 +10992,26 @@ def api_get_student(student_id):
     
     if not student:
         return jsonify({'success': False, 'error': 'Student not found'}), 404
+
+    student_data = dict(student)
+    dob_value = student_data.get('date_of_birth')
+    if isinstance(dob_value, datetime.datetime):
+        student_data['date_of_birth'] = dob_value.strftime('%Y-%m-%d')
+    elif isinstance(dob_value, datetime.date):
+        student_data['date_of_birth'] = dob_value.isoformat()
+    elif isinstance(dob_value, str):
+        # Date input requires strict YYYY-MM-DD, so trim common datetime strings.
+        raw = dob_value.strip()
+        if raw:
+            if ' ' in raw:
+                raw = raw.split(' ')[0]
+            if 'T' in raw:
+                raw = raw.split('T')[0]
+            student_data['date_of_birth'] = raw[:10]
     
     return jsonify({
         'success': True,
-        'student': dict(student)
+        'student': student_data
     })
 
 
