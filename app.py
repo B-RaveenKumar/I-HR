@@ -50,7 +50,36 @@ except ImportError:
 
 # Create Flask app instance
 app = Flask(__name__)
-app.secret_key = os.environ.get('SECRET_KEY', os.urandom(24).hex())
+
+
+def _load_persistent_secret_key():
+    """Load SECRET_KEY from env, else use a local persisted fallback key."""
+    env_secret = os.environ.get('SECRET_KEY')
+    if env_secret:
+        return env_secret
+
+    key_path = os.path.join(os.path.dirname(__file__), '.flask_secret_key')
+    try:
+        if os.path.exists(key_path):
+            with open(key_path, 'r', encoding='utf-8') as f:
+                stored_key = f.read().strip()
+                if stored_key:
+                    return stored_key
+
+        generated_key = secrets.token_hex(32)
+        with open(key_path, 'w', encoding='utf-8') as f:
+            f.write(generated_key)
+        return generated_key
+    except Exception:
+        # Final fallback keeps app functional even if key file cannot be persisted.
+        return os.urandom(24).hex()
+
+
+app.secret_key = _load_persistent_secret_key()
+app.config['PERMANENT_SESSION_LIFETIME'] = datetime.timedelta(days=30)
+app.config['SESSION_REFRESH_EACH_REQUEST'] = True
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
 
 # Initialize CSRF protection
 csrf = CSRFProtect(app)
@@ -237,6 +266,9 @@ def refresh_sub_admin_permissions():
     This ensures that if an admin revokes access, it takes effect immediately
     without requiring the staff member to logout/login.
     """
+    if 'user_id' in session or 'student_id' in session:
+        session.permanent = True
+
     # Only check for logged-in staff members with potential sub-admin status
     if 'user_id' in session and session.get('user_type') == 'staff':
         staff_id = session.get('staff_id')
@@ -905,6 +937,18 @@ def iclock_cdata():
 # In app.py, update the index route
 @app.route('/')
 def index():
+    if 'user_id' in session:
+        user_type = session.get('user_type')
+        if user_type == 'company_admin':
+            return redirect(url_for('company_dashboard'))
+        if user_type == 'admin':
+            return redirect(url_for('admin_dashboard'))
+        if user_type == 'staff':
+            return redirect(url_for('staff_dashboard'))
+
+    if 'student_id' in session and session.get('user_type') == 'student':
+        return redirect(url_for('student_dashboard'))
+
     db = get_db()
 
     # First check if the column exists
@@ -953,6 +997,7 @@ def handle_company_login():
     session['user_id'] = company_admin['id']
     session['user_type'] = 'company_admin'
     session['full_name'] = company_admin['full_name']
+    session.permanent = True
     return jsonify({'redirect': url_for('company_dashboard')})
 
 @app.route('/login', methods=['POST'])
@@ -981,6 +1026,7 @@ def handle_school_login():
         session['school_id'] = admin['school_id']
         session['user_type'] = 'admin'
         session['full_name'] = admin['full_name']
+        session.permanent = True
         
         # Load institution branding data
         school = db.execute(
@@ -1031,6 +1077,7 @@ def handle_school_login():
             session['staff_id'] = username  # Store staff_id for all staff (needed for permission checks)
             # Always keep user_type as 'staff' - Sub-Admins are still staff members
             session['user_type'] = 'staff'
+            session.permanent = True
             if is_sub_admin:
                 session['is_sub_admin'] = True
                 session['permissions'] = {
@@ -1082,6 +1129,7 @@ def handle_school_login():
             session['user_type'] = 'student'
             session['student_username'] = username
             session['full_name'] = student['full_name']
+            session.permanent = True
             
             # Load institution branding data
             school = db.execute(
