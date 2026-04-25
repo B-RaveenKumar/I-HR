@@ -1,0 +1,8 @@
+node_modules
+/electron/dist
+/release
+/android/app/build
+*.apk
+*.asar
+*.exe
+*.zip

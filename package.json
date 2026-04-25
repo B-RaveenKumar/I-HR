@@ -1,10 +1,13 @@
 {
   "name": "i-hr",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "i-HR desktop wrapper",
+  "main": "electron/main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "electron:start": "electron .",
+    "clean:electron": "rmdir /s /q release 2>nul & rmdir /s /q electron\\dist 2>nul",
+    "dist": "npm run clean:electron && electron-builder -w nsis"
   },
   "repository": {
     "type": "git",
@@ -22,5 +25,37 @@
     "@capacitor/android": "^8.3.1",
     "@capacitor/cli": "^8.3.1",
     "@capacitor/core": "^8.3.1"
+  },
+  "devDependencies": {
+    "electron": "^41.3.0",
+    "electron-builder": "^26.8.1"
+  },
+  "build": {
+    "appId": "com.vishnorex.ihr",
+    "productName": "i-HR",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "electron/main.js",
+      "electron/preload.js",
+      "static/**/*",
+      "templates/**/*",
+      "*.py",
+      "*.json",
+      "*.md"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "static/images/app-icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
   }
 }
