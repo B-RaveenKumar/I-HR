@@ -1,7 +1,7 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">VishnoRex</string>
-    <string name="title_activity_main">VishnoRex</string>
+    <string name="app_name">i-HR</string>
+    <string name="title_activity_main">i-HR</string>
     <string name="package_name">com.vishnorex.app</string>
     <string name="custom_url_scheme">com.vishnorex.app</string>
 </resources>
