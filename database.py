@@ -724,7 +724,7 @@ def init_db(app):
         CREATE TABLE IF NOT EXISTS notifications (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER NOT NULL,
-            user_type TEXT NOT NULL CHECK(user_type IN ('admin', 'staff', 'company_admin')),
+            user_type TEXT NOT NULL CHECK(user_type IN ('admin', 'staff', 'company_admin', 'student')),
             title TEXT NOT NULL,
             message TEXT NOT NULL,
             notification_type TEXT DEFAULT 'info' CHECK(notification_type IN ('info', 'success', 'warning', 'danger')),
@@ -732,6 +732,45 @@ def init_db(app):
             is_read BOOLEAN DEFAULT 0,
             read_at TIMESTAMP,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        ''')
+
+        # Migration: Ensure columns exist for MySQL (Compatible with older versions)
+        if _USE_MYSQL:
+            try:
+                # Check for user_id
+                cursor.execute("SHOW COLUMNS FROM notifications LIKE 'user_id'")
+                if not cursor.fetchone():
+                    cursor.execute("ALTER TABLE notifications ADD COLUMN user_id INTEGER NOT NULL AFTER id")
+                
+                # Drop the restrictive check constraint if it exists (Fix for Error 3819)
+                # We try both 'DROP CHECK' and 'DROP CONSTRAINT' with common names
+                constraints_to_drop = ['notifications_chk_1', 'notifications_chk_2', 'notifications_chk_3']
+                for constraint in constraints_to_drop:
+                    try:
+                        cursor.execute(f"ALTER TABLE notifications DROP CHECK {constraint}")
+                    except: pass
+                    try:
+                        cursor.execute(f"ALTER TABLE notifications DROP CONSTRAINT {constraint}")
+                    except: pass
+                
+                # Force column update to clear any remaining hidden constraints
+                cursor.execute("ALTER TABLE notifications MODIFY COLUMN user_type VARCHAR(100) NOT NULL")
+                cursor.execute("ALTER TABLE notifications MODIFY COLUMN notification_type VARCHAR(50) DEFAULT 'info'")
+            except Exception as e:
+                print(f"Migration error: {e}")
+
+        # Create user_fcm_tokens table for Firebase Push Notifications
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS user_fcm_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            user_type VARCHAR(50) NOT NULL,
+            fcm_token VARCHAR(255) NOT NULL,
+            device_type VARCHAR(20),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(user_id, user_type, fcm_token)
         )
         ''')
 

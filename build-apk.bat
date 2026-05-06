@@ -19,7 +19,7 @@ set KEY_PASSWORD=i-HR@2026
 :: 3. Run Gradle Build
 echo [2/3] Building Signed APK...
 cd android
-call gradlew assembleRelease ^
+call gradlew clean assembleRelease ^
   -PMYAPP_RELEASE_STORE_FILE=../../%KEYSTORE_PATH% ^
   -PMYAPP_RELEASE_STORE_PASSWORD=%KEYSTORE_PASSWORD% ^
   -PMYAPP_RELEASE_KEY_ALIAS=%KEY_ALIAS% ^

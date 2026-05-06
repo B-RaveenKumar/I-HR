@@ -97,32 +97,39 @@
 
         async function loadQrToken() {
             const holder = document.getElementById('qrCanvasHolder');
-            holder.innerHTML = '<div class="text-muted">Refreshing QR...</div>';
+            holder.innerHTML = '<div class="text-muted"><div class="spinner-border spinner-border-sm me-2"></div>Refreshing QR...</div>';
             try {
                 const resp = await fetch('/api/attendance/qr/issue', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ reason: 'admin_display' })
                 });
-                let data = null;
-                try {
-                    data = await resp.json();
-                } catch (parseErr) {
-                    const rawText = await resp.text();
-                    throw new Error(rawText || `HTTP ${resp.status}`);
+
+                if (!resp.ok) {
+                    const errorText = await resp.text();
+                    let errorData;
+                    try { errorData = JSON.parse(errorText); } catch(e) {}
+                    throw new Error(errorData?.error || `Server Error: ${resp.status}`);
                 }
+
+                const data = await resp.json();
                 if (!data.success) {
-                    holder.innerHTML = `<div class="text-danger">${data.error || 'Unable to generate QR.'}</div>`;
+                    holder.innerHTML = `<div class="text-danger p-3 text-center"><i class="bi bi-exclamation-triangle fs-2 d-block mb-2"></i>${data.error || 'Unable to generate QR.'}</div>`;
                     return;
                 }
 
                 await renderQrOrFallback(data.token);
 
-                document.getElementById('expiresAt').textContent = new Date(data.expires_at).toLocaleString();
-                document.getElementById('tokenPreview').textContent = data.token;
+                document.getElementById('expiresAt').textContent = new Date(data.expires_at).toLocaleTimeString();
+                document.getElementById('tokenPreview').textContent = data.token.substring(0, 20) + '...';
             } catch (err) {
-                const msg = (err && err.message) ? err.message : 'Network error while refreshing QR.';
-                holder.innerHTML = `<div class="text-danger">${msg}</div>`;
+                console.error('QR Refresh Error:', err);
+                holder.innerHTML = `
+                    <div class="text-danger p-3 text-center">
+                        <i class="bi bi-wifi-off fs-2 d-block mb-2"></i>
+                        <div class="small">${err.message || 'Connection Error'}</div>
+                        <button class="btn btn-sm btn-outline-danger mt-2" onclick="loadQrToken()">Try Again</button>
+                    </div>`;
             }
         }
 

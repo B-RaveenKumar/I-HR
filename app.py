@@ -761,11 +761,11 @@ def iclock_cdata():
                     ''', (datetime.datetime.now(), raw_data[:5000], sn))
                 else:
                     db.execute('''
-                        INSERT INTO unknown_device_log 
+                        INSERT INTO biometric_unregistered_logs 
                         (serial_number, ip_address, request_type, raw_payload)
                         VALUES (?, ?, ?, ?)
                     ''', (sn, client_ip, 'POST/attendance', raw_data[:5000]))
-                
+                    
                 db.commit()
                 logger.warning(f"⚠ Device {sn} not registered - attendance data logged for review")
                 
@@ -1736,65 +1736,238 @@ def get_company_otp_provider_settings(school_id=None):
 
 
 def _send_student_attendance_notification(school_id, student_id, ntype, variables):
-    """Send automated student attendance SMS."""
+    """Send automated student attendance SMS and FCM Push Notification."""
     db = get_db()
+    
+    # 1. Send FCM Push Notification (Modern, faster)
+    title = f"Student Attendance: {ntype.title()}"
+    body = f"{variables[0]} is marked {ntype} on {variables[1]}."
+    _send_fcm_notification(title, body, user_id=student_id, user_type='student') # Send to student user/parent
+
+    # 2. Send SMS (Fallback/Existing)
     provider_config = get_company_otp_provider_settings(school_id)
-    if not provider_config.get('fast2sms_enabled'):
-        return
+    if provider_config.get('fast2sms_enabled'):
+        template_id = provider_config.get(f'fast2sms_{ntype}_template_id', '')
+        student = db.execute('SELECT full_name, phone, parent_phone, class, section FROM students WHERE id = ?', (student_id,)).fetchone()
+        if student and (student['parent_phone'] or student['phone']) and template_id:
+            recipient = student['parent_phone'] or student['phone']
+            
+            # Special handling for 'leave' ntype variables: [Class-Section | Date Range]
+            if ntype == 'leave':
+                class_section = f"{student['class']} - {student['section']}" if student['section'] else str(student['class'])
+                date_info = variables[1] 
+                if " to " not in str(date_info):
+                    date_info = f"From {date_info} to {date_info}"
+                variables = [class_section, date_info]
 
-    # Check for template ID based on type
-    template_id = provider_config.get(f'fast2sms_{ntype}_template_id', '')
-    if not template_id:
-        return
-
-    # Fetch parent contact info and academic details
-    student = db.execute('SELECT full_name, phone, parent_phone, class, section FROM students WHERE id = ?', (student_id,)).fetchone()
-    if not student:
-        return
-
-    recipient = student['parent_phone'] or student['phone']
-    if not recipient:
-        return
-
-    # Special handling for 'leave' ntype variables as per new requirement: [Class-Section | Date Range]
-    if ntype == 'leave':
-        class_section = f"{student['class']} - {student['section']}" if student['section'] else str(student['class'])
-        # If variables[1] is already a range (from holiday assigner), use it. 
-        # Otherwise, if it's a single date, format it as a range.
-        date_info = variables[1] 
-        if " to " not in str(date_info):
-            date_info = f"From {date_info} to {date_info}"
-        variables = [class_section, date_info]
-
-    # Join variables for Fast2SMS
-    vars_str = "|".join(map(str, variables))
-    return _send_fast2sms(provider_config, recipient, template_id, vars_str)
+            vars_str = "|".join(map(str, variables))
+            _send_fast2sms(provider_config, recipient, template_id, vars_str)
 
 
 def _send_staff_attendance_notification(school_id, staff_id, ntype, variables):
-    """Send automated staff attendance SMS."""
+    """Send automated staff attendance SMS and FCM Push Notification."""
     db = get_db()
+    
+    # 1. Send SMS (Existing logic)
     provider_config = get_company_otp_provider_settings(school_id)
-    if not provider_config.get('fast2sms_enabled'):
+    if provider_config.get('fast2sms_enabled'):
+        template_id = provider_config.get(f'fast2sms_{ntype}_template_id', '')
+        staff = db.execute('SELECT full_name, phone FROM staff WHERE id = ?', (staff_id,)).fetchone()
+        if staff and staff['phone'] and template_id:
+            vars_str = "|".join(map(str, variables))
+            _send_fast2sms(provider_config, staff['phone'], template_id, vars_str)
+
+    # 2. Send FCM Push Notification
+    title = "Attendance Update"
+    body = f"{variables[0]} has marked {ntype.replace('in', '-in').replace('out', '-out')} at {variables[1]}"
+    _send_fcm_notification(title, body, user_id=None, staff_id=staff_id)
+
+
+@app.route('/api/app-notifications', methods=['GET'])
+def get_app_notifications():
+    """Fetch recent notifications for the logged-in user."""
+    user_id = session.get('user_id')
+    user_type = session.get('user_type') # 'admin', 'staff', 'company_admin'
+    
+    if not user_id or not user_type:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    
+    db = get_db()
+    try:
+        notifications = db.execute('''
+            SELECT id, title, message, notification_type, action_url, is_read, created_at
+            FROM notifications
+            WHERE user_id = ? AND user_type = ?
+            ORDER BY created_at DESC
+            LIMIT 20
+        ''', (user_id, user_type)).fetchall()
+        
+        return jsonify({
+            'success': True,
+            'notifications': [dict(n) for n in notifications]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/notifications/register-token', methods=['POST'])
+@csrf.exempt
+def register_fcm_token():
+    """Register a device token for Firebase Push Notifications."""
+    user_id = session.get('user_id')
+    user_type = session.get('user_type') # 'admin', 'staff', 'company_admin'
+    
+    if not user_id or not user_type:
+        return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+    
+    data = request.get_json()
+    token = data.get('token')
+    device_type = data.get('device_type', 'web') # 'web', 'android', 'ios'
+    
+    if not token:
+        return jsonify({'success': False, 'error': 'Token is required'}), 400
+    
+    db = get_db()
+    try:
+        # Check if token exists to avoid syntax conflicts between SQLite/MySQL for UPSERT
+        existing = db.execute('''
+            SELECT id FROM user_fcm_tokens 
+            WHERE user_id = ? AND user_type = ? AND fcm_token = ?
+        ''', (user_id, user_type, token)).fetchone()
+
+        if existing:
+            db.execute('''
+                UPDATE user_fcm_tokens SET updated_at = CURRENT_TIMESTAMP, device_type = ?
+                WHERE id = ?
+            ''', (device_type, existing['id']))
+        else:
+            db.execute('''
+                INSERT INTO user_fcm_tokens (user_id, user_type, fcm_token, device_type)
+                VALUES (?, ?, ?, ?)
+            ''', (user_id, user_type, token, device_type))
+        
+        db.commit()
+        print(f"📱 FCM TOKEN REGISTERED: User {user_id} ({user_type}) with token {token[:15]}...")
+        return jsonify({'success': True, 'message': 'Token registered successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+def _send_fcm_notification(title, body, user_id=None, staff_id=None, user_type=None, data_payload=None):
+    """
+    Sends a push notification via Firebase and saves it to the database.
+    """
+    db = get_db()
+    
+    # 1. Determine Target and User Type
+    target_user_id = user_id
+    target_user_type = user_type
+    
+    if staff_id:
+        # If staff_id is a string (like '832501'), we need to find the internal integer ID
+        if isinstance(staff_id, str):
+            staff = db.execute('SELECT id FROM staff WHERE staff_id = ?', (staff_id,)).fetchone()
+            target_user_id = staff['id'] if staff else None
+        else:
+            target_user_id = staff_id
+        target_user_type = 'staff'
+    elif not target_user_type:
+        # Fallback/Guessing (legacy support)
+        target_user_type = 'admin'
+        
+    # 2. Save to Database for Notification History
+    try:
+        db.execute('''
+            INSERT INTO notifications (user_id, user_type, title, message, notification_type)
+            VALUES (?, ?, ?, ?, ?)
+        ''', (target_user_id, target_user_type, title, body, 'info'))
+        db.commit()
+    except Exception as e:
+        print(f"Error saving notification to DB: {e}")
+
+    # 3. Identify target tokens for Push
+    if target_user_type == 'staff':
+        # Enhanced lookup: Find tokens for this specific ID OR any duplicate records with the same staff_id string
+        tokens_rows = db.execute('''
+            SELECT t.fcm_token 
+            FROM user_fcm_tokens t
+            JOIN staff s1 ON t.user_id = s1.id
+            JOIN staff s2 ON s1.staff_id = s2.staff_id
+            WHERE s2.id = ? AND t.user_type = 'staff'
+        ''', (target_user_id,)).fetchall()
+    elif target_user_type == 'admin' or target_user_type == 'company_admin':
+        # Admin lookup (handles both 'admin' and 'company_admin' types)
+        tokens_rows = db.execute('''
+            SELECT t.fcm_token FROM user_fcm_tokens t
+            WHERE t.user_id = ? AND t.user_type IN ('admin', 'company_admin')
+        ''', (target_user_id,)).fetchall()
+    elif target_user_type == 'student':
+        # Student lookup - matching by internal student ID
+        tokens_rows = db.execute('''
+            SELECT t.fcm_token FROM user_fcm_tokens t
+            WHERE t.user_id = ? AND t.user_type = 'student'
+        ''', (target_user_id,)).fetchall()
+    else:
+        # Generic fallback
+        tokens_rows = db.execute('SELECT fcm_token FROM user_fcm_tokens WHERE user_id = ? AND user_type = ?', (target_user_id, target_user_type)).fetchall()
+    
+    tokens = [row['fcm_token'] for row in tokens_rows]
+    print(f"📣 NOTIFICATION ATTEMPT: Sending to {len(tokens)} devices (Type: {target_user_type}, ID: {target_user_id})")
+    
+    if not tokens:
+        print("⚠️ ABORTED: No FCM tokens found in DB for this user.")
         return
 
-    # Use existing student template IDs for staff as per configuration request
-    template_id = provider_config.get(f'fast2sms_{ntype}_template_id', '')
-    if not template_id:
-        return
+    try:
+        import firebase_admin
+        from firebase_admin import messaging, credentials
+        
+        # Initialize Firebase if not already initialized
+        try:
+            firebase_admin.get_app()
+        except ValueError:
+            cred_path = os.path.join(app.instance_path, 'firebase_service_account.json')
+            if os.path.exists(cred_path):
+                print(f"🔑 Initializing Firebase with key: {cred_path}")
+                cred = credentials.Certificate(cred_path)
+                firebase_admin.initialize_app(cred)
+            else:
+                print(f"❌ ERROR: Firebase Credentials file NOT FOUND at {cred_path}")
+                return
 
-    # Fetch staff contact info
-    staff = db.execute('SELECT full_name, phone FROM staff WHERE id = ?', (staff_id,)).fetchone()
-    if not staff:
-        return
+        # Send to all tokens
+        for token in tokens:
+            try:
+                # Android-specific configuration for custom sound
+                android_config = messaging.AndroidConfig(
+                    notification=messaging.AndroidNotification(
+                        sound='notification_sound',
+                        channel_id='ihr_custom_sound' 
+                    )
+                )
 
-    recipient = staff['phone']
-    if not recipient:
-        return
+                # Web-specific configuration
+                webpush_config = messaging.WebpushConfig(
+                    notification=messaging.WebpushNotification(
+                        icon='/static/images/applogo.png', # Path to your logo
+                        badge='/static/images/applogo.png',
+                        require_interaction=True # Keep notification on screen until user clicks
+                    )
+                )
 
-    # Join variables for Fast2SMS: [Staff Name | Date & Time]
-    vars_str = "|".join(map(str, variables))
-    return _send_fast2sms(provider_config, recipient, template_id, vars_str)
+                message = messaging.Message(
+                    notification=messaging.Notification(title=title, body=body),
+                    token=token,
+                    android=android_config,
+                    webpush=webpush_config
+                )
+                response = messaging.send(message)
+                print(f"✅ SUCCESS: Notification sent! Firebase ID: {response}")
+            except Exception as send_err:
+                print(f"❌ FIREBASE SEND ERROR for token {token[:10]}... : {send_err}")
+                
+    except Exception as e:
+        print(f"❌ GLOBAL NOTIFICATION ERROR: {e}")
 
 
 def _build_signed_qr_token(school_id, ttl_seconds):
@@ -2123,6 +2296,20 @@ def _record_mode_attendance(staff_db_id, school_id, mode_name, event_time=None):
             action = 'check-in'
         else:
             parsed_check_in = _parse_hhmmss(existing['time_in'])
+            
+            # PUNCH COOLDOWN: Prevent check-out if check-in was less than 5 minutes ago
+            if parsed_check_in:
+                # Combine the event date with the parsed time to get a full datetime object
+                check_in_dt = datetime.datetime.combine(event_date, parsed_check_in)
+                time_diff_seconds = (timestamp - check_in_dt).total_seconds()
+                
+                if time_diff_seconds < 300: # 300 seconds = 5 minutes
+                    remaining = int(300 - time_diff_seconds)
+                    return {
+                        'success': False, 
+                        'message': f'Double scan ignored. Please wait {remaining} seconds before scanning again.'
+                    }
+
             checkout_result = shift_manager.calculate_attendance_status(
                 staff_shift_type,
                 parsed_check_in or timestamp.time(),
@@ -12193,6 +12380,11 @@ def check_device_verification():
         current_time_12hr = format_time_to_12hr(current_time)
         verification_time_12hr = verification_time.strftime('%Y-%m-%d %I:%M %p')
 
+        # Trigger FCM Notification to Staff
+        title = f"Attendance: {verification_type.title()}"
+        body = f"Your {verification_type} has been recorded at {current_time_12hr}."
+        _send_fcm_notification(title, body, staff_id=staff_id)
+
         return jsonify({
             'success': True,
             'message': f'{verification_type.title()} recorded successfully at {current_time_12hr}',
@@ -12296,6 +12488,18 @@ def apply_leave():
         if verification['status'] != 'pending':
             print(f"🚨 WARNING: Leave {new_leave_id} status is '{verification['status']}' instead of 'pending'!")
 
+        # Notify Admin about new leave application (Async-like)
+        try:
+            admin_rows = db.execute('SELECT id FROM admins WHERE school_id = ?', (school_id,)).fetchall()
+            for admin in admin_rows:
+                _send_fcm_notification(
+                    title="New Leave Application",
+                    body=f"{session.get('full_name', 'A staff member')} has applied for {leave_type} leave.",
+                    user_id=admin['id']
+                )
+        except:
+            pass # Don't block the user response if notification fails
+
         return jsonify({
             'success': True, 
             'message': 'Leave application submitted successfully and is pending admin approval',
@@ -12383,10 +12587,16 @@ def apply_on_duty():
         ''', (staff_id, school_id, duty_type, start_date, end_date, start_time, end_time, location, purpose, reason))
         db.commit()
 
+        # Notify Admin
         try:
-            update_quota_usage(staff_id, school_id, current_year)
-        except Exception as quota_err:
-            print(f"⚠️ Quota refresh after on-duty apply failed: {quota_err}")
+            admin_rows = db.execute('SELECT id FROM admins WHERE school_id = ?', (school_id,)).fetchall()
+            for admin in admin_rows:
+                _send_fcm_notification(
+                    title="New On-Duty Request",
+                    body=f"{session.get('full_name', 'A staff member')} has applied for On-Duty.",
+                    user_id=admin['id']
+                )
+        except: pass
 
         return jsonify({'success': True, 'message': 'On-duty application submitted successfully'})
     except Exception as e:
@@ -12466,10 +12676,16 @@ def apply_permission():
         ''', (staff_id, school_id, permission_type, permission_date, start_time, end_time, duration, reason))
         db.commit()
 
+        # Notify Admin
         try:
-            update_quota_usage(staff_id, school_id, current_year)
-        except Exception as quota_err:
-            print(f"⚠️ Quota refresh after permission apply failed: {quota_err}")
+            admin_rows = db.execute('SELECT id FROM admins WHERE school_id = ?', (school_id,)).fetchall()
+            for admin in admin_rows:
+                _send_fcm_notification(
+                    title="New Permission Request",
+                    body=f"{session.get('full_name', 'A staff member')} has applied for permission.",
+                    user_id=admin['id']
+                )
+        except: pass
 
         return jsonify({'success': True, 'message': 'Permission application submitted successfully'})
     except Exception as e:
@@ -12626,14 +12842,10 @@ def process_leave():
     
     db.commit()
 
-    # Refresh quota usage for both approve/reject to keep reserved balance accurate.
-    try:
-        quota_year = datetime.datetime.strptime(leave_app['start_date'], '%Y-%m-%d').year
-        update_result = update_quota_usage(leave_app['staff_id'], leave_app['school_id'], quota_year)
-        print(f"✅ Quota updated for staff {leave_app['staff_id']}: {update_result}")
-    except Exception as e:
-        print(f"⚠️ Error updating quota usage: {e}")
-        # Don't fail the whole operation for quota update errors
+    # Trigger FCM Notification to Staff
+    title = f"Leave Application {status.title()}"
+    body = f"Your leave request for {leave_app['start_date']} has been {status}."
+    _send_fcm_notification(title, body, staff_id=leave_app['staff_id'])
 
     return jsonify({
         'success': True, 
@@ -12736,6 +12948,11 @@ def process_on_duty():
 
         db.commit()
 
+        # Trigger FCM Notification to Staff
+        title = f"On-Duty Request {status.title()}"
+        body = f"Your On-Duty request for {on_duty_app['start_date']} has been {status}."
+        _send_fcm_notification(title, body, staff_id=on_duty_app['staff_id'])
+
         return jsonify({'success': True, 'message': f'On-duty application {status} successfully'})
     except Exception as e:
         return jsonify({'success': False, 'error': f'Failed to process application: {str(e)}'})
@@ -12789,6 +13006,11 @@ def process_permission():
             print(f"Error updating permission quota usage: {e}")
 
         db.commit()
+
+        # Trigger FCM Notification to Staff
+        title = f"Permission Request {status.title()}"
+        body = f"Your Permission request for {permission_details['permission_date']} has been {status}."
+        _send_fcm_notification(title, body, staff_id=permission_details['staff_id'])
 
         return jsonify({'success': True, 'message': f'Permission application {status} successfully'})
     except Exception as e:
