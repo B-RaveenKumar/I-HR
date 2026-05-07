@@ -1822,30 +1822,46 @@ function showCustomReportModal() {
                             <option value="salary">Salary Analysis</option>
                             <option value="attendance">Attendance Analysis</option>
                             <option value="staff">Staff Analysis</option>
-                            <option value="financial">Financial Analysis</option>
                         </select>
                     </div>
                 </div>
 
                 <div class="row mt-3">
                     <div class="col-md-12">
+                        <label class="form-label">Move to Report Section (Category)</label>
+                        <select class="form-select" id="customReportCategory">
+                            <option value="Salary & Payroll Reports">Salary & Payroll Reports</option>
+                            <option value="Staff & HR Reports">Staff & HR Reports</option>
+                            <option value="Attendance & Time Reports">Attendance & Time Reports</option>
+                            <option value="Custom & Advanced Reports">Custom & Advanced Reports</option>
+                        </select>
+                        <small class="text-muted">Choose where this template will appear in the reports page.</small>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    <div class="col-md-12">
                         <label class="form-label">Include Fields</label>
-                        <div class="field-checkboxes">
+                        <div class="field-checkboxes d-flex flex-wrap gap-3 p-3 border rounded bg-light">
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="field1" checked>
-                                <label class="form-check-label" for="field1">Staff Information</label>
+                                <input class="form-check-input" type="checkbox" id="field_staff_info" checked>
+                                <label class="form-check-label" for="field_staff_info">Staff Information</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="field2" checked>
-                                <label class="form-check-label" for="field2">Salary Details</label>
+                                <input class="form-check-input" type="checkbox" id="field_salary" checked>
+                                <label class="form-check-label" for="field_salary">Salary Details</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="field3">
-                                <label class="form-check-label" for="field3">Attendance Summary</label>
+                                <input class="form-check-input" type="checkbox" id="field_attendance">
+                                <label class="form-check-label" for="field_attendance">Attendance Summary</label>
                             </div>
                             <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="field4">
-                                <label class="form-check-label" for="field4">Performance Metrics</label>
+                                <input class="form-check-input" type="checkbox" id="field_performance">
+                                <label class="form-check-label" for="field_performance">Performance Metrics</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" id="field_deductions">
+                                <label class="form-check-label" for="field_deductions">Detailed Deductions</label>
                             </div>
                         </div>
                     </div>
@@ -1857,11 +1873,12 @@ function showCustomReportModal() {
     // Create modal
     const modal = document.createElement('div');
     modal.className = 'modal fade';
+    modal.id = 'customReportModal';
     modal.innerHTML = `
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
-                <div class="modal-header bg-secondary text-white">
-                    <h5 class="modal-title">Custom Report Builder</h5>
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title"><i class="bi bi-gear-fill me-2"></i>Custom Report Builder</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
@@ -1869,7 +1886,12 @@ function showCustomReportModal() {
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" onclick="buildCustomReport()">Build Report</button>
+                    <button type="button" class="btn btn-success" onclick="saveReportTemplate()">
+                        <i class="bi bi-save me-1"></i> Save as Template
+                    </button>
+                    <button type="button" class="btn btn-primary" onclick="buildCustomReport()">
+                        <i class="bi bi-play-fill me-1"></i> Build & Download
+                    </button>
                 </div>
             </div>
         </div>
@@ -1889,13 +1911,90 @@ function showCustomReportModal() {
     }
 }
 
+async function saveReportTemplate() {
+    const templateName = document.getElementById('customReportName').value;
+    const reportType = document.getElementById('customReportType').value;
+    const category = document.getElementById('customReportCategory').value;
+    
+    if (!templateName) {
+        showAlert('Please enter a template name', 'warning');
+        return;
+    }
+
+    const columns = [];
+    if (document.getElementById('field_staff_info').checked) columns.push('staff_info');
+    if (document.getElementById('field_salary').checked) columns.push('salary');
+    if (document.getElementById('field_attendance').checked) columns.push('attendance');
+    if (document.getElementById('field_performance').checked) columns.push('performance');
+    if (document.getElementById('field_deductions').checked) columns.push('deductions');
+
+    const data = {
+        template_name: templateName,
+        report_type: reportType,
+        category: category,
+        columns: columns,
+        filters: {}
+    };
+
+    try {
+        const response = await fetch('/save_report_template', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCSRFToken()
+            },
+            body: JSON.stringify(data)
+        });
+
+        const result = await response.json();
+        if (result.success) {
+            showAlert(`<i class="bi bi-check-circle me-2"></i>Template "${templateName}" saved and moved to ${category} section!`, 'success');
+            
+            // Close modal
+            const modalEl = document.getElementById('customReportModal');
+            const bsModal = bootstrap.Modal.getInstance(modalEl);
+            bsModal.hide();
+            
+            // If we are on the reports page, refresh the templates
+            if (window.location.pathname.includes('admin_reports')) {
+                loadCustomTemplates();
+            }
+        } else {
+            showAlert('Error: ' + result.error, 'danger');
+        }
+    } catch (error) {
+        console.error('Error saving template:', error);
+        showAlert('Failed to save template', 'danger');
+    }
+}
+
 function buildCustomReport() {
     const reportName = document.getElementById('customReportName')?.value || 'Custom Report';
+    const reportType = document.getElementById('customReportType')?.value || 'salary';
+    
+    const columns = [];
+    if (document.getElementById('field_staff_info').checked) columns.push('staff_info');
+    if (document.getElementById('field_salary').checked) columns.push('salary');
+    if (document.getElementById('field_attendance').checked) columns.push('attendance');
+    if (document.getElementById('field_performance').checked) columns.push('performance');
+    if (document.getElementById('field_deductions').checked) columns.push('deductions');
+
     showAlert(`<i class="bi bi-tools me-2"></i>Building custom report: ${reportName}...`, 'info');
 
-    setTimeout(() => {
-        showAlert(`<i class="bi bi-check-circle me-2"></i>Custom report "${reportName}" created successfully!`, 'success');
-    }, 2000);
+    // Simulate generation for now, or redirect to real generator
+    const params = new URLSearchParams({
+        report_type: 'custom_template',
+        template_name: reportName,
+        base_type: reportType,
+        columns: JSON.stringify(columns)
+    });
+
+    window.location.href = `/generate_admin_report?${params.toString()}`;
+}
+
+function getCSRFToken() {
+    const csrfInput = document.querySelector('input[name="csrf_token"]');
+    return csrfInput ? csrfInput.value : '';
 }
 
 function showReportHistoryModal() {

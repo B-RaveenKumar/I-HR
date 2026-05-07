@@ -121,6 +121,7 @@
     
 </head>
 <body>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <!-- Sky Blue Dots Page Loader -->
     <div id="pageLoader">
         <div class="loader-dots">
@@ -484,6 +485,7 @@
                                 </div>
                             </div>
                         </div>
+                        <div id="salary-templates-container" class="reports-row mt-3"></div>
                     </div>
 
                     <!-- Staff Reports -->
@@ -530,6 +532,7 @@
                                 </div>
                             </div>
                         </div>
+                        <div id="staff-templates-container" class="reports-row mt-3"></div>
                     </div>
 
                     <!-- Attendance Reports -->
@@ -576,12 +579,13 @@
                                 </div>
                             </div>
                         </div>
+                        <div id="attendance-templates-container" class="reports-row mt-3"></div>
                     </div>
 
 
 
                     <!-- Custom Reports -->
-                    <!-- <div class="report-category">
+                    <div class="report-category">
                         <h4 class="category-title">
                             <i class="bi bi-gear text-secondary"></i>
                             Custom & Advanced Reports
@@ -589,31 +593,31 @@
                         <div class="reports-row">
                             <div class="report-card">
                                 <div class="report-icon">
-                                    <i class="bi bi-sliders"></i>
+                                    <i class="bi bi-sliders text-secondary"></i>
                                 </div>
                                 <div class="report-content">
                                     <h6>Custom Report Builder</h6>
                                     <p>Build custom reports with your own criteria</p>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="openCustomReportBuilder()">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="showCustomReportModal()">
                                         <i class="bi bi-tools"></i> Build Report
                                     </button>
                                 </div>
                             </div>
                             <div class="report-card">
                                 <div class="report-icon">
-                                    <i class="bi bi-calendar-event"></i>
+                                    <i class="bi bi-calendar-event text-secondary"></i>
                                 </div>
                                 <div class="report-content">
                                     <h6>Scheduled Reports</h6>
                                     <p>Set up automated report generation and delivery</p>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="manageScheduledReports()">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="alert('Scheduled reports feature coming soon!')">
                                         <i class="bi bi-calendar-plus"></i> Schedule
                                     </button>
                                 </div>
                             </div>
                             <div class="report-card">
                                 <div class="report-icon">
-                                    <i class="bi bi-archive"></i>
+                                    <i class="bi bi-archive text-secondary"></i>
                                 </div>
                                 <div class="report-content">
                                     <h6>Report History</h6>
@@ -624,7 +628,8 @@
                                 </div>
                             </div>
                         </div>
-                    </div> -->
+                        <div id="custom-templates-container" class="reports-row mt-3"></div>
+                    </div>
                 </div>
             </main>
         </div>
@@ -744,9 +749,108 @@
         }
 
         function viewReportHistory() {
-            console.log('Viewing report history...');
-            // Implementation here
+            if (typeof showReportHistoryModal === 'function') {
+                showReportHistoryModal();
+            } else {
+                console.log('Viewing report history...');
+                alert('Report history modal not loaded.');
+            }
         }
+
+        // Custom Template Loading Logic
+        async function loadCustomTemplates() {
+            try {
+                const response = await fetch('/get_report_templates');
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Clear containers
+                    const containers = {
+                        'Salary & Payroll Reports': document.getElementById('salary-templates-container'),
+                        'Staff & HR Reports': document.getElementById('staff-templates-container'),
+                        'Attendance & Time Reports': document.getElementById('attendance-templates-container'),
+                        'Custom & Advanced Reports': document.getElementById('custom-templates-container')
+                    };
+                    
+                    Object.values(containers).forEach(c => { if(c) c.innerHTML = ''; });
+                    
+                    data.templates.forEach(template => {
+                        const container = containers[template.category];
+                        if (container) {
+                            const templateHtml = `
+                                <div class="report-card custom-template" id="template-${template.id}">
+                                    <div class="report-icon">
+                                        <i class="bi bi-file-earmark-medical text-info"></i>
+                                        <span class="badge bg-info position-absolute top-0 end-0 m-2">Custom</span>
+                                    </div>
+                                    <div class="report-info">
+                                        <h6>${template.template_name}</h6>
+                                        <p>Custom template created on ${new Date(template.created_at).toLocaleDateString()}</p>
+                                    </div>
+                                    <div class="report-action d-flex gap-2">
+                                        <button class="btn btn-primary flex-grow-1" onclick="generateCustomTemplateReport(${template.id})">Generate</button>
+                                        <button class="btn btn-outline-danger" onclick="deleteTemplate(${template.id})" title="Delete Template">
+                                            <i class="bi bi-trash"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                            container.insertAdjacentHTML('beforeend', templateHtml);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading templates:', error);
+            }
+        }
+
+        function generateCustomTemplateReport(templateId) {
+            const format = (document.getElementById('reportFormat')?.value || 'excel').toLowerCase();
+            const year = document.getElementById('reportYear')?.value;
+            const month = document.getElementById('reportMonth')?.value;
+            const department = document.getElementById('reportDepartment')?.value;
+            
+            const params = new URLSearchParams({
+                report_type: 'custom_template',
+                template_id: templateId,
+                format: format
+            });
+            
+            if (year) params.append('year', year);
+            if (month) params.append('month', month);
+            if (department) params.append('department', department);
+            
+            window.location.href = `/generate_admin_report?${params.toString()}`;
+        }
+
+        async function deleteTemplate(templateId) {
+            if (!confirm('Are you sure you want to delete this custom template?')) return;
+            
+            try {
+                const response = await fetch('/delete_report_template', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': "{{ csrf_token() }}"
+                    },
+                    body: JSON.stringify({ template_id: templateId })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById(`template-${templateId}`).remove();
+                } else {
+                    alert('Error deleting template: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error deleting template:', error);
+            }
+        }
+
+        // Load templates on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCustomTemplates();
+        });
     </script>
 
     <script>

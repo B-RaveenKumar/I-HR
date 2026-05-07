@@ -5003,12 +5003,120 @@ def generate_admin_report():
                 return excel_generator.create_monthly_report(school_id, year, datetime.datetime.now().month)
         elif report_type == 'overtime_report':
             return generate_overtime_report(school_id, year, month, format_type)
+        elif report_type == 'custom_template':
+            template_id = request.args.get('template_id')
+            db = get_db()
+            template = db.execute('SELECT * FROM report_templates WHERE id = ? AND school_id = ?', (template_id, school_id)).fetchone()
+            
+            if not template:
+                return jsonify({'success': False, 'error': 'Template not found'})
+            
+            # Use the base report type of the template
+            base_type = template['report_type']
+            # For now, we'll route to the standard generators but in the future we can pass column filters
+            if base_type == 'salary':
+                return generate_monthly_salary_report(school_id, year, month, department, format_type)
+            elif base_type == 'attendance':
+                date = request.args.get('date', datetime.datetime.now().strftime('%Y-%m-%d'))
+                return generate_daily_attendance_report(school_id, date, department, format_type)
+            elif base_type == 'staff':
+                return generate_staff_directory_report(school_id, format_type)
+            else:
+                return generate_monthly_salary_report(school_id, year, month, department, format_type)
         else:
             return jsonify({'success': False, 'error': f'Unknown report type: {report_type}'})
 
     except Exception as e:
         print(f"Report generation error: {str(e)}")
         return jsonify({'success': False, 'error': f'Report generation failed: {str(e)}'})
+
+@app.route('/save_report_template', methods=['POST'])
+def save_report_template():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    try:
+        school_id = session['school_id']
+        data = request.get_json()
+        
+        template_name = data.get('template_name')
+        report_type = data.get('report_type')
+        category = data.get('category')
+        column_mappings = json.dumps(data.get('columns', []))
+        filter_settings = json.dumps(data.get('filters', {}))
+        
+        if not all([template_name, report_type, category]):
+            return jsonify({'success': False, 'error': 'Missing required fields'})
+
+        db = get_db()
+        db.execute('''
+            INSERT INTO report_templates 
+            (school_id, template_name, report_type, category, column_mappings, filter_settings, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (school_id, template_name, report_type, category, column_mappings, filter_settings, session['user_id']))
+        db.commit()
+
+        return jsonify({'success': True, 'message': 'Template saved successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/get_report_templates')
+def get_report_templates():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    try:
+        school_id = session['school_id']
+        category = request.args.get('category')
+        
+        db = get_db()
+        query = 'SELECT * FROM report_templates WHERE school_id = ?'
+        params = [school_id]
+        
+        if category:
+            query += ' AND category = ?'
+            params.append(category)
+            
+        query += ' ORDER BY created_at DESC'
+        
+        templates = db.execute(query, params).fetchall()
+        
+        result = []
+        for t in templates:
+            result.append({
+                'id': t['id'],
+                'template_name': t['template_name'],
+                'report_type': t['report_type'],
+                'category': t['category'],
+                'columns': json.loads(t['column_mappings'] or '[]'),
+                'filters': json.loads(t['filter_settings'] or '{}'),
+                'created_at': t['created_at']
+            })
+            
+        return jsonify({'success': True, 'templates': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/delete_report_template', methods=['POST'])
+def delete_report_template():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    try:
+        school_id = session['school_id']
+        data = request.get_json()
+        template_id = data.get('template_id')
+        
+        if not template_id:
+            return jsonify({'success': False, 'error': 'Template ID is required'})
+
+        db = get_db()
+        db.execute('DELETE FROM report_templates WHERE id = ? AND school_id = ?', (template_id, school_id))
+        db.commit()
+
+        return jsonify({'success': True, 'message': 'Template deleted successfully'})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
 
 @app.route('/test_performance_report_json')
 def test_performance_report_json():

@@ -801,6 +801,24 @@ def init_db(app):
         )
         ''')
 
+        # Create report templates table for custom reports
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_templates (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            template_name TEXT NOT NULL,
+            report_type TEXT NOT NULL,
+            category TEXT NOT NULL,
+            column_mappings TEXT, -- JSON string of selected columns
+            filter_settings TEXT, -- JSON string of default filters
+            created_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            FOREIGN KEY (created_by) REFERENCES admins(id)
+        )
+        ''')
+
         # --- TIMETABLE MANAGEMENT TABLES ---
         
         # School timetable settings table
