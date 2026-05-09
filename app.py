@@ -1728,6 +1728,10 @@ def process_scheduled_reports():
                 response = generate_daily_attendance_report(school_id, date_str, None, 'excel', internal=True)
             elif report_type == 'monthly_attendance':
                 response = excel_gen.create_monthly_report(school_id, year, month)
+            elif report_type == 'student_directory':
+                response = generate_student_directory_report(school_id, 'excel', internal=True)
+            elif report_type == 'student_attendance':
+                response = generate_student_attendance_report(school_id, year, month, 'excel', internal=True)
 
             if response and hasattr(response, 'data'):
                 filename = f"{report_type}_{now.strftime('%Y%m%d')}.xlsx"
@@ -5141,6 +5145,44 @@ def generate_admin_report():
                 return excel_generator.create_monthly_report(school_id, year, datetime.datetime.now().month)
         elif report_type == 'overtime_report':
             return generate_overtime_report(school_id, year, month, format_type)
+        elif report_type == 'staff_issued_leave':
+            return generate_staff_issued_leave_report(school_id, year, month, department, format_type)
+        elif report_type == 'staff_added':
+            return generate_staff_added_report(school_id, year, month, department, format_type)
+        elif report_type == 'staff_status':
+            return generate_staff_status_report(school_id, department, format_type)
+        elif report_type == 'student_directory':
+            student_class = request.args.get('class')
+            student_section = request.args.get('section')
+            return generate_student_directory_report(school_id, format_type, student_class, student_section)
+        elif report_type == 'student_attendance':
+            student_class = request.args.get('class')
+            student_section = request.args.get('section')
+            return generate_student_attendance_report(school_id, year, month, format_type, student_class, student_section)
+        elif report_type == 'student_leave_apply':
+            student_class = request.args.get('class')
+            student_section = request.args.get('section')
+            return generate_student_leave_applications_report(school_id, format_type, student_class, student_section)
+        elif report_type == 'school_issued_holidays':
+            student_class = request.args.get('class')
+            student_section = request.args.get('section')
+            return generate_student_holiday_report(school_id, format_type, student_class, student_section)
+        elif report_type == 'student_exam_assigner':
+            student_class = request.args.get('class')
+            student_section = request.args.get('section')
+            return generate_student_exam_report(school_id, format_type, student_class, student_section)
+        elif report_type == 'student_fees_report':
+            student_class = request.args.get('class')
+            student_section = request.args.get('section')
+            return generate_student_fees_report(school_id, format_type, student_class, student_section)
+        elif report_type == 'student_academic_report':
+            student_class = request.args.get('class')
+            student_section = request.args.get('section')
+            return generate_student_academic_report(school_id, format_type, student_class, student_section)
+        elif report_type == 'student_timetable_report':
+            student_class = request.args.get('class')
+            student_section = request.args.get('section')
+            return generate_student_timetable_report(school_id, format_type, student_class, student_section)
         elif report_type == 'custom_template':
             template_id = request.args.get('template_id')
             db = get_db()
@@ -6003,72 +6045,1184 @@ def generate_staff_directory_report(school_id, format_type, internal=False):
             response.headers['Content-Type'] = 'application/pdf'
             response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
             return response
-        except ImportError:
-            return jsonify({
-                'success': False,
-                'error': 'PDF generation requires reportlab. Install with: pip install reportlab'
-            })
-        except Exception as e:
-            return jsonify({'success': False, 'error': f'PDF generation failed: {str(e)}'})
+        except Exception as pdf_err:
+            print(f"PDF generation error: {pdf_err}")
+            return jsonify({'success': False, 'error': f"PDF generation failed: {pdf_err}"})
 
-    # Default: Excel export
+    # Excel export (Default)
     wb = openpyxl.Workbook()
     ws = wb.active
     ws.title = "Staff Directory"
 
-    # Define styles
-    header_font = Font(bold=True, size=12, color="FFFFFF")
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF")
     header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-    title_font = Font(bold=True, size=16, color="2F5597")
-    border = Border(
-        left=Side(style='thin'), right=Side(style='thin'),
-        top=Side(style='thin'), bottom=Side(style='thin')
-    )
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
 
-    # Add title
-    ws.merge_cells('A1:K1')
-    title_cell = ws['A1']
-    title_cell.value = f"Staff Directory Report - Generated on {datetime.datetime.now().strftime('%Y-%m-%d')}"
-    title_cell.font = title_font
-    title_cell.alignment = Alignment(horizontal='center')
-
-    # Headers row
-    header_row = 3
+    # Add headers
     for col, header in enumerate(headers, 1):
-        cell = ws.cell(row=header_row, column=col)
+        cell = ws.cell(row=1, column=col)
         cell.value = header
         cell.font = header_font
         cell.fill = header_fill
         cell.border = border
         cell.alignment = Alignment(horizontal='center')
 
-    # Data rows
-    row_idx = header_row + 1
-    for r in rows:
-        for col, value in enumerate(r, 1):
-            cell = ws.cell(row=row_idx, column=col, value=value)
+    # Add data
+    for row_idx, row_data in enumerate(rows, 2):
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.value = val
             cell.border = border
-        row_idx += 1
 
     # Auto-adjust column widths
-    from openpyxl.utils import get_column_letter
     for col in range(1, len(headers) + 1):
         ws.column_dimensions[get_column_letter(col)].width = 15
 
-    # Save to BytesIO
-    from io import BytesIO
     output = BytesIO()
     wb.save(output)
     output.seek(0)
 
-    # Create response
     response = make_response(output.getvalue())
     filename = f'staff_directory_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
     response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
-
     return response
+
+
+@app.route('/api/get_student_filters')
+def get_student_filters():
+    """Get unique classes and sections for student report filters"""
+    if 'user_id' not in session:
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+    
+    try:
+        db = get_db()
+        school_id = session.get('school_id', 1)
+        
+        classes = db.execute(
+            'SELECT DISTINCT `class` FROM students WHERE school_id = ? AND is_active = 1 ORDER BY `class` ASC',
+            (school_id,)
+        ).fetchall()
+        
+        sections = db.execute(
+            'SELECT DISTINCT section FROM students WHERE school_id = ? AND is_active = 1 ORDER BY section ASC',
+            (school_id,)
+        ).fetchall()
+        
+        return jsonify({
+            'success': True,
+            'classes': [c['class'] for c in classes if c['class']],
+            'sections': [s['section'] for s in sections if s['section']]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+def generate_student_directory_report(school_id, format_type, student_class=None, student_section=None, internal=False):
+    """Generate comprehensive student directory report"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
+
+    # Build query with filters
+    query = 'SELECT student_id, full_name, `class`, section, roll_number, admission_number, gender, date_of_birth, parent_name, parent_phone, academic_year FROM students WHERE school_id = ? AND is_active = 1'
+    params = [school_id]
+    
+    if student_class:
+        query += ' AND `class` = ?'
+        params.append(student_class)
+    if student_section:
+        query += ' AND section = ?'
+        params.append(student_section)
+        
+    query += ' ORDER BY `class` ASC, section ASC, roll_number ASC'
+    
+    student_data = db.execute(query, params).fetchall()
+
+    headers = [
+        'S.No', 'Student ID', 'Full Name', 'Class', 'Section', 'Roll No',
+        'Admission No', 'Gender', 'Date of Birth', 'Parent Name', 'Parent Phone', 'Academic Year'
+    ]
+    rows = []
+    for idx, student in enumerate(student_data, start=1):
+        rows.append([
+            idx,
+            student['student_id'] or 'N/A',
+            student['full_name'],
+            student['class'] or 'N/A',
+            student['section'] or 'N/A',
+            student['roll_number'] or 'N/A',
+            student['admission_number'] or 'N/A',
+            student['gender'] or 'N/A',
+            student['date_of_birth'] or 'N/A',
+            student['parent_name'] or 'N/A',
+            student['parent_phone'] or 'N/A',
+            student['academic_year'] or 'N/A'
+        ])
+
+    # Excel export (Default)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Student Directory"
+
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1E8449", end_color="1E8449", fill_type="solid")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    # Add headers
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = header
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+
+    # Add data
+    for row_idx, row_data in enumerate(rows, 2):
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx)
+            cell.value = val
+            cell.border = border
+
+    # Auto-adjust column widths
+    for col in range(1, len(headers) + 1):
+        ws.column_dimensions[get_column_letter(col)].width = 15
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    response = make_response(output.getvalue())
+    filename = f'student_directory_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
+
+def generate_student_attendance_report(school_id, year, month, format_type, student_class=None, student_section=None, internal=False):
+    """Generate monthly student attendance summary report"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import calendar
+    import datetime
+
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
+
+    # Get students with filters
+    query = 'SELECT id, student_id, full_name, `class`, section FROM students WHERE school_id = ? AND is_active = 1'
+    params = [school_id]
+    
+    if student_class:
+        query += ' AND `class` = ?'
+        params.append(student_class)
+    if student_section:
+        query += ' AND section = ?'
+        params.append(student_section)
+        
+    query += ' ORDER BY `class` ASC, section ASC'
+    
+    students = db.execute(query, params).fetchall()
+
+    if not students:
+        return jsonify({'success': False, 'error': 'No students found for this school'})
+
+    # Get attendance for the month
+    if not year or not month:
+        now = datetime.datetime.now()
+        year = now.year
+        month = now.month
+
+    days_in_month = calendar.monthrange(year, month)[1]
+    
+    # Get all attendance records for this month
+    attendance_data = db.execute('''
+        SELECT student_id, attendance_date as date, morning_status, afternoon_status
+        FROM student_attendance
+        WHERE school_id = ? AND strftime('%Y', attendance_date) = ? AND strftime('%m', attendance_date) = ?
+    ''', (school_id, str(year), f"{month:02d}")).fetchall()
+
+    # Organize attendance by student_id and date
+    att_map = {}
+    for record in attendance_data:
+        s_id = record['student_id']
+        if s_id not in att_map:
+            att_map[s_id] = {}
+        day = record['date'].day if hasattr(record['date'], 'day') else int(record['date'].split('-')[2])
+        att_map[s_id][day] = {
+            'morning': record['morning_status'],
+            'afternoon': record['afternoon_status']
+        }
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = f"Attendance {calendar.month_name[month]} {year}"
+
+    # Styles
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="1E8449", end_color="1E8449", fill_type="solid")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    
+    # Headers: S.No, Student ID, Name, Class, Section, 1, 2, ..., Days, Total Present
+    headers = ['S.No', 'Student ID', 'Name', 'Class', 'Sec'] + [str(d) for d in range(1, days_in_month + 1)] + ['Present %']
+    
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = header
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+
+    # Define Sunday style
+    sunday_fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+    leave_font = Font(color="FF9900", bold=True)
+
+    for idx, student in enumerate(students, 2):
+        ws.cell(row=idx, column=1, value=idx-1).border = border
+        ws.cell(row=idx, column=2, value=student['student_id']).border = border
+        ws.cell(row=idx, column=3, value=student['full_name']).border = border
+        ws.cell(row=idx, column=4, value=student['class']).border = border
+        ws.cell(row=idx, column=5, value=student['section']).border = border
+        
+        present_count = 0
+        working_days_in_month = 0
+        
+        for day in range(1, days_in_month + 1):
+            col = 6 + day - 1
+            date_obj = datetime.date(year, month, day)
+            is_sunday = (date_obj.weekday() == 6)
+            
+            status_char = '-'
+            s_id = student['id']
+            
+            cell = ws.cell(row=idx, column=col)
+            cell.border = border
+            cell.alignment = Alignment(horizontal='center')
+
+            if is_sunday:
+                status_char = 'S'
+                cell.fill = sunday_fill
+            else:
+                working_days_in_month += 1
+                if s_id in att_map and day in att_map[s_id]:
+                    m = att_map[s_id][day]['morning']
+                    a = att_map[s_id][day]['afternoon']
+                    
+                    if m == 'present' or a == 'present':
+                        status_char = 'P'
+                        if m == 'present' and a == 'present':
+                            present_count += 1
+                        else:
+                            status_char = 'H' # Half day
+                            present_count += 0.5
+                        cell.font = Font(color="008000")
+                    elif m == 'leave' or a == 'leave':
+                        status_char = 'L'
+                        cell.font = leave_font
+                    elif m == 'absent' and a == 'absent':
+                        status_char = 'A'
+                        cell.font = Font(color="FF0000")
+            
+            cell.value = status_char
+        
+        # Calculate percentage based on working days only (excluding Sundays)
+        percentage = (present_count / working_days_in_month) * 100 if working_days_in_month > 0 else 0
+        perc_cell = ws.cell(row=idx, column=6 + days_in_month, value=f"{percentage:.1f}%")
+        perc_cell.border = border
+        perc_cell.alignment = Alignment(horizontal='center')
+
+    # Set column widths
+    ws.column_dimensions['A'].width = 5
+    ws.column_dimensions['B'].width = 12
+    ws.column_dimensions['C'].width = 25
+    ws.column_dimensions['D'].width = 8
+    ws.column_dimensions['E'].width = 5
+    for d in range(1, days_in_month + 1):
+        ws.column_dimensions[get_column_letter(6 + d - 1)].width = 3
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    response = make_response(output.getvalue())
+    filename = f'student_attendance_{year}_{month}_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
+    return response
+
+
+def generate_student_leave_applications_report(school_id, format_type, student_class=None, student_section=None, internal=False):
+    """Generate report of student leave applications"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
+
+    query = '''
+        SELECT s.student_id, s.full_name, s.`class`, s.section, 
+               la.leave_type, la.start_date, la.end_date, la.reason, la.status, la.applied_at
+        FROM student_leave_applications la
+        JOIN students s ON la.student_id = s.id
+        WHERE la.school_id = ?
+    '''
+    params = [school_id]
+    
+    if student_class:
+        query += ' AND s.`class` = ?'
+        params.append(student_class)
+    if student_section:
+        query += ' AND s.section = ?'
+        params.append(student_section)
+        
+    query += ' ORDER BY la.applied_at DESC'
+    
+    leave_data = db.execute(query, params).fetchall()
+
+    headers = ['S.No', 'Student ID', 'Full Name', 'Class', 'Section', 'Leave Type', 'Start Date', 'End Date', 'Status', 'Applied On', 'Reason']
+    rows = []
+    for idx, l in enumerate(leave_data, start=1):
+        rows.append([
+            idx, l['student_id'], l['full_name'], l['class'], l['section'],
+            l['leave_type'], l['start_date'], l['end_date'], l['status'].upper(),
+            l['applied_at'].split()[0] if isinstance(l['applied_at'], str) else l['applied_at'].strftime('%Y-%m-%d'),
+            l['reason']
+        ])
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Student Leaves"
+    
+    header_fill = PatternFill(start_color="3498DB", end_color="3498DB", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+
+    for row_idx, row_data in enumerate(rows, 2):
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = border
+
+    for col in range(1, len(headers) + 1):
+        ws.column_dimensions[get_column_letter(col)].width = 15
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    filename = f'student_leave_applications_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+def generate_student_holiday_report(school_id, format_type, student_class=None, student_section=None, internal=False):
+    """Generate report of school holidays/leaves issued to students"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
+
+    query = 'SELECT holiday_title, holiday_start_date, holiday_end_date, description, target_mode, target_class, target_section FROM student_holidays WHERE school_id = ?'
+    params = [school_id]
+    
+    if student_class:
+        query += ' AND (target_mode = "bulk" OR target_class = ?)'
+        params.append(student_class)
+    if student_section:
+        query += ' AND (target_mode = "bulk" OR target_section = ?)'
+        params.append(student_section)
+        
+    query += ' ORDER BY holiday_start_date DESC'
+    
+    holiday_data = db.execute(query, params).fetchall()
+
+    headers = ['S.No', 'Holiday Title', 'Start Date', 'End Date', 'Mode', 'Target Class', 'Target Section', 'Description']
+    rows = []
+    for idx, h in enumerate(holiday_data, start=1):
+        rows.append([
+            idx, h['holiday_title'], h['holiday_start_date'], h['holiday_end_date'],
+            h['target_mode'].upper(), h['target_class'] or 'All', h['target_section'] or 'All',
+            h['description']
+        ])
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "School Issued Leaves"
+    
+    header_fill = PatternFill(start_color="9B59B6", end_color="9B59B6", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+
+    for row_idx, row_data in enumerate(rows, 2):
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = border
+
+    for col in range(1, len(headers) + 1):
+        ws.column_dimensions[get_column_letter(col)].width = 15
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    filename = f'school_issued_leaves_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+def generate_staff_issued_leave_report(school_id, year, month, department=None, format_type='excel', internal=False):
+    """Generate report of institution issued leaves/holidays for staff"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
+
+    query = 'SELECT holiday_name, start_date, end_date, holiday_type, description, departments FROM holidays WHERE school_id = ? AND is_active = 1'
+    params = [school_id]
+    
+    if year:
+        query += ' AND (YEAR(start_date) = ? OR YEAR(end_date) = ?)'
+        params.extend([year, year])
+    
+    if month:
+        query += ' AND (MONTH(start_date) = ? OR MONTH(end_date) = ?)'
+        params.extend([month, month])
+        
+    if department:
+        query += ' AND (holiday_type = "institution_wide" OR departments LIKE ?)'
+        params.append(f'%{department}%')
+        
+    query += ' ORDER BY start_date DESC'
+    
+    holiday_data = db.execute(query, params).fetchall()
+
+    headers = ['S.No', 'Holiday Name', 'Start Date', 'End Date', 'Type', 'Target Departments', 'Description']
+    rows = []
+    for idx, h in enumerate(holiday_data, start=1):
+        rows.append([
+            idx, h['holiday_name'], h['start_date'], h['end_date'],
+            h['holiday_type'].replace('_', ' ').title(),
+            h['departments'] or 'All Departments',
+            h['description']
+        ])
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Institution Issued Leaves"
+    
+    header_fill = PatternFill(start_color="4A90E2", end_color="4A90E2", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+
+    for row_idx, row_data in enumerate(rows, 2):
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = border
+
+    for col in range(1, len(headers) + 1):
+        ws.column_dimensions[get_column_letter(col)].width = 20
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    filename = f'staff_issued_leaves_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+def generate_staff_added_report(school_id, year, month, department=None, format_type='excel', internal=False):
+    """Generate report of staff added/joined in a specific month/year"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
+
+    # We use date_of_joining as the primary filter, fallback to created_at if joining date is null
+    query = '''
+        SELECT staff_id, full_name, email, phone, department, position, date_of_joining, created_at 
+        FROM staff 
+        WHERE school_id = ?
+    '''
+    params = [school_id]
+    
+    if year:
+        query += ' AND (YEAR(COALESCE(date_of_joining, created_at)) = ?)'
+        params.append(year)
+    
+    if month:
+        query += ' AND (MONTH(COALESCE(date_of_joining, created_at)) = ?)'
+        params.append(month)
+        
+    if department:
+        query += ' AND department = ?'
+        params.append(department)
+        
+    query += ' ORDER BY COALESCE(date_of_joining, created_at) DESC'
+    
+    staff_data = db.execute(query, params).fetchall()
+
+    headers = ['S.No', 'Staff ID', 'Full Name', 'Department', 'Position', 'Join Date', 'System Added Date', 'Email', 'Phone']
+    rows = []
+    for idx, s in enumerate(staff_data, start=1):
+        rows.append([
+            idx, s['staff_id'], s['full_name'], s['department'], s['position'],
+            str(s['date_of_joining']) if s['date_of_joining'] else 'N/A',
+            str(s['created_at']).split()[0] if s['created_at'] else 'N/A',
+            s['email'], s['phone']
+        ])
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Staff Added Report"
+    
+    header_fill = PatternFill(start_color="17A2B8", end_color="17A2B8", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+
+    for row_idx, row_data in enumerate(rows, 2):
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = border
+
+    # Adjust column widths
+    column_widths = [10, 15, 25, 20, 20, 15, 15, 25, 15]
+    for i, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(i)].width = width
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    filename = f'staff_added_report_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+def generate_staff_status_report(school_id, department=None, format_type='excel', internal=False):
+    """Generate report of staff with separate sheets for Active and Inactive status"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
+
+    query_base = '''
+        SELECT staff_id, full_name, email, phone, department, position, date_of_joining, is_active
+        FROM staff 
+        WHERE school_id = ?
+    '''
+    params = [school_id]
+    
+    if department:
+        query_base += ' AND department = ?'
+        params.append(department)
+        
+    query_base += ' ORDER BY full_name ASC'
+    
+    all_staff = db.execute(query_base, params).fetchall()
+    
+    active_staff = [s for s in all_staff if s['is_active'] == 1 or s['is_active'] is None] # Default to active if null
+    inactive_staff = [s for s in all_staff if s['is_active'] == 0]
+
+    wb = openpyxl.Workbook()
+    
+    # Common styles
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    headers = ['S.No', 'Staff ID', 'Full Name', 'Department', 'Position', 'Join Date', 'Email', 'Phone']
+    
+    def fill_sheet(ws, staff_list, color):
+        fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.fill = fill
+            cell.font = header_font
+            cell.border = border
+            cell.alignment = Alignment(horizontal='center')
+        
+        for row_idx, s in enumerate(staff_list, 2):
+            row_data = [
+                row_idx - 1, s['staff_id'], s['full_name'], s['department'], s['position'],
+                str(s['date_of_joining']) if s['date_of_joining'] else 'N/A',
+                s['email'], s['phone']
+            ]
+            for col_idx, val in enumerate(row_data, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=val)
+                cell.border = border
+        
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col)].width = 20
+
+    # Sheet 1: Active
+    ws1 = wb.active
+    ws1.title = "Active Staff"
+    fill_sheet(ws1, active_staff, "28A745") # Green
+    
+    # Sheet 2: Inactive
+    ws2 = wb.create_sheet("Inactive Staff")
+    fill_sheet(ws2, inactive_staff, "DC3545") # Red
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    filename = f'staff_status_report_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+def generate_student_exam_report(school_id, format_type='excel', student_class=None, student_section=None):
+    """Generate report of exams assigned to students"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    db = get_db()
+    
+    query = '''
+        SELECT ea.exam_title, ea.exam_date, ea.class_name, ea.description, ea.created_at,
+               COALESCE(a.full_name, s.full_name, 'Unknown') as assigned_by
+        FROM exam_assignments ea
+        LEFT JOIN admins a ON ea.created_by = a.id AND ea.school_id = a.school_id
+        LEFT JOIN staff s ON ea.created_by = s.id AND ea.school_id = s.school_id
+        WHERE ea.school_id = ?
+    '''
+    params = [school_id]
+    
+    if student_class and student_class != 'all':
+        query += ' AND ea.class_name = ?'
+        params.append(student_class)
+        
+    query += ' ORDER BY ea.exam_date DESC'
+    
+    exams = db.execute(query, params).fetchall()
+
+    headers = ['S.No', 'Exam Title', 'Class', 'Exam Date', 'Assigned By', 'Date Assigned', 'Description']
+    rows = []
+    for idx, e in enumerate(exams, start=1):
+        rows.append([
+            idx, e['exam_title'], e['class_name'], str(e['exam_date']),
+            e['assigned_by'], str(e['created_at']).split()[0], e['description']
+        ])
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Exam Assignments"
+    
+    header_fill = PatternFill(start_color="6F42C1", end_color="6F42C1", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+
+    for row_idx, row_data in enumerate(rows, 2):
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = border
+
+    for col in range(1, len(headers) + 1):
+        ws.column_dimensions[get_column_letter(col)].width = 20
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    filename = f'exam_assignments_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+def generate_student_fees_report(school_id, format_type='excel', student_class=None, student_section=None):
+    """Generate report of student fees and collection status"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    db = get_db()
+    
+    query = '''
+        SELECT sf.amount, sf.paid_amount, sf.status, sf.paid_date, sf.created_at,
+               st.full_name as student_name, st.class, st.section, st.student_id,
+               COALESCE(a.full_name, stf.full_name, 'System') as added_by
+        FROM student_fees sf
+        JOIN students st ON sf.student_db_id = st.id
+        LEFT JOIN admins a ON sf.created_by = a.id AND sf.school_id = a.school_id
+        LEFT JOIN staff stf ON sf.created_by = stf.id AND sf.school_id = stf.school_id
+        WHERE sf.school_id = ?
+    '''
+    params = [school_id]
+    
+    if student_class and student_class != 'all':
+        query += ' AND st.class = ?'
+        params.append(student_class)
+    if student_section and student_section != 'all':
+        query += ' AND st.section = ?'
+        params.append(student_section)
+        
+    query += ' ORDER BY sf.created_at DESC'
+    
+    fees = db.execute(query, params).fetchall()
+
+    headers = ['S.No', 'Student ID', 'Student Name', 'Class/Sec', 'Total Amount', 'Paid Amount', 'Status', 'Paid Date', 'Added By', 'Added Date']
+    rows = []
+    for idx, f in enumerate(fees, start=1):
+        rows.append([
+            idx, f['student_id'], f['student_name'], f"{f['class']} - {f['section']}",
+            f['amount'], f['paid_amount'], f['status'].title(),
+            str(f['paid_date']) if f['paid_date'] else '-',
+            f['added_by'], str(f['created_at']).split()[0]
+        ])
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Student Fees Report"
+    
+    header_fill = PatternFill(start_color="28A745", end_color="28A745", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.border = border
+        cell.alignment = Alignment(horizontal='center')
+
+    for row_idx, row_data in enumerate(rows, 2):
+        for col_idx, val in enumerate(row_data, 1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=val)
+            cell.border = border
+
+    for col in range(1, len(headers) + 1):
+        ws.column_dimensions[get_column_letter(col)].width = 18
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    filename = f'student_fees_report_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+def generate_student_academic_report(school_id, format_type='excel', student_class=None, student_section=None):
+    """Generate report of students by academic year, including alumni"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    db = get_db()
+    
+    query = '''
+        SELECT student_id, full_name, class, section, academic_year, is_active, admission_number, student_type
+        FROM students 
+        WHERE school_id = ?
+    '''
+    params = [school_id]
+    
+    if student_class and student_class != 'all':
+        query += ' AND class = ?'
+        params.append(student_class)
+    if student_section and student_section != 'all':
+        query += ' AND section = ?'
+        params.append(student_section)
+        
+    query += ' ORDER BY academic_year DESC, full_name ASC'
+    
+    students = db.execute(query, params).fetchall()
+
+    active_students = [s for s in students if s['is_active'] == 1 or s['is_active'] is None]
+    alumni_students = [s for s in students if s['is_active'] == 0]
+
+    wb = openpyxl.Workbook()
+    
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    headers = ['S.No', 'Student ID', 'Admission No', 'Full Name', 'Academic Year', 'Class', 'Section', 'Type']
+    
+    def fill_sheet(ws, student_list, color):
+        fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col, value=h)
+            cell.fill = fill
+            cell.font = header_font
+            cell.border = border
+            cell.alignment = Alignment(horizontal='center')
+        
+        for row_idx, s in enumerate(student_list, 2):
+            row_data = [
+                row_idx - 1, s['student_id'], s['admission_number'], s['full_name'],
+                s['academic_year'] or 'N/A', s['class'], s['section'], s['student_type']
+            ]
+            for col_idx, val in enumerate(row_data, 1):
+                cell = ws.cell(row=row_idx, column=col_idx, value=val)
+                cell.border = border
+        
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col)].width = 18
+
+    # Sheet 1: Active
+    ws1 = wb.active
+    ws1.title = "Current Students"
+    fill_sheet(ws1, active_students, "007BFF") # Blue
+    
+    # Sheet 2: Alumni
+    ws2 = wb.create_sheet("Alumni (Inactive)")
+    fill_sheet(ws2, alumni_students, "6C757D") # Gray
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    filename = f'student_academic_report_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+def generate_student_timetable_report(school_id, format_type='excel', student_class=None, student_section=None):
+    """Generate report of student timetable by class and section"""
+    import openpyxl
+    from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
+    from openpyxl.utils import get_column_letter
+    from io import BytesIO
+    import datetime
+
+    db = get_db()
+    
+    # Map day numbers to names
+    day_names = {0: 'Monday', 1: 'Tuesday', 2: 'Wednesday', 3: 'Thursday', 4: 'Friday', 5: 'Saturday', 6: 'Sunday'}
+    
+    # We combine both standard and hierarchical assignments to ensure no data is missed
+    query = '''
+        SELECT day_of_week, period_number, subject_name, room_number, class_name, section_name, staff_name
+        FROM (
+            SELECT ta.day_of_week, ta.period_number, ta.subject_name, ta.room_number,
+                   tal.level_name as class_name, ts.section_name,
+                   s.full_name as staff_name, ta.school_id
+            FROM timetable_assignments ta
+            JOIN timetable_academic_levels tal ON ta.level_id = tal.id
+            JOIN timetable_sections ts ON ta.section_id = ts.id
+            LEFT JOIN staff s ON ta.staff_id = s.id
+            
+            UNION ALL
+            
+            SELECT tha.day_of_week, tha.period_number, tha.subject_name, tha.room_number,
+                   tal2.level_name as class_name, ts2.section_name,
+                   s2.full_name as staff_name, tha.school_id
+            FROM timetable_hierarchical_assignments tha
+            JOIN timetable_academic_levels tal2 ON tha.level_id = tal2.id
+            JOIN timetable_sections ts2 ON tha.section_id = ts2.id
+            LEFT JOIN staff s2 ON tha.staff_id = s2.id
+        ) combined
+        WHERE school_id = ?
+    '''
+    params = [school_id]
+    
+    if student_class and student_class != 'all':
+        query += ' AND class_name = ?'
+        params.append(student_class)
+    if student_section and student_section != 'all':
+        query += ' AND section_name = ?'
+        params.append(student_section)
+        
+    query += ' ORDER BY class_name, section_name, period_number, day_of_week'
+    
+    assignments = db.execute(query, params).fetchall()
+
+    # Group assignments by Class-Section
+    grouped_data = {}
+    for a in assignments:
+        key = f"{a['class_name']} - {a['section_name']}"
+        if key not in grouped_data:
+            grouped_data[key] = {}
+        
+        day = day_names.get(a['day_of_week'], f"Day {a['day_of_week']}")
+        period = a['period_number']
+        
+        if period not in grouped_data[key]:
+            grouped_data[key][period] = {}
+        
+        grouped_data[key][period][day] = f"{a['subject_name']}\n({a['staff_name'] or 'N/A'})"
+
+    if format_type == 'pdf':
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import A4, landscape
+        from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        
+        output = BytesIO()
+        doc = SimpleDocTemplate(output, pagesize=landscape(A4), rightMargin=30, leftMargin=30, topMargin=30, bottomMargin=30)
+        elements = []
+        styles = getSampleStyleSheet()
+        
+        # Title Style
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=18,
+            alignment=1,
+            spaceAfter=20
+        )
+        
+        school = db.execute('SELECT name FROM schools WHERE id = ?', (school_id,)).fetchone()
+        school_name = school['name'] if school else "Institution Timetable"
+
+        days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+        
+        for idx, (cs_key, periods) in enumerate(grouped_data.items()):
+            if idx > 0:
+                elements.append(PageBreak())
+            
+            # Header
+            elements.append(Paragraph(school_name, title_style))
+            elements.append(Paragraph(f"Class Timetable: {cs_key}", styles['Heading2']))
+            elements.append(Spacer(1, 12))
+            
+            # Table Data
+            data = [["Period / Day"] + days]
+            sorted_periods = sorted(periods.keys())
+            for period in sorted_periods:
+                row = [f"Period {period}"]
+                for day in days:
+                    row.append(periods[period].get(day, '-'))
+                data.append(row)
+            
+            # Create Table
+            t = Table(data, colWidths=[80] + [110]*6)
+            t.setStyle(TableStyle([
+                ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor("#FD7E14")),
+                ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+                ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+                ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+                ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+                ('FONTSIZE', (0, 0), (-1, 0), 12),
+                ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+                ('BACKGROUND', (0, 1), (0, -1), colors.whitesmoke),
+                ('GRID', (0, 0), (-1, -1), 1, colors.black),
+                ('FONTSIZE', (0, 1), (-1, -1), 10),
+                ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+                ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ]))
+            elements.append(t)
+            
+        doc.build(elements)
+        output.seek(0)
+        
+        response = make_response(output.getvalue())
+        filename = f'student_timetable_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+        response.headers['Content-Type'] = 'application/pdf'
+        return response
+
+    # Excel generation (existing logic)
+    wb = openpyxl.Workbook()
+    
+    header_fill = PatternFill(start_color="FD7E14", end_color="FD7E14", fill_type="solid") # Orange
+    header_font = Font(bold=True, color="FFFFFF")
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    
+    days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+    
+    first_sheet = True
+    for cs_key, periods in grouped_data.items():
+        if first_sheet:
+            ws = wb.active
+            first_sheet = False
+        else:
+            ws = wb.create_sheet()
+        
+        ws.title = cs_key[:30].replace('/', '-') # Limit sheet name length and avoid invalid chars
+        
+        # Header Row
+        ws.cell(row=1, column=1, value="Period / Day").font = header_font
+        ws.cell(row=1, column=1).fill = header_fill
+        ws.cell(row=1, column=1).border = border
+        
+        for col_idx, day in enumerate(days, 2):
+            cell = ws.cell(row=1, column=col_idx, value=day)
+            cell.font = header_font
+            cell.fill = header_fill
+            cell.border = border
+            cell.alignment = Alignment(horizontal='center')
+
+        # Data Rows
+        sorted_periods = sorted(periods.keys())
+        for row_idx, period in enumerate(sorted_periods, 2):
+            ws.cell(row=row_idx, column=1, value=f"Period {period}").border = border
+            ws.cell(row=row_idx, column=1).font = Font(bold=True)
+            
+            for col_idx, day in enumerate(days, 2):
+                value = periods[period].get(day, '-')
+                cell = ws.cell(row=row_idx, column=col_idx, value=value)
+                cell.border = border
+                cell.alignment = Alignment(horizontal='center', wrap_text=True)
+        
+        # Column widths
+        ws.column_dimensions['A'].width = 15
+        for col_idx in range(2, 8):
+            ws.column_dimensions[get_column_letter(col_idx)].width = 25
+
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = make_response(output.getvalue())
+    filename = f'student_timetable_report_{datetime.datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx'
+    response.headers['Content-Disposition'] = f'attachment; filename={filename}'
+    response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    return response
+
+
+@app.route('/api/student/submit_leave', methods=['POST'])
+def submit_student_leave():
+    """Submit a new leave application from a student"""
+    if 'student_id' not in session or session.get('user_type') != 'student':
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+    
+    try:
+        db = get_db()
+        student_id = session['student_id']
+        
+        # Get student's school_id
+        student = db.execute('SELECT school_id FROM students WHERE id = ?', (student_id,)).fetchone()
+        if not student:
+            return jsonify({'success': False, 'error': 'Student not found'})
+        
+        school_id = student['school_id']
+        
+        # In a real app, we'd handle multipart form data for files, 
+        # but here we'll handle basic JSON for the application data
+        data = request.get_json()
+        
+        leave_type = data.get('leave_type')
+        start_date = data.get('start_date')
+        end_date = data.get('end_date')
+        reason = data.get('reason')
+        contact = data.get('contact_number')
+        
+        if not all([leave_type, start_date, end_date, reason]):
+            return jsonify({'success': False, 'error': 'Missing required fields'})
+            
+        db.execute('''
+            INSERT INTO student_leave_applications 
+            (student_id, school_id, leave_type, start_date, end_date, reason, contact_number, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+        ''', (student_id, school_id, leave_type, start_date, end_date, reason, contact))
+        
+        db.commit()
+        return jsonify({'success': True, 'message': 'Leave application submitted successfully'})
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
 
 # Placeholder functions for other report types - can be expanded later
 def generate_payroll_summary_report(school_id, year, month, format_type):
@@ -23733,12 +24887,17 @@ def student_leave():
     school = db.execute('SELECT name FROM schools WHERE id = ?', 
                        (student['school_id'],)).fetchone()
     
-    # Get leave applications (placeholder for now - can be extended later)
-    # You can add actual leave tables later
+    # Get leave applications
+    leaves = db.execute('''
+        SELECT * FROM student_leave_applications 
+        WHERE student_id = ? 
+        ORDER BY applied_at DESC
+    ''', (student['id'],)).fetchall()
     
     return render_template('student/student_leave.html',
                          student=student,
-                         school_name=school['name'] if school else 'N/A')
+                         school_name=school['name'] if school else 'N/A',
+                         leaves=leaves)
 
 
 @app.route('/student/timetable')

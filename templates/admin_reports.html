@@ -507,6 +507,30 @@
                             </div>
                             <div class="report-card">
                                 <div class="report-icon">
+                                    <i class="bi bi-person-plus text-info"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Staff Added/Joined Report</h6>
+                                    <p>Track new staff members added or joined during specific months</p>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="generateReport('staff_added')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-person-check text-info"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Staff Status Report</h6>
+                                    <p>Detailed report with separate sheets for Active and Inactive staff</p>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="generateReport('staff_status')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
                                     <i class="bi bi-building"></i>
                                 </div>
                                 <div class="report-content">
@@ -569,6 +593,28 @@
                         <div id="staff-templates-container" class="reports-row mt-3"></div>
                     </div>
 
+                    <!-- Institution Reports -->
+                    <div class="report-category">
+                        <h4 class="category-title">
+                            <i class="bi bi-building text-primary"></i>
+                            Institution Reports
+                        </h4>
+                        <div class="reports-row">
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-megaphone-fill text-primary"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Institution Issued Leave Report (Staff)</h6>
+                                    <p>Official holidays and school-issued leaves for all staff</p>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="generateReport('staff_issued_leave')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Attendance Reports -->
                     <div class="report-category">
                         <h4 class="category-title">
@@ -617,6 +663,114 @@
                     </div>
 
 
+
+                    {% if module_enabled.student_management %}
+                    <!-- Student Reports -->
+                    <div class="report-category">
+                        <h4 class="category-title">
+                            <i class="bi bi-mortarboard text-danger"></i>
+                            Student Management Reports
+                        </h4>
+                        <div class="reports-row">
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-person-badge text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Student Directory</h6>
+                                    <p>Complete list of students with parent details and class info</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_directory')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-calendar-range text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Student Attendance Report</h6>
+                                    <p>Monthly attendance summary for all students</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_attendance')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-envelope-paper text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Student Leave Apply Report</h6>
+                                    <p>History of leave applications submitted by students</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_leave_apply')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-megaphone text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>School Leave Issued Report</h6>
+                                    <p>Official holidays and school leaves issued to students</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('school_issued_holidays')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-journal-check text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Exam Assigner Report</h6>
+                                    <p>Schedule of exams assigned to classes and students</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_exam_assigner')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-cash-stack text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Student Fees Report</h6>
+                                    <p>Comprehensive report of student fees and payment history</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_fees_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-mortarboard-fill text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Student Academic & Alumni Report</h6>
+                                    <p>Students categorized by academic year including alumni records</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_academic_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-calendar3 text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Class Timetable Report</h6>
+                                    <p>Weekly academic schedules grouped by class and section</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_timetable_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
 
                     <!-- Custom Reports -->
                     <div class="report-category">
@@ -918,6 +1072,10 @@
                                     <option value="permission_report">Permission Report</option>
                                     <option value="daily_attendance">Daily Attendance</option>
                                     <option value="monthly_attendance">Monthly Attendance</option>
+                                    {% if module_enabled.student_management %}
+                                    <option value="student_directory">Student Directory</option>
+                                    <option value="student_attendance">Student Attendance Report</option>
+                                    {% endif %}
                                 </select>
                             </div>
                             <div class="col-12 col-md-6">
@@ -988,7 +1146,106 @@
         </div>
     </div>
 
+    <!-- Student Report Parameters Modal -->
+    <div class="modal fade" id="studentReportModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="studentModalTitle">Student Report Filters</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="studentReportForm">
+                        <input type="hidden" id="studentReportType">
+                        <div class="mb-3">
+                            <label class="form-label">Class</label>
+                            <select class="form-select" id="studentClass">
+                                <option value="">All Classes</option>
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Section</label>
+                            <select class="form-select" id="studentSection">
+                                <option value="">All Sections</option>
+                                <!-- Will be populated dynamically -->
+                            </select>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" onclick="downloadStudentReport()">
+                        <i class="bi bi-download"></i> Generate Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script>
+        const studentModal = new bootstrap.Modal(document.getElementById('studentReportModal'));
+        
+        async function showStudentReportModal(reportType) {
+            document.getElementById('studentReportType').value = reportType;
+            document.getElementById('studentModalTitle').textContent = 
+                reportType === 'student_directory' ? 'Student Directory Filters' : 'Student Attendance Filters';
+            
+            // Fetch classes and sections
+            try {
+                const response = await fetch('/api/get_student_filters');
+                const data = await response.json();
+                
+                if (data.success) {
+                    const classSelect = document.getElementById('studentClass');
+                    const sectionSelect = document.getElementById('studentSection');
+                    
+                    // Save current values
+                    const currentClass = classSelect.value;
+                    const currentSection = sectionSelect.value;
+                    
+                    classSelect.innerHTML = '<option value="">All Classes</option>';
+                    data.classes.forEach(c => {
+                        if (c) classSelect.innerHTML += `<option value="${c}">${c}</option>`;
+                    });
+                    
+                    sectionSelect.innerHTML = '<option value="">All Sections</option>';
+                    data.sections.forEach(s => {
+                        if (s) sectionSelect.innerHTML += `<option value="${s}">${s}</option>`;
+                    });
+                    
+                    // Restore values if possible
+                    classSelect.value = currentClass;
+                    sectionSelect.value = currentSection;
+                }
+            } catch (err) {
+                console.error('Error fetching student filters:', err);
+            }
+            
+            studentModal.show();
+        }
+
+        function downloadStudentReport() {
+            const reportType = document.getElementById('studentReportType').value;
+            const studentClass = document.getElementById('studentClass').value;
+            const studentSection = document.getElementById('studentSection').value;
+            
+            const format = (document.getElementById('reportFormat')?.value || 'excel').toLowerCase();
+            const year = document.getElementById('reportYear')?.value;
+            const month = document.getElementById('reportMonth')?.value;
+
+            const params = new URLSearchParams();
+            params.append('report_type', reportType);
+            params.append('format', format);
+            params.append('class', studentClass);
+            params.append('section', studentSection);
+            if (year) params.append('year', year);
+            if (month) params.append('month', month);
+
+            window.location.href = `/generate_admin_report?${params.toString()}`;
+            studentModal.hide();
+        }
+
         const scheduleModal = new bootstrap.Modal(document.getElementById('scheduleReportModal'));
         
         document.getElementById('scheduleFrequency').addEventListener('change', function() {

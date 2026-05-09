@@ -673,48 +673,41 @@
                 </div>
             </div>
             
-            <div class="empty-state">
-                <i class="bi bi-inbox"></i>
-                <h3>No leave applications yet</h3>
-                <p>Click "Apply for Leave" button above to submit a new leave request.</p>
-            </div>
-
-            <!-- Example leave items (uncomment when you have data) -->
-            <!--
-            <div class="leave-item">
-                <div class="leave-header">
-                    <div>
-                        <div class="leave-type">Sick Leave</div>
-                        <div class="leave-dates"><i class="bi bi-calendar-range"></i> March 10-12, 2026 (3 days)</div>
+            {% if leaves %}
+                {% for leave in leaves %}
+                <div class="leave-item">
+                    <div class="leave-header">
+                        <div>
+                            <div class="leave-type">{{ leave.leave_type.replace('_', ' ').title() }}</div>
+                            <div class="leave-dates">
+                                <i class="bi bi-calendar-range"></i> 
+                                {{ leave.start_date }} to {{ leave.end_date }}
+                            </div>
+                        </div>
+                        <span class="status-badge status-{{ leave.status }}">
+                            {{ leave.status.title() }}
+                        </span>
                     </div>
-                    <span class="status-badge status-pending">Pending</span>
-                </div>
-                <div class="leave-reason">
-                    <strong>Reason:</strong> Suffering from fever and cold. Doctor advised rest.
-                </div>
-                <div class="leave-footer">
-                    <span><i class="bi bi-calendar"></i> Applied: March 8, 2026</span>
-                    <span><i class="bi bi-person"></i> Class Teacher</span>
-                </div>
-            </div>
-
-            <div class="leave-item">
-                <div class="leave-header">
-                    <div>
-                        <div class="leave-type">Family Function</div>
-                        <div class="leave-dates"><i class="bi bi-calendar-range"></i> Feb 15, 2026 (1 day)</div>
+                    <div class="leave-reason">
+                        <strong>Reason:</strong> {{ leave.reason }}
                     </div>
-                    <span class="status-badge status-approved">Approved</span>
+                    {% if leave.admin_remarks %}
+                    <div class="admin-remarks mt-2 p-2 bg-light rounded" style="font-size: 13px; border-left: 3px solid #dee2e6;">
+                        <strong>Admin Remarks:</strong> {{ leave.admin_remarks }}
+                    </div>
+                    {% endif %}
+                    <div class="leave-footer">
+                        <span><i class="bi bi-calendar"></i> Applied: {{ leave.applied_at.split()[0] if ' ' in leave.applied_at else leave.applied_at }}</span>
+                    </div>
                 </div>
-                <div class="leave-reason">
-                    <strong>Reason:</strong> Attending cousin's wedding ceremony.
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <i class="bi bi-inbox"></i>
+                    <h3>No leave applications yet</h3>
+                    <p>Click "Apply for Leave" button above to submit a new leave request.</p>
                 </div>
-                <div class="leave-footer">
-                    <span><i class="bi bi-calendar"></i> Applied: Feb 10, 2026</span>
-                    <span><i class="bi bi-person"></i> Class Teacher</span>
-                </div>
-            </div>
-            -->
+            {% endif %}
         </div>
     </div>
 
@@ -729,7 +722,7 @@
                 <form id="leaveForm">
                     <div class="form-group">
                         <label class="form-label">Leave Type <span style="color: var(--danger-color);">*</span></label>
-                        <select class="form-select" required>
+                        <select class="form-select" id="leaveType" required>
                             <option value="">Select leave type</option>
                             <option value="sick">Sick Leave</option>
                             <option value="casual">Casual Leave</option>
@@ -744,20 +737,20 @@
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="form-label">From Date <span style="color: var(--danger-color);">*</span></label>
-                                <input type="date" class="form-control" required>
+                                <input type="date" class="form-control" id="fromDate" required>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
                                 <label class="form-label">To Date <span style="color: var(--danger-color);">*</span></label>
-                                <input type="date" class="form-control" required>
+                                <input type="date" class="form-control" id="toDate" required>
                             </div>
                         </div>
                     </div>
 
                     <div class="form-group">
                         <label class="form-label">Reason <span style="color: var(--danger-color);">*</span></label>
-                        <textarea class="form-control" placeholder="Please provide a detailed reason for your leave application..." required></textarea>
+                        <textarea class="form-control" id="leaveReason" placeholder="Please provide a detailed reason for your leave application..." required></textarea>
                     </div>
 
                     <div class="form-group">
@@ -771,7 +764,7 @@
 
                     <div class="form-group">
                         <label class="form-label">Contact During Leave</label>
-                        <input type="tel" class="form-control" placeholder="Phone number (optional)">
+                        <input type="tel" class="form-control" id="contactNumber" placeholder="Phone number (optional)">
                     </div>
                 </form>
             </div>
@@ -887,20 +880,44 @@
             previewFiles();
         }
 
-        function submitLeave() {
-            // TODO: Implement actual leave submission logic
-            const fileCount = uploadedFiles.length;
-            const message = fileCount > 0 
-                ? `Leave application with ${fileCount} attachment(s) submitted successfully! This feature will be connected to the backend.`
-                : 'Leave application submitted successfully! This feature will be connected to the backend.';
-            alert(message);
-            
-            // Reset form and files
-            document.getElementById('leaveForm').reset();
-            document.getElementById('filePreview').innerHTML = '';
-            uploadedFiles = [];
-            
-            closeLeaveModal();
+        async function submitLeave() {
+            const leaveType = document.getElementById('leaveType').value;
+            const fromDate = document.getElementById('fromDate').value;
+            const toDate = document.getElementById('toDate').value;
+            const reason = document.getElementById('leaveReason').value;
+            const contact = document.getElementById('contactNumber').value;
+
+            if (!leaveType || !fromDate || !toDate || !reason) {
+                alert('Please fill all required fields');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/student/submit_leave', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        leave_type: leaveType,
+                        start_date: fromDate,
+                        end_date: toDate,
+                        reason: reason,
+                        contact_number: contact
+                    })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    alert('Leave application submitted successfully!');
+                    location.reload();
+                } else {
+                    alert('Error: ' + data.error);
+                }
+            } catch (err) {
+                console.error('Error submitting leave:', err);
+                alert('Failed to submit application. Please try again.');
+            }
         }
 
         // Close modal when clicking outside

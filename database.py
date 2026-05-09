@@ -587,6 +587,28 @@ def init_db(app):
         )
         ''')
 
+        # Create student leave applications table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS student_leave_applications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            student_id INTEGER NOT NULL,
+            school_id INTEGER NOT NULL,
+            leave_type TEXT NOT NULL,
+            start_date DATE NOT NULL,
+            end_date DATE NOT NULL,
+            reason TEXT NOT NULL,
+            contact_number TEXT,
+            status TEXT CHECK(status IN ('pending', 'approved', 'rejected')) DEFAULT 'pending',
+            applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            processed_by INTEGER,
+            processed_at TIMESTAMP,
+            admin_remarks TEXT,
+            FOREIGN KEY (student_id) REFERENCES students(id),
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            FOREIGN KEY (processed_by) REFERENCES admins(id)
+        )
+        ''')
+
         # Create on-duty applications table
         cursor.execute('''
         CREATE TABLE IF NOT EXISTS on_duty_applications (
