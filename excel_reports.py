@@ -128,6 +128,203 @@ class ExcelReportGenerator:
         self._create_staff_profile_sheet(wb, school_id)
         
         return self._save_workbook_to_response(wb, f"Staff_Profile_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
+
+    def create_leave_report(self, school_id, year, month=None):
+        """Create comprehensive leave applications report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        ws = wb.create_sheet("Leave Reports")
+        
+        # Title
+        ws['A1'] = "Staff Leave Applications Report"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:J1')
+        
+        # Headers
+        headers = ['Staff ID', 'Name', 'Department', 'Type', 'Start Date', 'End Date', 'Days', 'Reason', 'Status', 'Applied At', 'Processed By', 'Processed At', 'Admin Remarks']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+        
+        # Query data
+        db = get_db()
+        query = '''
+            SELECT s.staff_id, s.full_name, s.department, l.leave_type, l.start_date, l.end_date, 
+                   l.reason, l.status, l.applied_at, l.processed_at, l.admin_remarks, adm.full_name as admin_name
+            FROM leave_applications l
+            JOIN staff s ON l.staff_id = s.id
+            LEFT JOIN admins adm ON l.processed_by = adm.id
+            WHERE l.school_id = ? AND strftime('%Y', l.start_date) = ?
+        '''
+        params = [school_id, str(year)]
+        if month:
+            query += " AND strftime('%m', l.start_date) = ?"
+            params.append(f"{month:02d}")
+        
+        query += " ORDER BY l.start_date DESC"
+        data = db.execute(query, params).fetchall()
+        
+        for row, record in enumerate(data, 4):
+            ws.cell(row=row, column=1, value=record['staff_id'])
+            ws.cell(row=row, column=2, value=record['full_name'])
+            ws.cell(row=row, column=3, value=record['department'] or 'N/A')
+            ws.cell(row=row, column=4, value=record['leave_type'])
+            ws.cell(row=row, column=5, value=record['start_date'])
+            ws.cell(row=row, column=6, value=record['end_date'])
+            
+            # Calculate days
+            try:
+                start = record['start_date']
+                end = record['end_date']
+                if isinstance(start, str):
+                    start = datetime.strptime(start, '%Y-%m-%d')
+                if isinstance(end, str):
+                    end = datetime.strptime(end, '%Y-%m-%d')
+                days = (end - start).days + 1
+            except:
+                days = 'N/A'
+            ws.cell(row=row, column=7, value=days)
+            
+            ws.cell(row=row, column=8, value=record['reason'] or '')
+            ws.cell(row=row, column=9, value=record['status'].title())
+            ws.cell(row=row, column=10, value=str(record['applied_at'])[:10] if record['applied_at'] else '')
+            ws.cell(row=row, column=11, value=record['admin_name'] or 'N/A')
+            ws.cell(row=row, column=12, value=str(record['processed_at'])[:10] if record['processed_at'] else 'N/A')
+            ws.cell(row=row, column=13, value=record['admin_remarks'] or '')
+            
+        # Format columns
+        column_widths = [12, 20, 15, 10, 12, 12, 8, 30, 12, 12, 20, 12, 30]
+        for col, width in enumerate(column_widths, 1):
+            ws.column_dimensions[chr(64 + col) if col <= 26 else 'A' + chr(64 + col - 26)].width = width
+            
+        for row in range(3, len(data) + 4):
+            for col in range(1, 14):
+                ws.cell(row=row, column=col).border = self.border
+
+        filename = f"Leave_Report_{year}" + (f"_{month:02d}" if month else "") + ".xlsx"
+        return self._save_workbook_to_response(wb, filename)
+
+    def create_od_report(self, school_id, year, month=None):
+        """Create comprehensive On-Duty (OD) applications report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        ws = wb.create_sheet("OD Reports")
+        
+        ws['A1'] = "Staff On-Duty (OD) Applications Report"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:J1')
+        
+        headers = ['Staff ID', 'Name', 'Department', 'Duty Type', 'Start Date', 'End Date', 'Location', 'Purpose', 'Status', 'Applied At', 'Processed By', 'Processed At', 'Admin Remarks']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+        
+        db = get_db()
+        query = '''
+            SELECT s.staff_id, s.full_name, s.department, o.duty_type, o.start_date, o.end_date, 
+                   o.location, o.purpose, o.status, o.applied_at, o.processed_at, o.admin_remarks, adm.full_name as admin_name
+            FROM on_duty_applications o
+            JOIN staff s ON o.staff_id = s.id
+            LEFT JOIN admins adm ON o.processed_by = adm.id
+            WHERE o.school_id = ? AND strftime('%Y', o.start_date) = ?
+        '''
+        params = [school_id, str(year)]
+        if month:
+            query += " AND strftime('%m', o.start_date) = ?"
+            params.append(f"{month:02d}")
+        
+        query += " ORDER BY o.start_date DESC"
+        data = db.execute(query, params).fetchall()
+        
+        for row, record in enumerate(data, 4):
+            ws.cell(row=row, column=1, value=record['staff_id'])
+            ws.cell(row=row, column=2, value=record['full_name'])
+            ws.cell(row=row, column=3, value=record['department'] or 'N/A')
+            ws.cell(row=row, column=4, value=record['duty_type'])
+            ws.cell(row=row, column=5, value=record['start_date'])
+            ws.cell(row=row, column=6, value=record['end_date'])
+            ws.cell(row=row, column=7, value=record['location'] or 'N/A')
+            ws.cell(row=row, column=8, value=record['purpose'] or '')
+            ws.cell(row=row, column=9, value=record['status'].title())
+            ws.cell(row=row, column=10, value=str(record['applied_at'])[:10] if record['applied_at'] else '')
+            ws.cell(row=row, column=11, value=record['admin_name'] or 'N/A')
+            ws.cell(row=row, column=12, value=str(record['processed_at'])[:10] if record['processed_at'] else 'N/A')
+            ws.cell(row=row, column=13, value=record['admin_remarks'] or '')
+            
+        column_widths = [12, 20, 15, 15, 12, 12, 20, 30, 12, 12, 20, 12, 30]
+        for col, width in enumerate(column_widths, 1):
+            ws.column_dimensions[chr(64 + col) if col <= 26 else 'A' + chr(64 + col - 26)].width = width
+            
+        for row in range(3, len(data) + 4):
+            for col in range(1, 14):
+                ws.cell(row=row, column=col).border = self.border
+
+        filename = f"OD_Report_{year}" + (f"_{month:02d}" if month else "") + ".xlsx"
+        return self._save_workbook_to_response(wb, filename)
+
+    def create_permission_report(self, school_id, year, month=None):
+        """Create comprehensive permission applications report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        ws = wb.create_sheet("Permission Reports")
+        
+        ws['A1'] = "Staff Permission Applications Report"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:J1')
+        
+        headers = ['Staff ID', 'Name', 'Department', 'Type', 'Date', 'Start Time', 'End Time', 'Duration', 'Status', 'Applied At', 'Processed By', 'Processed At', 'Admin Remarks']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+        
+        db = get_db()
+        query = '''
+            SELECT s.staff_id, s.full_name, s.department, p.permission_type, p.permission_date, 
+                   p.start_time, p.end_time, p.duration_hours, p.status, p.applied_at, p.processed_at, p.admin_remarks, adm.full_name as admin_name
+            FROM permission_applications p
+            JOIN staff s ON p.staff_id = s.id
+            LEFT JOIN admins adm ON p.processed_by = adm.id
+            WHERE p.school_id = ? AND strftime('%Y', p.permission_date) = ?
+        '''
+        params = [school_id, str(year)]
+        if month:
+            query += " AND strftime('%m', p.permission_date) = ?"
+            params.append(f"{month:02d}")
+        
+        query += " ORDER BY p.permission_date DESC"
+        data = db.execute(query, params).fetchall()
+        
+        for row, record in enumerate(data, 4):
+            ws.cell(row=row, column=1, value=record['staff_id'])
+            ws.cell(row=row, column=2, value=record['full_name'])
+            ws.cell(row=row, column=3, value=record['department'] or 'N/A')
+            ws.cell(row=row, column=4, value=record['permission_type'])
+            ws.cell(row=row, column=5, value=record['permission_date'])
+            ws.cell(row=row, column=6, value=record['start_time'])
+            ws.cell(row=row, column=7, value=record['end_time'])
+            ws.cell(row=row, column=8, value=f"{record['duration_hours']}h" if record['duration_hours'] else 'N/A')
+            ws.cell(row=row, column=9, value=record['status'].title())
+            ws.cell(row=row, column=10, value=str(record['applied_at'])[:10] if record['applied_at'] else '')
+            ws.cell(row=row, column=11, value=record['admin_name'] or 'N/A')
+            ws.cell(row=row, column=12, value=str(record['processed_at'])[:10] if record['processed_at'] else 'N/A')
+            ws.cell(row=row, column=13, value=record['admin_remarks'] or '')
+            
+        column_widths = [12, 20, 15, 15, 12, 10, 10, 10, 12, 12, 20, 12, 30]
+        for col, width in enumerate(column_widths, 1):
+            ws.column_dimensions[chr(64 + col) if col <= 26 else 'A' + chr(64 + col - 26)].width = width
+            
+        for row in range(3, len(data) + 4):
+            for col in range(1, 14):
+                ws.cell(row=row, column=col).border = self.border
+
+        filename = f"Permission_Report_{year}" + (f"_{month:02d}" if month else "") + ".xlsx"
+        return self._save_workbook_to_response(wb, filename)
     
     def _create_summary_sheet(self, wb, school_id, start_date, end_date):
         """Create summary sheet with key metrics"""

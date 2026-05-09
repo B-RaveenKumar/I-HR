@@ -1809,12 +1809,19 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', function () {
             const decision = this.classList.contains('approve-btn') ? 'approve' : 'reject';
             const leaveId = this.getAttribute('data-leave-id');
+            let adminRemarks = '';
+            if (decision === 'reject') {
+                adminRemarks = prompt('Please provide reason for rejection (optional):') || '';
+            } else {
+                adminRemarks = prompt('Please provide approval notes (optional):') || '';
+            }
+
             if (!confirm(`Are you sure to ${decision} this leave?`)) return;
 
             fetch('/process_leave', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `leave_id=${leaveId}&decision=${decision}&csrf_token=${encodeURIComponent(getCSRFToken())}`
+                body: `leave_id=${leaveId}&decision=${decision}&admin_remarks=${encodeURIComponent(adminRemarks)}&csrf_token=${encodeURIComponent(getCSRFToken())}`
             })
             .then(res => res.json())
             .then(data => {
@@ -1835,6 +1842,8 @@ document.addEventListener('DOMContentLoaded', function () {
             let adminRemarks = '';
             if (decision === 'reject') {
                 adminRemarks = prompt('Please provide reason for rejection (optional):') || '';
+            } else {
+                adminRemarks = prompt('Please provide approval notes (optional):') || '';
             }
 
             if (!confirm(`Are you sure to ${decision} this on-duty application?`)) return;
@@ -1869,6 +1878,8 @@ document.addEventListener('DOMContentLoaded', function () {
             let adminRemarks = '';
             if (decision === 'reject') {
                 adminRemarks = prompt('Please provide reason for rejection (optional):') || '';
+            } else {
+                adminRemarks = prompt('Please provide approval notes (optional):') || '';
             }
 
             if (!confirm(`Are you sure to ${decision} this permission application?`)) return;

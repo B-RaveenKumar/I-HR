@@ -89,7 +89,6 @@ init_db(app)
 
 # Initialize APScheduler for automatic sync
 scheduler = BackgroundScheduler()
-scheduler.start()
 
 # Shut down the scheduler when exiting the app
 atexit.register(lambda: scheduler.shutdown())
@@ -1615,6 +1614,139 @@ def _fast2sms_provider_ready(provider_config):
     fast2sms_enabled = _as_bool(provider_config.get('fast2sms_enabled'))
     api_key = str(provider_config.get('fast2sms_api_key', '')).strip()
     return fast2sms_enabled or bool(api_key)
+
+
+def _send_report_email(school_id, to_email, subject, body_text, attachment_data, filename):
+    """Send email with Excel report attachment."""
+    import smtplib
+    from email.mime.text import MIMEText
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.application import MIMEApplication
+    
+    provider_config = get_company_otp_provider_settings(school_id)
+    smtp_host = str(provider_config.get('smtp_host', '')).strip()
+    smtp_port = int(provider_config.get('smtp_port', 587) or 587)
+    smtp_from = str(provider_config.get('smtp_from_email', '')).strip()
+    smtp_username = str(provider_config.get('smtp_username', '')).strip() or smtp_from
+    smtp_password = str(provider_config.get('smtp_password', '')).strip()
+    smtp_use_tls = _as_bool(provider_config.get('smtp_use_tls', True))
+    smtp_use_ssl = _as_bool(provider_config.get('smtp_use_ssl', False))
+
+    if smtp_port == 465 and 'smtp_use_ssl' not in provider_config:
+        smtp_use_ssl = True
+        smtp_use_tls = False
+
+    if not all([smtp_host, smtp_port, smtp_from, smtp_password]):
+        return {'success': False, 'error': 'SMTP settings incomplete'}
+
+    msg = MIMEMultipart()
+    msg['From'] = smtp_from
+    msg['To'] = to_email
+    msg['Subject'] = subject
+    msg.attach(MIMEText(body_text, 'plain'))
+
+    part = MIMEApplication(attachment_data, Name=filename)
+    part['Content-Disposition'] = f'attachment; filename="{filename}"'
+    msg.attach(part)
+
+    try:
+        if smtp_use_ssl:
+            server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=30)
+        else:
+            server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
+            if smtp_use_tls:
+                server.starttls()
+        server.login(smtp_username, smtp_password)
+        server.sendmail(smtp_from, [to_email], msg.as_string())
+        server.quit()
+        return {'success': True}
+    except Exception as exc:
+        return {'success': False, 'error': str(exc)}
+
+def process_scheduled_reports():
+    """Background task to generate and send scheduled reports."""
+    from database import get_db_outside_context
+    import datetime
+    
+    db = get_db_outside_context()
+    if not db: return
+
+    now = datetime.datetime.now()
+    # Find active schedules that haven't been run today at or after the preferred hour
+    schedules = db.execute('''
+        SELECT * FROM scheduled_reports 
+        WHERE active = 1 
+        AND (last_run IS NULL OR DATE(last_run) < DATE('now'))
+        AND hour <= ?
+    ''', (now.hour,)).fetchall()
+
+    if not schedules:
+        return
+
+    excel_gen = ExcelReportGenerator()
+    
+    for s in schedules:
+        should_run = False
+        if s['frequency'] == 'daily':
+            should_run = True
+        elif s['frequency'] == 'weekly':
+            if now.weekday() == s['day_of_week']:
+                should_run = True
+        elif s['frequency'] == 'monthly':
+            if now.day == s['day_of_month']:
+                should_run = True
+        
+        if not should_run:
+            continue
+
+        try:
+            school_id = s['school_id']
+            report_type = s['report_type']
+            to_email = s['email']
+            
+            # Generate the report
+            # We use last month for monthly reports, today for others
+            year = now.year
+            month = now.month
+            
+            response = None
+            if report_type == 'monthly_salary':
+                # Previous month
+                prev_month = month - 1 if month > 1 else 12
+                prev_year = year if month > 1 else year - 1
+                response = generate_monthly_salary_report(school_id, prev_year, prev_month, None, 'excel', internal=True)
+            elif report_type == 'staff_directory':
+                response = generate_staff_directory_report(school_id, 'excel', internal=True)
+            elif report_type == 'leave_report':
+                response = excel_gen.create_leave_report(school_id, year, month)
+            elif report_type == 'od_report':
+                response = excel_gen.create_od_report(school_id, year, month)
+            elif report_type == 'permission_report':
+                response = excel_gen.create_permission_report(school_id, year, month)
+            elif report_type == 'daily_attendance':
+                date_str = now.strftime('%Y-%m-%d')
+                response = generate_daily_attendance_report(school_id, date_str, None, 'excel', internal=True)
+            elif report_type == 'monthly_attendance':
+                response = excel_gen.create_monthly_report(school_id, year, month)
+
+            if response and hasattr(response, 'data'):
+                filename = f"{report_type}_{now.strftime('%Y%m%d')}.xlsx"
+                subject = f"Scheduled Report: {report_type.replace('_', ' ').title()}"
+                body = f"Attached is your scheduled {report_type.replace('_', ' ')} for {now.strftime('%Y-%m-%d')}."
+                
+                email_result = _send_report_email(school_id, to_email, subject, body, response.data, filename)
+                if email_result['success']:
+                    db.execute('UPDATE scheduled_reports SET last_run = ? WHERE id = ?', (now, s['id']))
+                    db.commit()
+                    print(f"Scheduled report {report_type} sent to {to_email}")
+                else:
+                    print(f"Failed to send scheduled report {report_type} to {to_email}: {email_result['error']}")
+        except Exception as e:
+            print(f"Error processing schedule {s['id']}: {e}")
+
+# Register and start the scheduler for reports
+scheduler.add_job(process_scheduled_reports, 'interval', minutes=60)
+scheduler.start()
 
 
 def _send_smtp_email(provider_config, to_email, subject, body_text):
@@ -4965,7 +5097,7 @@ def generate_admin_report():
 
     try:
         school_id = session['school_id']
-        report_type = request.args.get('report_type')
+        report_type = request.args.get('report_type', '').strip().lower()
         format_type = request.args.get('format', 'excel').lower()
 
         if not report_type:
@@ -4980,7 +5112,9 @@ def generate_admin_report():
         excel_generator = ExcelReportGenerator()
 
         # Route to appropriate report generation based on report_type
-        if report_type == 'monthly_salary':
+        if report_type == 'leave_report':
+            return excel_generator.create_leave_report(school_id, year, month)
+        elif report_type == 'monthly_salary':
             return generate_monthly_salary_report(school_id, year, month, department, format_type)
         elif report_type == 'payroll_summary':
             return generate_payroll_summary_report(school_id, year, month, format_type)
@@ -4992,6 +5126,10 @@ def generate_admin_report():
             return generate_department_analysis_report(school_id, year, month, format_type)
         elif report_type == 'performance_report':
             return generate_performance_report(school_id, year, month, department, format_type)
+        elif report_type == 'od_report':
+            return excel_generator.create_od_report(school_id, year, month)
+        elif report_type == 'permission_report':
+            return excel_generator.create_permission_report(school_id, year, month)
         elif report_type == 'daily_attendance':
             date = request.args.get('date', datetime.datetime.now().strftime('%Y-%m-%d'))
             return generate_daily_attendance_report(school_id, date, department, format_type)
@@ -5024,7 +5162,7 @@ def generate_admin_report():
             else:
                 return generate_monthly_salary_report(school_id, year, month, department, format_type)
         else:
-            return jsonify({'success': False, 'error': f'Unknown report type: {report_type}'})
+            return jsonify({'success': False, 'error': f'Unknown report type: [{report_type}]'})
 
     except Exception as e:
         print(f"Report generation error: {str(e)}")
@@ -5092,8 +5230,158 @@ def get_report_templates():
                 'filters': json.loads(t['filter_settings'] or '{}'),
                 'created_at': t['created_at']
             })
-            
+        
         return jsonify({'success': True, 'templates': result})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/schedule_report', methods=['POST'])
+def schedule_report():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid or missing JSON data'})
+            
+        current_school_id = session.get('school_id')
+        if not current_school_id:
+            return jsonify({'success': False, 'error': 'Session expired or school_id missing'})
+
+        report_type = data.get('report_type')
+        frequency = data.get('frequency')
+        email = data.get('email')
+        
+        # Convert empty strings to None and cast to int
+        day_of_week = data.get('day_of_week')
+        if day_of_week == '' or day_of_week is None: 
+            day_of_week = None
+        else:
+            day_of_week = int(day_of_week)
+            
+        day_of_month = data.get('day_of_month')
+        if day_of_month == '' or day_of_month is None: 
+            day_of_month = None
+        else:
+            day_of_month = int(day_of_month)
+            
+        hour = data.get('hour')
+        if hour == '' or hour is None: 
+            hour = 9
+        else:
+            hour = int(hour)
+
+        if not all([report_type, frequency, email]):
+            return jsonify({'success': False, 'error': 'Missing required fields'})
+
+        db = get_db()
+        db.execute('''
+            INSERT INTO scheduled_reports 
+            (school_id, report_type, frequency, email, day_of_week, day_of_month, hour)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ''', (current_school_id, report_type, frequency, email, day_of_week, day_of_month, hour))
+        db.commit()
+
+        return jsonify({'success': True})
+    except Exception as e:
+        import traceback
+        print(f"DEBUG: schedule_report error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/send_report_now', methods=['POST'])
+def send_report_now():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'Invalid or missing JSON data'})
+            
+        current_school_id = session.get('school_id')
+        if not current_school_id:
+            return jsonify({'success': False, 'error': 'Session expired or school_id missing'})
+
+        report_type = data.get('report_type')
+        to_email = data.get('email')
+        
+        if not all([report_type, to_email]):
+            return jsonify({'success': False, 'error': 'Report type and recipient email are required'})
+
+        import datetime
+        now = datetime.datetime.now()
+        year = now.year
+        month = now.month
+        
+        excel_gen = ExcelReportGenerator()
+        response = None
+        
+        if report_type == 'monthly_salary':
+            # Previous month
+            prev_month = month - 1 if month > 1 else 12
+            prev_year = year if month > 1 else year - 1
+            response = generate_monthly_salary_report(current_school_id, prev_year, prev_month, None, 'excel', internal=True)
+        elif report_type == 'staff_directory':
+            response = generate_staff_directory_report(current_school_id, 'excel', internal=True)
+        elif report_type == 'leave_report':
+            response = excel_gen.create_leave_report(current_school_id, year, month)
+        elif report_type == 'od_report':
+            response = excel_gen.create_od_report(current_school_id, year, month)
+        elif report_type == 'permission_report':
+            response = excel_gen.create_permission_report(current_school_id, year, month)
+        elif report_type == 'daily_attendance':
+            date_str = now.strftime('%Y-%m-%d')
+            response = generate_daily_attendance_report(current_school_id, date_str, None, 'excel', internal=True)
+        elif report_type == 'monthly_attendance':
+            response = excel_gen.create_monthly_report(current_school_id, year, month)
+
+        if response and hasattr(response, 'data'):
+            filename = f"{report_type}_{now.strftime('%Y%m%d')}.xlsx"
+            subject = f"Instant Report: {report_type.replace('_', ' ').title()}"
+            body = f"Attached is your requested {report_type.replace('_', ' ')} for {now.strftime('%Y-%m-%d')}."
+            
+            email_result = _send_report_email(current_school_id, to_email, subject, body, response.data, filename)
+            if email_result['success']:
+                return jsonify({'success': True, 'message': f'Report sent successfully to {to_email}'})
+            else:
+                return jsonify({'success': False, 'error': f"Failed to send email: {email_result['error']}"})
+        else:
+            return jsonify({'success': False, 'error': 'Failed to generate report data'})
+
+    except Exception as e:
+        import traceback
+        print(f"DEBUG: send_report_now error: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/get_scheduled_reports')
+def get_scheduled_reports():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    try:
+        school_id = session['school_id']
+        db = get_db()
+        schedules = db.execute('SELECT * FROM scheduled_reports WHERE school_id = ? ORDER BY created_at DESC', (school_id,)).fetchall()
+        
+        return jsonify({
+            'success': True, 
+            'schedules': [dict(s) for s in schedules]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/delete_schedule/<int:schedule_id>', methods=['POST'])
+def delete_schedule(schedule_id):
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    try:
+        school_id = session['school_id']
+        db = get_db()
+        db.execute('DELETE FROM scheduled_reports WHERE id = ? AND school_id = ?', (schedule_id, school_id))
+        db.commit()
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -5302,7 +5590,7 @@ def test_performance_report_json():
     except Exception as e:
         return jsonify({'success': False, 'error': f'Test failed: {str(e)}'})
 
-def generate_monthly_salary_report(school_id, year, month, department, format_type):
+def generate_monthly_salary_report(school_id, year, month, department, format_type, internal=False):
     """Generate monthly salary report with comprehensive deduction calculation"""
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -5311,7 +5599,11 @@ def generate_monthly_salary_report(school_id, year, month, department, format_ty
     import calendar
     import datetime
 
-    db = get_db()
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
     staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
 
     # Build query based on filters
@@ -5607,14 +5899,20 @@ def generate_monthly_salary_report(school_id, year, month, department, format_ty
 
     return response
 
-def generate_staff_directory_report(school_id, format_type):
+
+def generate_staff_directory_report(school_id, format_type, internal=False):
     """Generate comprehensive staff directory report"""
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
     from openpyxl.utils import get_column_letter
     from io import BytesIO
+    import datetime
 
-    db = get_db()
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
 
     # Get comprehensive staff information
     staff_data = db.execute('''
@@ -7418,13 +7716,17 @@ def generate_performance_report(school_id, year=None, month=None, department=Non
     return resp
 
 
-def generate_daily_attendance_report(school_id, date_str=None, department=None, format_type='excel'):
+def generate_daily_attendance_report(school_id, date_str=None, department=None, format_type='excel', internal=False):
     """Generate comprehensive Daily Attendance Report (multi-format).
     Includes per-staff records for selected date, department summary, and overall stats.
     """
     import datetime, io
 
-    db = get_db()
+    if internal:
+        from database import get_db_outside_context
+        db = get_db_outside_context()
+    else:
+        db = get_db()
 
     # Resolve date
     try:
@@ -12930,6 +13232,8 @@ def process_leave():
 
     status = 'approved' if decision == 'approve' else 'rejected'
 
+    admin_remarks = request.form.get('admin_remarks', '')
+
     # Log the approval/rejection action
     print(f"🔐 LEAVE PROCESSING: Admin {admin_id} {decision}d leave ID {leave_id} "
           f"for staff {leave_app['staff_id']} ({leave_app['full_name']}) "
@@ -12938,9 +13242,9 @@ def process_leave():
     # Update leave status with admin tracking
     cursor = db.execute('''
         UPDATE leave_applications
-        SET status = ?, processed_by = ?, processed_at = ?
+        SET status = ?, processed_by = ?, processed_at = ?, admin_remarks = ?
         WHERE id = ? AND status = 'pending' AND COALESCE(withdrawn, 0) = 0
-    ''', (status, admin_id, processed_at, leave_id))
+    ''', (status, admin_id, processed_at, admin_remarks, leave_id))
     
     # Verify update was successful
     updated_rows = cursor.rowcount

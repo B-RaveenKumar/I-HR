@@ -353,6 +353,13 @@ def get_db():
             db = g._database = _connect_sqlite()
     return db
 
+def get_db_outside_context():
+    """Retrieve a database connection for background tasks."""
+    if _USE_MYSQL:
+        return _connect_mysql()
+    else:
+        return _connect_sqlite()
+
 def init_db(app):
     # Only needed for SQLite (creates the instance/ folder)
     if not _USE_MYSQL:
@@ -559,6 +566,7 @@ def init_db(app):
             applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             processed_by INTEGER,
             processed_at TIMESTAMP,
+            admin_remarks TEXT,
             FOREIGN KEY (staff_id) REFERENCES staff(id),
             FOREIGN KEY (school_id) REFERENCES schools(id),
             FOREIGN KEY (processed_by) REFERENCES admins(id)
@@ -641,6 +649,42 @@ def init_db(app):
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         ''')
+
+        # Create scheduled reports table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS scheduled_reports (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            report_type TEXT NOT NULL,
+            frequency TEXT NOT NULL,
+            email TEXT NOT NULL,
+            day_of_week INTEGER,
+            day_of_month INTEGER,
+            hour INTEGER DEFAULT 9,
+            last_run TIMESTAMP,
+            active INTEGER DEFAULT 1,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id)
+        )
+        ''')
+
+        # Check and add missing columns to application tables
+        for table in ['leave_applications', 'on_duty_applications', 'permission_applications']:
+            try:
+                # Add admin_remarks
+                try:
+                    cursor.execute(f"ALTER TABLE {table} ADD COLUMN admin_remarks TEXT")
+                except: pass
+                
+                # Add withdrawn and withdrawn_at if missing
+                try:
+                    cursor.execute(f"ALTER TABLE {table} ADD COLUMN withdrawn INTEGER DEFAULT 0")
+                except: pass
+                try:
+                    cursor.execute(f"ALTER TABLE {table} ADD COLUMN withdrawn_at TIMESTAMP")
+                except: pass
+            except Exception as migration_err:
+                print(f"Migration error for {table}: {migration_err}")
 
         # Create shift definitions table
         cursor.execute('''

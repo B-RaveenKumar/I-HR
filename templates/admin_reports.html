@@ -25,8 +25,6 @@
             margin: 0;
             height: fit-content !important;
             min-height: unset !important;
-            display: flex;
-            flex-wrap: nowrap;
         }
 
         /* Sidebar positioning */
@@ -531,6 +529,42 @@
                                     </button>
                                 </div>
                             </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-calendar-event text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Leave Report</h6>
+                                    <p>Consolidated report of staff leaves</p>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="generateReport('leave_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-briefcase text-success"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>OD Report</h6>
+                                    <p>On-duty applications and approvals</p>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="generateReport('od_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-clock-history text-primary"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Permission Report</h6>
+                                    <p>Staff permission requests and records</p>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="generateReport('permission_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div id="staff-templates-container" class="reports-row mt-3"></div>
                     </div>
@@ -610,7 +644,7 @@
                                 <div class="report-content">
                                     <h6>Scheduled Reports</h6>
                                     <p>Set up automated report generation and delivery</p>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="alert('Scheduled reports feature coming soon!')">
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="showScheduleModal()">
                                         <i class="bi bi-calendar-plus"></i> Schedule
                                     </button>
                                 </div>
@@ -861,6 +895,281 @@
                     .then(reg => console.log('Service Worker registered'))
                     .catch(err => console.log('Service Worker registration failed:', err));
             });
+        }
+    </script>
+    <!-- Schedule Report Modal -->
+    <div class="modal fade" id="scheduleReportModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header bg-secondary text-white">
+                    <h5 class="modal-title"><i class="bi bi-calendar-plus"></i> Schedule Automated Report</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" style="overflow-x: hidden;">
+                    <form id="scheduleReportForm">
+                        <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Report Type</label>
+                                <select class="form-select" name="report_type" required>
+                                    <option value="monthly_salary">Monthly Salary Report</option>
+                                    <option value="staff_directory">Staff Directory</option>
+                                    <option value="leave_report">Leave Report</option>
+                                    <option value="od_report">OD Report</option>
+                                    <option value="permission_report">Permission Report</option>
+                                    <option value="daily_attendance">Daily Attendance</option>
+                                    <option value="monthly_attendance">Monthly Attendance</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Frequency</label>
+                                <select class="form-select" name="frequency" id="scheduleFrequency" required>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Recipient Email</label>
+                                <input type="email" class="form-control" name="email" placeholder="email@example.com" required>
+                            </div>
+                            <div class="col-12 col-md-6" id="dayOfWeekGroup" style="display:none;">
+                                <label class="form-label">Day of Week</label>
+                                <select class="form-select" name="day_of_week">
+                                    <option value="0">Monday</option>
+                                    <option value="1">Tuesday</option>
+                                    <option value="2">Wednesday</option>
+                                    <option value="3">Thursday</option>
+                                    <option value="4">Friday</option>
+                                    <option value="5">Saturday</option>
+                                    <option value="6">Sunday</option>
+                                </select>
+                            </div>
+                            <div class="col-12 col-md-6" id="dayOfMonthGroup" style="display:none;">
+                                <label class="form-label">Day of Month</label>
+                                <input type="number" class="form-control" name="day_of_month" min="1" max="31" value="1">
+                            </div>
+                            <div class="col-12 col-md-6">
+                                <label class="form-label">Preferred Hour (0-23)</label>
+                                <input type="number" class="form-control" name="hour" min="0" max="23" value="9">
+                                <small class="text-muted d-block">Report will be sent at this hour.</small>
+                            </div>
+                        </div>
+                        <div class="text-end mt-4">
+                            <button type="button" class="btn btn-info me-2 text-white" onclick="sendReportNow(event)">
+                                <i class="bi bi-send"></i> Send Now
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="saveSchedule(event)">
+                                <i class="bi bi-save"></i> Save Schedule
+                            </button>
+                        </div>
+                        <hr class="my-4">
+                        <div class="mt-2">
+                            <h6 class="mb-3"><i class="bi bi-list-task"></i> Existing Schedules</h6>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-hover align-middle">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Report</th>
+                                            <th>Frequency</th>
+                                            <th>Email</th>
+                                            <th>Last Run</th>
+                                            <th class="text-center">Action</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="schedulesListBody">
+                                        <tr><td colspan="5" class="text-center py-3 text-muted">Loading schedules...</td></tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const scheduleModal = new bootstrap.Modal(document.getElementById('scheduleReportModal'));
+        
+        document.getElementById('scheduleFrequency').addEventListener('change', function() {
+            document.getElementById('dayOfWeekGroup').style.display = this.value === 'weekly' ? 'block' : 'none';
+            document.getElementById('dayOfMonthGroup').style.display = this.value === 'monthly' ? 'block' : 'none';
+        });
+
+        function showScheduleModal() {
+            scheduleModal.show();
+            loadSchedules();
+        }
+
+        async function sendReportNow(event) {
+            const btn = event?.target?.closest('button');
+            const originalContent = btn ? btn.innerHTML : 'Send Now';
+            
+            const form = document.getElementById('scheduleReportForm');
+            const emailField = form.querySelector('input[name="email"]');
+            const reportTypeField = form.querySelector('select[name="report_type"]');
+            
+            if (!emailField.value || !reportTypeField.value) {
+                alert('Please select a report type and enter a recipient email.');
+                emailField.focus();
+                return;
+            }
+
+            const data = {
+                report_type: reportTypeField.value,
+                email: emailField.value
+            };
+            
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Sending...';
+            }
+
+            try {
+                const response = await fetch('/send_report_now', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': "{{ csrf_token() }}"
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    alert('Report sent successfully!');
+                } else {
+                    alert('Error sending report: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error sending report:', error);
+                alert('Failed to connect to server. Please check your connection.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                }
+            }
+        }
+
+        async function saveSchedule(event) {
+            const btn = event?.target?.closest('button') || document.querySelector('button[onclick="saveSchedule()"]');
+            const originalContent = btn ? btn.innerHTML : 'Save Schedule';
+            
+            const form = document.getElementById('scheduleReportForm');
+            if (!form.checkValidity()) {
+                form.reportValidity();
+                return;
+            }
+
+            const formData = new FormData(form);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+            
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Saving...';
+            }
+
+            try {
+                console.log('Sending schedule data:', data);
+                const response = await fetch('/schedule_report', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': "{{ csrf_token() }}"
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                const result = await response.json();
+                console.log('Schedule response:', result);
+                
+                if (result.success) {
+                    alert('Schedule saved successfully!');
+                    form.reset();
+                    // Reset frequency display
+                    document.getElementById('dayOfWeekGroup').style.display = 'none';
+                    document.getElementById('dayOfMonthGroup').style.display = 'none';
+                    loadSchedules();
+                } else {
+                    alert('Error saving schedule: ' + (result.error || 'Unknown error'));
+                }
+            } catch (error) {
+                console.error('Error saving schedule:', error);
+                alert('Failed to connect to server. Please check your connection.');
+            } finally {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = originalContent;
+                }
+            }
+        }
+
+        async function loadSchedules() {
+            const body = document.getElementById('schedulesListBody');
+            if (!body) return;
+            
+            try {
+                const response = await fetch('/get_scheduled_reports');
+                const data = await response.json();
+                if (data.success) {
+                    body.innerHTML = '';
+                    if (data.schedules.length === 0) {
+                        body.innerHTML = '<tr><td colspan="5" class="text-center py-3 text-muted">No scheduled reports.</td></tr>';
+                        return;
+                    }
+                    data.schedules.forEach(s => {
+                        body.innerHTML += `
+                            <tr>
+                                <td><span class="badge bg-light text-dark">${s.report_type}</span></td>
+                                <td class="text-capitalize">${s.frequency}</td>
+                                <td><small>${s.email}</small></td>
+                                <td><small class="text-muted">${s.last_run || 'Never'}</small></td>
+                                <td class="text-center">
+                                    <button class="btn btn-sm btn-outline-danger border-0" onclick="deleteSchedule(${s.id})" title="Delete">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (error) {
+                console.error('Error loading schedules:', error);
+                body.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Failed to load schedules.</td></tr>';
+            }
+        }
+
+        // Initialize modal and load schedules
+        document.addEventListener('DOMContentLoaded', () => {
+            const modalEl = document.getElementById('scheduleReportModal');
+            if (modalEl) {
+                modalEl.addEventListener('shown.bs.modal', loadSchedules);
+            }
+            loadSchedules();
+        });
+
+        async function deleteSchedule(id) {
+            if (!confirm('Are you sure you want to delete this schedule?')) return;
+            try {
+                const response = await fetch(`/delete_schedule/${id}`, { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': "{{ csrf_token() }}"
+                    }
+                });
+                const result = await response.json();
+                if (result.success) {
+                    loadSchedules();
+                } else {
+                    alert('Error: ' + result.error);
+                }
+            } catch (error) {
+                console.error('Error deleting schedule:', error);
+            }
         }
     </script>
     <script src="{{ url_for('static', filename='js/mobile_sidebar_navbar.js') }}"></script>
