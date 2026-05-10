@@ -1997,73 +1997,35 @@ function getCSRFToken() {
     return csrfInput ? csrfInput.value : '';
 }
 
-function showReportHistoryModal() {
-    const historyContent = `
-        <div class="report-history-content">
-            <h5><i class="bi bi-clock-history me-2"></i>Report History</h5>
-            <p class="mb-4">Previously generated reports:</p>
-
-            <div class="history-list">
-                <div class="history-item">
-                    <div class="history-icon">
-                        <i class="bi bi-file-earmark-excel text-success"></i>
-                    </div>
-                    <div class="history-details">
-                        <h6>Monthly Salary Report - January 2024</h6>
-                        <small class="text-muted">Generated on: 2024-01-31 10:30 AM</small>
-                    </div>
-                    <div class="history-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-download"></i> Download
-                        </button>
-                    </div>
-                </div>
-
-                <div class="history-item">
-                    <div class="history-icon">
-                        <i class="bi bi-file-earmark-pdf text-danger"></i>
-                    </div>
-                    <div class="history-details">
-                        <h6>Staff Directory Report</h6>
-                        <small class="text-muted">Generated on: 2024-01-28 02:15 PM</small>
-                    </div>
-                    <div class="history-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-download"></i> Download
-                        </button>
-                    </div>
-                </div>
-
-                <div class="history-item">
-                    <div class="history-icon">
-                        <i class="bi bi-file-earmark-text text-info"></i>
-                    </div>
-                    <div class="history-details">
-                        <h6>Department Analysis Report</h6>
-                        <small class="text-muted">Generated on: 2024-01-25 09:45 AM</small>
-                    </div>
-                    <div class="history-actions">
-                        <button type="button" class="btn btn-sm btn-outline-primary">
-                            <i class="bi bi-download"></i> Download
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    `;
-
-    // Create modal
+async function showReportHistoryModal() {
+    // Create modal first
     const modal = document.createElement('div');
     modal.className = 'modal fade';
+    modal.id = 'reportHistoryModal';
     modal.innerHTML = `
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header bg-info text-white">
-                    <h5 class="modal-title">Report History</h5>
+                    <h5 class="modal-title"><i class="bi bi-clock-history me-2"></i>Report History</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    ${historyContent}
+                    <div id="historyLoading" class="text-center py-4">
+                        <div class="spinner-border text-info" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <p class="mt-2 text-muted">Loading history...</p>
+                    </div>
+                    <div id="historyListContainer" style="display: none;">
+                        <p class="mb-4 text-muted small">Showing the last 50 generated reports:</p>
+                        <div class="history-list" id="historyList">
+                            <!-- Data will be injected here -->
+                        </div>
+                    </div>
+                    <div id="historyEmpty" class="text-center py-5" style="display: none;">
+                        <i class="bi bi-journal-x text-muted" style="font-size: 3rem;"></i>
+                        <p class="mt-3 text-muted">No report history found.</p>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
@@ -2075,15 +2037,70 @@ function showReportHistoryModal() {
     document.body.appendChild(modal);
 
     // Show modal
-    if (typeof bootstrap !== 'undefined' && bootstrap.Modal) {
-        const bsModal = new bootstrap.Modal(modal);
-        bsModal.show();
+    const bsModal = new bootstrap.Modal(modal);
+    bsModal.show();
 
-        // Remove modal from DOM when hidden
-        modal.addEventListener('hidden.bs.modal', function() {
-            document.body.removeChild(modal);
-        });
+    // Fetch history
+    try {
+        const response = await fetch('/get_report_history');
+        const data = await response.json();
+        
+        const loadingEl = document.getElementById('historyLoading');
+        const listContainer = document.getElementById('historyListContainer');
+        const listEl = document.getElementById('historyList');
+        const emptyEl = document.getElementById('historyEmpty');
+
+        if (loadingEl) loadingEl.style.display = 'none';
+
+        if (data.success && data.history && data.history.length > 0) {
+            if (listContainer) listContainer.style.display = 'block';
+            if (listEl) {
+                listEl.innerHTML = '';
+                data.history.forEach(item => {
+                    const date = new Date(item.generated_at).toLocaleString('en-IN', {
+                        year: 'numeric',
+                        month: 'short',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    });
+                    
+                    const iconClass = item.format === 'excel' ? 'bi-file-earmark-excel text-success' : 'bi-file-earmark-pdf text-danger';
+                    
+                    listEl.innerHTML += `
+                        <div class="history-item d-flex align-items-center p-3 mb-2 border rounded hover-bg-light">
+                            <div class="history-icon me-3">
+                                <i class="bi ${iconClass}" style="font-size: 1.5rem;"></i>
+                            </div>
+                            <div class="history-details flex-grow-1">
+                                <h6 class="mb-1">${item.report_name}</h6>
+                                <div class="d-flex gap-2 align-items-center">
+                                    <span class="badge bg-light text-dark text-uppercase small">${item.format}</span>
+                                    <small class="text-muted"><i class="bi bi-clock me-1"></i>${date}</small>
+                                </div>
+                            </div>
+                            <div class="history-actions">
+                                <button type="button" class="btn btn-sm btn-outline-primary" onclick="generateReport('${item.report_type}')">
+                                    <i class="bi bi-arrow-repeat"></i> Regenerate
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
+        } else {
+            if (emptyEl) emptyEl.style.display = 'block';
+        }
+    } catch (error) {
+        console.error('Error fetching history:', error);
+        const loadingEl = document.getElementById('historyLoading');
+        if (loadingEl) loadingEl.innerHTML = `<p class="text-danger">Failed to load report history.</p>`;
     }
+
+    // Remove modal from DOM when hidden
+    modal.addEventListener('hidden.bs.modal', function() {
+        document.body.removeChild(modal);
+    });
 }
 
 function logout() {

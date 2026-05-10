@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session, jsonify, g, make_response, flash, send_from_directory
 import sqlite3
+import os
 from flask_wtf.csrf import CSRFProtect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -1284,6 +1285,45 @@ def school_details(school_id):
 
 
 @csrf.exempt
+@app.route('/get_report_history')
+def get_report_history():
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return jsonify({'success': False, 'error': 'Unauthorized'})
+
+    try:
+        school_id = session.get('school_id')
+        if not school_id:
+            return jsonify({'success': False, 'error': 'School ID missing from session'})
+
+        db = get_db()
+        history = db.execute('''
+            SELECT id, report_type, report_name, format, generated_at 
+            FROM report_history 
+            WHERE school_id = ? 
+            ORDER BY generated_at DESC 
+            LIMIT 50
+        ''', (school_id,)).fetchall()
+        
+        formatted_history = []
+        for h in history:
+            item = dict(h)
+            # Ensure generated_at is JSON serializable (string)
+            if item.get('generated_at') and not isinstance(item['generated_at'], str):
+                try:
+                    item['generated_at'] = item['generated_at'].strftime('%Y-%m-%d %H:%M:%S')
+                except:
+                    item['generated_at'] = str(item['generated_at'])
+            formatted_history.append(item)
+
+        return jsonify({
+            'success': True,
+            'history': formatted_history
+        })
+    except Exception as e:
+        import traceback
+        print(f"Error in get_report_history: {traceback.format_exc()}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @app.route('/api/attendance/settings/<int:school_id>', methods=['GET', 'POST'])
 def attendance_settings_api(school_id):
     if 'user_id' not in session or session.get('user_type') != 'company_admin':
@@ -1649,107 +1689,130 @@ def _send_report_email(school_id, to_email, subject, body_text, attachment_data,
     part['Content-Disposition'] = f'attachment; filename="{filename}"'
     msg.attach(part)
 
+    def email_log(msg):
+        log_file = os.path.join(os.path.dirname(__file__), 'scheduler_log.txt')
+        with open(log_file, 'a', encoding='utf-8') as f:
+            f.write(f"[{datetime.datetime.now()}] [EMAIL] {msg}\n")
+
     try:
+        email_log(f"Connecting to {smtp_host}:{smtp_port} (SSL: {smtp_use_ssl})")
         if smtp_use_ssl:
             server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=30)
         else:
             server = smtplib.SMTP(smtp_host, smtp_port, timeout=30)
             if smtp_use_tls:
+                email_log("Starting TLS")
                 server.starttls()
+        
+        email_log(f"Logging in as {smtp_username}")
         server.login(smtp_username, smtp_password)
+        
+        email_log(f"Sending mail to {to_email}")
         server.sendmail(smtp_from, [to_email], msg.as_string())
+        
+        email_log("Closing connection")
         server.quit()
         return {'success': True}
     except Exception as exc:
+        email_log(f"FAILED: {exc}")
         return {'success': False, 'error': str(exc)}
 
 def process_scheduled_reports():
     """Background task to generate and send scheduled reports."""
-    from database import get_db_outside_context
-    import datetime
-    
-    db = get_db_outside_context()
-    if not db: return
-
-    now = datetime.datetime.now()
-    # Find active schedules that haven't been run today at or after the preferred hour
-    schedules = db.execute('''
-        SELECT * FROM scheduled_reports 
-        WHERE active = 1 
-        AND (last_run IS NULL OR DATE(last_run) < DATE('now'))
-        AND hour <= ?
-    ''', (now.hour,)).fetchall()
-
-    if not schedules:
-        return
-
-    excel_gen = ExcelReportGenerator()
-    
-    for s in schedules:
-        should_run = False
-        if s['frequency'] == 'daily':
-            should_run = True
-        elif s['frequency'] == 'weekly':
-            if now.weekday() == s['day_of_week']:
-                should_run = True
-        elif s['frequency'] == 'monthly':
-            if now.day == s['day_of_month']:
-                should_run = True
+    with app.app_context():
+        from database import get_db_outside_context
+        import datetime
         
-        if not should_run:
-            continue
+        db = get_db_outside_context()
+        if not db: return
 
-        try:
-            school_id = s['school_id']
-            report_type = s['report_type']
-            to_email = s['email']
-            
-            # Generate the report
-            # We use last month for monthly reports, today for others
-            year = now.year
-            month = now.month
-            
-            response = None
-            if report_type == 'monthly_salary':
-                # Previous month
-                prev_month = month - 1 if month > 1 else 12
-                prev_year = year if month > 1 else year - 1
-                response = generate_monthly_salary_report(school_id, prev_year, prev_month, None, 'excel', internal=True)
-            elif report_type == 'staff_directory':
-                response = generate_staff_directory_report(school_id, 'excel', internal=True)
-            elif report_type == 'leave_report':
-                response = excel_gen.create_leave_report(school_id, year, month)
-            elif report_type == 'od_report':
-                response = excel_gen.create_od_report(school_id, year, month)
-            elif report_type == 'permission_report':
-                response = excel_gen.create_permission_report(school_id, year, month)
-            elif report_type == 'daily_attendance':
-                date_str = now.strftime('%Y-%m-%d')
-                response = generate_daily_attendance_report(school_id, date_str, None, 'excel', internal=True)
-            elif report_type == 'monthly_attendance':
-                response = excel_gen.create_monthly_report(school_id, year, month)
-            elif report_type == 'student_directory':
-                response = generate_student_directory_report(school_id, 'excel', internal=True)
-            elif report_type == 'student_attendance':
-                response = generate_student_attendance_report(school_id, year, month, 'excel', internal=True)
+        now = datetime.datetime.now()
+        # Find active schedules that haven't been run today at or after the preferred hour
+        schedules = db.execute('''
+            SELECT * FROM scheduled_reports 
+            WHERE active = 1 
+            AND (last_run IS NULL OR DATE(last_run) < DATE('now'))
+            AND (hour < ? OR (hour = ? AND minute <= ?))
+        ''', (now.hour, now.hour, now.minute)).fetchall()
 
-            if response and hasattr(response, 'data'):
-                filename = f"{report_type}_{now.strftime('%Y%m%d')}.xlsx"
-                subject = f"Scheduled Report: {report_type.replace('_', ' ').title()}"
-                body = f"Attached is your scheduled {report_type.replace('_', ' ')} for {now.strftime('%Y-%m-%d')}."
+        log_file = os.path.join(os.path.dirname(__file__), 'scheduler_log.txt')
+        def log(msg):
+            with open(log_file, 'a', encoding='utf-8') as f:
+                f.write(f"[{datetime.datetime.now()}] {msg}\n")
                 
-                email_result = _send_report_email(school_id, to_email, subject, body, response.data, filename)
-                if email_result['success']:
-                    db.execute('UPDATE scheduled_reports SET last_run = ? WHERE id = ?', (now, s['id']))
-                    db.commit()
-                    print(f"Scheduled report {report_type} sent to {to_email}")
-                else:
-                    print(f"Failed to send scheduled report {report_type} to {to_email}: {email_result['error']}")
-        except Exception as e:
-            print(f"Error processing schedule {s['id']}: {e}")
+        log(f"Checking scheduled reports. Found {len(schedules)} active candidates.")
+        
+        excel_gen = ExcelReportGenerator()
+        
+        for s in schedules:
+            should_run = False
+            if s['frequency'] == 'daily':
+                should_run = True
+            elif s['frequency'] == 'weekly':
+                if now.weekday() == s['day_of_week']:
+                    should_run = True
+            elif s['frequency'] == 'monthly':
+                if now.day == s['day_of_month']:
+                    should_run = True
+            
+            if not should_run:
+                log(f"  - Skipping schedule {s['id']} ({s['report_type']}): frequency {s['frequency']} mismatch for today.")
+                continue
 
-# Register and start the scheduler for reports
-scheduler.add_job(process_scheduled_reports, 'interval', minutes=60)
+            log(f"  - Processing schedule {s['id']} ({s['report_type']}) for {s['email']}...")
+            try:
+                school_id = s['school_id']
+                report_type = s['report_type']
+                to_email = s['email']
+                
+                # Generate the report
+                year = now.year
+                month = now.month
+                
+                response = None
+                if report_type == 'monthly_salary':
+                    prev_month = month - 1 if month > 1 else 12
+                    prev_year = year if month > 1 else year - 1
+                    response = generate_monthly_salary_report(school_id, prev_year, prev_month, None, 'excel', internal=True)
+                elif report_type == 'staff_directory':
+                    response = generate_staff_directory_report(school_id, 'excel', internal=True)
+                elif report_type == 'leave_report':
+                    response = excel_gen.create_leave_report(school_id, year, month)
+                elif report_type == 'od_report':
+                    response = excel_gen.create_od_report(school_id, year, month)
+                elif report_type == 'permission_report':
+                    response = excel_gen.create_permission_report(school_id, year, month)
+                elif report_type == 'daily_attendance':
+                    date_str = now.strftime('%Y-%m-%d')
+                    response = generate_daily_attendance_report(school_id, date_str, None, 'excel', internal=True)
+                elif report_type == 'monthly_attendance':
+                    response = excel_gen.create_monthly_report(school_id, year, month)
+                elif report_type == 'student_directory':
+                    response = generate_student_directory_report(school_id, 'excel', internal=True)
+                elif report_type == 'student_attendance':
+                    response = generate_student_attendance_report(school_id, year, month, 'excel', internal=True)
+
+                if response and hasattr(response, 'get_data'):
+                    file_data = response.get_data()
+                    filename = f"{report_type}_{now.strftime('%Y%m%d')}.xlsx"
+                    subject = f"Scheduled Report: {report_type.replace('_', ' ').title()}"
+                    body = f"Attached is your scheduled {report_type.replace('_', ' ')} for {now.strftime('%Y-%m-%d')}."
+                    
+                    email_result = _send_report_email(school_id, to_email, subject, body, file_data, filename)
+                    if email_result['success']:
+                        db.execute('UPDATE scheduled_reports SET last_run = ? WHERE id = ?', (now, s['id']))
+                        db.commit()
+                        log(f"    [OK] Success: {report_type} sent to {to_email}")
+                    else:
+                        log(f"    [ERROR] Email failed: {email_result.get('error')}")
+                else:
+                    log(f"    [ERROR] Report generation failed: No data returned for {report_type}")
+            except Exception as e:
+                import traceback
+                log(f"    [ERROR] Exception: {e}\n{traceback.format_exc()}")
+
+# Register and start the scheduler for reports (Check every 15 minutes)
+scheduler.add_job(process_scheduled_reports, 'interval', minutes=15, next_run_time=datetime.datetime.now())
 scheduler.start()
 
 
@@ -5112,6 +5175,46 @@ def generate_admin_report():
         month = request.args.get('month', type=int)
         department = request.args.get('department', '')
 
+        # Log report generation
+        db = get_db()
+        report_names_map = {
+            'monthly_salary': 'Monthly Salary Report',
+            'payroll_summary': 'Payroll Summary Report',
+            'department_salary': 'Department Wise Salary Report',
+            'staff_directory': 'Staff Directory Report',
+            'department_report': 'Department Analysis Report',
+            'performance_report': 'Performance Evaluation Report',
+            'leave_report': 'Staff Leave Report',
+            'od_report': 'Staff OD Report',
+            'permission_report': 'Staff Permission Report',
+            'daily_attendance': 'Daily Attendance Report',
+            'monthly_attendance': 'Monthly Attendance Report',
+            'overtime_report': 'Overtime Report',
+            'staff_issued_leave': 'Staff Issued Leave Report',
+            'staff_added': 'Staff Added Report',
+            'staff_status': 'Staff Status Report',
+            'student_directory': 'Student Directory',
+            'student_attendance': 'Student Attendance Report',
+            'student_leave_apply': 'Student Leave Apply Report',
+            'school_issued_holidays': 'School Issued Holidays Report',
+            'student_exam_assigner': 'Exam Assigner Report',
+            'student_fees_report': 'Student Fees Report',
+            'student_academic_report': 'Academic & Alumni Report',
+            'student_timetable_report': 'Student Timetable Report',
+            'custom_template': 'Custom Template Report'
+        }
+        display_name = report_names_map.get(report_type, report_type.replace('_', ' ').title())
+        if month:
+            display_name += f" ({calendar.month_name[month]} {year})"
+        elif year:
+            display_name += f" ({year})"
+            
+        db.execute('''
+            INSERT INTO report_history (school_id, report_type, report_name, format)
+            VALUES (?, ?, ?, ?)
+        ''', (school_id, report_type, display_name, format_type))
+        db.commit()
+
         # Create Excel generator for all reports
         excel_generator = ExcelReportGenerator()
 
@@ -5313,6 +5416,12 @@ def schedule_report():
             hour = 9
         else:
             hour = int(hour)
+            
+        minute = data.get('minute')
+        if minute == '' or minute is None:
+            minute = 0
+        else:
+            minute = int(minute)
 
         if not all([report_type, frequency, email]):
             return jsonify({'success': False, 'error': 'Missing required fields'})
@@ -5320,9 +5429,9 @@ def schedule_report():
         db = get_db()
         db.execute('''
             INSERT INTO scheduled_reports 
-            (school_id, report_type, frequency, email, day_of_week, day_of_month, hour)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        ''', (current_school_id, report_type, frequency, email, day_of_week, day_of_month, hour))
+            (school_id, report_type, frequency, email, day_of_week, day_of_month, hour, minute)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        ''', (current_school_id, report_type, frequency, email, day_of_week, day_of_month, hour, minute))
         db.commit()
 
         return jsonify({'success': True})

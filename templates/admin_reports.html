@@ -1107,9 +1107,26 @@
                                 <input type="number" class="form-control" name="day_of_month" min="1" max="31" value="1">
                             </div>
                             <div class="col-12 col-md-6">
-                                <label class="form-label">Preferred Hour (0-23)</label>
-                                <input type="number" class="form-control" name="hour" min="0" max="23" value="9">
-                                <small class="text-muted d-block">Report will be sent at this hour.</small>
+                                <label class="form-label"><i class="bi bi-clock me-1"></i> Preferred Time</label>
+                                <div class="input-group shadow-sm">
+                                    <span class="input-group-text bg-white"><i class="bi bi-alarm text-primary"></i></span>
+                                    <select class="form-select" id="hour12Select">
+                                        {% for h in range(1, 13) %}
+                                        <option value="{{ h }}" {% if h == 9 %}selected{% endif %}>{{ "%02d"|format(h) }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <select class="form-select" name="minute" id="minuteSelect" style="max-width: 80px;">
+                                        {% for m in range(0, 60, 5) %}
+                                        <option value="{{ m }}">{{ "%02d"|format(m) }}</option>
+                                        {% endfor %}
+                                    </select>
+                                    <select class="form-select" id="amPmSelect" style="max-width: 80px; background-color: #f8f9fa;">
+                                        <option value="AM" selected>AM</option>
+                                        <option value="PM">PM</option>
+                                    </select>
+                                    <input type="hidden" name="hour" id="finalHourInput" value="9">
+                                </div>
+                                <small class="text-muted d-block mt-1">Report will be sent at this hour.</small>
                             </div>
                         </div>
                         <div class="text-end mt-4">
@@ -1129,6 +1146,7 @@
                                         <tr>
                                             <th>Report</th>
                                             <th>Frequency</th>
+                                            <th>Time</th>
                                             <th>Email</th>
                                             <th>Last Run</th>
                                             <th class="text-center">Action</th>
@@ -1319,6 +1337,14 @@
                 return;
             }
 
+            // Calculate 24h hour from 12h + AM/PM
+            const h12 = parseInt(document.getElementById('hour12Select').value);
+            const ampm = document.getElementById('amPmSelect').value;
+            let h24 = h12;
+            if (ampm === 'PM' && h12 < 12) h24 += 12;
+            if (ampm === 'AM' && h12 === 12) h24 = 0;
+            document.getElementById('finalHourInput').value = h24;
+
             const formData = new FormData(form);
             const data = {};
             formData.forEach((value, key) => {
@@ -1379,10 +1405,18 @@
                         return;
                     }
                     data.schedules.forEach(s => {
+                        const h = parseInt(s.hour || 0);
+                        const m = parseInt(s.minute || 0);
+                        const ampm = h >= 12 ? 'PM' : 'AM';
+                        let h12 = h % 12;
+                        if (h12 === 0) h12 = 12;
+                        const timeStr = `${h12}:${m < 10 ? '0' + m : m} ${ampm}`;
+
                         body.innerHTML += `
                             <tr>
-                                <td><span class="badge bg-light text-dark">${s.report_type}</span></td>
+                                <td><span class="badge bg-light text-dark">${s.report_type.replace(/_/g, ' ').toUpperCase()}</span></td>
                                 <td class="text-capitalize">${s.frequency}</td>
+                                <td><span class="badge bg-info-subtle text-info-emphasis border border-info-subtle">${timeStr}</span></td>
                                 <td><small>${s.email}</small></td>
                                 <td><small class="text-muted">${s.last_run || 'Never'}</small></td>
                                 <td class="text-center">

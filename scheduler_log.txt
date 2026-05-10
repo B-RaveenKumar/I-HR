@@ -1,0 +1,122 @@
+[2026-05-10 12:51:23.939221] Checking scheduled reports. Found 2 active candidates.
+[2026-05-10 12:51:23.940181]   - Processing schedule 4 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 12:53:18.722207] Checking scheduled reports. Found 2 active candidates.
+[2026-05-10 12:53:18.723508]   - Processing schedule 4 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 12:55:37.316636] Checking scheduled reports. Found 2 active candidates.
+[2026-05-10 12:55:37.317686]   - Processing schedule 4 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 12:56:26.518630] Checking scheduled reports. Found 2 active candidates.
+[2026-05-10 12:56:26.519436]   - Processing schedule 4 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 12:57:39.167235] Checking scheduled reports. Found 2 active candidates.
+[2026-05-10 12:57:39.168914]   - Processing schedule 4 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 12:57:39.750101]     [ERROR] Exception: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+Traceback (most recent call last):
+  File "D:\I-HR\I-HR\app.py", line 1791, in process_scheduled_reports
+    response = generate_staff_directory_report(school_id, 'excel', internal=True)
+  File "D:\I-HR\I-HR\app.py", line 6208, in generate_staff_directory_report
+    response = make_response(output.getvalue())
+  File "C:\Python313\Lib\site-packages\flask\helpers.py", line 178, in make_response
+    return current_app.make_response(args)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\werkzeug\local.py", line 311, in __get__
+    obj = instance._get_current_object()
+  File "C:\Python313\Lib\site-packages\werkzeug\local.py", line 508, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+
+[2026-05-10 12:57:39.751406]   - Processing schedule 5 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 12:57:40.345231]     [ERROR] Exception: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+Traceback (most recent call last):
+  File "D:\I-HR\I-HR\app.py", line 1791, in process_scheduled_reports
+    response = generate_staff_directory_report(school_id, 'excel', internal=True)
+  File "D:\I-HR\I-HR\app.py", line 6208, in generate_staff_directory_report
+    response = make_response(output.getvalue())
+  File "C:\Python313\Lib\site-packages\flask\helpers.py", line 178, in make_response
+    return current_app.make_response(args)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\werkzeug\local.py", line 311, in __get__
+    obj = instance._get_current_object()
+  File "C:\Python313\Lib\site-packages\werkzeug\local.py", line 508, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+
+[2026-05-10 12:58:44.166707] Checking scheduled reports. Found 2 active candidates.
+[2026-05-10 12:58:44.168626]   - Processing schedule 4 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 12:58:44.760705]     [ERROR] Exception: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+Traceback (most recent call last):
+  File "D:\I-HR\I-HR\app.py", line 1792, in process_scheduled_reports
+    response = generate_staff_directory_report(school_id, 'excel', internal=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\I-HR\I-HR\app.py", line 6209, in generate_staff_directory_report
+    response = make_response(output.getvalue())
+  File "C:\Python313\Lib\site-packages\flask\helpers.py", line 178, in make_response
+    return current_app.make_response(args)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\werkzeug\local.py", line 311, in __get__
+    obj = instance._get_current_object()
+  File "C:\Python313\Lib\site-packages\werkzeug\local.py", line 508, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+
+[2026-05-10 12:58:44.761582]   - Processing schedule 5 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 12:58:45.353372]     [ERROR] Exception: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+Traceback (most recent call last):
+  File "D:\I-HR\I-HR\app.py", line 1792, in process_scheduled_reports
+    response = generate_staff_directory_report(school_id, 'excel', internal=True)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\I-HR\I-HR\app.py", line 6209, in generate_staff_directory_report
+    response = make_response(output.getvalue())
+  File "C:\Python313\Lib\site-packages\flask\helpers.py", line 178, in make_response
+    return current_app.make_response(args)  # type: ignore
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Python313\Lib\site-packages\werkzeug\local.py", line 311, in __get__
+    obj = instance._get_current_object()
+  File "C:\Python313\Lib\site-packages\werkzeug\local.py", line 508, in _get_current_object
+    raise RuntimeError(unbound_message) from None
+RuntimeError: Working outside of application context.
+
+This typically means that you attempted to use functionality that needed
+the current application. To solve this, set up an application context
+with app.app_context(). See the documentation for more information.
+
+[2026-05-10 13:03:57.028773] Checking scheduled reports. Found 2 active candidates.
+[2026-05-10 13:03:57.029579]   - Processing schedule 4 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 13:03:58.041414] [EMAIL] Connecting to smtp.gmail.com:465 (SSL: True)
+[2026-05-10 13:03:58.517767] [EMAIL] Logging in as gunavel2580@gmail.com
+[2026-05-10 13:03:59.201691] [EMAIL] Sending mail to velmuruganp3108@gmail.com
+[2026-05-10 13:04:01.307178] [EMAIL] Closing connection
+[2026-05-10 13:04:02.192385]     [OK] Success: staff_directory sent to velmuruganp3108@gmail.com
+[2026-05-10 13:04:02.192905]   - Processing schedule 5 (staff_directory) for velmuruganp3108@gmail.com...
+[2026-05-10 13:04:03.064410] [EMAIL] Connecting to smtp.gmail.com:465 (SSL: True)
+[2026-05-10 13:04:03.489757] [EMAIL] Logging in as gunavel2580@gmail.com
+[2026-05-10 13:04:04.185257] [EMAIL] Sending mail to velmuruganp3108@gmail.com
+[2026-05-10 13:04:06.162249] [EMAIL] Closing connection
+[2026-05-10 13:04:06.745448]     [OK] Success: staff_directory sent to velmuruganp3108@gmail.com
+[2026-05-10 13:04:48.923999] Checking scheduled reports. Found 0 active candidates.

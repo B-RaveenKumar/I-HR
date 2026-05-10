@@ -344,14 +344,23 @@ def get_db():
     Return the database connection for the current Flask request.
     Uses MySQL when DATABASE_URL env var is set, otherwise SQLite.
     The connection is cached in Flask's 'g' for the lifetime of the request.
+    Falls back to a new connection for background tasks.
     """
-    db = getattr(g, '_database', None)
-    if db is None:
-        if _USE_MYSQL:
-            db = g._database = _connect_mysql()
-        else:
-            db = g._database = _connect_sqlite()
-    return db
+    try:
+        from flask import has_app_context, g
+        if not has_app_context():
+            return get_db_outside_context()
+            
+        db = getattr(g, '_database', None)
+        if db is None:
+            if _USE_MYSQL:
+                db = g._database = _connect_mysql()
+            else:
+                db = g._database = _connect_sqlite()
+        return db
+    except (RuntimeError, ImportError, AttributeError):
+        # Fallback for background tasks where Flask context is missing
+        return get_db_outside_context()
 
 def get_db_outside_context():
     """Retrieve a database connection for background tasks."""
@@ -683,9 +692,23 @@ def init_db(app):
             day_of_week INTEGER,
             day_of_month INTEGER,
             hour INTEGER DEFAULT 9,
+            minute INTEGER DEFAULT 0,
             last_run TIMESTAMP,
             active INTEGER DEFAULT 1,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id)
+        )
+        ''')
+
+        # Create report history table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            report_type TEXT NOT NULL,
+            report_name TEXT NOT NULL,
+            format TEXT NOT NULL,
+            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (school_id) REFERENCES schools(id)
         )
         ''')
@@ -707,6 +730,27 @@ def init_db(app):
                 except: pass
             except Exception as migration_err:
                 print(f"Migration error for {table}: {migration_err}")
+
+        # Add minute column to scheduled_reports if missing
+        try:
+            cursor.execute("ALTER TABLE scheduled_reports ADD COLUMN minute INTEGER DEFAULT 0")
+            db.commit()
+        except:
+            pass
+
+        # Create report_history if missing
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS report_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            report_type TEXT NOT NULL,
+            report_name TEXT NOT NULL,
+            format TEXT NOT NULL,
+            generated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id)
+        )
+        ''')
+        db.commit()
 
         # Create shift definitions table
         cursor.execute('''
