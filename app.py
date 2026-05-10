@@ -1742,7 +1742,7 @@ def process_scheduled_reports():
                 
         log(f"Checking scheduled reports. Found {len(schedules)} active candidates.")
         
-        excel_gen = ExcelReportGenerator()
+        excel_gen = ExcelReportGenerator(generated_by="System Scheduler")
         
         for s in schedules:
             should_run = False
@@ -1773,7 +1773,7 @@ def process_scheduled_reports():
                 if report_type == 'monthly_salary':
                     prev_month = month - 1 if month > 1 else 12
                     prev_year = year if month > 1 else year - 1
-                    response = generate_monthly_salary_report(school_id, prev_year, prev_month, None, 'excel', internal=True)
+                    response = generate_monthly_salary_report(school_id, prev_year, prev_month, None, 'excel', internal=True, generated_by="System Scheduler")
                 elif report_type == 'staff_directory':
                     response = generate_staff_directory_report(school_id, 'excel', internal=True)
                 elif report_type == 'leave_report':
@@ -1791,6 +1791,22 @@ def process_scheduled_reports():
                     response = generate_student_directory_report(school_id, 'excel', internal=True)
                 elif report_type == 'student_attendance':
                     response = generate_student_attendance_report(school_id, year, month, 'excel', internal=True)
+                elif report_type == 'staff_added':
+                    response = generate_staff_added_report(school_id, year, month, None, 'excel', internal=True)
+                elif report_type == 'staff_status':
+                    response = generate_staff_status_report(school_id, None, 'excel', internal=True)
+                elif report_type == 'student_leave_apply':
+                    response = generate_student_leave_applications_report(school_id, 'excel', None, None, internal=True)
+                elif report_type == 'school_issued_holidays':
+                    response = generate_student_holiday_report(school_id, 'excel', None, None, internal=True)
+                elif report_type == 'student_exam_assigner':
+                    response = generate_student_exam_report(school_id, 'excel', None, None, internal=True)
+                elif report_type == 'student_fees_report':
+                    response = generate_student_fees_report(school_id, 'excel', None, None, internal=True)
+                elif report_type == 'student_academic_report':
+                    response = generate_student_academic_report(school_id, 'excel', None, None, internal=True)
+                elif report_type == 'student_timetable_report':
+                    response = generate_student_timetable_report(school_id, 'excel', None, None, internal=True)
 
                 if response and hasattr(response, 'get_data'):
                     file_data = response.get_data()
@@ -5216,13 +5232,14 @@ def generate_admin_report():
         db.commit()
 
         # Create Excel generator for all reports
-        excel_generator = ExcelReportGenerator()
+        generated_by = session.get('full_name', 'Administrator')
+        excel_generator = ExcelReportGenerator(generated_by=generated_by)
 
         # Route to appropriate report generation based on report_type
         if report_type == 'leave_report':
             return excel_generator.create_leave_report(school_id, year, month)
         elif report_type == 'monthly_salary':
-            return generate_monthly_salary_report(school_id, year, month, department, format_type)
+            return generate_monthly_salary_report(school_id, year, month, department, format_type, generated_by=generated_by)
         elif report_type == 'payroll_summary':
             return generate_payroll_summary_report(school_id, year, month, format_type)
         elif report_type == 'department_salary':
@@ -5465,14 +5482,14 @@ def send_report_now():
         year = now.year
         month = now.month
         
-        excel_gen = ExcelReportGenerator()
+        generated_by = session.get('full_name', 'Administrator')
+        excel_gen = ExcelReportGenerator(generated_by=generated_by)
         response = None
-        
         if report_type == 'monthly_salary':
             # Previous month
             prev_month = month - 1 if month > 1 else 12
             prev_year = year if month > 1 else year - 1
-            response = generate_monthly_salary_report(current_school_id, prev_year, prev_month, None, 'excel', internal=True)
+            response = generate_monthly_salary_report(current_school_id, prev_year, prev_month, None, 'excel', internal=True, generated_by=generated_by)
         elif report_type == 'staff_directory':
             response = generate_staff_directory_report(current_school_id, 'excel', internal=True)
         elif report_type == 'leave_report':
@@ -5486,13 +5503,34 @@ def send_report_now():
             response = generate_daily_attendance_report(current_school_id, date_str, None, 'excel', internal=True)
         elif report_type == 'monthly_attendance':
             response = excel_gen.create_monthly_report(current_school_id, year, month)
+        elif report_type == 'student_directory':
+            response = generate_student_directory_report(current_school_id, 'excel', internal=True)
+        elif report_type == 'student_attendance':
+            response = generate_student_attendance_report(current_school_id, year, month, 'excel', internal=True)
+        elif report_type == 'staff_added':
+            response = generate_staff_added_report(current_school_id, year, month, None, 'excel', internal=True)
+        elif report_type == 'staff_status':
+            response = generate_staff_status_report(current_school_id, None, 'excel', internal=True)
+        elif report_type == 'student_leave_apply':
+            response = generate_student_leave_applications_report(current_school_id, 'excel', None, None, internal=True)
+        elif report_type == 'school_issued_holidays':
+            response = generate_student_holiday_report(current_school_id, 'excel', None, None, internal=True)
+        elif report_type == 'student_exam_assigner':
+            response = generate_student_exam_report(current_school_id, 'excel', None, None, internal=True)
+        elif report_type == 'student_fees_report':
+            response = generate_student_fees_report(current_school_id, 'excel', None, None, internal=True)
+        elif report_type == 'student_academic_report':
+            response = generate_student_academic_report(current_school_id, 'excel', None, None, internal=True)
+        elif report_type == 'student_timetable_report':
+            response = generate_student_timetable_report(current_school_id, 'excel', None, None, internal=True)
 
-        if response and hasattr(response, 'data'):
+        if response and hasattr(response, 'get_data'):
+            file_data = response.get_data()
             filename = f"{report_type}_{now.strftime('%Y%m%d')}.xlsx"
             subject = f"Instant Report: {report_type.replace('_', ' ').title()}"
             body = f"Attached is your requested {report_type.replace('_', ' ')} for {now.strftime('%Y-%m-%d')}."
             
-            email_result = _send_report_email(current_school_id, to_email, subject, body, response.data, filename)
+            email_result = _send_report_email(current_school_id, to_email, subject, body, file_data, filename)
             if email_result['success']:
                 return jsonify({'success': True, 'message': f'Report sent successfully to {to_email}'})
             else:
@@ -5741,7 +5779,7 @@ def test_performance_report_json():
     except Exception as e:
         return jsonify({'success': False, 'error': f'Test failed: {str(e)}'})
 
-def generate_monthly_salary_report(school_id, year, month, department, format_type, internal=False):
+def generate_monthly_salary_report(school_id, year, month, department, format_type, internal=False, generated_by=None):
     """Generate monthly salary report with comprehensive deduction calculation"""
     import openpyxl
     from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
@@ -5901,10 +5939,13 @@ def generate_monthly_salary_report(school_id, year, month, department, format_ty
 
     # Add summary
     ws['A3'] = f"Generated on: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    if generated_by:
+        ws['A4'] = f"Generated by: {generated_by}"
+    
+    start_row = 5
     if department:
-        ws['A4'] = f"Department: {department}"
-
-    # Headers - Updated to include detailed deduction breakdown
+        ws[f'A{start_row}'] = f"Department: {department}"
+        start_row += 1
     headers = [
         'S.No', 'Staff ID', 'Name', 'Department', 'Position', 'Basic Salary', 
         'HRA', 'Transport', 'Other Allow.', 'Absent Ded.', 'Late Penalty', 'Early Dept.',

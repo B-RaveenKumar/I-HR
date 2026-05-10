@@ -1065,16 +1065,28 @@
                             <div class="col-12 col-md-6">
                                 <label class="form-label">Report Type</label>
                                 <select class="form-select" name="report_type" required>
-                                    <option value="monthly_salary">Monthly Salary Report</option>
-                                    <option value="staff_directory">Staff Directory</option>
-                                    <option value="leave_report">Leave Report</option>
-                                    <option value="od_report">OD Report</option>
-                                    <option value="permission_report">Permission Report</option>
-                                    <option value="daily_attendance">Daily Attendance</option>
-                                    <option value="monthly_attendance">Monthly Attendance</option>
+                                    <optgroup label="Staff & HR Reports">
+                                        <option value="monthly_salary">Monthly Salary Report</option>
+                                        <option value="staff_directory">Staff Directory</option>
+                                        <option value="staff_added">Staff Added/Joined Report</option>
+                                        <option value="staff_status">Staff Status Report</option>
+                                        <option value="leave_report">Leave Report</option>
+                                        <option value="od_report">OD Report</option>
+                                        <option value="permission_report">Permission Report</option>
+                                        <option value="daily_attendance">Daily Attendance</option>
+                                        <option value="monthly_attendance">Monthly Attendance</option>
+                                    </optgroup>
                                     {% if module_enabled.student_management %}
-                                    <option value="student_directory">Student Directory</option>
-                                    <option value="student_attendance">Student Attendance Report</option>
+                                    <optgroup label="Student Reports">
+                                        <option value="student_directory">Student Directory</option>
+                                        <option value="student_attendance">Student Attendance Report</option>
+                                        <option value="student_leave_apply">Student Leave Application Report</option>
+                                        <option value="school_issued_holidays">School Leave Issued Report</option>
+                                        <option value="student_exam_assigner">Exam Assigner Report</option>
+                                        <option value="student_fees_report">Student Fees Report</option>
+                                        <option value="student_academic_report">Student Academic & Alumni Report</option>
+                                        <option value="student_timetable_report">Class Timetable Report</option>
+                                    </optgroup>
                                     {% endif %}
                                 </select>
                             </div>
