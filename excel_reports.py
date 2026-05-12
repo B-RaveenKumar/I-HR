@@ -21,6 +21,7 @@ from database import get_db
 import io
 import base64
 from flask import make_response
+import calendar
 
 
 class ExcelReportGenerator:
@@ -100,7 +101,84 @@ class ExcelReportGenerator:
         self._create_monthly_trends_sheet(wb, school_id, year, month)
         
         return self._save_workbook_to_response(wb, f"Monthly_Report_{year}_{month:02d}.xlsx")
-    
+
+    def create_attendance_trends_report(self, school_id, year):
+        """Create a comprehensive attendance trends report for the year"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_yearly_summary_trends_sheet(wb, school_id, year)
+        self._create_department_trends_sheet(wb, school_id, year)
+        self._create_monthly_comparison_sheet(wb, school_id, year)
+        
+        return self._save_workbook_to_response(wb, f"Attendance_Trends_Report_{year}.xlsx")
+
+    def create_student_performance_report(self, school_id, student_class=None):
+        """Create a summary of student academic performance based on admission data"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_student_academic_summary_sheet(wb, school_id, student_class)
+        self._create_student_toppers_sheet(wb, school_id, student_class)
+        
+        filename = f"Student_Performance_Report_{student_class if student_class and student_class != 'all' else 'All_Classes'}.xlsx"
+        return self._save_workbook_to_response(wb, filename)
+
+    def create_fee_collection_report(self, school_id, student_class=None):
+        """Create a comprehensive fee collection vs outstanding report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_fee_summary_sheet(wb, school_id, student_class)
+        self._create_fee_defaulters_sheet(wb, school_id, student_class)
+        self._create_fee_type_analysis_sheet(wb, school_id)
+        
+        filename = f"Fee_Collection_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return self._save_workbook_to_response(wb, filename)
+
+    def create_staff_compliance_report(self, school_id):
+        """Create a comprehensive staff document and profile compliance report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_staff_compliance_summary_sheet(wb, school_id)
+        self._create_staff_missing_info_sheet(wb, school_id)
+        
+        filename = f"Staff_Compliance_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return self._save_workbook_to_response(wb, filename)
+
+    def create_logistics_report(self, school_id, student_class=None):
+        """Create a comprehensive logistics report (Hostel vs Day Scholar)"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_logistics_summary_sheet(wb, school_id, student_class)
+        self._create_logistics_directory_sheet(wb, school_id, student_class)
+        
+        filename = f"Student_Logistics_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return self._save_workbook_to_response(wb, filename)
+
+    def create_salary_increment_report(self, school_id):
+        """Create a comprehensive staff salary increment history report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_salary_history_sheet(wb, school_id)
+        self._create_salary_stats_sheet(wb, school_id)
+        
+        filename = f"Staff_Salary_Increment_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return self._save_workbook_to_response(wb, filename)
+
+    def create_audit_log_report(self, school_id):
+        """Create a comprehensive administrative audit log report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_audit_trail_sheet(wb, school_id)
+        
+        filename = f"Admin_Audit_Log_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
+        return self._save_workbook_to_response(wb, filename)
+
     def create_overtime_report(self, school_id, year, month):
         """Create comprehensive overtime report with individual staff overtime data"""
         start_date = datetime(year, month, 1).date()
@@ -121,6 +199,54 @@ class ExcelReportGenerator:
         
         return self._save_workbook_to_response(wb, f"Overtime_Report_{year}_{month:02d}.xlsx")
     
+    def create_leave_report(self, school_id, year, month=None):
+        """Create comprehensive leave report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_leave_summary_sheet(wb, school_id, year, month)
+        self._create_leave_details_sheet(wb, school_id, year, month)
+        
+        month_suffix = f"_{month:02d}" if month else ""
+        return self._save_workbook_to_response(wb, f"Leave_Report_{year}{month_suffix}.xlsx")
+
+    def create_late_early_report(self, school_id, year, month):
+        """Create report for Late Entry and Early Exit"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_late_entry_sheet(wb, school_id, year, month)
+        self._create_early_exit_sheet(wb, school_id, year, month)
+        
+        return self._save_workbook_to_response(wb, f"Late_Early_Report_{year}_{month:02d}.xlsx")
+
+    def create_shift_wise_attendance_report(self, school_id, year, month):
+        """Create Shift-Wise Attendance Summary"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_shift_attendance_summary_sheet(wb, school_id, year, month)
+        
+        return self._save_workbook_to_response(wb, f"Shift_Wise_Attendance_{year}_{month:02d}.xlsx")
+
+    def create_absenteeism_report(self, school_id, year, month):
+        """Create Absenteeism Frequency Report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_absenteeism_analysis_sheet(wb, school_id, year, month)
+        
+        return self._save_workbook_to_response(wb, f"Absenteeism_Analysis_{year}_{month:02d}.xlsx")
+
+    def create_biometric_log_report(self, school_id, date):
+        """Create Detailed Biometric Punch Log Report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_biometric_punch_log_sheet(wb, school_id, date)
+        
+        return self._save_workbook_to_response(wb, f"Biometric_Punch_Logs_{date}.xlsx")
+
     def create_staff_profile_report(self, school_id):
         """Create comprehensive staff profile report"""
         wb = openpyxl.Workbook()
@@ -129,6 +255,42 @@ class ExcelReportGenerator:
         self._create_staff_profile_sheet(wb, school_id)
         
         return self._save_workbook_to_response(wb, f"Staff_Profile_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
+
+    def create_bank_advice_report(self, school_id, year, month):
+        """Create Bank Advice (Salary Transfer) Report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_bank_advice_sheet(wb, school_id, year, month)
+        
+        return self._save_workbook_to_response(wb, f"Bank_Advice_{year}_{month:02d}.xlsx")
+
+    def create_statutory_compliance_report(self, school_id, year, month):
+        """Create Statutory Compliance (PF & ESI) Report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_statutory_compliance_sheet(wb, school_id, year, month)
+        
+        return self._save_workbook_to_response(wb, f"PF_ESI_Compliance_{year}_{month:02d}.xlsx")
+
+    def create_deduction_analysis_report(self, school_id, year, month):
+        """Create Deduction Analysis Report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_deduction_analysis_sheet(wb, school_id, year, month)
+        
+        return self._save_workbook_to_response(wb, f"Deduction_Analysis_{year}_{month:02d}.xlsx")
+
+    def create_salary_structure_report(self, school_id):
+        """Create Staff Salary Structure (CTC) Report"""
+        wb = openpyxl.Workbook()
+        wb.remove(wb.active)
+        
+        self._create_salary_structure_sheet(wb, school_id)
+        
+        return self._save_workbook_to_response(wb, f"Salary_Structure_Report_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
     def create_leave_report(self, school_id, year, month=None):
         """Create comprehensive leave applications report"""
@@ -463,15 +625,1147 @@ class ExcelReportGenerator:
             for col in range(1, 9):
                 ws.cell(row=row, column=col).border = self.border
     
+    def _create_yearly_summary_trends_sheet(self, wb, school_id, year):
+        """Create a summary sheet for yearly attendance trends"""
+        ws = wb.create_sheet("Yearly Summary Trends")
+        ws['A1'] = f"Staff Attendance Trend Analytics - {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:F1')
+        
+        if self.generated_by:
+            ws['A2'] = f"Generated by: {self.generated_by} on {datetime.now().strftime('%Y-%m-%d %H:%M')}"
+            ws.merge_cells('A2:F2')
+
+        db = get_db()
+        
+        # Monthly attendance statistics for the whole year
+        monthly_stats = db.execute('''
+            SELECT 
+                strftime('%m', date) as month,
+                COUNT(CASE WHEN status IN ('present', 'late', 'on_duty') THEN 1 END) as present_count,
+                COUNT(CASE WHEN status = 'absent' THEN 1 END) as absent_count,
+                COUNT(CASE WHEN status = 'leave' THEN 1 END) as leave_count,
+                COUNT(*) as total_count
+            FROM attendance
+            WHERE school_id = ? AND strftime('%Y', date) = ?
+            GROUP BY strftime('%m', date)
+            ORDER BY month
+        ''', (school_id, str(year))).fetchall()
+        
+        headers = ['Month', 'Total Staff-Days', 'Present', 'Absent', 'Leave', 'Attendance %']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=4, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = self.border
+
+        import calendar
+        row = 5
+        months_list = []
+        attendance_pcts = []
+        
+        for m_idx in range(1, 13):
+            month_str = f"{m_idx:02d}"
+            stat = next((s for s in monthly_stats if s['month'] == month_str), None)
+            
+            month_name = calendar.month_name[m_idx]
+            months_list.append(month_name)
+            
+            if stat:
+                total = stat['total_count']
+                present = stat['present_count']
+                absent = stat['absent_count']
+                leave = stat['leave_count']
+                pct = (present / total * 100) if total > 0 else 0
+            else:
+                total = 0
+                present = 0
+                absent = 0
+                leave = 0
+                pct = 0
+                
+            attendance_pcts.append(pct)
+            
+            ws.cell(row=row, column=1, value=month_name).border = self.border
+            ws.cell(row=row, column=2, value=total).border = self.border
+            ws.cell(row=row, column=3, value=present).border = self.border
+            ws.cell(row=row, column=4, value=absent).border = self.border
+            ws.cell(row=row, column=5, value=leave).border = self.border
+            ws.cell(row=row, column=6, value=f"{pct:.1f}%").border = self.border
+            row += 1
+
+        # Add a line chart for trends
+        chart = LineChart()
+        chart.title = "Attendance Trend (Percentage)"
+        chart.style = 13
+        chart.y_axis.title = 'Percentage'
+        chart.x_axis.title = 'Month'
+        
+        data = Reference(ws, min_col=6, min_row=4, max_row=16)
+        cats = Reference(ws, min_col=1, min_row=5, max_row=16)
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(cats)
+        
+        ws.add_chart(chart, "H4")
+
+    def _create_department_trends_sheet(self, wb, school_id, year):
+        """Create department-wise attendance trends sheet"""
+        ws = wb.create_sheet("Department Trends")
+        ws['A1'] = f"Department-wise Attendance Trends - {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:F1')
+        
+        db = get_db()
+        
+        # Get departments
+        depts = db.execute('SELECT DISTINCT department FROM staff WHERE school_id = ? AND department IS NOT NULL', (school_id,)).fetchall()
+        departments = [d['department'] for d in depts if d['department']]
+        
+        if not departments:
+            ws['A3'] = "No department data available"
+            return
+
+        import calendar
+        headers = ['Department'] + [calendar.month_name[i] for i in range(1, 13)]
+        
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = self.border
+
+        row = 4
+        for dept in departments:
+            ws.cell(row=row, column=1, value=dept).border = self.border
+            
+            for m_idx in range(1, 13):
+                month_str = f"{m_idx:02d}"
+                
+                stat = db.execute('''
+                    SELECT 
+                        COUNT(CASE WHEN a.status IN ('present', 'late', 'on_duty') THEN 1 END) as present_count,
+                        COUNT(*) as total_count
+                    FROM attendance a
+                    JOIN staff s ON a.staff_id = s.id
+                    WHERE s.school_id = ? AND s.department = ? AND strftime('%Y', a.date) = ? AND strftime('%m', a.date) = ?
+                ''', (school_id, dept, str(year), month_str)).fetchone()
+                
+                pct = (stat['present_count'] / stat['total_count'] * 100) if stat and stat['total_count'] > 0 else 0
+                ws.cell(row=row, column=m_idx + 1, value=f"{pct:.1f}%").border = self.border
+            
+            row += 1
+
+        # Add comparison chart
+        chart = BarChart()
+        chart.title = "Department Comparison (Current Year)"
+        chart.y_axis.title = 'Attendance %'
+        chart.x_axis.title = 'Department'
+        
+        # For simplicity, just chart the average or current month if we wanted, 
+        # but let's do a multi-series bar chart for all months
+        data = Reference(ws, min_col=2, max_col=13, min_row=3, max_row=row-1)
+        cats = Reference(ws, min_col=1, min_row=4, max_row=row-1)
+        chart.add_data(data, titles_from_data=True)
+        chart.set_categories(cats)
+        
+        ws.add_chart(chart, f"A{row + 2}")
+
+    def _create_monthly_comparison_sheet(self, wb, school_id, year):
+        """Create a month-over-month comparison sheet"""
+        ws = wb.create_sheet("MoM Comparison")
+        ws['A1'] = f"Month-over-Month Attendance Comparison - {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:F1')
+        
+        db = get_db()
+        
+        headers = ['Month', 'Avg Work Hours', 'Late Arrivals', 'Overtime Hours', 'Leaves']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.alignment = Alignment(horizontal='center')
+            cell.border = self.border
+
+        import calendar
+        row = 4
+        for m_idx in range(1, 13):
+            month_str = f"{m_idx:02d}"
+            month_name = calendar.month_name[m_idx]
+            
+            stats = db.execute('''
+                SELECT 
+                    AVG(work_hours) as avg_hours,
+                    COUNT(CASE WHEN status = 'late' THEN 1 END) as late_count,
+                    SUM(overtime_hours) as total_ot,
+                    COUNT(CASE WHEN status = 'leave' THEN 1 END) as total_leaves
+                FROM attendance
+                WHERE school_id = ? AND strftime('%Y', date) = ? AND strftime('%m', date) = ?
+            ''', (school_id, str(year), month_str)).fetchone()
+            
+            ws.cell(row=row, column=1, value=month_name).border = self.border
+            ws.cell(row=row, column=2, value=round(stats['avg_hours'] or 0, 2)).border = self.border
+            ws.cell(row=row, column=3, value=stats['late_count'] or 0).border = self.border
+            ws.cell(row=row, column=4, value=round(stats['total_ot'] or 0, 2)).border = self.border
+            ws.cell(row=row, column=5, value=stats['total_leaves'] or 0).border = self.border
+            row += 1
+
+    def _create_student_academic_summary_sheet(self, wb, school_id, student_class=None):
+        """Create a summary sheet for student academic performance"""
+        ws = wb.create_sheet("Academic Summary")
+        ws['A1'] = "Student Academic Performance Summary (Admission Basis)"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        db = get_db()
+        query = '''
+            SELECT student_id, full_name, class, section, tenth_percentage, twelfth_percentage, skills
+            FROM students 
+            WHERE school_id = ?
+        '''
+        params = [school_id]
+        if student_class and student_class != 'all':
+            query += " AND class = ?"
+            params.append(student_class)
+            
+        students = db.execute(query, params).fetchall()
+        
+        headers = ['Student ID', 'Full Name', 'Class', 'Sec', '10th %', '12th %', 'Skills/Achievements']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        row = 4
+        for s in students:
+            ws.cell(row=row, column=1, value=s['student_id']).border = self.border
+            ws.cell(row=row, column=2, value=s['full_name']).border = self.border
+            ws.cell(row=row, column=3, value=s['class']).border = self.border
+            ws.cell(row=row, column=4, value=s['section']).border = self.border
+            ws.cell(row=row, column=5, value=f"{s['tenth_percentage']}%" if s['tenth_percentage'] else "N/A").border = self.border
+            ws.cell(row=row, column=6, value=f"{s['twelfth_percentage']}%" if s['twelfth_percentage'] else "N/A").border = self.border
+            ws.cell(row=row, column=7, value=s['skills'] or "-").border = self.border
+            row += 1
+
+    def _create_student_toppers_sheet(self, wb, school_id, student_class=None):
+        """Create a sheet highlighting top performers"""
+        ws = wb.create_sheet("Top Performers")
+        ws['A1'] = "Top Performers (based on 10th & 12th Marks)"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:F1')
+        
+        db = get_db()
+        
+        # 10th Toppers
+        ws['A3'] = "Top 10 Students - 10th Standard"
+        ws['A3'].font = Font(bold=True, size=12)
+        
+        query_10th = "SELECT full_name, class, tenth_percentage FROM students WHERE school_id = ? AND tenth_percentage IS NOT NULL"
+        params_10th = [school_id]
+        if student_class and student_class != 'all':
+            query_10th += " AND class = ?"
+            params_10th.append(student_class)
+        query_10th += " ORDER BY tenth_percentage DESC LIMIT 10"
+        
+        toppers_10th = db.execute(query_10th, params_10th).fetchall()
+        
+        row = 5
+        ws.cell(row=4, column=1, value="Rank").font = Font(bold=True)
+        ws.cell(row=4, column=2, value="Name").font = Font(bold=True)
+        ws.cell(row=4, column=3, value="Percentage").font = Font(bold=True)
+        
+        for idx, s in enumerate(toppers_10th, 1):
+            ws.cell(row=row, column=1, value=idx)
+            ws.cell(row=row, column=2, value=s['full_name'])
+            ws.cell(row=row, column=3, value=f"{s['tenth_percentage']}%")
+            row += 1
+            
+        # 12th Toppers
+        row += 2
+        ws.cell(row=row, column=1, value="Top 10 Students - 12th Standard").font = Font(bold=True, size=12)
+        row += 1
+        
+        query_12th = "SELECT full_name, class, twelfth_percentage FROM students WHERE school_id = ? AND twelfth_percentage IS NOT NULL"
+        params_12th = [school_id]
+        if student_class and student_class != 'all':
+            query_12th += " AND class = ?"
+            params_12th.append(student_class)
+        query_12th += " ORDER BY twelfth_percentage DESC LIMIT 10"
+        
+        toppers_12th = db.execute(query_12th, params_12th).fetchall()
+        
+        ws.cell(row=row, column=1, value="Rank").font = Font(bold=True)
+        ws.cell(row=row, column=2, value="Name").font = Font(bold=True)
+        ws.cell(row=row, column=3, value="Percentage").font = Font(bold=True)
+        row += 1
+        
+        for idx, s in enumerate(toppers_12th, 1):
+            ws.cell(row=row, column=1, value=idx)
+            ws.cell(row=row, column=2, value=s['full_name'])
+            ws.cell(row=row, column=3, value=f"{s['twelfth_percentage']}%")
+            row += 1
+
+    def _create_fee_summary_sheet(self, wb, school_id, student_class=None):
+        """Create a summary sheet for fee collection"""
+        ws = wb.create_sheet("Fee Summary")
+        ws['A1'] = "Fee Collection vs Outstanding Summary"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        db = get_db()
+        query = '''
+            SELECT 
+                SUM(amount) as total_assigned,
+                SUM(paid_amount) as total_collected,
+                SUM(amount - paid_amount) as total_outstanding,
+                COUNT(DISTINCT student_db_id) as student_count
+            FROM student_fees
+            WHERE school_id = ?
+        '''
+        params = [school_id]
+        if student_class and student_class != 'all':
+            query = query.replace('FROM student_fees', 'FROM student_fees sf JOIN students s ON sf.student_db_id = s.id')
+            query += " AND s.class = ?"
+            params.append(student_class)
+            
+        summary = db.execute(query, params).fetchone()
+        
+        ws['A3'] = "Metric"
+        ws['B3'] = "Value"
+        ws['A3'].font = self.header_font
+        ws['B3'].font = self.header_font
+        ws['A3'].fill = self.header_fill
+        ws['B3'].fill = self.header_fill
+        
+        metrics = [
+            ["Total Students with Fees", summary['student_count'] or 0],
+            ["Total Amount Assigned", summary['total_assigned'] or 0],
+            ["Total Amount Collected", summary['total_collected'] or 0],
+            ["Total Amount Outstanding", summary['total_outstanding'] or 0],
+            ["Collection Efficiency (%)", f"{(summary['total_collected'] / summary['total_assigned'] * 100):.1f}%" if summary['total_assigned'] and summary['total_assigned'] > 0 else "0%"]
+        ]
+        
+        for row_idx, (metric, val) in enumerate(metrics, 4):
+            ws.cell(row=row_idx, column=1, value=metric).border = self.border
+            ws.cell(row=row_idx, column=2, value=val).border = self.border
+
+    def _create_fee_defaulters_sheet(self, wb, school_id, student_class=None):
+        """Create a sheet listing students with outstanding fees"""
+        ws = wb.create_sheet("Defaulters List")
+        ws['A1'] = "Fee Defaulters List (Pending Payments)"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        db = get_db()
+        query = '''
+            SELECT s.student_id, s.full_name, s.class, s.section, 
+                   SUM(sf.amount) as assigned, SUM(sf.paid_amount) as paid, 
+                   SUM(sf.amount - sf.paid_amount) as outstanding
+            FROM student_fees sf
+            JOIN students s ON sf.student_db_id = s.id
+            WHERE sf.school_id = ? AND sf.status != 'paid'
+        '''
+        params = [school_id]
+        if student_class and student_class != 'all':
+            query += " AND s.class = ?"
+            params.append(student_class)
+        query += " GROUP BY s.id HAVING outstanding > 0 ORDER BY outstanding DESC"
+        
+        defaulters = db.execute(query, params).fetchall()
+        
+        headers = ['Student ID', 'Full Name', 'Class', 'Sec', 'Assigned', 'Paid', 'Outstanding']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        row = 4
+        for d in defaulters:
+            ws.cell(row=row, column=1, value=d['student_id']).border = self.border
+            ws.cell(row=row, column=2, value=d['full_name']).border = self.border
+            ws.cell(row=row, column=3, value=d['class']).border = self.border
+            ws.cell(row=row, column=4, value=d['section']).border = self.border
+            ws.cell(row=row, column=5, value=d['assigned']).border = self.border
+            ws.cell(row=row, column=6, value=d['paid']).border = self.border
+            ws.cell(row=row, column=7, value=d['outstanding']).border = self.border
+            row += 1
+
+    def _create_fee_type_analysis_sheet(self, wb, school_id):
+        """Create a sheet analyzing collection by fee type"""
+        ws = wb.create_sheet("Fee Type Analysis")
+        ws['A1'] = "Collection Analysis by Fee Type"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:F1')
+        
+        db = get_db()
+        # Note: assuming fee_types table exists based on foreign keys in student_fees
+        query = '''
+            SELECT ft.name, SUM(sf.amount) as assigned, SUM(sf.paid_amount) as paid
+            FROM student_fees sf
+            JOIN fee_types ft ON sf.fee_type_id = ft.id
+            WHERE sf.school_id = ?
+            GROUP BY ft.id
+        '''
+        analysis = db.execute(query, (school_id,)).fetchall()
+        
+        headers = ['Fee Type', 'Total Assigned', 'Total Collected', 'Outstanding', 'Efficiency %']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        row = 4
+        for a in analysis:
+            outstanding = a['assigned'] - a['paid']
+            efficiency = (a['paid'] / a['assigned'] * 100) if a['assigned'] > 0 else 0
+            
+            ws.cell(row=row, column=1, value=a['name']).border = self.border
+            ws.cell(row=row, column=2, value=a['assigned']).border = self.border
+            ws.cell(row=row, column=3, value=a['paid']).border = self.border
+            ws.cell(row=row, column=4, value=outstanding).border = self.border
+            ws.cell(row=row, column=5, value=f"{efficiency:.1f}%").border = self.border
+            row += 1
+
+    def _create_staff_compliance_summary_sheet(self, wb, school_id):
+        """Create a summary sheet for staff profile compliance"""
+        ws = wb.create_sheet("Compliance Summary")
+        ws['A1'] = "Staff Profile & Document Compliance Summary"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        db = get_db()
+        staff_data = db.execute('''
+            SELECT 
+                full_name, department, pan_number, aadhar_number, 
+                bank_account_number, phone, email, photo_data
+            FROM staff 
+            WHERE school_id = ? AND is_active = 1
+        ''', (school_id,)).fetchall()
+        
+        total_staff = len(staff_data)
+        if total_staff == 0:
+            ws['A3'] = "No active staff found"
+            return
+
+        # Calculate counts
+        pan_count = sum(1 for s in staff_data if s['pan_number'])
+        aadhar_count = sum(1 for s in staff_data if s['aadhar_number'])
+        bank_count = sum(1 for s in staff_data if s['bank_account_number'])
+        photo_count = sum(1 for s in staff_data if s['photo_data'])
+        contact_count = sum(1 for s in staff_data if s['phone'] or s['email'])
+        
+        ws['A3'] = "Compliance Category"
+        ws['B3'] = "Completed"
+        ws['C3'] = "Pending"
+        ws['D3'] = "Compliance %"
+        
+        for col in range(1, 5):
+            ws.cell(row=3, column=col).font = self.header_font
+            ws.cell(row=3, column=col).fill = self.header_fill
+            ws.cell(row=3, column=col).border = self.border
+
+        categories = [
+            ["PAN Card Details", pan_count],
+            ["Aadhar Card Details", aadhar_count],
+            ["Bank Account Info", bank_count],
+            ["Profile Photo", photo_count],
+            ["Contact Info (Phone/Email)", contact_count]
+        ]
+        
+        row = 4
+        for cat, count in categories:
+            pending = total_staff - count
+            pct = (count / total_staff * 100)
+            
+            ws.cell(row=row, column=1, value=cat).border = self.border
+            ws.cell(row=row, column=2, value=count).border = self.border
+            ws.cell(row=row, column=3, value=pending).border = self.border
+            ws.cell(row=row, column=4, value=f"{pct:.1f}%").border = self.border
+            row += 1
+
+        # Add total
+        ws.cell(row=row, column=1, value="Total Active Staff").font = Font(bold=True)
+        ws.cell(row=row, column=2, value=total_staff).font = Font(bold=True)
+
+    def _create_staff_missing_info_sheet(self, wb, school_id):
+        """Create a detailed sheet showing exactly what's missing for each staff member"""
+        ws = wb.create_sheet("Missing Info Details")
+        ws['A1'] = "Detailed Missing Information by Staff Member"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        db = get_db()
+        staff_data = db.execute('''
+            SELECT staff_id, full_name, department, pan_number, aadhar_number, 
+                   bank_account_number, phone, email, photo_data
+            FROM staff 
+            WHERE school_id = ? AND is_active = 1
+            ORDER BY department, full_name
+        ''', (school_id,)).fetchall()
+        
+        headers = ['Staff ID', 'Name', 'Department', 'Missing Info']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        row = 4
+        for s in staff_data:
+            missing = []
+            if not s['pan_number']: missing.append("PAN")
+            if not s['aadhar_number']: missing.append("Aadhar")
+            if not s['bank_account_number']: missing.append("Bank Details")
+            if not s['photo_data']: missing.append("Photo")
+            if not s['phone'] and not s['email']: missing.append("Contact Info")
+            
+            if missing:
+                ws.cell(row=row, column=1, value=s['staff_id']).border = self.border
+                ws.cell(row=row, column=2, value=s['full_name']).border = self.border
+                ws.cell(row=row, column=3, value=s['department']).border = self.border
+                ws.cell(row=row, column=4, value=", ".join(missing)).border = self.border
+                
+                # Highlight if many items missing
+                if len(missing) >= 3:
+                    ws.cell(row=row, column=4).fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
+                
+                row += 1
+
+        if row == 4:
+            ws['A4'] = "All staff profiles are 100% complete!"
+            ws.merge_cells('A4:D4')
+            ws['A4'].alignment = Alignment(horizontal='center')
+
+    def _create_logistics_summary_sheet(self, wb, school_id, student_class=None):
+        """Create a summary sheet for student logistics (Hostel vs Day Scholar)"""
+        ws = wb.create_sheet("Logistics Summary")
+        ws['A1'] = "Student Logistics Distribution Summary"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:F1')
+        
+        db = get_db()
+        query = '''
+            SELECT class, student_type, COUNT(*) as count
+            FROM students
+            WHERE school_id = ?
+        '''
+        params = [school_id]
+        if student_class and student_class != 'all':
+            query += " AND class = ?"
+            params.append(student_class)
+        query += " GROUP BY class, student_type ORDER BY class"
+        
+        stats = db.execute(query, params).fetchall()
+        
+        headers = ['Class', 'Day Scholar', 'Hosteller', 'Total']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        # Group data by class
+        class_data = {}
+        for s in stats:
+            cls = s['class']
+            if cls not in class_data:
+                class_data[cls] = {'Day Scholar': 0, 'Hostel': 0}
+            
+            # Map database types to headers
+            stype = s['student_type']
+            if stype in ['Hostel', 'Hosteller']:
+                class_data[cls]['Hostel'] += s['count']
+            else:
+                class_data[cls]['Day Scholar'] += s['count']
+
+        row = 4
+        for cls, counts in class_data.items():
+            total = counts['Day Scholar'] + counts['Hostel']
+            ws.cell(row=row, column=1, value=cls).border = self.border
+            ws.cell(row=row, column=2, value=counts['Day Scholar']).border = self.border
+            ws.cell(row=row, column=3, value=counts['Hostel']).border = self.border
+            ws.cell(row=row, column=4, value=total).border = self.border
+            row += 1
+
+    def _create_logistics_directory_sheet(self, wb, school_id, student_class=None):
+        """Create a detailed directory sheet for logistics planning"""
+        ws = wb.create_sheet("Logistics Directory")
+        ws['A1'] = "Detailed Student Logistics Directory"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        db = get_db()
+        query = '''
+            SELECT student_id, full_name, class, section, student_type, gender, address
+            FROM students
+            WHERE school_id = ?
+        '''
+        params = [school_id]
+        if student_class and student_class != 'all':
+            query += " AND class = ?"
+            params.append(student_class)
+        query += " ORDER BY student_type, class, full_name"
+        
+        students = db.execute(query, params).fetchall()
+        
+        headers = ['ID', 'Name', 'Class', 'Sec', 'Type', 'Gender', 'Address']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        row = 4
+        for s in students:
+            ws.cell(row=row, column=1, value=s['student_id']).border = self.border
+            ws.cell(row=row, column=2, value=s['full_name']).border = self.border
+            ws.cell(row=row, column=3, value=s['class']).border = self.border
+            ws.cell(row=row, column=4, value=s['section']).border = self.border
+            ws.cell(row=row, column=5, value=s['student_type']).border = self.border
+            ws.cell(row=row, column=6, value=s['gender']).border = self.border
+            ws.cell(row=row, column=7, value=s['address'] or "-").border = self.border
+            
+            # Color code by type
+            if s['student_type'] in ['Hostel', 'Hosteller']:
+                ws.cell(row=row, column=5).fill = PatternFill(start_color="E6F3FF", end_color="E6F3FF", fill_type="solid")
+            
+            row += 1
+
+    def _create_salary_history_sheet(self, wb, school_id):
+        """Create a sheet showing chronological salary history for staff"""
+        ws = wb.create_sheet("Increment History")
+        ws['A1'] = "Staff Salary Increment History"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:H1')
+        
+        db = get_db()
+        history = db.execute('''
+            SELECT s.staff_id, s.full_name, s.department, 
+                   sh.previous_salary, sh.new_salary, sh.increment_amount, 
+                   sh.change_date, sh.reason
+            FROM staff_salary_history sh
+            JOIN staff s ON sh.staff_id = s.id
+            WHERE sh.school_id = ?
+            ORDER BY sh.change_date DESC, s.full_name
+        ''', (school_id,)).fetchall()
+        
+        headers = ['Staff ID', 'Name', 'Department', 'Prev Salary', 'New Salary', 'Increment', 'Date', 'Reason']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        row = 4
+        for h in history:
+            ws.cell(row=row, column=1, value=h['staff_id']).border = self.border
+            ws.cell(row=row, column=2, value=h['full_name']).border = self.border
+            ws.cell(row=row, column=3, value=h['department']).border = self.border
+            ws.cell(row=row, column=4, value=h['previous_salary']).border = self.border
+            ws.cell(row=row, column=5, value=h['new_salary']).border = self.border
+            ws.cell(row=row, column=6, value=h['increment_amount']).border = self.border
+            ws.cell(row=row, column=7, value=h['change_date']).border = self.border
+            ws.cell(row=row, column=8, value=h['reason']).border = self.border
+            
+            # Highlight positive increments in green
+            if h['increment_amount'] > 0:
+                ws.cell(row=row, column=6).fill = PatternFill(start_color="CCFFCC", end_color="CCFFCC", fill_type="solid")
+            
+            row += 1
+
+    def _create_salary_stats_sheet(self, wb, school_id):
+        """Create a sheet showing statistical overview of salary distribution"""
+        ws = wb.create_sheet("Salary Overview")
+        ws['A1'] = "Staff Salary Overview & Statistics"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        db = get_db()
+        stats = db.execute('''
+            SELECT 
+                COUNT(*) as total_staff,
+                SUM(basic_salary) as total_monthly_outflow,
+                AVG(basic_salary) as avg_salary,
+                MIN(basic_salary) as min_salary,
+                MAX(basic_salary) as max_salary
+            FROM staff
+            WHERE school_id = ? AND is_active = 1
+        ''', (school_id,)).fetchone()
+        
+        ws['A3'] = "Metric"
+        ws['B3'] = "Value"
+        ws['A3'].font = self.header_font
+        ws['B3'].font = self.header_font
+        ws['A3'].fill = self.header_fill
+        ws['B3'].fill = self.header_fill
+        
+        data = [
+            ["Total Active Staff", stats['total_staff']],
+            ["Total Monthly Basic Salary Outflow", stats['total_monthly_outflow']],
+            ["Average Monthly Salary", round(stats['avg_salary'] or 0, 2)],
+            ["Minimum Monthly Salary", stats['min_salary']],
+            ["Maximum Monthly Salary", stats['max_salary']]
+        ]
+        
+        for idx, (m, v) in enumerate(data, 4):
+            ws.cell(row=idx, column=1, value=m).border = self.border
+            ws.cell(row=idx, column=2, value=v).border = self.border
+
+    def _create_late_entry_sheet(self, wb, school_id, year, month):
+        """Sheet for Late Entries (Arriving after grace period)"""
+        ws = wb.create_sheet("Late Entries")
+        ws['A1'] = f"Late Entry Report - {calendar.month_name[month]} {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        headers = ['Date', 'Staff ID', 'Name', 'Department', 'Shift Start', 'Punch In', 'Minutes Late']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        db = get_db()
+        # Fetch all attendance records for the period and filter in Python for cross-platform stability
+        records = db.execute('''
+            SELECT ar.date as attendance_date, s.staff_id, s.full_name, s.department, 
+                   sd.start_time, ar.time_in as punch_in, sd.grace_period_minutes
+            FROM attendance ar
+            JOIN staff s ON ar.staff_id = s.id
+            JOIN shift_definitions sd ON ar.shift_type = sd.shift_type AND ar.school_id = sd.school_id
+            WHERE ar.school_id = ? AND strftime('%Y', ar.date) = ? 
+              AND strftime('%m', ar.date) = ?
+              AND ar.time_in IS NOT NULL
+        ''', (school_id, str(year), f"{month:02d}")).fetchall()
+
+        row = 4
+        for r in records:
+            # Parse times safely
+            try:
+                # time_in might be just HH:MM:SS or full datetime
+                punch_val = str(r['punch_in'])
+                if ' ' in punch_val:
+                    punch_in = datetime.strptime(punch_val, '%Y-%m-%d %H:%M:%S').time()
+                else:
+                    punch_in = datetime.strptime(punch_val, '%H:%M:%S').time()
+                
+                start_val = str(r['start_time'])
+                start_time = datetime.strptime(start_val, '%H:%M:%S').time()
+                
+                # Convert to minutes from midnight for comparison
+                punch_mins = punch_in.hour * 60 + punch_in.minute
+                start_mins = start_time.hour * 60 + start_time.minute
+                grace = int(r['grace_period_minutes'] or 0)
+                
+                if punch_mins > (start_mins + grace):
+                    ws.cell(row=row, column=1, value=r['attendance_date']).border = self.border
+                    ws.cell(row=row, column=2, value=r['staff_id']).border = self.border
+                    ws.cell(row=row, column=3, value=r['full_name']).border = self.border
+                    ws.cell(row=row, column=4, value=r['department']).border = self.border
+                    ws.cell(row=row, column=5, value=r['start_time']).border = self.border
+                    ws.cell(row=row, column=6, value=r['punch_in']).border = self.border
+                    ws.cell(row=row, column=7, value=punch_mins - start_mins).border = self.border
+                    row += 1
+            except Exception:
+                continue
+
+    def _create_early_exit_sheet(self, wb, school_id, year, month):
+        """Sheet for Early Exits (Leaving before shift end)"""
+        ws = wb.create_sheet("Early Exits")
+        ws['A1'] = f"Early Exit Report - {calendar.month_name[month]} {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        headers = ['Date', 'Staff ID', 'Name', 'Department', 'Shift End', 'Punch Out', 'Minutes Early']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        db = get_db()
+        records = db.execute('''
+            SELECT ar.date as attendance_date, s.staff_id, s.full_name, s.department, 
+                   sd.end_time, ar.time_out as punch_out, sd.grace_period_minutes
+            FROM attendance ar
+            JOIN staff s ON ar.staff_id = s.id
+            JOIN shift_definitions sd ON ar.shift_type = sd.shift_type AND ar.school_id = sd.school_id
+            WHERE ar.school_id = ? AND strftime('%Y', ar.date) = ? 
+              AND strftime('%m', ar.date) = ?
+              AND ar.time_out IS NOT NULL AND ar.time_out != ''
+        ''', (school_id, str(year), f"{month:02d}")).fetchall()
+
+        row = 4
+        for r in records:
+            try:
+                punch_val = str(r['punch_out'])
+                if ' ' in punch_val:
+                    punch_out = datetime.strptime(punch_val, '%Y-%m-%d %H:%M:%S').time()
+                else:
+                    punch_out = datetime.strptime(punch_val, '%H:%M:%S').time()
+                
+                end_val = str(r['end_time'])
+                end_time = datetime.strptime(end_val, '%H:%M:%S').time()
+                
+                punch_mins = punch_out.hour * 60 + punch_out.minute
+                end_mins = end_time.hour * 60 + end_time.minute
+                grace = int(r['grace_period_minutes'] or 0)
+                
+                if punch_mins < (end_mins - grace):
+                    ws.cell(row=row, column=1, value=r['attendance_date']).border = self.border
+                    ws.cell(row=row, column=2, value=r['staff_id']).border = self.border
+                    ws.cell(row=row, column=3, value=r['full_name']).border = self.border
+                    ws.cell(row=row, column=4, value=r['department']).border = self.border
+                    ws.cell(row=row, column=5, value=r['end_time']).border = self.border
+                    ws.cell(row=row, column=6, value=r['punch_out']).border = self.border
+                    ws.cell(row=row, column=7, value=end_mins - punch_mins).border = self.border
+                    row += 1
+            except Exception:
+                continue
+
+    def _create_shift_attendance_summary_sheet(self, wb, school_id, year, month):
+        """Summary of attendance percentages per shift"""
+        ws = wb.create_sheet("Shift Summary")
+        ws['A1'] = f"Shift-Wise Attendance Summary - {calendar.month_name[month]} {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:F1')
+        
+        headers = ['Shift Name', 'Total Staff Assigned', 'Total Present Days', 'Total Absent Days', 'Avg Presence %']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        db = get_db()
+        shift_data = db.execute('''
+            SELECT sd.shift_type, 
+                   COUNT(DISTINCT s.id) as assigned_staff,
+                   SUM(CASE WHEN ar.status = 'present' THEN 1 ELSE 0 END) as present_days,
+                   SUM(CASE WHEN ar.status = 'absent' THEN 1 ELSE 0 END) as absent_days
+            FROM shift_definitions sd
+            LEFT JOIN staff s ON s.shift_type = sd.shift_type AND s.school_id = sd.school_id
+            LEFT JOIN attendance ar ON ar.staff_id = s.id 
+                 AND strftime('%Y', ar.date) = ? 
+                 AND strftime('%m', ar.date) = ?
+            WHERE sd.school_id = ?
+            GROUP BY sd.shift_type
+        ''', (str(year), f"{month:02d}", school_id)).fetchall()
+
+        row = 4
+        for d in shift_data:
+            ws.cell(row=row, column=1, value=d['shift_type']).border = self.border
+            ws.cell(row=row, column=2, value=d['assigned_staff']).border = self.border
+            ws.cell(row=row, column=3, value=d['present_days']).border = self.border
+            ws.cell(row=row, column=4, value=d['absent_days']).border = self.border
+            
+            total = d['present_days'] + d['absent_days']
+            percent = (d['present_days'] / total * 100) if total > 0 else 0
+            ws.cell(row=row, column=5, value=f"{percent:.2f}%").border = self.border
+            row += 1
+
+    def _create_absenteeism_analysis_sheet(self, wb, school_id, year, month):
+        """Identify chronic absentees"""
+        ws = wb.create_sheet("Absenteeism Analysis")
+        ws['A1'] = f"Absenteeism Frequency Report - {calendar.month_name[month]} {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:F1')
+        
+        headers = ['Staff ID', 'Name', 'Department', 'Total Absent Days', 'Absence %', 'Alert Status']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        db = get_db()
+        # Days in month (approximate or precise)
+        _, days_in_month = calendar.monthrange(year, month)
+        
+        absentee_data = db.execute('''
+            SELECT s.staff_id, s.full_name, s.department, 
+                   COUNT(ar.id) as absent_days
+            FROM staff s
+            JOIN attendance ar ON ar.staff_id = s.id
+            WHERE ar.school_id = ? AND ar.status = 'absent'
+              AND strftime('%Y', ar.date) = ? 
+              AND strftime('%m', ar.date) = ?
+            GROUP BY s.id
+            HAVING absent_days > 2
+            ORDER BY absent_days DESC
+        ''', (school_id, str(year), f"{month:02d}")).fetchall()
+
+        row = 4
+        for d in absentee_data:
+            ws.cell(row=row, column=1, value=d['staff_id']).border = self.border
+            ws.cell(row=row, column=2, value=d['full_name']).border = self.border
+            ws.cell(row=row, column=3, value=d['department']).border = self.border
+            ws.cell(row=row, column=4, value=d['absent_days']).border = self.border
+            
+            absent_percent = (d['absent_days'] / days_in_month * 100)
+            ws.cell(row=row, column=5, value=f"{absent_percent:.1f}%").border = self.border
+            
+            alert = "Critical" if absent_percent > 30 else ("High" if absent_percent > 15 else "Moderate")
+            alert_cell = ws.cell(row=row, column=6, value=alert)
+            alert_cell.border = self.border
+            if alert == "Critical":
+                alert_cell.fill = PatternFill(start_color="FFCCCC", end_color="FFCCCC", fill_type="solid")
+            
+            row += 1
+
+    def _create_biometric_punch_log_sheet(self, wb, school_id, date):
+        """Raw biometric logs for auditing"""
+        ws = wb.create_sheet("Punch Logs")
+        ws['A1'] = f"Detailed Biometric Punch Logs - {date}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:F1')
+        
+        headers = ['Time', 'Staff ID', 'Name', 'Department', 'Device Name', 'Punch Type']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        db = get_db()
+        # This assumes a raw_biometric_logs or similar table exists. 
+        # If not, we fall back to attendance_records punch data.
+        logs = db.execute('''
+            SELECT ar.time_in as punch_time, s.staff_id, s.full_name, s.department, 'Device 1' as device, 'IN' as type
+            FROM attendance ar
+            JOIN staff s ON ar.staff_id = s.id
+            WHERE ar.school_id = ? AND ar.date = ? AND ar.time_in IS NOT NULL
+            UNION ALL
+            SELECT ar.time_out as punch_time, s.staff_id, s.full_name, s.department, 'Device 1' as device, 'OUT' as type
+            FROM attendance ar
+            JOIN staff s ON ar.staff_id = s.id
+            WHERE ar.school_id = ? AND ar.date = ? AND ar.time_out IS NOT NULL AND ar.time_out != ''
+            ORDER BY punch_time ASC
+        ''', (school_id, date, school_id, date)).fetchall()
+
+        row = 4
+        for l in logs:
+            ws.cell(row=row, column=1, value=l['punch_time']).border = self.border
+            ws.cell(row=row, column=2, value=l['staff_id']).border = self.border
+            ws.cell(row=row, column=3, value=l['full_name']).border = self.border
+            ws.cell(row=row, column=4, value=l['department']).border = self.border
+            ws.cell(row=row, column=5, value=l['device']).border = self.border
+            ws.cell(row=row, column=6, value=l['type']).border = self.border
+            row += 1
+
+    def _create_bank_advice_sheet(self, wb, school_id, year, month):
+        """Bank Advice sheet with net pay and bank details"""
+        ws = wb.create_sheet("Bank Advice")
+        ws['A1'] = f"Bank Advice - Salary Disbursement - {calendar.month_name[month]} {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        headers = ['Sl No', 'Staff Name', 'Staff ID', 'Bank Name', 'Account Number', 'IFSC Code', 'Net Salary']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        db = get_db()
+        # Join staff with salary_history to get net pay for the month
+        data = db.execute('''
+            SELECT s.full_name, s.staff_id, s.bank_name, s.bank_account_number, s.ifsc_code, sh.net_salary
+            FROM staff s
+            JOIN salary_history sh ON s.id = sh.staff_db_id
+            WHERE s.school_id = ? AND sh.year = ? AND sh.month = ?
+            ORDER BY s.full_name
+        ''', (school_id, year, month)).fetchall()
+
+        row = 4
+        total_net = 0
+        for idx, r in enumerate(data, 1):
+            ws.cell(row=row, column=1, value=idx).border = self.border
+            ws.cell(row=row, column=2, value=r['full_name']).border = self.border
+            ws.cell(row=row, column=3, value=r['staff_id']).border = self.border
+            ws.cell(row=row, column=4, value=r['bank_name']).border = self.border
+            ws.cell(row=row, column=5, value=r['bank_account_number']).border = self.border
+            ws.cell(row=row, column=6, value=r['ifsc_code']).border = self.border
+            ws.cell(row=row, column=7, value=r['net_salary']).border = self.border
+            total_net += float(r['net_salary'] or 0)
+            row += 1
+
+        # Summary row
+        ws.cell(row=row, column=6, value="Total Disbursement:").font = Font(bold=True)
+        ws.cell(row=row, column=7, value=total_net).font = Font(bold=True)
+
+    def _create_statutory_compliance_sheet(self, wb, school_id, year, month):
+        """PF and ESI Compliance sheet"""
+        ws = wb.create_sheet("PF & ESI Compliance")
+        ws['A1'] = f"Statutory Compliance Report - {calendar.month_name[month]} {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:I1')
+        
+        headers = ['Staff ID', 'Name', 'Gross Salary', 'PF Basis', 'PF Employee (12%)', 'PF Employer (13%)', 'ESI Employee (0.75%)', 'ESI Employer (3.25%)', 'Total Contribution']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        db = get_db()
+        data = db.execute('''
+            SELECT s.staff_id, s.full_name, sh.gross_salary, sh.pf_deduction, sh.esi_deduction
+            FROM staff s
+            JOIN salary_history sh ON s.id = sh.staff_db_id
+            WHERE s.school_id = ? AND sh.year = ? AND sh.month = ?
+            AND (sh.pf_deduction > 0 OR sh.esi_deduction > 0)
+        ''', (school_id, year, month)).fetchall()
+
+        row = 4
+        for r in data:
+            gross = float(r['gross_salary'] or 0)
+            pf_emp = float(r['pf_deduction'] or 0)
+            # Standard employer share (12% + 1% admin)
+            pf_employer = round(pf_emp * (13/12), 2) if pf_emp > 0 else 0
+            
+            esi_emp = float(r['esi_deduction'] or 0)
+            # Employer share (3.25% vs 0.75% Employee)
+            esi_employer = round(esi_emp * (3.25/0.75), 2) if esi_emp > 0 else 0
+            
+            ws.cell(row=row, column=1, value=r['staff_id']).border = self.border
+            ws.cell(row=row, column=2, value=r['full_name']).border = self.border
+            ws.cell(row=row, column=3, value=gross).border = self.border
+            ws.cell(row=row, column=4, value=pf_emp / 0.12 if pf_emp > 0 else 0).border = self.border # Approximation of basis
+            ws.cell(row=row, column=5, value=pf_emp).border = self.border
+            ws.cell(row=row, column=6, value=pf_employer).border = self.border
+            ws.cell(row=row, column=7, value=esi_emp).border = self.border
+            ws.cell(row=row, column=8, value=esi_employer).border = self.border
+            ws.cell(row=row, column=9, value=pf_emp + pf_employer + esi_emp + esi_employer).border = self.border
+            row += 1
+
+    def _create_deduction_analysis_sheet(self, wb, school_id, year, month):
+        """Breakdown of all deductions"""
+        ws = wb.create_sheet("Deduction Analysis")
+        ws['A1'] = f"Monthly Deduction Analysis - {calendar.month_name[month]} {year}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        headers = ['Staff ID', 'Name', 'Professional Tax', 'PF Deduction', 'ESI Deduction', 'Other Deductions', 'Total Deductions']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        db = get_db()
+        data = db.execute('''
+            SELECT s.staff_id, s.full_name, sh.professional_tax, sh.pf_deduction, sh.esi_deduction, sh.other_deductions, sh.total_deductions
+            FROM staff s
+            JOIN salary_history sh ON s.id = sh.staff_db_id
+            WHERE s.school_id = ? AND sh.year = ? AND sh.month = ?
+            AND sh.total_deductions > 0
+        ''', (school_id, year, month)).fetchall()
+
+        row = 4
+        for r in data:
+            ws.cell(row=row, column=1, value=r['staff_id']).border = self.border
+            ws.cell(row=row, column=2, value=r['full_name']).border = self.border
+            ws.cell(row=row, column=3, value=r['professional_tax']).border = self.border
+            ws.cell(row=row, column=4, value=r['pf_deduction']).border = self.border
+            ws.cell(row=row, column=5, value=r['esi_deduction']).border = self.border
+            ws.cell(row=row, column=6, value=r['other_deductions']).border = self.border
+            ws.cell(row=row, column=7, value=r['total_deductions']).border = self.border
+            row += 1
+
+    def _create_salary_structure_sheet(self, wb, school_id):
+        """Staff CTC Structure sheet"""
+        ws = wb.create_sheet("Salary Structure")
+        ws['A1'] = f"Staff Salary Structure (CTC) - {datetime.now().strftime('%Y-%m-%d')}"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:H1')
+        
+        headers = ['Staff ID', 'Name', 'Department', 'Basic Salary', 'HRA', 'Allowance', 'Gross Monthly', 'Annual CTC']
+        for col, h in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=h)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        db = get_db()
+        data = db.execute('''
+            SELECT staff_id, full_name, department, basic_salary, hra, transport_allowance + other_allowances + dearness_allowance as total_allowance
+            FROM staff
+            WHERE school_id = ?
+            ORDER BY department, full_name
+        ''', (school_id,)).fetchall()
+
+        row = 4
+        for r in data:
+            basic = float(r['basic_salary'] or 0)
+            hra = float(r['hra'] or 0)
+            allowance = float(r['total_allowance'] or 0)
+            gross = basic + hra + allowance
+            
+            ws.cell(row=row, column=1, value=r['staff_id']).border = self.border
+            ws.cell(row=row, column=2, value=r['full_name']).border = self.border
+            ws.cell(row=row, column=3, value=r['department']).border = self.border
+            ws.cell(row=row, column=4, value=basic).border = self.border
+            ws.cell(row=row, column=5, value=hra).border = self.border
+            ws.cell(row=row, column=6, value=allowance).border = self.border
+            ws.cell(row=row, column=7, value=gross).border = self.border
+            ws.cell(row=row, column=8, value=gross * 12).border = self.border
+            row += 1
+
+    def _create_audit_trail_sheet(self, wb, school_id):
+        """Create a sheet showing chronological audit trail of admin actions"""
+        ws = wb.create_sheet("Audit Trail")
+        ws['A1'] = "Administrative Activity Audit Trail"
+        ws['A1'].font = self.title_font
+        ws.merge_cells('A1:G1')
+        
+        db = get_db()
+        logs = db.execute('''
+            SELECT a.username, al.action_type, al.action_details, 
+                   al.ip_address, al.user_agent, al.created_at
+            FROM admin_audit_logs al
+            LEFT JOIN admins a ON al.admin_id = a.id
+            WHERE al.school_id = ?
+            ORDER BY al.created_at DESC
+        ''', (school_id,)).fetchall()
+        
+        headers = ['Admin User', 'Action Type', 'Details', 'IP Address', 'User Agent', 'Timestamp']
+        for col, header in enumerate(headers, 1):
+            cell = ws.cell(row=3, column=col, value=header)
+            cell.font = self.header_font
+            cell.fill = self.header_fill
+            cell.border = self.border
+
+        row = 4
+        for l in logs:
+            ws.cell(row=row, column=1, value=l['username'] or "System").border = self.border
+            ws.cell(row=row, column=2, value=l['action_type']).border = self.border
+            ws.cell(row=row, column=3, value=l['action_details'] or "-").border = self.border
+            ws.cell(row=row, column=4, value=l['ip_address']).border = self.border
+            ws.cell(row=row, column=5, value=l['user_agent'][:50] + "..." if l['user_agent'] else "-").border = self.border
+            ws.cell(row=row, column=6, value=l['created_at']).border = self.border
+            
+            # Color code report generation differently
+            if l['action_type'] == 'Report Generation':
+                ws.cell(row=row, column=2).fill = PatternFill(start_color="FFF2CC", end_color="FFF2CC", fill_type="solid")
+            
+            row += 1
+
     def _save_workbook_to_response(self, wb, filename):
-        """Save workbook and return Flask response"""
+        """Save workbook to a Flask response object"""
         output = io.BytesIO()
         wb.save(output)
         output.seek(0)
         
         response = make_response(output.getvalue())
         response.headers['Content-Disposition'] = f'attachment; filename={filename}'
-        response.headers['Content-type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        response.headers['Cache-Control'] = 'no-cache, no-store, must-revalidate'
         return response
 
     def _create_staff_profile_sheet(self, wb, school_id):

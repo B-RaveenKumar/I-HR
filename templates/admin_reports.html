@@ -472,12 +472,60 @@
                             </div>
                             <div class="report-card">
                                 <div class="report-icon">
-                                    <i class="bi bi-pie-chart"></i>
+                                    <i class="bi bi-pie-chart text-success"></i>
                                 </div>
                                 <div class="report-content">
                                     <h6>Department Wise Salary</h6>
                                     <p>Salary distribution across different departments</p>
                                     <button type="button" class="btn btn-primary btn-sm" onclick="generateReport('department_salary')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-bank2 text-success"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Bank Advice (Transfer)</h6>
+                                    <p>Net pay list with bank accounts for bulk disbursement</p>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="generateReport('bank_advice_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-shield-lock text-success"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>PF & ESI Compliance</h6>
+                                    <p>Breakdown of statutory deductions (Employee & Employer shares)</p>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="generateReport('statutory_compliance')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-scissors text-success"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Deduction Analysis</h6>
+                                    <p>Summary of PT, LOP, and all other deductions</p>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="generateReport('deduction_analysis')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-layout-text-sidebar text-success"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Salary Structure (CTC)</h6>
+                                    <p>Full breakdown of salary components for all staff</p>
+                                    <button type="button" class="btn btn-primary btn-sm" onclick="generateReport('salary_structure')">
                                         <i class="bi bi-download"></i> Generate
                                     </button>
                                 </div>
@@ -589,6 +637,42 @@
                                     </button>
                                 </div>
                             </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-file-earmark-check text-info"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Staff Document Compliance</h6>
+                                    <p>Track missing profile information and document status</p>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="generateReport('staff_compliance_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-graph-up-arrow text-info"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Salary Increment History</h6>
+                                    <p>Chronological history of salary changes and increments</p>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="generateReport('salary_increment_history')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-shield-check text-info"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Admin Activity Audit Logs</h6>
+                                    <p>Comprehensive trail of administrative actions and report generation</p>
+                                    <button type="button" class="btn btn-info btn-sm" onclick="generateReport('admin_audit_logs')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
                         </div>
                         <div id="staff-templates-container" class="reports-row mt-3"></div>
                     </div>
@@ -648,12 +732,72 @@
                             </div>
                             <div class="report-card">
                                 <div class="report-icon">
+                                    <i class="bi bi-graph-up-arrow text-warning"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Staff Attendance Trend Analytics</h6>
+                                    <p>Yearly attendance trends and department-wise comparisons</p>
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="generateReport('staff_attendance_trends')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
                                     <i class="bi bi-clock"></i>
                                 </div>
                                 <div class="report-content">
                                     <h6>Overtime Report</h6>
                                     <p>Overtime hours and compensation details</p>
                                     <button type="button" class="btn btn-warning btn-sm" onclick="generateReport('overtime_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-exclamation-triangle text-warning"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Late Entry & Early Exit</h6>
+                                    <p>Track punctuality with late arrivals and early departures</p>
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="generateReport('late_early_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-grid-3x3-gap text-warning"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Shift-Wise Attendance</h6>
+                                    <p>Comparative summary of attendance across different shifts</p>
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="generateReport('shift_wise_attendance')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-person-x text-warning"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Absenteeism Analysis</h6>
+                                    <p>Identify chronic absentees and frequency patterns</p>
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="generateReport('absenteeism_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-fingerprint text-warning"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Biometric Punch Logs</h6>
+                                    <p>Detailed raw punch data for audit and troubleshooting</p>
+                                    <button type="button" class="btn btn-warning btn-sm" onclick="generateReport('biometric_log_report')">
                                         <i class="bi bi-download"></i> Generate
                                     </button>
                                 </div>
@@ -746,6 +890,18 @@
                             </div>
                             <div class="report-card">
                                 <div class="report-icon">
+                                    <i class="bi bi-wallet2 text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Fee Collection vs Outstanding</h6>
+                                    <p>Financial summary of collected fees and pending dues</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('fee_collection_summary')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
                                     <i class="bi bi-mortarboard-fill text-danger"></i>
                                 </div>
                                 <div class="report-content">
@@ -764,6 +920,30 @@
                                     <h6>Class Timetable Report</h6>
                                     <p>Weekly academic schedules grouped by class and section</p>
                                     <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_timetable_report')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-bar-chart-line text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Student Performance Summary</h6>
+                                    <p>Analytical summary of academic performance and toppers</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_performance_summary')">
+                                        <i class="bi bi-download"></i> Generate
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="report-card">
+                                <div class="report-icon">
+                                    <i class="bi bi-bus-front text-danger"></i>
+                                </div>
+                                <div class="report-content">
+                                    <h6>Student Logistics Report</h6>
+                                    <p>Distribution analysis of Hostel vs Day Scholar students</p>
+                                    <button type="button" class="btn btn-danger btn-sm" onclick="showStudentReportModal('student_logistics_report')">
                                         <i class="bi bi-download"></i> Generate
                                     </button>
                                 </div>
@@ -1075,6 +1255,18 @@
                                         <option value="permission_report">Permission Report</option>
                                         <option value="daily_attendance">Daily Attendance</option>
                                         <option value="monthly_attendance">Monthly Attendance</option>
+                                        <option value="staff_attendance_trends">Staff Attendance Trend Analytics</option>
+                                        <option value="staff_compliance_report">Staff Document Compliance</option>
+                                        <option value="salary_increment_history">Salary Increment History</option>
+                                        <option value="admin_audit_logs">Admin Activity Audit Logs</option>
+                                        <option value="late_early_report">Late Entry & Early Exit Report</option>
+                                        <option value="shift_wise_attendance">Shift-Wise Attendance Summary</option>
+                                        <option value="absenteeism_report">Absenteeism Frequency Report</option>
+                                        <option value="biometric_log_report">Detailed Biometric Punch Log</option>
+                                        <option value="bank_advice_report">Bank Advice (Salary Transfer)</option>
+                                        <option value="statutory_compliance">PF & ESI Compliance Report</option>
+                                        <option value="deduction_analysis">Monthly Deduction Analysis</option>
+                                        <option value="salary_structure">Staff Salary Structure (CTC)</option>
                                     </optgroup>
                                     {% if module_enabled.student_management %}
                                     <optgroup label="Student Reports">
@@ -1086,6 +1278,9 @@
                                         <option value="student_fees_report">Student Fees Report</option>
                                         <option value="student_academic_report">Student Academic & Alumni Report</option>
                                         <option value="student_timetable_report">Class Timetable Report</option>
+                                        <option value="fee_collection_summary">Fee Collection vs Outstanding</option>
+                                        <option value="student_performance_summary">Student Performance Summary</option>
+                                        <option value="student_logistics_report">Student Logistics (Hostel/Day Scholar)</option>
                                     </optgroup>
                                     {% endif %}
                                 </select>

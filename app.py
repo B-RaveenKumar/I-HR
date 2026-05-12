@@ -152,6 +152,25 @@ def get_module_enabled(school_id):
         'student_management': bool(get_setting_value(school_settings, 'student_management_enabled')),
     }
 
+def log_admin_action(school_id, action_type, details=None):
+    """Log an administrative action into the audit trail"""
+    if 'user_id' not in session or (session.get('user_type') != 'admin' and not session.get('is_sub_admin')):
+        return
+        
+    db = get_db()
+    admin_id = session.get('user_db_id')
+    ip_address = request.remote_addr
+    user_agent = request.headers.get('User-Agent')
+    
+    try:
+        db.execute('''
+            INSERT INTO admin_audit_logs (school_id, admin_id, action_type, action_details, ip_address, user_agent)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (school_id, admin_id, action_type, details, ip_address, user_agent))
+        db.commit()
+    except Exception as e:
+        logger.error(f"Failed to log admin action: {e}")
+
 # Add custom Jinja2 filters
 @app.template_filter('dateformat')
 def dateformat_filter(date, format='%Y-%m-%d'):
@@ -1807,6 +1826,36 @@ def process_scheduled_reports():
                     response = generate_student_academic_report(school_id, 'excel', None, None, internal=True)
                 elif report_type == 'student_timetable_report':
                     response = generate_student_timetable_report(school_id, 'excel', None, None, internal=True)
+                elif report_type == 'staff_attendance_trends':
+                    response = generate_staff_attendance_trends_report(school_id, year, internal=True)
+                elif report_type == 'staff_compliance_report':
+                    response = generate_staff_compliance_report(school_id, internal=True)
+                elif report_type == 'salary_increment_history':
+                    response = generate_salary_increment_report(school_id, internal=True)
+                elif report_type == 'admin_audit_logs':
+                    response = generate_audit_log_report(school_id, internal=True)
+                elif report_type == 'fee_collection_summary':
+                    response = generate_fee_collection_report(school_id, None, internal=True)
+                elif report_type == 'student_performance_summary':
+                    response = generate_student_performance_summary_report(school_id, None, internal=True)
+                elif report_type == 'student_logistics_report':
+                    response = generate_logistics_report(school_id, None, internal=True)
+                elif report_type == 'late_early_report':
+                    response = generate_late_early_report(school_id, year, month, internal=True)
+                elif report_type == 'shift_wise_attendance':
+                    response = generate_shift_wise_attendance_report(school_id, year, month, internal=True)
+                elif report_type == 'absenteeism_report':
+                    response = generate_absenteeism_report(school_id, year, month, internal=True)
+                elif report_type == 'biometric_log_report':
+                    response = generate_biometric_log_report(school_id, now.strftime('%Y-%m-%d'), internal=True)
+                elif report_type == 'bank_advice_report':
+                    response = generate_bank_advice_report(school_id, year, month, internal=True)
+                elif report_type == 'statutory_compliance':
+                    response = generate_statutory_compliance_report(school_id, year, month, internal=True)
+                elif report_type == 'deduction_analysis':
+                    response = generate_deduction_analysis_report(school_id, year, month, internal=True)
+                elif report_type == 'salary_structure':
+                    response = generate_salary_structure_report(school_id, internal=True)
 
                 if response and hasattr(response, 'get_data'):
                     file_data = response.get_data()
@@ -5183,6 +5232,7 @@ def generate_admin_report():
         report_type = request.args.get('report_type', '').strip().lower()
         format_type = request.args.get('format', 'excel').lower()
 
+
         if not report_type:
             return jsonify({'success': False, 'error': 'Report type is required'})
 
@@ -5217,6 +5267,21 @@ def generate_admin_report():
             'student_fees_report': 'Student Fees Report',
             'student_academic_report': 'Academic & Alumni Report',
             'student_timetable_report': 'Student Timetable Report',
+            'staff_attendance_trends': 'Staff Attendance Trend Analytics',
+            'student_performance_summary': 'Student Performance Summary',
+            'fee_collection_summary': 'Fee Collection vs Outstanding',
+            'staff_compliance_report': 'Staff Document Compliance',
+            'student_logistics_report': 'Student Logistics (Hostel/Day Scholar)',
+            'salary_increment_history': 'Salary Increment History',
+            'admin_audit_logs': 'Admin Activity/Audit Logs',
+            'late_early_report': 'Late Entry & Early Exit Report',
+            'shift_wise_attendance': 'Shift-Wise Attendance Summary',
+            'absenteeism_report': 'Absenteeism Frequency Report',
+            'biometric_log_report': 'Detailed Biometric Punch Log',
+            'bank_advice_report': 'Bank Advice (Salary Transfer)',
+            'statutory_compliance': 'PF & ESI Compliance Report',
+            'deduction_analysis': 'Monthly Deduction Analysis',
+            'salary_structure': 'Staff Salary Structure (CTC)',
             'custom_template': 'Custom Template Report'
         }
         display_name = report_names_map.get(report_type, report_type.replace('_', ' ').title())
@@ -5230,12 +5295,29 @@ def generate_admin_report():
             VALUES (?, ?, ?, ?)
         ''', (school_id, report_type, display_name, format_type))
         db.commit()
+        
+        # Log admin action
+        log_admin_action(school_id, 'Report Generation', f"Generated {display_name}")
 
-        # Create Excel generator for all reports
+        # Immediate check for new reports
+        if report_type in ['bank_advice_report', 'statutory_compliance', 'deduction_analysis', 'salary_structure']:
+            excel_generator = ExcelReportGenerator(generated_by=session.get('full_name', 'Administrator'))
+            
+            if report_type == 'bank_advice_report':
+                return excel_generator.create_bank_advice_report(school_id, year, month)
+            elif report_type == 'statutory_compliance':
+                return excel_generator.create_statutory_compliance_report(school_id, year, month)
+            elif report_type == 'deduction_analysis':
+                return excel_generator.create_deduction_analysis_report(school_id, year, month)
+            elif report_type == 'salary_structure':
+                return excel_generator.create_salary_structure_report(school_id)
+
+        # Create Excel generator for all other reports
         generated_by = session.get('full_name', 'Administrator')
         excel_generator = ExcelReportGenerator(generated_by=generated_by)
 
         # Route to appropriate report generation based on report_type
+        print(f"DEBUG: Generating report for type: '{report_type}'")
         if report_type == 'leave_report':
             return excel_generator.create_leave_report(school_id, year, month)
         elif report_type == 'monthly_salary':
@@ -5303,6 +5385,32 @@ def generate_admin_report():
             student_class = request.args.get('class')
             student_section = request.args.get('section')
             return generate_student_timetable_report(school_id, format_type, student_class, student_section)
+        elif report_type == 'staff_attendance_trends':
+            return generate_staff_attendance_trends_report(school_id, year)
+        elif report_type == 'student_performance_summary':
+            student_class = request.args.get('class')
+            return generate_student_performance_summary_report(school_id, student_class)
+        elif report_type == 'fee_collection_summary':
+            student_class = request.args.get('class')
+            return generate_fee_collection_report(school_id, student_class)
+        elif report_type == 'staff_compliance_report':
+            return generate_staff_compliance_report(school_id)
+        elif report_type == 'student_logistics_report':
+            student_class = request.args.get('class')
+            return generate_logistics_report(school_id, student_class)
+        elif report_type == 'salary_increment_history':
+            return generate_salary_increment_report(school_id)
+        elif report_type == 'admin_audit_logs':
+            return generate_audit_log_report(school_id)
+        elif report_type == 'late_early_report':
+            return generate_late_early_report(school_id, year, month)
+        elif report_type == 'shift_wise_attendance':
+            return generate_shift_wise_attendance_report(school_id, year, month)
+        elif report_type == 'absenteeism_report':
+            return generate_absenteeism_report(school_id, year, month)
+        elif report_type == 'biometric_log_report':
+            date = request.args.get('date', datetime.datetime.now().strftime('%Y-%m-%d'))
+            return generate_biometric_log_report(school_id, date)
         elif report_type == 'custom_template':
             template_id = request.args.get('template_id')
             db = get_db()
@@ -7329,6 +7437,114 @@ def generate_student_timetable_report(school_id, format_type='excel', student_cl
     response.headers['Content-Disposition'] = f'attachment; filename={filename}'
     response.headers['Content-Type'] = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     return response
+
+
+def generate_staff_attendance_trends_report(school_id, year=None, internal=False):
+    """Generate comprehensive staff attendance trends report"""
+    if not year:
+        year = datetime.datetime.now().year
+        
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_attendance_trends_report(school_id, year)
+
+
+def generate_student_performance_summary_report(school_id, student_class=None, internal=False):
+    """Generate comprehensive student academic performance summary report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_student_performance_report(school_id, student_class)
+
+
+def generate_fee_collection_report(school_id, student_class=None, internal=False):
+    """Generate comprehensive fee collection vs outstanding report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_fee_collection_report(school_id, student_class)
+
+
+def generate_staff_compliance_report(school_id, internal=False):
+    """Generate comprehensive staff document compliance report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_staff_compliance_report(school_id)
+
+
+def generate_logistics_report(school_id, student_class=None, internal=False):
+    """Generate comprehensive student logistics report (Hostel vs Day Scholar)"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_logistics_report(school_id, student_class)
+
+
+def generate_salary_increment_report(school_id, internal=False):
+    """Generate comprehensive staff salary increment history report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_salary_increment_report(school_id)
+
+
+def generate_audit_log_report(school_id, internal=False):
+    """Generate comprehensive admin activity audit log report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_audit_log_report(school_id)
+
+
+def generate_late_early_report(school_id, year, month, internal=False):
+    """Generate Late Entry and Early Exit report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_late_early_report(school_id, year, month)
+
+
+def generate_shift_wise_attendance_report(school_id, year, month, internal=False):
+    """Generate Shift-Wise Attendance Summary report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_shift_wise_attendance_report(school_id, year, month)
+
+
+def generate_absenteeism_report(school_id, year, month, internal=False):
+    """Generate Absenteeism Frequency report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_absenteeism_report(school_id, year, month)
+
+
+def generate_biometric_log_report(school_id, date, internal=False):
+    """Generate Detailed Biometric Punch Log report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_biometric_log_report(school_id, date)
+
+
+def generate_bank_advice_report(school_id, year, month, internal=False):
+    """Generate Bank Advice (Salary Transfer) report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_bank_advice_report(school_id, year, month)
+
+
+def generate_statutory_compliance_report(school_id, year, month, internal=False):
+    """Generate Statutory Compliance (PF & ESI) report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_statutory_compliance_report(school_id, year, month)
+
+
+def generate_deduction_analysis_report(school_id, year, month, internal=False):
+    """Generate Deduction Analysis report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_deduction_analysis_report(school_id, year, month)
+
+
+def generate_salary_structure_report(school_id, internal=False):
+    """Generate Staff Salary Structure (CTC) report"""
+    generated_by = "System Scheduler" if internal else session.get('full_name', 'Administrator')
+    excel_generator = ExcelReportGenerator(generated_by=generated_by)
+    return excel_generator.create_salary_structure_report(school_id)
 
 
 @app.route('/api/student/submit_leave', methods=['POST'])
@@ -15416,7 +15632,19 @@ def add_staff_enhanced():
         placeholders = ', '.join(['?' for _ in insert_values])
         query = f"INSERT INTO staff ({', '.join(insert_columns)}) VALUES ({placeholders})"
 
-        db.execute(query, insert_values)
+        cursor = db.execute(query, insert_values)
+        new_staff_id = cursor.lastrowid
+        
+        # Log admin action
+        log_admin_action(school_id, 'Staff Creation', f"Created staff: {full_name} ({staff_id})")
+        
+        # Record initial salary in history
+        if basic_salary > 0:
+            db.execute('''
+                INSERT INTO staff_salary_history (school_id, staff_id, previous_salary, new_salary, increment_amount, reason, updated_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            ''', (school_id, new_staff_id, 0, basic_salary, basic_salary, 'Initial Salary', session.get('user_db_id')))
+        
         db.commit()
 
         return jsonify({'success': True, 'biometric_created': biometric_created, 'biometric_error': biometric_error})
@@ -15777,7 +16005,7 @@ def update_staff_enhanced():
         column_names = [col['name'] for col in columns]
 
         # Special handling for shift_type to apply from next day
-        current_staff = db.execute("SELECT shift_type, next_shift_type FROM staff WHERE id = ?", (staff_db_id,)).fetchone()
+        current_staff = db.execute("SELECT basic_salary, shift_type, next_shift_type FROM staff WHERE id = ?", (staff_db_id,)).fetchone()
         
         update_parts = ['staff_id = ?', 'full_name = ?']
         update_values = [staff_id, full_name]
@@ -15906,6 +16134,15 @@ def update_staff_enhanced():
             # Change is scheduled for tomorrow
             _tomorrow = (datetime.datetime.now() + datetime.timedelta(days=1)).strftime('%Y-%m-%d')
             record_shift_history(db, staff_db_id, school_id, shift_type, _tomorrow)
+
+        # Record salary history if basic_salary changed
+        if current_staff and basic_salary is not None:
+            old_salary = float(current_staff['basic_salary'] or 0)
+            if abs(old_salary - basic_salary) > 0.01:
+                db.execute('''
+                    INSERT INTO staff_salary_history (school_id, staff_id, previous_salary, new_salary, increment_amount, reason, updated_by)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                ''', (school_id, staff_db_id, old_salary, basic_salary, basic_salary - old_salary, 'Profile Update', session.get('user_db_id')))
 
         db.commit()
         return jsonify({'success': True})
@@ -20004,6 +20241,27 @@ def bulk_salary_calculation():
                 adjusted_total_earnings = float(breakdown.get('adjusted_total_earnings', earnings.get('total_earnings', 0)) or 0)
                 adjusted_total_deductions = float(breakdown.get('adjusted_total_deductions', deductions.get('total_deductions', 0)) or 0)
                 adjusted_net_salary = float(adjusted_total_earnings - adjusted_total_deductions)
+
+                # Persist to salary_history for reporting
+                db.execute('''
+                    INSERT OR REPLACE INTO salary_history (
+                        school_id, staff_db_id, staff_id, year, month,
+                        gross_salary, basic_salary, hra, allowances,
+                        pf_deduction, esi_deduction, professional_tax,
+                        other_deductions, total_deductions, net_salary
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''', (
+                    school_id, staff['id'], staff['staff_id'], year, month,
+                    earnings.get('gross_salary', 0), earnings.get('basic_salary', 0),
+                    earnings.get('hra', 0), 
+                    (earnings.get('transport_allowance', 0) + earnings.get('other_allowances', 0)),
+                    deductions.get('pf_deduction', deductions.get('employee_pf', 0)),
+                    deductions.get('esi_deduction', 0),
+                    deductions.get('professional_tax', 0),
+                    (deductions.get('other_deductions', 0) + manual_deduction),
+                    adjusted_total_deductions,
+                    adjusted_net_salary
+                ))
 
                 results.append({
                     'id': staff['id'],  # Add database ID

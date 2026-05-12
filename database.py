@@ -205,6 +205,7 @@ class _MySQLCursorWrapper:
             '%W':       lambda c: f'WEEK({c})',
             '%w':       lambda c: f'(DAYOFWEEK({c})-1)',
             '%j':       lambda c: f'DAYOFYEAR({c})',
+            '%s':       lambda c: f'UNIX_TIMESTAMP({c})',
         }
         def _strftime_to_mysql(m):
             fmt = m.group(1)
@@ -1268,6 +1269,66 @@ def init_db(app):
         )
         ''')
 
+        # Staff salary increment/history table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS staff_salary_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            staff_id INTEGER NOT NULL,
+            previous_salary DECIMAL(10,2),
+            new_salary DECIMAL(10,2) NOT NULL,
+            increment_amount DECIMAL(10,2),
+            change_date DATE DEFAULT (CURRENT_DATE),
+            reason TEXT,
+            updated_by INTEGER,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            FOREIGN KEY (staff_id) REFERENCES staff(id),
+            FOREIGN KEY (updated_by) REFERENCES admins(id)
+        )
+        ''')
+
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS salary_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            staff_db_id INTEGER NOT NULL,
+            staff_id TEXT,
+            year INTEGER NOT NULL,
+            month INTEGER NOT NULL,
+            gross_salary DECIMAL(10,2) DEFAULT 0.00,
+            basic_salary DECIMAL(10,2) DEFAULT 0.00,
+            hra DECIMAL(10,2) DEFAULT 0.00,
+            allowances DECIMAL(10,2) DEFAULT 0.00,
+            pf_deduction DECIMAL(10,2) DEFAULT 0.00,
+            esi_deduction DECIMAL(10,2) DEFAULT 0.00,
+            professional_tax DECIMAL(10,2) DEFAULT 0.00,
+            other_deductions DECIMAL(10,2) DEFAULT 0.00,
+            total_deductions DECIMAL(10,2) DEFAULT 0.00,
+            net_salary DECIMAL(10,2) DEFAULT 0.00,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(school_id, staff_db_id, year, month),
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            FOREIGN KEY (staff_db_id) REFERENCES staff(id)
+        )
+        ''')
+
+        # Admin activity audit log table
+        cursor.execute('''
+        CREATE TABLE IF NOT EXISTS admin_audit_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            school_id INTEGER NOT NULL,
+            admin_id INTEGER,
+            action_type TEXT NOT NULL,
+            action_details TEXT,
+            ip_address TEXT,
+            user_agent TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (school_id) REFERENCES schools(id),
+            FOREIGN KEY (admin_id) REFERENCES admins(id)
+        )
+        ''')
+
         if _USE_MYSQL:
             cursor.execute(
                 "SELECT COUNT(*) FROM INFORMATION_SCHEMA.STATISTICS "
@@ -1312,6 +1373,7 @@ def init_db(app):
         ensure_column_exists('staff', 'photo_url TEXT', 'photo_url')
         ensure_column_exists('staff', 'password_hash TEXT', 'password_hash')
         ensure_column_exists('staff', 'shift_type TEXT DEFAULT "general"', 'shift_type')
+        ensure_column_exists('staff', 'photo_data LONGTEXT', 'photo_data')
 
         # Add new staff fields for enhanced staff management
         ensure_column_exists('staff', 'first_name TEXT', 'first_name')
@@ -1327,8 +1389,11 @@ def init_db(app):
         ensure_column_exists('staff', 'pan_number TEXT', 'pan_number')
         ensure_column_exists('staff', 'dearness_allowance DECIMAL(10,2) DEFAULT 0.00', 'dearness_allowance')
         ensure_column_exists('staff', 'pf_opt_in INTEGER DEFAULT 0', 'pf_opt_in')
+        ensure_column_exists('staff', 'aadhar_number TEXT', 'aadhar_number')
 
         # Enhanced attendance tracking columns
+        ensure_column_exists('attendance', 'work_hours REAL DEFAULT 0', 'work_hours')
+        ensure_column_exists('attendance', 'overtime_hours REAL DEFAULT 0', 'overtime_hours')
         ensure_column_exists('attendance', 'late_duration_minutes INTEGER DEFAULT 0', 'late_duration_minutes')
         ensure_column_exists('attendance', 'early_departure_minutes INTEGER DEFAULT 0', 'early_departure_minutes')
         ensure_column_exists('attendance', 'shift_start_time TIME', 'shift_start_time')
