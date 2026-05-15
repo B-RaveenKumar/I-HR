@@ -5631,6 +5631,36 @@ def send_report_now():
             response = generate_student_academic_report(current_school_id, 'excel', None, None, internal=True)
         elif report_type == 'student_timetable_report':
             response = generate_student_timetable_report(current_school_id, 'excel', None, None, internal=True)
+        elif report_type == 'staff_attendance_trends':
+            response = generate_staff_attendance_trends_report(current_school_id, year, internal=True)
+        elif report_type == 'staff_compliance_report':
+            response = generate_staff_compliance_report(current_school_id, internal=True)
+        elif report_type == 'salary_increment_history':
+            response = generate_salary_increment_report(current_school_id, internal=True)
+        elif report_type == 'admin_audit_logs':
+            response = generate_audit_log_report(current_school_id, internal=True)
+        elif report_type == 'fee_collection_summary':
+            response = generate_fee_collection_report(current_school_id, None, internal=True)
+        elif report_type == 'student_performance_summary':
+            response = generate_student_performance_summary_report(current_school_id, None, internal=True)
+        elif report_type == 'student_logistics_report':
+            response = generate_logistics_report(current_school_id, None, internal=True)
+        elif report_type == 'late_early_report':
+            response = generate_late_early_report(current_school_id, year, month, internal=True)
+        elif report_type == 'shift_wise_attendance':
+            response = generate_shift_wise_attendance_report(current_school_id, year, month, internal=True)
+        elif report_type == 'absenteeism_report':
+            response = generate_absenteeism_report(current_school_id, year, month, internal=True)
+        elif report_type == 'biometric_log_report':
+            response = generate_biometric_log_report(current_school_id, now.strftime('%Y-%m-%d'), internal=True)
+        elif report_type == 'bank_advice_report':
+            response = generate_bank_advice_report(current_school_id, year, month, internal=True)
+        elif report_type == 'statutory_compliance':
+            response = generate_statutory_compliance_report(current_school_id, year, month, internal=True)
+        elif report_type == 'deduction_analysis':
+            response = generate_deduction_analysis_report(current_school_id, year, month, internal=True)
+        elif report_type == 'salary_structure':
+            response = generate_salary_structure_report(current_school_id, internal=True)
 
         if response and hasattr(response, 'get_data'):
             file_data = response.get_data()

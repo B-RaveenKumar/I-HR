@@ -22,6 +22,7 @@ import io
 import base64
 from flask import make_response
 import calendar
+from salary_calculator import SalaryCalculator
 
 
 class ExcelReportGenerator:
@@ -38,6 +39,103 @@ class ExcelReportGenerator:
             top=Side(style='thin'),
             bottom=Side(style='thin')
         )
+        
+    def _get_salary_data(self, school_id, year, month):
+        """Helper to get salary data from history or calculate on the fly"""
+        db = get_db()
+        # Try to get from history first
+        try:
+            data = db.execute('''
+                SELECT s.id as staff_db_id, s.full_name, s.staff_id, s.bank_name, s.bank_account_number, s.ifsc_code,
+                       s.pf_deduction as assigned_pf, s.esi_deduction as assigned_esi,
+                       s.basic_salary as profile_basic, s.dearness_allowance as profile_da,
+                       sh.net_salary, sh.gross_salary, sh.pf_deduction, sh.esi_deduction, sh.professional_tax, 
+                       sh.other_deductions, sh.total_deductions
+                FROM staff s
+                JOIN salary_history sh ON s.id = sh.staff_db_id
+                WHERE s.school_id = ? AND sh.year = ? AND sh.month = ?
+                ORDER BY s.full_name
+            ''', (school_id, year, month)).fetchall()
+            
+            if data:
+                processed_results = []
+                for row in data:
+                    r = dict(row)
+                    assigned_pf = float(r.get('assigned_pf') or 0)
+                    assigned_esi = float(r.get('assigned_esi') or 0)
+                    
+                    # Force use profile values if they are set
+                    if assigned_pf > 0:
+                        r['pf_deduction'] = assigned_pf
+                    if assigned_esi > 0:
+                        r['esi_deduction'] = assigned_esi
+                        
+                    processed_results.append(r)
+                return processed_results
+        except Exception as e:
+            print(f"Error fetching from salary_history: {e}")
+            
+        # If no history or table doesn't exist, calculate on the fly
+        salary_calculator = SalaryCalculator(school_id=school_id)
+        
+        staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
+        where_clause = "school_id = ?"
+        if 'is_active' in staff_columns:
+            where_clause += " AND COALESCE(is_active, 1) = 1"
+        elif 'status' in staff_columns:
+            where_clause += " AND LOWER(COALESCE(status, 'active')) = 'active'"
+            
+        staff_list = db.execute(f'''
+            SELECT id, staff_id, full_name, bank_name, bank_account_number, ifsc_code,
+                   pf_deduction, esi_deduction, professional_tax, other_deductions,
+                   basic_salary, dearness_allowance
+            FROM staff 
+            WHERE {where_clause}
+        ''', (school_id,)).fetchall()
+        
+        results = []
+        for staff in staff_list:
+            res = salary_calculator.calculate_monthly_salary(staff['id'], year, month)
+            if res['success']:
+                breakdown = res['salary_breakdown']
+                earnings = breakdown.get('earnings', {})
+                deductions = breakdown.get('deductions', {})
+                
+                # Use profile values if set, otherwise fallback to calculated
+                assigned_pf = float(staff['pf_deduction'] or 0)
+                assigned_esi = float(staff['esi_deduction'] or 0)
+                assigned_pt = float(staff['professional_tax'] or 0)
+                
+                results.append({
+                    'staff_db_id': staff['id'],
+                    'full_name': staff['full_name'],
+                    'staff_id': staff['staff_id'],
+                    'bank_name': staff['bank_name'],
+                    'bank_account_number': staff['bank_account_number'],
+                    'ifsc_code': staff['ifsc_code'],
+                    'net_salary': breakdown.get('net_salary', 0),
+                    'gross_salary': earnings.get('total_earnings', 0),
+                    'pf_deduction': assigned_pf if assigned_pf > 0 else deductions.get('pf_deduction', deductions.get('employee_pf', 0)),
+                    'esi_deduction': assigned_esi if assigned_esi > 0 else deductions.get('esi_deduction', 0),
+                    'professional_tax': assigned_pt if assigned_pt > 0 else deductions.get('professional_tax', 0),
+                    'absent_deduction': deductions.get('absent_deduction', 0),
+                    'late_penalty': deductions.get('late_arrival_penalty', 0),
+                    'early_penalty': deductions.get('early_departure_penalty', 0),
+                    'single_punch_penalty': deductions.get('single_punch_penalty', 0),
+                    'manual_deduction': breakdown.get('manual_deduction', 0),
+                    'other_deductions': deductions.get('other_deductions', 0),
+                    'total_deductions': deductions.get('total_deductions', 0),
+                    'assigned_pf': assigned_pf,
+                    'assigned_esi': assigned_esi,
+                    'profile_basic': float(staff['basic_salary'] or 0),
+                    'profile_da': float(staff['dearness_allowance'] or 0),
+                    'pf_wage': deductions.get('pf_wage', 0),
+                    'employer_epf': deductions.get('employer_epf', 0),
+                    'eps': deductions.get('eps', 0),
+                    'edli': deductions.get('edli', 0),
+                    'admin_charges': deductions.get('admin_charges', 0)
+                })
+        return results
         
     def create_staff_attendance_report(self, school_id, start_date, end_date):
         """Create comprehensive staff attendance report"""
@@ -1572,15 +1670,8 @@ class ExcelReportGenerator:
             cell.fill = self.header_fill
             cell.border = self.border
 
-        db = get_db()
-        # Join staff with salary_history to get net pay for the month
-        data = db.execute('''
-            SELECT s.full_name, s.staff_id, s.bank_name, s.bank_account_number, s.ifsc_code, sh.net_salary
-            FROM staff s
-            JOIN salary_history sh ON s.id = sh.staff_db_id
-            WHERE s.school_id = ? AND sh.year = ? AND sh.month = ?
-            ORDER BY s.full_name
-        ''', (school_id, year, month)).fetchall()
+        # Get salary data using helper (history or on-the-fly)
+        data = self._get_salary_data(school_id, year, month)
 
         row = 4
         total_net = 0
@@ -1606,42 +1697,32 @@ class ExcelReportGenerator:
         ws['A1'].font = self.title_font
         ws.merge_cells('A1:I1')
         
-        headers = ['Staff ID', 'Name', 'Gross Salary', 'PF Basis', 'PF Employee (12%)', 'PF Employer (13%)', 'ESI Employee (0.75%)', 'ESI Employer (3.25%)', 'Total Contribution']
+        headers = ['Staff ID', 'Name', 'Gross Salary', 'PF Amount (Employee)', 'ESI Amount (Employee)', 'Total Deduction']
         for col, h in enumerate(headers, 1):
             cell = ws.cell(row=3, column=col, value=h)
             cell.font = self.header_font
             cell.fill = self.header_fill
             cell.border = self.border
-
-        db = get_db()
-        data = db.execute('''
-            SELECT s.staff_id, s.full_name, sh.gross_salary, sh.pf_deduction, sh.esi_deduction
-            FROM staff s
-            JOIN salary_history sh ON s.id = sh.staff_db_id
-            WHERE s.school_id = ? AND sh.year = ? AND sh.month = ?
-            AND (sh.pf_deduction > 0 OR sh.esi_deduction > 0)
-        ''', (school_id, year, month)).fetchall()
+            
+        # Get salary data using helper (history or on-the-fly)
+        data = self._get_salary_data(school_id, year, month)
+        # Filter for those with PF or ESI
+        data = [r for r in data if float(r.get('assigned_pf') or r.get('pf_deduction') or 0) > 0 or 
+                                 float(r.get('assigned_esi') or r.get('esi_deduction') or 0) > 0]
 
         row = 4
         for r in data:
-            gross = float(r['gross_salary'] or 0)
-            pf_emp = float(r['pf_deduction'] or 0)
-            # Standard employer share (12% + 1% admin)
-            pf_employer = round(pf_emp * (13/12), 2) if pf_emp > 0 else 0
-            
-            esi_emp = float(r['esi_deduction'] or 0)
-            # Employer share (3.25% vs 0.75% Employee)
-            esi_employer = round(esi_emp * (3.25/0.75), 2) if esi_emp > 0 else 0
+            gross = float(r.get('gross_salary') or 0)
+            # Use assigned values as requested
+            pf_emp = float(r.get('assigned_pf') or r.get('pf_deduction') or 0)
+            esi_emp = float(r.get('assigned_esi') or r.get('esi_deduction') or 0)
             
             ws.cell(row=row, column=1, value=r['staff_id']).border = self.border
             ws.cell(row=row, column=2, value=r['full_name']).border = self.border
             ws.cell(row=row, column=3, value=gross).border = self.border
-            ws.cell(row=row, column=4, value=pf_emp / 0.12 if pf_emp > 0 else 0).border = self.border # Approximation of basis
-            ws.cell(row=row, column=5, value=pf_emp).border = self.border
-            ws.cell(row=row, column=6, value=pf_employer).border = self.border
-            ws.cell(row=row, column=7, value=esi_emp).border = self.border
-            ws.cell(row=row, column=8, value=esi_employer).border = self.border
-            ws.cell(row=row, column=9, value=pf_emp + pf_employer + esi_emp + esi_employer).border = self.border
+            ws.cell(row=row, column=4, value=pf_emp).border = self.border
+            ws.cell(row=row, column=5, value=esi_emp).border = self.border
+            ws.cell(row=row, column=6, value=pf_emp + esi_emp).border = self.border
             row += 1
 
     def _create_deduction_analysis_sheet(self, wb, school_id, year, month):
@@ -1651,31 +1732,32 @@ class ExcelReportGenerator:
         ws['A1'].font = self.title_font
         ws.merge_cells('A1:G1')
         
-        headers = ['Staff ID', 'Name', 'Professional Tax', 'PF Deduction', 'ESI Deduction', 'Other Deductions', 'Total Deductions']
+        headers = ['Staff ID', 'Name', 'Absent Ded.', 'Late Penalty', 'Early Penalty', 'Single Punch', 'Manual Ded.', 'PF Ded.', 'ESI Ded.', 'PT', 'Other Ded.', 'Total']
         for col, h in enumerate(headers, 1):
             cell = ws.cell(row=3, column=col, value=h)
             cell.font = self.header_font
             cell.fill = self.header_fill
             cell.border = self.border
 
-        db = get_db()
-        data = db.execute('''
-            SELECT s.staff_id, s.full_name, sh.professional_tax, sh.pf_deduction, sh.esi_deduction, sh.other_deductions, sh.total_deductions
-            FROM staff s
-            JOIN salary_history sh ON s.id = sh.staff_db_id
-            WHERE s.school_id = ? AND sh.year = ? AND sh.month = ?
-            AND sh.total_deductions > 0
-        ''', (school_id, year, month)).fetchall()
+        # Get salary data using helper (history or on-the-fly)
+        data = self._get_salary_data(school_id, year, month)
+        # Filter for those with deductions
+        data = [r for r in data if float(r.get('total_deductions') or 0) > 0]
 
         row = 4
         for r in data:
             ws.cell(row=row, column=1, value=r['staff_id']).border = self.border
             ws.cell(row=row, column=2, value=r['full_name']).border = self.border
-            ws.cell(row=row, column=3, value=r['professional_tax']).border = self.border
-            ws.cell(row=row, column=4, value=r['pf_deduction']).border = self.border
-            ws.cell(row=row, column=5, value=r['esi_deduction']).border = self.border
-            ws.cell(row=row, column=6, value=r['other_deductions']).border = self.border
-            ws.cell(row=row, column=7, value=r['total_deductions']).border = self.border
+            ws.cell(row=row, column=3, value=r.get('absent_deduction', 0)).border = self.border
+            ws.cell(row=row, column=4, value=r.get('late_penalty', 0)).border = self.border
+            ws.cell(row=row, column=5, value=r.get('early_penalty', 0)).border = self.border
+            ws.cell(row=row, column=6, value=r.get('single_punch_penalty', 0)).border = self.border
+            ws.cell(row=row, column=7, value=r.get('manual_deduction', 0)).border = self.border
+            ws.cell(row=row, column=8, value=r.get('pf_deduction', 0)).border = self.border
+            ws.cell(row=row, column=9, value=r.get('esi_deduction', 0)).border = self.border
+            ws.cell(row=row, column=10, value=r.get('professional_tax', 0)).border = self.border
+            ws.cell(row=row, column=11, value=r.get('other_deductions', 0)).border = self.border
+            ws.cell(row=row, column=12, value=r.get('total_deductions', 0)).border = self.border
             row += 1
 
     def _create_salary_structure_sheet(self, wb, school_id):
