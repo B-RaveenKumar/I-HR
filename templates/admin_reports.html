@@ -410,16 +410,6 @@
                                     </label>
                                     <select class="form-select enhanced-select" id="reportDepartment">
                                         <option value="">All Departments</option>
-                                        <option value="Teaching">Teaching</option>
-                                        <option value="Administration">Administration</option>
-                                        <option value="Support">Support</option>
-                                        <option value="Management">Management</option>
-                                        <option value="IT">IT</option>
-                                        <option value="Finance">Finance</option>
-                                        <option value="HR">HR</option>
-                                        <option value="Security">Security</option>
-                                        <option value="Maintenance">Maintenance</option>
-                                        <option value="Library">Library</option>
                                     </select>
                                 </div>
                                 <div class="filter-group">
@@ -1083,6 +1073,30 @@
                     })
                     .catch(error => {
                         console.error('Error fetching staff count:', error);
+                    });
+            }
+
+            // Populate departments dropdown dynamically
+            const reportDeptElement = document.getElementById('reportDepartment');
+            if (reportDeptElement) {
+                fetch('/api/departments')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.departments) {
+                            // Keep the "All Departments" option
+                            reportDeptElement.innerHTML = '<option value="">All Departments</option>';
+                            data.departments.forEach(dept => {
+                                if (dept) {
+                                    const option = document.createElement('option');
+                                    option.value = dept;
+                                    option.textContent = dept;
+                                    reportDeptElement.appendChild(option);
+                                }
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching departments:', error);
                     });
             }
         });
