@@ -40,12 +40,12 @@ class ExcelReportGenerator:
             bottom=Side(style='thin')
         )
         
-    def _get_salary_data(self, school_id, year, month):
+    def _get_salary_data(self, school_id, year, month, department=None):
         """Helper to get salary data from history or calculate on the fly"""
         db = get_db()
         # Try to get from history first
         try:
-            data = db.execute('''
+            query = '''
                 SELECT s.id as staff_db_id, s.full_name, s.staff_id, s.bank_name, s.bank_account_number, s.ifsc_code,
                        s.pf_deduction as assigned_pf, s.esi_deduction as assigned_esi,
                        s.basic_salary as profile_basic, s.dearness_allowance as profile_da,
@@ -54,8 +54,14 @@ class ExcelReportGenerator:
                 FROM staff s
                 JOIN salary_history sh ON s.id = sh.staff_db_id
                 WHERE s.school_id = ? AND sh.year = ? AND sh.month = ?
-                ORDER BY s.full_name
-            ''', (school_id, year, month)).fetchall()
+            '''
+            params = [school_id, year, month]
+            if department:
+                query += " AND s.department = ?"
+                params.append(department)
+            query += " ORDER BY s.full_name"
+            
+            data = db.execute(query, params).fetchall()
             
             if data:
                 processed_results = []
@@ -80,10 +86,15 @@ class ExcelReportGenerator:
         
         staff_columns = [col['name'] for col in db.execute("PRAGMA table_info(staff)").fetchall()]
         where_clause = "school_id = ?"
+        params = [school_id]
         if 'is_active' in staff_columns:
             where_clause += " AND COALESCE(is_active, 1) = 1"
         elif 'status' in staff_columns:
             where_clause += " AND LOWER(COALESCE(status, 'active')) = 'active'"
+            
+        if department:
+            where_clause += " AND department = ?"
+            params.append(department)
             
         staff_list = db.execute(f'''
             SELECT id, staff_id, full_name, bank_name, bank_account_number, ifsc_code,
@@ -91,7 +102,7 @@ class ExcelReportGenerator:
                    basic_salary, dearness_allowance
             FROM staff 
             WHERE {where_clause}
-        ''', (school_id,)).fetchall()
+        ''', params).fetchall()
         
         results = []
         for staff in staff_list:
@@ -137,7 +148,7 @@ class ExcelReportGenerator:
                 })
         return results
         
-    def create_staff_attendance_report(self, school_id, start_date, end_date):
+    def create_staff_attendance_report(self, school_id, start_date, end_date, department=None):
         """Create comprehensive staff attendance report"""
         wb = openpyxl.Workbook()
         
@@ -153,7 +164,7 @@ class ExcelReportGenerator:
         
         return self._save_workbook_to_response(wb, f"Staff_Attendance_Report_{start_date}_to_{end_date}.xlsx")
     
-    def create_individual_staff_report(self, staff_id, start_date, end_date):
+    def create_individual_staff_report(self, staff_id, start_date, end_date, department=None):
         """Create individual staff attendance report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
@@ -168,7 +179,7 @@ class ExcelReportGenerator:
         
         return self._save_workbook_to_response(wb, f"Individual_Report_{staff_name}_{start_date}_to_{end_date}.xlsx")
     
-    def create_company_report(self, start_date, end_date):
+    def create_company_report(self, start_date, end_date, department=None):
         """Create company-wide report across all schools"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
@@ -179,7 +190,7 @@ class ExcelReportGenerator:
         
         return self._save_workbook_to_response(wb, f"Company_Report_{start_date}_to_{end_date}.xlsx")
     
-    def create_monthly_report(self, school_id, year, month):
+    def create_monthly_report(self, school_id, year, month, department=None):
         """Create monthly attendance report with individual staff records"""
         start_date = datetime(year, month, 1).date()
         if month == 12:
@@ -191,23 +202,23 @@ class ExcelReportGenerator:
         wb.remove(wb.active)
         
         # Create Staff Records sheet FIRST (main data users want to see)
-        self._create_monthly_staff_records_sheet(wb, school_id, year, month)
+        self._create_monthly_staff_records_sheet(wb, school_id, year, month, department)
         
         # Create summary sheets
-        self._create_monthly_summary_sheet(wb, school_id, year, month)
-        self._create_monthly_calendar_sheet(wb, school_id, year, month)
-        self._create_monthly_trends_sheet(wb, school_id, year, month)
+        self._create_monthly_summary_sheet(wb, school_id, year, month, department)
+        self._create_monthly_calendar_sheet(wb, school_id, year, month, department)
+        self._create_monthly_trends_sheet(wb, school_id, year, month, department)
         
         return self._save_workbook_to_response(wb, f"Monthly_Report_{year}_{month:02d}.xlsx")
 
-    def create_attendance_trends_report(self, school_id, year):
+    def create_attendance_trends_report(self, school_id, year, department=None):
         """Create a comprehensive attendance trends report for the year"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_yearly_summary_trends_sheet(wb, school_id, year)
-        self._create_department_trends_sheet(wb, school_id, year)
-        self._create_monthly_comparison_sheet(wb, school_id, year)
+        self._create_yearly_summary_trends_sheet(wb, school_id, year, department)
+        self._create_department_trends_sheet(wb, school_id, year, department)
+        self._create_monthly_comparison_sheet(wb, school_id, year, department)
         
         return self._save_workbook_to_response(wb, f"Attendance_Trends_Report_{year}.xlsx")
 
@@ -234,13 +245,13 @@ class ExcelReportGenerator:
         filename = f"Fee_Collection_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
         return self._save_workbook_to_response(wb, filename)
 
-    def create_staff_compliance_report(self, school_id):
+    def create_staff_compliance_report(self, school_id, department=None):
         """Create a comprehensive staff document and profile compliance report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_staff_compliance_summary_sheet(wb, school_id)
-        self._create_staff_missing_info_sheet(wb, school_id)
+        self._create_staff_compliance_summary_sheet(wb, school_id, department)
+        self._create_staff_missing_info_sheet(wb, school_id, department)
         
         filename = f"Staff_Compliance_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
         return self._save_workbook_to_response(wb, filename)
@@ -256,28 +267,28 @@ class ExcelReportGenerator:
         filename = f"Student_Logistics_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
         return self._save_workbook_to_response(wb, filename)
 
-    def create_salary_increment_report(self, school_id):
+    def create_salary_increment_report(self, school_id, department=None):
         """Create a comprehensive staff salary increment history report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_salary_history_sheet(wb, school_id)
+        self._create_salary_history_sheet(wb, school_id, department)
         self._create_salary_stats_sheet(wb, school_id)
         
         filename = f"Staff_Salary_Increment_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
         return self._save_workbook_to_response(wb, filename)
 
-    def create_audit_log_report(self, school_id):
+    def create_audit_log_report(self, school_id, department=None):
         """Create a comprehensive administrative audit log report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_audit_trail_sheet(wb, school_id)
+        self._create_audit_trail_sheet(wb, school_id, department)
         
         filename = f"Admin_Audit_Log_Report_{datetime.now().strftime('%Y%m%d')}.xlsx"
         return self._save_workbook_to_response(wb, filename)
 
-    def create_overtime_report(self, school_id, year, month):
+    def create_overtime_report(self, school_id, year, month, department=None):
         """Create comprehensive overtime report with individual staff overtime data"""
         start_date = datetime(year, month, 1).date()
         if month == 12:
@@ -289,63 +300,63 @@ class ExcelReportGenerator:
         wb.remove(wb.active)
         
         # Create Overtime Records sheet FIRST (main data users want to see)
-        self._create_overtime_records_sheet(wb, school_id, year, month)
+        self._create_overtime_records_sheet(wb, school_id, year, month, department)
         
         # Create summary sheets
-        self._create_overtime_summary_sheet(wb, school_id, year, month)
-        self._create_overtime_trends_sheet(wb, school_id, year, month)
+        self._create_overtime_summary_sheet(wb, school_id, year, month, department)
+        self._create_overtime_trends_sheet(wb, school_id, year, month, department)
         
         return self._save_workbook_to_response(wb, f"Overtime_Report_{year}_{month:02d}.xlsx")
     
-    def create_leave_report(self, school_id, year, month=None):
+    def create_leave_report(self, school_id, year, month=None, department=None):
         """Create comprehensive leave report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_leave_summary_sheet(wb, school_id, year, month)
+        self._create_leave_summary_sheet(wb, school_id, year, month, department)
         self._create_leave_details_sheet(wb, school_id, year, month)
         
         month_suffix = f"_{month:02d}" if month else ""
         return self._save_workbook_to_response(wb, f"Leave_Report_{year}{month_suffix}.xlsx")
 
-    def create_late_early_report(self, school_id, year, month):
+    def create_late_early_report(self, school_id, year, month, department=None):
         """Create report for Late Entry and Early Exit"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_late_entry_sheet(wb, school_id, year, month)
-        self._create_early_exit_sheet(wb, school_id, year, month)
+        self._create_late_entry_sheet(wb, school_id, year, month, department)
+        self._create_early_exit_sheet(wb, school_id, year, month, department)
         
         return self._save_workbook_to_response(wb, f"Late_Early_Report_{year}_{month:02d}.xlsx")
 
-    def create_shift_wise_attendance_report(self, school_id, year, month):
+    def create_shift_wise_attendance_report(self, school_id, year, month, department=None):
         """Create Shift-Wise Attendance Summary"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_shift_attendance_summary_sheet(wb, school_id, year, month)
+        self._create_shift_attendance_summary_sheet(wb, school_id, year, month, department)
         
         return self._save_workbook_to_response(wb, f"Shift_Wise_Attendance_{year}_{month:02d}.xlsx")
 
-    def create_absenteeism_report(self, school_id, year, month):
+    def create_absenteeism_report(self, school_id, year, month, department=None):
         """Create Absenteeism Frequency Report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_absenteeism_analysis_sheet(wb, school_id, year, month)
+        self._create_absenteeism_analysis_sheet(wb, school_id, year, month, department)
         
         return self._save_workbook_to_response(wb, f"Absenteeism_Analysis_{year}_{month:02d}.xlsx")
 
-    def create_biometric_log_report(self, school_id, date):
+    def create_biometric_log_report(self, school_id, date, department=None):
         """Create Detailed Biometric Punch Log Report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_biometric_punch_log_sheet(wb, school_id, date)
+        self._create_biometric_punch_log_sheet(wb, school_id, date, department)
         
         return self._save_workbook_to_response(wb, f"Biometric_Punch_Logs_{date}.xlsx")
 
-    def create_staff_profile_report(self, school_id):
+    def create_staff_profile_report(self, school_id, department=None):
         """Create comprehensive staff profile report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
@@ -354,43 +365,43 @@ class ExcelReportGenerator:
         
         return self._save_workbook_to_response(wb, f"Staff_Profile_Report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx")
 
-    def create_bank_advice_report(self, school_id, year, month):
+    def create_bank_advice_report(self, school_id, year, month, department=None):
         """Create Bank Advice (Salary Transfer) Report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_bank_advice_sheet(wb, school_id, year, month)
+        self._create_bank_advice_sheet(wb, school_id, year, month, department)
         
         return self._save_workbook_to_response(wb, f"Bank_Advice_{year}_{month:02d}.xlsx")
 
-    def create_statutory_compliance_report(self, school_id, year, month):
+    def create_statutory_compliance_report(self, school_id, year, month, department=None):
         """Create Statutory Compliance (PF & ESI) Report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_statutory_compliance_sheet(wb, school_id, year, month)
+        self._create_statutory_compliance_sheet(wb, school_id, year, month, department)
         
         return self._save_workbook_to_response(wb, f"PF_ESI_Compliance_{year}_{month:02d}.xlsx")
 
-    def create_deduction_analysis_report(self, school_id, year, month):
+    def create_deduction_analysis_report(self, school_id, year, month, department=None):
         """Create Deduction Analysis Report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_deduction_analysis_sheet(wb, school_id, year, month)
+        self._create_deduction_analysis_sheet(wb, school_id, year, month, department)
         
         return self._save_workbook_to_response(wb, f"Deduction_Analysis_{year}_{month:02d}.xlsx")
 
-    def create_salary_structure_report(self, school_id):
+    def create_salary_structure_report(self, school_id, department=None):
         """Create Staff Salary Structure (CTC) Report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
         
-        self._create_salary_structure_sheet(wb, school_id)
+        self._create_salary_structure_sheet(wb, school_id, department)
         
         return self._save_workbook_to_response(wb, f"Salary_Structure_Report_{datetime.now().strftime('%Y%m%d')}.xlsx")
 
-    def create_leave_report(self, school_id, year, month=None):
+    def create_leave_report(self, school_id, year, month=None, department=None):
         """Create comprehensive leave applications report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
@@ -469,7 +480,7 @@ class ExcelReportGenerator:
         filename = f"Leave_Report_{year}" + (f"_{month:02d}" if month else "") + ".xlsx"
         return self._save_workbook_to_response(wb, filename)
 
-    def create_od_report(self, school_id, year, month=None):
+    def create_od_report(self, school_id, year, month=None, department=None):
         """Create comprehensive On-Duty (OD) applications report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
@@ -531,7 +542,7 @@ class ExcelReportGenerator:
         filename = f"OD_Report_{year}" + (f"_{month:02d}" if month else "") + ".xlsx"
         return self._save_workbook_to_response(wb, filename)
 
-    def create_permission_report(self, school_id, year, month=None):
+    def create_permission_report(self, school_id, year, month=None, department=None):
         """Create comprehensive permission applications report"""
         wb = openpyxl.Workbook()
         wb.remove(wb.active)
@@ -723,7 +734,7 @@ class ExcelReportGenerator:
             for col in range(1, 9):
                 ws.cell(row=row, column=col).border = self.border
     
-    def _create_yearly_summary_trends_sheet(self, wb, school_id, year):
+    def _create_yearly_summary_trends_sheet(self, wb, school_id, year, department=None):
         """Create a summary sheet for yearly attendance trends"""
         ws = wb.create_sheet("Yearly Summary Trends")
         ws['A1'] = f"Staff Attendance Trend Analytics - {year}"
@@ -1129,7 +1140,7 @@ class ExcelReportGenerator:
             ws.cell(row=row, column=5, value=f"{efficiency:.1f}%").border = self.border
             row += 1
 
-    def _create_staff_compliance_summary_sheet(self, wb, school_id):
+    def _create_staff_compliance_summary_sheet(self, wb, school_id, department=None):
         """Create a summary sheet for staff profile compliance"""
         ws = wb.create_sheet("Compliance Summary")
         ws['A1'] = "Staff Profile & Document Compliance Summary"
@@ -1190,7 +1201,7 @@ class ExcelReportGenerator:
         ws.cell(row=row, column=1, value="Total Active Staff").font = Font(bold=True)
         ws.cell(row=row, column=2, value=total_staff).font = Font(bold=True)
 
-    def _create_staff_missing_info_sheet(self, wb, school_id):
+    def _create_staff_missing_info_sheet(self, wb, school_id, department=None):
         """Create a detailed sheet showing exactly what's missing for each staff member"""
         ws = wb.create_sheet("Missing Info Details")
         ws['A1'] = "Detailed Missing Information by Staff Member"
@@ -1334,7 +1345,7 @@ class ExcelReportGenerator:
             
             row += 1
 
-    def _create_salary_history_sheet(self, wb, school_id):
+    def _create_salary_history_sheet(self, wb, school_id, department=None):
         """Create a sheet showing chronological salary history for staff"""
         ws = wb.create_sheet("Increment History")
         ws['A1'] = "Staff Salary Increment History"
@@ -1414,7 +1425,7 @@ class ExcelReportGenerator:
             ws.cell(row=idx, column=1, value=m).border = self.border
             ws.cell(row=idx, column=2, value=v).border = self.border
 
-    def _create_late_entry_sheet(self, wb, school_id, year, month):
+    def _create_late_entry_sheet(self, wb, school_id, year, month, department=None):
         """Sheet for Late Entries (Arriving after grace period)"""
         ws = wb.create_sheet("Late Entries")
         ws['A1'] = f"Late Entry Report - {calendar.month_name[month]} {year}"
@@ -1472,7 +1483,7 @@ class ExcelReportGenerator:
             except Exception:
                 continue
 
-    def _create_early_exit_sheet(self, wb, school_id, year, month):
+    def _create_early_exit_sheet(self, wb, school_id, year, month, department=None):
         """Sheet for Early Exits (Leaving before shift end)"""
         ws = wb.create_sheet("Early Exits")
         ws['A1'] = f"Early Exit Report - {calendar.month_name[month]} {year}"
@@ -1526,7 +1537,7 @@ class ExcelReportGenerator:
             except Exception:
                 continue
 
-    def _create_shift_attendance_summary_sheet(self, wb, school_id, year, month):
+    def _create_shift_attendance_summary_sheet(self, wb, school_id, year, month, department=None):
         """Summary of attendance percentages per shift"""
         ws = wb.create_sheet("Shift Summary")
         ws['A1'] = f"Shift-Wise Attendance Summary - {calendar.month_name[month]} {year}"
@@ -1567,7 +1578,7 @@ class ExcelReportGenerator:
             ws.cell(row=row, column=5, value=f"{percent:.2f}%").border = self.border
             row += 1
 
-    def _create_absenteeism_analysis_sheet(self, wb, school_id, year, month):
+    def _create_absenteeism_analysis_sheet(self, wb, school_id, year, month, department=None):
         """Identify chronic absentees"""
         ws = wb.create_sheet("Absenteeism Analysis")
         ws['A1'] = f"Absenteeism Frequency Report - {calendar.month_name[month]} {year}"
@@ -1616,7 +1627,7 @@ class ExcelReportGenerator:
             
             row += 1
 
-    def _create_biometric_punch_log_sheet(self, wb, school_id, date):
+    def _create_biometric_punch_log_sheet(self, wb, school_id, date, department=None):
         """Raw biometric logs for auditing"""
         ws = wb.create_sheet("Punch Logs")
         ws['A1'] = f"Detailed Biometric Punch Logs - {date}"
@@ -1656,7 +1667,7 @@ class ExcelReportGenerator:
             ws.cell(row=row, column=6, value=l['type']).border = self.border
             row += 1
 
-    def _create_bank_advice_sheet(self, wb, school_id, year, month):
+    def _create_bank_advice_sheet(self, wb, school_id, year, month, department=None):
         """Bank Advice sheet with net pay and bank details"""
         ws = wb.create_sheet("Bank Advice")
         ws['A1'] = f"Bank Advice - Salary Disbursement - {calendar.month_name[month]} {year}"
@@ -1671,7 +1682,7 @@ class ExcelReportGenerator:
             cell.border = self.border
 
         # Get salary data using helper (history or on-the-fly)
-        data = self._get_salary_data(school_id, year, month)
+        data = self._get_salary_data(school_id, year, month, department)
 
         row = 4
         total_net = 0
@@ -1690,7 +1701,7 @@ class ExcelReportGenerator:
         ws.cell(row=row, column=6, value="Total Disbursement:").font = Font(bold=True)
         ws.cell(row=row, column=7, value=total_net).font = Font(bold=True)
 
-    def _create_statutory_compliance_sheet(self, wb, school_id, year, month):
+    def _create_statutory_compliance_sheet(self, wb, school_id, year, month, department=None):
         """PF and ESI Compliance sheet"""
         ws = wb.create_sheet("PF & ESI Compliance")
         ws['A1'] = f"Statutory Compliance Report - {calendar.month_name[month]} {year}"
@@ -1705,7 +1716,7 @@ class ExcelReportGenerator:
             cell.border = self.border
             
         # Get salary data using helper (history or on-the-fly)
-        data = self._get_salary_data(school_id, year, month)
+        data = self._get_salary_data(school_id, year, month, department)
         # Filter for those with PF or ESI
         data = [r for r in data if float(r.get('assigned_pf') or r.get('pf_deduction') or 0) > 0 or 
                                  float(r.get('assigned_esi') or r.get('esi_deduction') or 0) > 0]
@@ -1725,7 +1736,7 @@ class ExcelReportGenerator:
             ws.cell(row=row, column=6, value=pf_emp + esi_emp).border = self.border
             row += 1
 
-    def _create_deduction_analysis_sheet(self, wb, school_id, year, month):
+    def _create_deduction_analysis_sheet(self, wb, school_id, year, month, department=None):
         """Breakdown of all deductions"""
         ws = wb.create_sheet("Deduction Analysis")
         ws['A1'] = f"Monthly Deduction Analysis - {calendar.month_name[month]} {year}"
@@ -1740,7 +1751,7 @@ class ExcelReportGenerator:
             cell.border = self.border
 
         # Get salary data using helper (history or on-the-fly)
-        data = self._get_salary_data(school_id, year, month)
+        data = self._get_salary_data(school_id, year, month, department)
         # Filter for those with deductions
         data = [r for r in data if float(r.get('total_deductions') or 0) > 0]
 
@@ -1760,7 +1771,7 @@ class ExcelReportGenerator:
             ws.cell(row=row, column=12, value=r.get('total_deductions', 0)).border = self.border
             row += 1
 
-    def _create_salary_structure_sheet(self, wb, school_id):
+    def _create_salary_structure_sheet(self, wb, school_id, department=None):
         """Staff CTC Structure sheet"""
         ws = wb.create_sheet("Salary Structure")
         ws['A1'] = f"Staff Salary Structure (CTC) - {datetime.now().strftime('%Y-%m-%d')}"
@@ -1799,7 +1810,7 @@ class ExcelReportGenerator:
             ws.cell(row=row, column=8, value=gross * 12).border = self.border
             row += 1
 
-    def _create_audit_trail_sheet(self, wb, school_id):
+    def _create_audit_trail_sheet(self, wb, school_id, department=None):
         """Create a sheet showing chronological audit trail of admin actions"""
         ws = wb.create_sheet("Audit Trail")
         ws['A1'] = "Administrative Activity Audit Trail"
@@ -1871,12 +1882,17 @@ class ExcelReportGenerator:
 
         # Get data
         db = get_db()
-        staff_data = db.execute('''
+        query = '''
             SELECT staff_id, full_name, department, destination, email, phone, created_at
             FROM staff
             WHERE school_id = ?
             ORDER BY full_name
-        ''', (school_id,)).fetchall()
+        '''
+        sql_params = [school_id]
+        if department:
+            query = query.replace('WHERE school_id = ?', 'WHERE school_id = ? AND department = ?')
+            sql_params.append(department)
+        staff_data = db.execute(query, sql_params).fetchall()
 
         # Add data
         for row, staff in enumerate(staff_data, 4):
@@ -2356,7 +2372,7 @@ class ExcelReportGenerator:
         bar_chart.set_categories(categories)
         ws.add_chart(bar_chart, "D3")
 
-    def _create_monthly_staff_records_sheet(self, wb, school_id, year, month):
+    def _create_monthly_staff_records_sheet(self, wb, school_id, year, month, department=None):
         """Create individual staff records sheet for monthly attendance"""
         ws = wb.create_sheet("Staff Records")
         
@@ -2539,7 +2555,7 @@ class ExcelReportGenerator:
         ws.cell(row=notes_row + 6, column=1, value="• Green highlighting = Excellent attendance (≥95%)")
         ws.cell(row=notes_row + 7, column=1, value="• Red highlighting = High absence count (>5) or poor attendance (<80%)")
 
-    def _create_monthly_summary_sheet(self, wb, school_id, year, month):
+    def _create_monthly_summary_sheet(self, wb, school_id, year, month, department=None):
         """Create monthly summary sheet"""
         ws = wb.create_sheet("Monthly Summary")
 
@@ -2710,7 +2726,7 @@ class ExcelReportGenerator:
         for col in range(1, 6):
             ws.column_dimensions[chr(64 + col)].width = 12
 
-    def _create_overtime_records_sheet(self, wb, school_id, year, month):
+    def _create_overtime_records_sheet(self, wb, school_id, year, month, department=None):
         """Create individual staff overtime records sheet"""
         ws = wb.create_sheet("Overtime Records")
         
@@ -2913,7 +2929,7 @@ class ExcelReportGenerator:
         ws.cell(row=notes_row + 4, column=1, value="• Green highlighting = Staff with overtime recorded")
         ws.cell(row=notes_row + 5, column=1, value="• Red highlighting = High overtime (>5 days or >20 hours)")
 
-    def _create_overtime_summary_sheet(self, wb, school_id, year, month):
+    def _create_overtime_summary_sheet(self, wb, school_id, year, month, department=None):
         """Create overtime summary sheet with statistics"""
         ws = wb.create_sheet("Overtime Summary")
         
